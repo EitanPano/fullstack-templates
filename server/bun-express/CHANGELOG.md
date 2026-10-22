@@ -1,5 +1,32 @@
 # Changelog
 
+## 2.1.0 — 2026-10-22
+
+- The `database/postgres` capability. With `--capability database=postgres` the overlay
+  replaces `services/db.ts` (`getDb()`, `Executor`) and every module's `service.ts` (and
+  `services/session.ts` with `auth`) with Postgres queries over Bun's built-in `SQL`; adds
+  `infra/postgres.ts` (a `Resource`, in `dependencies` beside `memory`, which stays the
+  cache), SQL migrations in `src/infra/migrations/` applied by `infra/scripts/migrate.ts`
+  (`bun run db:migrate`, with a `schema_migration` table and an advisory lock), and
+  `services/utils/postgres-error.ts`, which the error handler uses to answer 503
+  `upstream_unavailable` for an unreachable database and 409 `conflict` for a unique
+  violation. Query functions take an optional last `Executor`, and a module's `service.ts`
+  exports `withTransaction`. Tests get `bun run test:db`, which runs everything against the
+  `app_test` database.
+- The store test seam in `base/`: `tests/store.ts` (`describeStore`, `resetStore`,
+  `recordExists`, `deleteRecord`). No test moved; the suites that touched the store call the
+  seam. The overlay replaces it so that `describeStore` skips unless the database is named
+  `*_test`.
+- `DATABASE_URL` is a secret in `config/env.ts`: required in production, defaulted to the
+  local service elsewhere. Without a database nothing changes in a generated project. The
+  new markers `@database` and `@database:postgres` (and `@nodatabase`) mark the files that
+  differ: `env.ts`, `infra/dependency.ts`, `infra/memory.ts`, `error-handler.ts`, `compose.yaml`
+  and the tests that follow them.
+- `AGENTS.md` describes the Postgres variant, and corrects two statements: a query takes the
+  `Executor` as an optional last argument (a controller cannot import `services/db.ts`, so a
+  module exports `withTransaction`), and the test database is reached through `test:db`'s
+  preload and the seam `tests/store.ts`.
+
 ## 2.0.0 — 2026-10-22
 
 - `api/<module>/route.ts` is now `routes.ts`: a default-exported `Router` whose middleware
