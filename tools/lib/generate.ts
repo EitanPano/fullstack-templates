@@ -11,7 +11,7 @@ import path from 'node:path'
 import { parse, stringify } from 'yaml'
 import type { Catalog } from './catalog'
 import { CommandError, runCommand } from './commands'
-import { assembleCompose } from './compose'
+import { assembleCompose, composeServices } from './compose'
 import { applyDependencyChange } from './dependencies'
 import { copyTree, listFiles, pruneEmptyParents, removeTree } from './files'
 import { mergeGitignore } from './gitignore'
@@ -193,18 +193,31 @@ function composeFragment(
   return substitutePlaceholders(marked, values)
 }
 
+// A rerun adds packages to a project: the existing docker-compose.yml is the skeleton and only
+// the services it lacks are added, like .gitignore. Returns false when nothing needs writing.
 function writeCompose(
   catalog: Catalog,
   plan: GenerationPlan,
   values: ReadonlyMap<string, Record<string, string>>,
   staging: string,
-): void {
-  const skeleton = readFileSync(path.join(catalog.root, 'shared', 'docker', 'compose.yaml'), 'utf8')
+  log: Log,
+): boolean {
+  const existingFile = path.join(plan.out, 'docker-compose.yml')
+  const existing = existsSync(existingFile) ? readFileSync(existingFile, 'utf8') : undefined
+  const skeleton =
+    existing ?? readFileSync(path.join(catalog.root, 'shared', 'docker', 'compose.yaml'), 'utf8')
+  const present = existing === undefined ? new Set<string>() : composeServices(existing)
   const fragments = plan.packages.flatMap((pkg) => {
+    if (present.has(pkg.dir)) {
+      log(`docker-compose.yml already has service ${pkg.dir}; kept`)
+      return []
+    }
     const text = composeFragment(pkg, values.get(pkg.dir) ?? {})
     return text === undefined ? [] : [{ service: pkg.dir, text }]
   })
+  if (existing !== undefined && fragments.length === 0) return false
   writeFileSync(path.join(staging, 'docker-compose.yml'), assembleCompose(skeleton, fragments))
+  return true
 }
 
 function writeGitignore(catalog: Catalog, plan: GenerationPlan, staging: string): void {
@@ -223,15 +236,19 @@ function writeRootFiles(
   plan: GenerationPlan,
   perPackage: ReadonlyMap<string, Record<string, string>>,
   staging: string,
+  log: Log,
 ): void {
-  writeCompose(catalog, plan, perPackage, staging)
+  const composeWritten = writeCompose(catalog, plan, perPackage, staging, log)
   copyTree(
     path.join(catalog.root, 'shared', 'editorconfig', '.editorconfig'),
     path.join(staging, '.editorconfig'),
   )
   writeGitignore(catalog, plan, staging)
   const values = placeholderValues(plan.projectName)
-  for (const name of ['docker-compose.yml', '.editorconfig', '.gitignore']) {
+  const written = ['docker-compose.yml', '.editorconfig', '.gitignore'].filter(
+    (name) => name !== 'docker-compose.yml' || composeWritten,
+  )
+  for (const name of written) {
     rewrite(path.join(staging, name), (content) => substitutePlaceholders(content, values))
   }
 }
@@ -342,12 +359,14 @@ function moveIntoPlace(plan: GenerationPlan, staging: string, mover: Mover, log:
   }
   mover.ensureDir(path.join(plan.out, path.dirname(PROVENANCE_PATH)))
   mover.move(path.join(staging, PROVENANCE_PATH), path.join(plan.out, PROVENANCE_PATH))
-  for (const name of ['docker-compose.yml', '.editorconfig']) {
-    if (existsSync(path.join(plan.out, name))) {
-      log(`${name} already exists in ${plan.out}; kept`)
-    } else {
-      mover.move(path.join(staging, name), path.join(plan.out, name))
-    }
+  // The merged compose file replaces the old one (the Mover keeps a backup for the rollback).
+  if (existsSync(path.join(staging, 'docker-compose.yml'))) {
+    mover.move(path.join(staging, 'docker-compose.yml'), path.join(plan.out, 'docker-compose.yml'))
+  }
+  if (existsSync(path.join(plan.out, '.editorconfig'))) {
+    log(`.editorconfig already exists in ${plan.out}; kept`)
+  } else {
+    mover.move(path.join(staging, '.editorconfig'), path.join(plan.out, '.editorconfig'))
   }
   mover.move(path.join(staging, '.gitignore'), path.join(plan.out, '.gitignore'))
 }
@@ -374,7 +393,7 @@ export function generate(
       buildPackage(pkg, values.get(pkg.dir) ?? {}, staging)
     }
     log('==> Assembling root files')
-    writeRootFiles(catalog, plan, values, staging)
+    writeRootFiles(catalog, plan, values, staging, log)
     sweepPlaceholders(plan, staging)
     log(`==> Writing ${PROVENANCE_PATH}`)
     const provenancePath = writeProvenance(catalog, plan, staging, now())

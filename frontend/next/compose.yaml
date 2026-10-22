@@ -1,7 +1,7 @@
 build: ./__PACKAGE_DIR__
 environment:
   NODE_ENV: production
-  API_URL: http://__SERVER_DIR__:__SERVER_PORT__
+  API_URL: http://__SERVER_DIR__:__SERVER_PORT__ # @server
 ports: ["__PORT__:__PORT__"]
-depends_on: [__SERVER_DIR__]
+depends_on: [__SERVER_DIR__] # @server
 profiles: ["app"]

@@ -4,9 +4,11 @@ import type { LoadedTemplate } from './catalog'
 import { listFiles } from './files'
 import { applyMarkers, commentSyntaxFor, findLeftoverMarker, MarkerError } from './markers'
 import { isTextFile } from './placeholders'
+import { SERVER_SELECTION } from './plan'
 
 export function dryRunMarkers(template: LoadedTemplate): string[] {
-  const flagNames = Object.keys(template.manifest.flags ?? {})
+  // The reserved server selection varies like a flag: the plan may or may not hold a server.
+  const flagNames = [...Object.keys(template.manifest.flags ?? {}), SERVER_SELECTION]
   const capabilityNames = Object.keys(template.manifest.capabilities ?? {})
   const compose = path.join(template.dir, 'compose.yaml')
   const files = [...listFiles(path.join(template.dir, 'base')), compose]

@@ -120,8 +120,16 @@ function routeShorthandFlags(
   return routed
 }
 
-function buildSelections(member: Member, flags: Record<string, boolean>): Record<string, boolean> {
-  const selections: Record<string, boolean> = { ...flags }
+// "server" is reserved: a manifest cannot declare a flag of that name, so a marker can ask whether
+// the plan has a server package (a lone frontend must not depend on one).
+export const SERVER_SELECTION = 'server'
+
+function buildSelections(
+  member: Member,
+  flags: Record<string, boolean>,
+  hasServer: boolean,
+): Record<string, boolean> {
+  const selections: Record<string, boolean> = { ...flags, [SERVER_SELECTION]: hasServer }
   for (const kind of Object.keys(member.template.manifest.capabilities ?? {})) {
     selections[kind] = false
   }
@@ -175,7 +183,7 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
       template: member.template,
       flags,
       capabilities: {},
-      selections: buildSelections(member, flags),
+      selections: buildSelections(member, flags, server !== undefined),
       serverDir: server?.dir ?? null,
       serverPort: server?.template.manifest.http?.port ?? null,
       contractSkipped: consumer && server === undefined,

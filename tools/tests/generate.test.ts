@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import path from 'node:path'
 import { parse } from 'yaml'
 import { loadCatalog } from '../lib/catalog'
+import { removeTree } from '../lib/files'
 import {
   GenerateError,
   Mover,
@@ -317,5 +318,52 @@ describe('Mover', () => {
     failing = true
     expect(mover.rollback()).toEqual([path.join(staging, 'replaced-0')])
     expect(existsSync(path.join(staging, 'replaced-0', 'old.txt'))).toBe(true)
+  })
+})
+
+describe('generate: compose and the reserved server selection', () => {
+  const only = (out: string, template: string) =>
+    resolveRequest(catalog, request(out, { stack: undefined, template, skipPostGenerate: true }))
+  const composeOf = (out: string) =>
+    parse(readFileSync(path.join(out, 'docker-compose.yml'), 'utf8'))
+
+  test('a lone frontend has no depends_on and no API_URL', () => {
+    const out = tempDir()
+    generate(catalog, only(out, 'frontend/mini-ui'))
+    const frontend = composeOf(out).services.frontend
+    expect(frontend.depends_on).toBeUndefined()
+    expect(frontend.environment?.API_URL).toBeUndefined()
+  })
+
+  test('a frontend in a stack with a server keeps both lines', () => {
+    const out = tempDir()
+    generate(catalog, resolveRequest(catalog, request(out)))
+    const frontend = composeOf(out).services.frontend
+    expect(frontend.depends_on).toEqual(['backend'])
+    expect(frontend.environment.API_URL).toBe('http://backend:4000')
+  })
+
+  test('a rerun adds the missing service to the existing compose file', () => {
+    const out = tempDir()
+    generate(catalog, only(out, 'server/mini'))
+    const file = path.join(out, 'docker-compose.yml')
+    writeFileSync(file, readFileSync(file, 'utf8') + '# added by hand\n')
+    generate(catalog, only(out, 'frontend/mini-ui'))
+    const text = readFileSync(file, 'utf8')
+    const compose = parse(text)
+    expect(Object.keys(compose.services).sort()).toEqual(['backend', 'frontend'])
+    expect(compose.services.frontend.depends_on).toBeUndefined()
+    expect(text).toContain('# added by hand')
+  })
+
+  test('services already in the compose file are kept and logged', () => {
+    const out = tempDir()
+    generate(catalog, only(out, 'server/mini'))
+    const before = readFileSync(path.join(out, 'docker-compose.yml'), 'utf8')
+    removeTree(path.join(out, 'backend'))
+    const lines: string[] = []
+    generate(catalog, only(out, 'server/mini'), { log: (l) => lines.push(l) })
+    expect(readFileSync(path.join(out, 'docker-compose.yml'), 'utf8')).toBe(before)
+    expect(lines).toContain('docker-compose.yml already has service backend; kept')
   })
 })

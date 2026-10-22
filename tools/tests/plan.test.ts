@@ -33,7 +33,7 @@ describe('resolveRequest', () => {
     expect(plan.projectName).toBe('demo-app')
     expect(plan.packages.map((p) => p.dir)).toEqual(['backend', 'frontend'])
     expect(plan.packages[0]?.flags).toEqual({ auth: true })
-    expect(plan.packages[0]?.selections).toEqual({ auth: true })
+    expect(plan.packages[0]?.selections).toEqual({ auth: true, server: true })
     expect(plan.packages[1]?.serverDir).toBe('backend')
     expect(plan.packages[1]?.serverPort).toBe(4000)
     expect(plan.packages[1]?.contractSkipped).toBe(false)
@@ -41,7 +41,7 @@ describe('resolveRequest', () => {
   test('routes a flag shorthand to the one package that declares it', () => {
     const plan = resolveRequest(catalog, { ...base, stack: 'mini', flags: ['auth=false'] })
     expect(plan.packages[0]?.flags).toEqual({ auth: false })
-    expect(plan.packages[0]?.selections).toEqual({ auth: false })
+    expect(plan.packages[0]?.selections).toEqual({ auth: false, server: true })
   })
   test('rejects an ambiguous shorthand naming both packages', () => {
     const copy = copyFixture('catalog')

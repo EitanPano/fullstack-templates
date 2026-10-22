@@ -2,6 +2,11 @@ import { isMap, parseDocument } from 'yaml'
 
 export class ComposeError extends Error {}
 
+export function composeServices(text: string): Set<string> {
+  const services = parseDocument(text).get('services')
+  return new Set(isMap(services) ? services.items.map((pair) => String(pair.key)) : [])
+}
+
 export function assembleCompose(
   skeleton: string,
   fragments: ReadonlyArray<{ service: string; text: string }>,

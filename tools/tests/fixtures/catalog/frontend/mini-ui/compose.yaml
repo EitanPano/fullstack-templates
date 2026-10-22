@@ -1,4 +1,4 @@
 build: ./__PACKAGE_DIR__
 environment:
-  API_URL: http://__SERVER_DIR__:__SERVER_PORT__
-depends_on: [__SERVER_DIR__]
+  API_URL: http://__SERVER_DIR__:__SERVER_PORT__ # @server
+depends_on: [__SERVER_DIR__] # @server
