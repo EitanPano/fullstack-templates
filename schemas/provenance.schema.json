@@ -52,7 +52,7 @@
         }
       }
     },
-    "providers": { "type": "object" },
+    "providers": { "type": "object", "additionalProperties": { "type": "string" } },
     "answers": {
       "type": "object",
       "additionalProperties": false,

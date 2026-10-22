@@ -1,0 +1,10 @@
+schemaVersion: 1
+kind: database
+provider: fake
+summary: The fake database
+scripts:
+  test:db: bun ./ok.ts
+  db:migrate: bun ./ok.ts
+commands:
+  testDb: bun run test:db
+  migrate: bun run db:migrate

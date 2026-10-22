@@ -24,7 +24,7 @@ describe('readme matrix', () => {
       ?.split('|')
       .map((c) => c.trim())
     expect(mini?.[4]).toBe('auth')
-    expect(mini?.[5]).toBe('—')
+    expect(mini?.[5]).toBe('database')
     expect(ui?.[4]).toBe('—')
     expect(matrix.indexOf('| `mini` | server')).toBeLessThan(
       matrix.indexOf('| `mini-ui` | frontend'),

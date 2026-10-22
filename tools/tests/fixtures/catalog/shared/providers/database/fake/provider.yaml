@@ -1,0 +1,14 @@
+schemaVersion: 1
+kind: database
+id: fake
+name: Fake database
+service: database
+compose: compose.yaml
+env:
+  - name: DATABASE_URL
+    summary: Connection string of the fake database
+    local: fake://localhost:5432/app
+    compose: fake://database:5432/app
+    test: fake://localhost:5432/app_test
+files:
+  - db/init.sql

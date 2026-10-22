@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/EitanPano/fullstack-templates/schemas/capability.schema.json",
+  "title": "Capability manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "provider", "summary"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "enum": ["database", "cache", "messaging"]
+    },
+    "provider": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "summary": {
+      "type": "string",
+      "pattern": "^[^\\r\\n]+$"
+    },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "remove": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "add": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "dependencies": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "devDependencies": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "scripts": {
+      "type": "object",
+      "description": "Lines for the package manifest's scripts; unlike a command they may use ./ and shell syntax because the package manager runs them.",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9:_-]*$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "install": { "$ref": "#/$defs/command" },
+        "dev": { "$ref": "#/$defs/command" },
+        "check": { "$ref": "#/$defs/command" },
+        "typecheck": { "$ref": "#/$defs/command" },
+        "lint": { "$ref": "#/$defs/command" },
+        "format": { "$ref": "#/$defs/command" },
+        "test": { "$ref": "#/$defs/command" },
+        "testDb": { "$ref": "#/$defs/command" },
+        "testE2e": { "$ref": "#/$defs/command" },
+        "contract": { "$ref": "#/$defs/command" },
+        "migrate": { "$ref": "#/$defs/command" }
+      }
+    }
+  },
+  "$defs": {
+    "command": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A program plus whitespace-separated arguments, run without a shell: no pipes, redirects, quoting, variables or command substitution.",
+      "pattern": "^[^&|;<>'\"$`]+$"
+    }
+  }
+}

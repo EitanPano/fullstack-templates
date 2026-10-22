@@ -243,3 +243,122 @@ describe('validateAgainst negatives', () => {
     },
   )
 })
+
+describe('provider and capability manifests', () => {
+  const provider = {
+    schemaVersion: 1,
+    kind: 'database',
+    id: 'postgres',
+    name: 'PostgreSQL',
+    service: 'database',
+    compose: 'compose.yaml',
+    env: [
+      {
+        name: 'DATABASE_URL',
+        summary: 'connection string',
+        local: 'postgres://localhost:5432/app',
+        compose: 'postgres://database:5432/app',
+        test: 'postgres://localhost:5432/app_test',
+      },
+    ],
+    files: ['db/init.sql'],
+  }
+  const capability = {
+    schemaVersion: 1,
+    kind: 'database',
+    provider: 'postgres',
+    summary: 'PostgreSQL through Drizzle',
+    dependencies: { add: { dependencies: { pg: '^8' } }, remove: [] },
+    scripts: { 'test:db': 'bun test ./tests/db', 'db:migrate': 'bun ./src/migrate.ts' },
+    commands: { testDb: 'bun run test:db', migrate: 'bun run db:migrate' },
+  }
+
+  test('accepts a provider and a capability manifest', () => {
+    expect(validateAgainst('provider', provider)).toEqual([])
+    expect(validateAgainst('provider', { ...provider, env: [], files: undefined })).toEqual([])
+    expect(validateAgainst('capability', capability)).toEqual([])
+    expect(
+      validateAgainst('capability', {
+        schemaVersion: 1,
+        kind: 'cache',
+        provider: 'redis',
+        summary: 's',
+      }),
+    ).toEqual([])
+  })
+  test('rejects a provider missing a required field', () => {
+    const rest: Record<string, unknown> = { ...provider }
+    delete rest.service
+    expect(validateAgainst('provider', rest)).toContainEqual(
+      "/ must have required property 'service'",
+    )
+  })
+  test('rejects a capability missing a required field', () => {
+    const rest: Record<string, unknown> = { ...capability }
+    delete rest.summary
+    expect(validateAgainst('capability', rest)).toContainEqual(
+      "/ must have required property 'summary'",
+    )
+  })
+  test('rejects a kind outside the capability kinds', () => {
+    expect(validateAgainst('provider', { ...provider, kind: 'queue' })).not.toEqual([])
+    expect(validateAgainst('capability', { ...capability, kind: 'queue' })).not.toEqual([])
+  })
+  test('rejects a provider env name that is not SCREAMING_SNAKE_CASE', () => {
+    const env = [{ ...provider.env[0], name: 'databaseUrl' }]
+    expect(validateAgainst('provider', { ...provider, env })).toContainEqual(
+      expect.stringMatching(/^\/env\/0\/name must match pattern/),
+    )
+  })
+  test('rejects a provider env entry without a test value', () => {
+    const entry: Record<string, unknown> = { ...provider.env[0] }
+    delete entry.test
+    expect(validateAgainst('provider', { ...provider, env: [entry] })).not.toEqual([])
+  })
+  test('rejects a provider file path that escapes the directory', () => {
+    expect(validateAgainst('provider', { ...provider, files: ['../x'] })).not.toEqual([])
+  })
+  test('rejects a multi-line summary', () => {
+    expect(validateAgainst('capability', { ...capability, summary: 'a\nb' })).not.toEqual([])
+    const env = [{ ...provider.env[0], summary: 'a\nb' }]
+    expect(validateAgainst('provider', { ...provider, env })).not.toEqual([])
+  })
+  test('rejects a commands key outside the vocabulary', () => {
+    expect(
+      validateAgainst('capability', { ...capability, commands: { build: 'bun x' } }),
+    ).not.toEqual([])
+  })
+  test('rejects a command with shell syntax', () => {
+    expect(
+      validateAgainst('capability', { ...capability, commands: { testDb: 'bun a | cat' } }),
+    ).not.toEqual([])
+  })
+  test('rejects a script name with a space', () => {
+    expect(
+      validateAgainst('capability', { ...capability, scripts: { 'test db': 'bun x' } }),
+    ).not.toEqual([])
+  })
+  test('rejects an empty script line', () => {
+    expect(
+      validateAgainst('capability', { ...capability, scripts: { 'test:db': '' } }),
+    ).not.toEqual([])
+  })
+  test('rejects an unknown capability field', () => {
+    expect(validateAgainst('capability', { ...capability, extra: 1 })).not.toEqual([])
+  })
+  test('provenance providers maps a kind to a provider id', () => {
+    const record = {
+      schemaVersion: 1,
+      catalog: { repository: 'r', version: 'v0.1.0', commit: null },
+      generatedAt: '2026-10-22T10:00:00Z',
+      stack: null,
+      packages: {},
+      providers: { database: 'postgres' },
+      answers: { projectName: 'demo' },
+    }
+    expect(validateAgainst('provenance', record)).toEqual([])
+    expect(validateAgainst('provenance', { ...record, providers: { database: {} } })).not.toEqual(
+      [],
+    )
+  })
+})
