@@ -1,6 +1,6 @@
 # ADR 0001: the template catalog and how the harness consumes it
 
-Status: proposed (2026-10-22)
+Status: accepted (2026-10-22)
 Owner: Eitan
 Repositories: `github.com/EitanPano/fullstack-templates` (this one, new) and
 `github.com/EitanPano/fullstack-dev-harness` (the consumer)
