@@ -311,6 +311,10 @@ function runPostGenerate(plan: GenerationPlan, staging: string, log: Log): void 
   }
 }
 
+const RENAME_ATTEMPTS = 5
+const RENAME_DELAY_MS = 100
+const TRANSIENT_RENAME_CODES = new Set(['EPERM', 'EBUSY', 'EACCES'])
+
 // Every rename is recorded with its inverse, so a failure part-way puts `out` back as it was.
 export class Mover {
   private readonly undo: Array<() => void> = []
@@ -319,16 +323,38 @@ export class Mover {
   constructor(
     private readonly backupDir: string,
     private readonly rename: (from: string, to: string) => void = renameSync,
+    private readonly sleep: (ms: number) => void = Bun.sleepSync,
   ) {}
+
+  // On Windows the final move can fail with EPERM right after the post-generate commands ran in
+  // staging (a lingering file handle or an antivirus scan); the same rename succeeds shortly
+  // after. Only `move` retries: a rollback step that fails must be reported, not repeated.
+  private renameWithRetry(from: string, to: string): void {
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        this.rename(from, to)
+        return
+      } catch (error) {
+        const code = (error as { code?: unknown } | null)?.code
+        if (
+          attempt >= RENAME_ATTEMPTS ||
+          typeof code !== 'string' ||
+          !TRANSIENT_RENAME_CODES.has(code)
+        )
+          throw error
+        this.sleep(RENAME_DELAY_MS * attempt)
+      }
+    }
+  }
 
   move(from: string, to: string): void {
     if (existsSync(to)) {
       const backup = path.join(this.backupDir, `replaced-${String(this.undo.length)}`)
-      this.rename(to, backup)
+      this.renameWithRetry(to, backup)
       this.backups.push(backup)
       this.undo.push(() => this.rename(backup, to))
     }
-    this.rename(from, to)
+    this.renameWithRetry(from, to)
     this.undo.push(() => this.rename(to, from))
   }
 
