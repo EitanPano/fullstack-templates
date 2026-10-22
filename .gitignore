@@ -1,6 +1,9 @@
 # dependencies and generated output
 node_modules/
 .superpowers/
+.next/
+*.tsbuildinfo
+next-env.d.ts
 
 # secrets
 .env
