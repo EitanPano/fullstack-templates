@@ -25,6 +25,66 @@ APIs. Data reaches client components through props or server actions, never thro
 or `revalidateTag` for what it changed, and returns an `ActionResult` that the client leaf
 shows with `sonner`.
 
+## Adding a feature
+
+1. Create `src/feature/<name>/` (singular) with `model.ts` (types, form schemas), `server/`
+   (loaders and server actions) and `ui/` (components). `server/` is the only place that
+   imports `@/lib/api/client`; lint enforces it. `src/feature/health/` is the worked example.
+2. If the server's contract changed, run `bun run api:types`. `src/lib/api/schema.d.ts` is
+   generated and never edited by hand.
+3. Components are Server Components. Add `'use client'` only to a leaf that needs state,
+   effects or browser APIs, and pass it data and server actions as props.
+4. A loader runs on the server and returns a value for an expected failure (see Errors). A
+   server action validates its input, calls the API, calls `revalidatePath` or
+   `revalidateTag` for what it changed, and returns an `ActionResult`.
+5. Add the route in `src/app/<route>/`: a `page.tsx` that composes the feature and nothing
+   else, plus `loading.tsx` and `error.tsx` for the new segment.
+6. Configuration comes only through `src/env.ts`. A browser-visible value is `NEXT_PUBLIC_*`,
+   declared in a separate public schema, and listed in the package's example env file.
+
+## Styling
+
+- Tailwind utility classes only: no new `.css` files beyond `src/app/globals.css`, no inline
+  styles.
+- Design tokens are CSS variables in `:root` in `globals.css`, exposed to utilities through
+  `@theme inline`. Add a token there instead of a literal colour or size in a component.
+- Toasts use `sonner`: concise and action-oriented ("Status refreshed", not "Operation
+  completed successfully"). Icons come from `lucide-react`, the same icon for the same
+  concept everywhere, with `aria-hidden` when a text label sits next to it.
+- Use semantic HTML, labelled controls and keyboard-reachable interactions. The target is
+  WCAG 2.2 AA, checked by the axe scan in the e2e tests.
+
+## Errors
+
+- Every new route segment gets an `error.tsx` (a Client Component, see `src/app/error.tsx`) and
+  the root has `not-found.tsx`. Their messages are user-safe: no stack trace, no query text,
+  no internal URL or secret. The cause stays in the server log.
+- A loader catches an expected failure (the API answers with an error status, or is
+  unreachable), logs the cause with `console.error`, and returns a value the UI renders, as
+  `getHealth` does with `reachable: false`. An unexpected error is thrown and reaches the
+  nearest `error.tsx`.
+- Every server action returns `ActionResult` from `src/shared/lib/action.ts`:
+  `{ ok: true, data }` or `{ ok: false, error }`. The client leaf shows the outcome with
+  `toast.success` or `toast.error`, as `RefreshButton` does; expected failures are values,
+  never exceptions.
+- The client from `@/lib/api/client` is `openapi-fetch`: it does not throw on an HTTP error
+  status, it returns `{ data, error, response }`. Check `data === undefined` and map the
+  status to a message the user can act on; a network failure throws, so wrap it in `try`.
+
+## Tests
+
+- Unit tests live in `tests/unit/` and run with `bun run test` (Vitest, React Testing
+  Library, jsdom). Components: props in, roles and text out, with `userEvent` for input.
+  Loaders and actions run with the API stubbed through `vi.stubGlobal('fetch', ...)`; no
+  test starts the server. `server-only` is aliased to `tests/stub/server-only.ts` in
+  `vitest.config.mts` so server code can be imported.
+- E2E tests live in `tests/e2e/` (Playwright with `@axe-core/playwright`): one test per user
+  journey, each with an axe scan. `bun run test:e2e` starts the server and this app through
+  the `webServer` entries in `playwright.config.ts`. Install the browser once with
+  `bun x playwright install chromium` (add `--with-deps` on Linux).
+- Every new behaviour gets a test for the happy path and at least one for a failure or empty
+  path. No `.skip` or `.only`; a removed test is named in the stage report.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know

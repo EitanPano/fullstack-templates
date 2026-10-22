@@ -43,7 +43,7 @@ export class AppError extends Error {
   }
 }
 
-// The envelope every non-2xx response carries (error-handling skill).
+// The envelope every non-2xx response carries (see `AGENTS.md › Errors`).
 export const ErrorBody = z
   .object({
     error: z.object({

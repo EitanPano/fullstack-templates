@@ -3,7 +3,7 @@ import type { ZodType } from 'zod'
 import { AppError } from './error'
 import { z } from './zod'
 
-// Cursor pagination for every list endpoint (api-design skill): `?cursor=&limit=` in,
+// Cursor pagination for every list endpoint: `?cursor=&limit=` in,
 // `{ items, nextCursor }` out. The cursor is opaque to clients: the data layer decides
 // what it encodes (typically the last row's sort key and id).
 export const PageQuery = z.object({

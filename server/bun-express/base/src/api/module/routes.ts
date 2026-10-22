@@ -8,8 +8,8 @@
 // Reference module: README > Adding a module explains how to copy it.
 // @noauth-start
 // Every endpoint is public: the product has no accounts. A plan that adds them mounts the
-// gate here per endpoint and the handler resolves the caller; the harness's `--auth full`
-// scaffold shows the pattern.
+// gate here per endpoint and the handler resolves the caller; a scaffold generated with
+// the `auth` flag on shows the pattern.
 // @noauth-end
 import { Router } from 'express'
 
