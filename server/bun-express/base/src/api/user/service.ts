@@ -1,166 +1,72 @@
-// service.ts belongs: the user module's business rules; it is private to the module. It throws
-// AppError and maps stored records to the public shape. It does not belong: HTTP concerns,
-// queries (repository.ts) or token handling. A password hash never leaves this file.
-import { randomUUID } from 'node:crypto'
-
-import type { Caller } from '../../models/auth/type'
-import type { ContactType, UserRole } from '../../models/user/enum'
+// service.ts belongs: every query for the user module and nothing else; it is private to the
+// module (only its controller.ts imports it) and one of the few files that import the store
+// (services/db.ts). It does not belong: business rules, response shaping or events
+// (controller.ts).
+//
+// The data-layer task rewrites this file against the chosen engine. The cursor encoding is
+// this file's decision: the list is ordered by (createdAt, id) and the cursor carries the last
+// row's pair.
 import type { UserRecord } from '../../models/user/interface'
-import type {
-  ContactTarget,
-  CreateUserInput,
-  PublicUser,
-  UpdateUserInput,
-} from '../../models/user/type'
-import { publish } from '../../services/event'
-import { DUMMY_HASH, hashPassword, verifyPassword } from '../../services/security/crypto'
-import { AppError } from '../../services/utils/error'
-import type { Page, PageQuery } from '../../services/utils/pagination'
-import * as repository from './repository'
+import { type Collection, getDb } from '../../services/db'
+import { decodeCursor, encodeCursor, type Page, toPage } from '../../services/utils/pagination'
+import { z } from '../../services/utils/zod'
 
-export function toPublic(record: UserRecord): PublicUser {
-  return {
-    id: record.id,
-    email: record.email,
-    phone: record.phone ?? null,
-    role: record.role,
-    status: record.status,
-    emailVerifiedAt: record.emailVerifiedAt?.toISOString() ?? null,
-    phoneVerifiedAt: record.phoneVerifiedAt?.toISOString() ?? null,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString(),
-  }
+// The handle is taken per call: the store behind getDb() can be swapped or cleared.
+function users(): Collection<UserRecord> {
+  return getDb().collection<UserRecord>('user')
 }
 
-// The route gate is declarative; this is the check that holds when another module or a job
-// calls the controller directly.
-function assertRole(caller: Caller, role: UserRole): void {
-  if (caller.role !== role) throw new AppError('forbidden', 'insufficient role')
+const UserCursor = z.object({ createdAt: z.string(), id: z.string() })
+
+export async function findById(id: string): Promise<UserRecord | undefined> {
+  return users().get(id)
 }
 
-const normaliseEmail = (email: string) => email.trim().toLowerCase()
-
-async function requireRecord(id: string): Promise<UserRecord> {
-  const record = await repository.findById(id)
-  if (record === undefined) throw new AppError('not_found', 'user not found')
-  return record
+// The caller lower-cases; this compares exactly.
+export async function findByEmail(email: string): Promise<UserRecord | undefined> {
+  const [match] = await users().find((record) => record.email === email)
+  return match
 }
 
-// A caller whose account was deleted after the token was minted is no longer authenticated;
-// that is a 401, not a missing resource.
-async function requireCallerRecord(caller: Caller): Promise<UserRecord> {
-  const record = await repository.findById(caller.id)
-  if (record === undefined) throw new AppError('unauthenticated', 'authentication required')
-  return record
+// A phone is only an identity once its owner proved control of it with a code; an unverified
+// phone is a claim anyone can make by typing a number, so it never matches a lookup that
+// grants something (OTP login, the uniqueness check, verification).
+export async function findByVerifiedPhone(phone: string): Promise<UserRecord | undefined> {
+  const [match] = await users().find(
+    (record) => record.phone === phone && record.phoneVerifiedAt !== undefined,
+  )
+  return match
 }
 
-export async function getMe(caller: Caller): Promise<PublicUser> {
-  return toPublic(await requireCallerRecord(caller))
+export async function insert(record: UserRecord): Promise<UserRecord> {
+  return users().put(record)
 }
 
-export async function updateMe(caller: Caller, input: UpdateUserInput): Promise<PublicUser> {
-  const record = await requireCallerRecord(caller)
-  const next: UserRecord = { ...record, updatedAt: new Date() }
-  if (input.phone === null) {
-    delete next.phone
-    delete next.phoneVerifiedAt
-  } else if (input.phone !== undefined && input.phone !== record.phone) {
-    // Only a verified holder blocks the claim: an unverified claim must not lock the real owner
-    // out of their own number.
-    const owner = await repository.findByVerifiedPhone(input.phone)
-    if (owner !== undefined && owner.id !== record.id) {
-      throw new AppError('conflict', 'phone already in use')
-    }
-    next.phone = input.phone
-    delete next.phoneVerifiedAt
-  }
-  return toPublic(await repository.update(next))
+export async function update(record: UserRecord): Promise<UserRecord> {
+  return users().put(record)
 }
 
-export async function listUser(query: PageQuery, caller: Caller): Promise<Page<PublicUser>> {
-  assertRole(caller, 'admin')
-  const page = await repository.list(query)
-  return { items: page.items.map(toPublic), nextCursor: page.nextCursor }
+function compare(a: { createdAt: string; id: string }, b: { createdAt: string; id: string }) {
+  if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? -1 : 1
+  if (a.id === b.id) return 0
+  return a.id < b.id ? -1 : 1
 }
 
-export async function getUser(id: string, caller: Caller): Promise<PublicUser> {
-  assertRole(caller, 'admin')
-  return toPublic(await requireRecord(id))
+function keyOf(record: UserRecord) {
+  return { createdAt: record.createdAt.toISOString(), id: record.id }
 }
 
-// Sends nothing itself: a subscriber to `user.registered` sends the welcome message.
-export async function createUser(input: CreateUserInput): Promise<PublicUser> {
-  const email = normaliseEmail(input.email)
-  if ((await repository.findByEmail(email)) !== undefined) {
-    throw new AppError('conflict', 'email already registered')
-  }
-  const now = new Date()
-  const record = await repository.insert({
-    id: randomUUID(),
-    email,
-    passwordHash: await hashPassword(input.password),
-    role: 'user',
-    status: 'active',
-    createdAt: now,
-    updatedAt: now,
-  })
-  await publish('user.registered', { userId: record.id })
-  return toPublic(record)
-}
-
-// Every credential failure costs one password verification and gives one message, so neither
-// timing nor text tells a caller whether the email exists. The blocked check comes after the
-// password so a wrong password never learns that the account is blocked.
-export async function verifyCredentials(input: {
-  email: string
-  password: string
-}): Promise<PublicUser> {
-  const record = await repository.findByEmail(normaliseEmail(input.email))
-  const hash = record?.passwordHash
-  if (record === undefined || hash === undefined) {
-    await verifyPassword(input.password, DUMMY_HASH)
-    throw new AppError('unauthenticated', 'invalid credentials')
-  }
-  if (!(await verifyPassword(input.password, hash))) {
-    throw new AppError('unauthenticated', 'invalid credentials')
-  }
-  if (record.status === 'blocked') throw new AppError('forbidden', 'account blocked')
-  return toPublic(record)
-}
-
-export async function findUserByTarget(target: ContactTarget): Promise<PublicUser | null> {
-  const record =
-    target.type === 'email'
-      ? await repository.findByEmail(normaliseEmail(target.value))
-      : await repository.findByVerifiedPhone(target.value)
-  return record === undefined ? null : toPublic(record)
-}
-
-export async function getActiveUser(id: string): Promise<PublicUser> {
-  const record = await requireRecord(id)
-  if (record.status === 'blocked') throw new AppError('forbidden', 'account blocked')
-  return toPublic(record)
-}
-
-// Idempotent: an already verified contact keeps its original timestamp.
-export async function markVerified(id: string, type: ContactType): Promise<PublicUser> {
-  const record = await requireRecord(id)
-  const now = new Date()
-  if (type === 'email') {
-    if (record.emailVerifiedAt !== undefined) return toPublic(record)
-    return toPublic(await repository.update({ ...record, emailVerifiedAt: now, updatedAt: now }))
-  }
-  if (record.phoneVerifiedAt !== undefined) return toPublic(record)
-  if (record.phone !== undefined) {
-    const holder = await repository.findByVerifiedPhone(record.phone)
-    if (holder !== undefined && holder.id !== record.id) {
-      throw new AppError('conflict', 'phone already in use')
-    }
-  }
-  return toPublic(await repository.update({ ...record, phoneVerifiedAt: now, updatedAt: now }))
-}
-
-export async function setUserRole(id: string, role: UserRole): Promise<PublicUser> {
-  const record = await requireRecord(id)
-  return toPublic(await repository.update({ ...record, role, updatedAt: new Date() }))
+export async function list({
+  cursor,
+  limit,
+}: {
+  cursor?: string | undefined
+  limit: number
+}): Promise<Page<UserRecord>> {
+  const after = cursor === undefined ? undefined : decodeCursor(cursor, UserCursor)
+  const rows = (await users().find(() => true))
+    .sort((a, b) => compare(keyOf(a), keyOf(b)))
+    .filter((record) => after === undefined || compare(keyOf(record), after) > 0)
+    .slice(0, limit + 1)
+  return toPage(rows, limit, (record) => encodeCursor(keyOf(record)))
 }

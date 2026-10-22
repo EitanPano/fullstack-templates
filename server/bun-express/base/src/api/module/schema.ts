@@ -1,9 +1,9 @@
 // schema.ts belongs: this directory's contract, the zod schemas that validate requests, type
-// responses and produce openapi.json, plus the registration of each endpoint. It is the leaf
-// of the directory: route, controller and service import it, it imports only models/ and
-// services/utils/.
-// It does not belong: business rules (service.ts), data access (repository.ts) or HTTP
-// handling (route.ts).
+// responses and produce openapi.json, the request parts each endpoint validates, plus the
+// registration of each endpoint. It is the leaf of the directory: routes and controller import
+// it, it imports only models/ and services/utils/.
+// It does not belong: business rules or HTTP handling (controller.ts) or data access
+// (service.ts).
 import type { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi'
 
 import { MODULE_LIMITS } from '../../models/module/constants'
@@ -52,6 +52,14 @@ export type ModuleIdParams = z.infer<typeof ModuleIdParams>
 
 export const ListModuleQuery = PageQuery
 export const ModulePage = pageOf(PublicModule, 'Module')
+
+// The request parts each endpoint validates: routes.ts hands one to validate(), the controller
+// reads the parsed result back with readInput(), so the two cannot disagree.
+export const listModuleRequest = { query: ListModuleQuery }
+export const getModuleRequest = { params: ModuleIdParams }
+export const createModuleRequest = { body: CreateModuleBody }
+export const updateModuleRequest = { params: ModuleIdParams, body: UpdateModuleBody }
+export const deleteModuleRequest = { params: ModuleIdParams }
 
 export function registerModule(registry: OpenAPIRegistry) {
   registry.registerPath({

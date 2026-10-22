@@ -13,15 +13,18 @@ language-neutral core.
 - Two entry files: one that reads config, connects dependencies, listens and handles
   shutdown (`index`), and one that builds the application without listening (`server`),
   so tests import the app and never start infrastructure.
-- Directories: `config/` (env read once, constants, CORS, the route list), `api/<module>/`
-  (`route` the HTTP adapter, `controller` the module's public API, `schema` the leaf,
-  `service` and `repository` only when the module has rules or data of its own),
+- Directories: `config/` (env read once, constants, CORS, the route mount table),
+  `api/<module>/` (`routes` the router: middleware and one handler per endpoint, `controller`
+  the business rules, the module's only public API and its HTTP handlers, `schema` the leaf,
+  `service` the module's private queries, only when it has data of its own),
   `models/<name>/` (entity types), `middleware/`, `services/` (stateful shared
   capabilities; `security/`, `communicate/`, pure `utils/`), `infra/` (live connections
   as resources, `jobs/`, `subscribers/`, `scripts/`).
-- Request flow: `routes → route → middleware → controller → service → repository → db seam
-  → infra store`. Behaviour crosses modules only through controllers. A route holds no
-  logic beyond mounting middleware, validating, one controller call and the response.
+- Request flow: `config routes → module routes → middleware → controller handler → service →
+  db seam → infra store`. A module's routes hold nothing but the middleware chain and the
+  handler per endpoint; the handler holds the endpoint's logic. Behaviour crosses modules
+  only through rules a controller exports for that purpose, and a module's service is never
+  imported from outside it.
 - Import direction enforced by the language's tool: ESLint zones (TypeScript),
   import-linter (Python), ArchUnit (Java), NetArchTest (.NET), deptrac (PHP). What the
   tool cannot express is listed in `AGENTS.md` as a review rule.

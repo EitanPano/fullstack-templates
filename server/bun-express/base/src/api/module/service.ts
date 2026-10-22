@@ -1,100 +1,64 @@
-// service.ts belongs: this directory's business rules, private to it. It throws AppError,
-// maps stored records to response shapes and, when the engine has transactions, owns them.
-// It does not belong: HTTP (route.ts), request parsing (schema.ts) or queries (repository.ts).
-import { randomUUID } from 'node:crypto'
-
-import type { Caller } from '../../models/auth/type' // @auth
-import { ModuleStatus } from '../../models/module/enum'
+// service.ts belongs: every query for this directory's entity and nothing else, private to
+// this directory: only its controller.ts imports it.
+// It is one of the only files (with model.ts, when the engine defines models in code) that
+// import the store from services/db.ts; the data-layer task rewrites the bodies for the chosen
+// engine and keeps the signatures.
+// It does not belong: business rules, error mapping or events (controller.ts).
 import type { ModuleRecord } from '../../models/module/interface'
-import type { CreateModuleInput, PublicModule, UpdateModuleInput } from '../../models/module/type'
-import type { UserRole } from '../../models/user/enum' // @auth
-import { AppError } from '../../services/utils/error'
-import type { Page, PageQuery } from '../../services/utils/pagination'
-import * as repository from './repository'
+import { getDb } from '../../services/db'
+import { decodeCursor, encodeCursor, toPage, type Page } from '../../services/utils/pagination'
+import { z } from '../../services/utils/zod'
 
-function toPublic(record: ModuleRecord): PublicModule {
-  return {
-    id: record.id,
-    name: record.name,
-    status: record.status,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString(),
-  }
+// Taken per call, never at file scope: a swapped or reset store must be the one used.
+const modules = () => getDb().collection<ModuleRecord>('module')
+
+// The cursor encodes the sort key (createdAt, id); the id breaks ties between equal timestamps.
+const Cursor = z.object({ createdAt: z.iso.datetime(), id: z.string() })
+type Cursor = z.infer<typeof Cursor>
+
+function cursorOf(record: ModuleRecord): string {
+  return encodeCursor({ createdAt: record.createdAt.toISOString(), id: record.id })
 }
 
-// @auth-start
-// The route gate (requireRole) already refuses the wrong role; the service checks the caller
-// it was handed too, so a controller called from another api/ directory cannot skip the rule.
-function assertRole(caller: Caller, role: UserRole): void {
-  if (caller.role !== role) throw new AppError('forbidden', 'insufficient role')
+export function findModuleById(id: string): Promise<ModuleRecord | undefined> {
+  return modules().get(id)
 }
 
-// @auth-end
-async function requireRecord(id: string): Promise<ModuleRecord> {
-  const record = await repository.findById(id)
-  if (record === undefined) throw new AppError('not_found', 'module not found')
-  return record
+export function createModule(record: ModuleRecord): Promise<ModuleRecord> {
+  return modules().put(record)
 }
 
-export async function listModule(query: PageQuery): Promise<Page<PublicModule>> {
-  const page = await repository.list({ cursor: query.cursor, limit: query.limit })
-  return { items: page.items.map(toPublic), nextCursor: page.nextCursor }
+// `put` upserts by id, so an update is the same call as a create.
+export function updateModule(record: ModuleRecord): Promise<ModuleRecord> {
+  return modules().put(record)
 }
 
-export async function getModule(id: string): Promise<PublicModule> {
-  return toPublic(await requireRecord(id))
+export function deleteModule(id: string): Promise<boolean> {
+  return modules().delete(id)
 }
 
-// @auth-start
-// Any authenticated caller may create. An entity owned by its creator would store `caller.id`
-// in an `ownerId` field here; this template has no owner, so there is no ownership rule.
-export async function createModule(
-  input: CreateModuleInput,
-  _caller: Caller,
-): Promise<PublicModule> {
-// @auth-end
-// @noauth-start
-export async function createModule(input: CreateModuleInput): Promise<PublicModule> {
-// @noauth-end
-  const now = new Date()
-  const record = await repository.insert({
-    id: randomUUID(),
-    name: input.name,
-    status: ModuleStatus.active,
-    createdAt: now,
-    updatedAt: now,
-  })
-  return toPublic(record)
+// (createdAt, id) ascending; fetches `limit + 1` rows so toPage can tell whether a next page
+// exists. An invalid cursor throws a 400 from decodeCursor.
+export async function listModules({
+  cursor,
+  limit,
+}: {
+  cursor: string | undefined
+  limit: number
+}): Promise<Page<ModuleRecord>> {
+  const after = cursor === undefined ? undefined : decodeCursor(cursor, Cursor)
+  const records = await modules().find((record) => after === undefined || isAfter(record, after))
+  records.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || compareId(a.id, b.id))
+  return toPage(records.slice(0, limit + 1), limit, cursorOf)
 }
 
-// @auth-start
-// Any authenticated caller may update. An ownership rule would compare `caller.id` with the
-// loaded record's `ownerId` and throw `forbidden` on a mismatch; the template has none.
-export async function updateModule(
-  id: string,
-  input: UpdateModuleInput,
-  _caller: Caller,
-): Promise<PublicModule> {
-// @auth-end
-// @noauth-start
-export async function updateModule(id: string, input: UpdateModuleInput): Promise<PublicModule> {
-// @noauth-end
-  const record = await requireRecord(id)
-  const saved = await repository.update({
-    ...record,
-    name: input.name ?? record.name,
-    status: input.status ?? record.status,
-    updatedAt: new Date(),
-  })
-  return toPublic(saved)
+function isAfter(record: ModuleRecord, after: Cursor): boolean {
+  const at = record.createdAt.getTime()
+  const floor = Date.parse(after.createdAt)
+  return at > floor || (at === floor && record.id > after.id)
 }
 
-// @auth-start
-export async function deleteModule(id: string, caller: Caller): Promise<void> {
-  assertRole(caller, 'admin')
-// @auth-end
-// @noauth-start
-export async function deleteModule(id: string): Promise<void> {
-// @noauth-end
-  if (!(await repository.remove(id))) throw new AppError('not_found', 'module not found')
+function compareId(a: string, b: string): number {
+  if (a === b) return 0
+  return a < b ? -1 : 1
 }

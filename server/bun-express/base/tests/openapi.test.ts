@@ -5,8 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi'
 import request from 'supertest'
 
-import { modules } from '../src/config/routes'
-import { buildOpenApiDocument } from '../src/openapi'
+import { buildOpenApiDocument, registrations } from '../src/openapi'
 import { app } from '../src/server'
 
 describe('openapi.json', () => {
@@ -35,20 +34,22 @@ describe('openapi.json', () => {
   })
 
   it('registers at least one path for every module in the list', () => {
-    for (const mod of modules) {
+    for (const register of registrations) {
       const registry = new OpenAPIRegistry()
-      mod.register(registry)
+      register(registry)
 
       expect(registry.definitions.some((d) => d.type === 'route')).toBe(true)
     }
   })
 
-  it('mounts every module under /api: its first registered route is reachable', async () => {
-    for (const mod of modules) {
+  // The registration list lives in openapi.ts and the mount table in config/routes.ts: this is
+  // what keeps a documented module from being left unmounted.
+  it('mounts every documented module under /api: its first registered route is reachable', async () => {
+    for (const register of registrations) {
       const registry = new OpenAPIRegistry()
-      mod.register(registry)
+      register(registry)
       const definition = registry.definitions.find((d) => d.type === 'route')
-      if (definition?.type !== 'route') throw new Error(`no route registered for ${mod.path}`)
+      if (definition?.type !== 'route') throw new Error(`no route registered by ${register.name}`)
       const { method, path } = definition.route
 
       const res = await request(app)[method as 'get' | 'post' | 'put' | 'patch' | 'delete'](path)

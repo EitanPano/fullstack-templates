@@ -1,7 +1,7 @@
 // session.ts belongs: refresh sessions with rotation and reuse detection. It keeps its own
-// queries because it is not a module and has no repository.ts; the data-layer task rewrites it
+// queries because it is not a module and has no service.ts; the data-layer task rewrites it
 // against the chosen engine. It does not belong: token verification (security/jwt.ts), cookies
-// or HTTP concerns (the auth controller and route).
+// or HTTP concerns (the auth controller).
 //
 // The collection is taken from `getDb()` per call so a swapped or reset store is always the
 // one used.

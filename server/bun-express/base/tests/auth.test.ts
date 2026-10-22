@@ -10,7 +10,7 @@ import {
 } from 'bun:test'
 import request from 'supertest'
 
-import * as userRepository from '../src/api/user/repository'
+import * as userService from '../src/api/user/service'
 import { memory } from '../src/infra/memory'
 import { pubsub } from '../src/infra/pubsub'
 import type { AuthTokens } from '../src/models/auth/type'
@@ -95,18 +95,18 @@ async function signedIn(email: string) {
 }
 
 async function verifyContact(id: string, type: 'email' | 'phone') {
-  const record = await userRepository.findById(id)
+  const record = await userService.findById(id)
   if (record === undefined) throw new Error('user missing')
   const now = new Date()
-  await userRepository.update(
+  await userService.update(
     type === 'email' ? { ...record, emailVerifiedAt: now } : { ...record, phoneVerifiedAt: now },
   )
 }
 
 async function block(id: string) {
-  const record = await userRepository.findById(id)
+  const record = await userService.findById(id)
   if (record === undefined) throw new Error('user missing')
-  await userRepository.update({ ...record, status: 'blocked' })
+  await userService.update({ ...record, status: 'blocked' })
 }
 
 describe('register', () => {
@@ -179,6 +179,15 @@ describe('login', () => {
     await block(body(res).user.id)
 
     expect((await login('ada@example.com')).status).toBe(403)
+  })
+
+  it('checks the password before the blocked status: a wrong password stays a 401', async () => {
+    const { res } = await signedIn('ada@example.com')
+    await block(body(res).user.id)
+    const wrong = await login('ada@example.com', 'not the password')
+
+    expect(wrong.status).toBe(401)
+    expect(body(wrong).error.message).toBe('invalid credentials')
   })
 
   it('is limited per email', async () => {
@@ -371,7 +380,7 @@ describe('otp request', () => {
 
   it("the console provider's log line never contains the code", async () => {
     // Asserted: the code is in the delivered message text, while the console provider's own log
-    // line carries the template name and channel only. The controller and otp.ts write no log
+    // line carries the template name and channel only. The auth service and otp.ts write no log
     // line on the delivery path at all.
     const lines: string[] = []
     const push = (line: string) => void lines.push(line)
@@ -557,7 +566,7 @@ describe('otp verification', () => {
 
   it('answers 403 when a code issued before the account was blocked is used', async () => {
     const code = await requestLoginCode()
-    const account = await userRepository.findByEmail('ada@example.com')
+    const account = await userService.findByEmail('ada@example.com')
     await block(account?.id ?? '')
     const out = await verify(code)
 
@@ -685,9 +694,9 @@ describe('phone ownership', () => {
     const attacker = await signedIn('mallory@example.com')
     // The claim itself is refused up front; store it directly to test verification as well.
     expect((await claim(attacker.bearer)).status).toBe(409)
-    const record = await userRepository.findById(body(attacker.res).user.id)
+    const record = await userService.findById(body(attacker.res).user.id)
     if (record === undefined) throw new Error('user missing')
-    await userRepository.update({ ...record, phone: phone.value })
+    await userService.update({ ...record, phone: phone.value })
     sent = []
     await request(app)
       .post('/api/auth/otp')

@@ -5,6 +5,7 @@ import request from 'supertest'
 
 import { memory } from '../src/infra/memory'
 import type { UserRole } from '../src/models/user/enum' // @auth
+import { drain, subscribe } from '../src/services/event'
 import { signAccess } from '../src/services/security/jwt' // @auth
 import { app } from '../src/server'
 
@@ -85,6 +86,21 @@ describe('POST /api/module', () => {
     expect(body.id).toMatch(/\S/)
     expect(new Date(body.createdAt).toISOString()).toBe(body.createdAt)
     expect(new Date(body.updatedAt).toISOString()).toBe(body.updatedAt)
+  })
+
+  it('publishes module.created with the new id after the write', async () => {
+    const seen: string[] = []
+    const unsubscribe = subscribe('module.created', ({ moduleId }) => {
+      seen.push(moduleId)
+    })
+
+    try {
+      const created = await create('evented')
+      await drain()
+      expect(seen).toEqual([created.id])
+    } finally {
+      unsubscribe()
+    }
   })
 
   // @auth-start

@@ -575,3 +575,13 @@ After v1, in this order unless Eitan reorders: `server/python-fastapi`, then
   carries a placeholder.
 - Index stack entries do not list packages; the bootstrap reads `stack.yaml` through the
   catalog tools.
+
+## Amendments (2026-10-22, after v0.1.0)
+
+- D4's server layering: `api/<module>/route.ts` becomes `routes.ts`, a default-exported router
+  whose endpoints are one line each (middleware, then a handler). `controller.ts` holds the
+  business rules (events, provider and service calls included), the HTTP handlers, and is the
+  module's only door: other modules, jobs, subscribers and scripts call its exported rules.
+  `repository.ts` becomes `service.ts`, the module's private queries. `config/routes.ts` is a
+  mount table (`registerRoutes(app)`, one `app.use` per module) and the OpenAPI registration
+  list moves to `openapi.ts`. `conventions.md` carries the new contract.

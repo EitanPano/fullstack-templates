@@ -1,11 +1,16 @@
 import { randomUUID } from 'node:crypto'
 
 import { beforeEach, describe, expect, it } from 'bun:test'
+import express from 'express'
 import request from 'supertest'
 
 import * as user from '../src/api/user/controller'
-import * as repository from '../src/api/user/repository'
+import { getUserRequest, listUserRequest } from '../src/api/user/schema'
+import * as service from '../src/api/user/service'
 import { memory } from '../src/infra/memory'
+import { requireAuth } from '../src/middleware/auth'
+import { errorHandler } from '../src/middleware/error-handler'
+import { validate } from '../src/middleware/validate'
 import type { UserRole } from '../src/models/user/enum'
 import type { PublicUser } from '../src/models/user/type'
 import { app } from '../src/server'
@@ -19,7 +24,7 @@ beforeEach(async () => {
 const PASSWORD = 'correct horse battery'
 
 function makeUser(email: string) {
-  return user.createUser({ input: { email, password: PASSWORD } })
+  return user.createUser({ email, password: PASSWORD })
 }
 
 // The auth endpoints arrive in the next task, so tests mint the access token directly.
@@ -31,7 +36,7 @@ const bearer = async (account: PublicUser) => `Bearer ${await tokenFor(account)}
 
 async function admin(email = 'admin@example.com') {
   const account = await makeUser(email)
-  return user.setUserRole({ id: account.id, role: 'admin' })
+  return user.setUserRole(account.id, 'admin')
 }
 
 // Resolves to the error a promise rejects with (bun's typed `rejects` matcher is not awaitable).
@@ -114,7 +119,7 @@ describe('PATCH /api/user/me', () => {
   it('clears phoneVerifiedAt when the phone changes', async () => {
     const account = await makeUser('a@example.com')
     await patch(account, { phone: '+14155550101' })
-    const verified = await user.markVerified({ id: account.id, type: 'phone' })
+    const verified = await user.markVerified(account.id, 'phone')
     expect(verified.phoneVerifiedAt).not.toBeNull()
 
     const res = await patch(account, { phone: '+14155550102' })
@@ -135,7 +140,7 @@ describe('PATCH /api/user/me', () => {
     const first = await makeUser('a@example.com')
     const second = await makeUser('b@example.com')
     await patch(first, { phone: '+14155550101' })
-    await user.markVerified({ id: first.id, type: 'phone' })
+    await user.markVerified(first.id, 'phone')
 
     const res = await patch(second, { phone: '+14155550101' })
 
@@ -251,27 +256,25 @@ describe('GET /api/user/:id', () => {
 })
 
 describe('controller', () => {
-  it('listUser rejects a user caller with forbidden (the service gate)', async () => {
+  // The handlers mounted without routes.ts's requireRole gate: their own role check must hold.
+  function ungated() {
+    const probe = express()
+    probe.get('/user', requireAuth, validate(listUserRequest), user.listUser)
+    probe.get('/user/:id', requireAuth, validate(getUserRequest), user.getUser)
+    probe.use(errorHandler)
+    return probe
+  }
+
+  it('listUser and getUser refuse a user caller even without the route gate', async () => {
     const account = await makeUser('a@example.com')
+    const header = await bearer(account)
 
-    expect(
-      await rejection(
-        user.listUser({
-          query: { limit: 20 },
-          caller: { id: account.id, role: 'user', sessionId: 's' },
-        }),
-      ),
-    ).toMatchObject({ code: 'forbidden' })
-  })
+    const list = await request(ungated()).get('/user').set('Authorization', header)
+    const get = await request(ungated()).get(`/user/${account.id}`).set('Authorization', header)
 
-  it('getUser rejects a user caller with forbidden', async () => {
-    const account = await makeUser('a@example.com')
-
-    expect(
-      await rejection(
-        user.getUser({ id: account.id, caller: { id: account.id, role: 'user', sessionId: 's' } }),
-      ),
-    ).toMatchObject({ code: 'forbidden' })
+    expect(list.status).toBe(403)
+    expect(get.status).toBe(403)
+    expect((get.body as ErrorBody).error.code).toBe('forbidden')
   })
 
   it('createUser rejects the same email in another case', async () => {
@@ -301,46 +304,24 @@ describe('controller', () => {
     }
   })
 
-  it('verifyCredentials returns the user for the right password', async () => {
+  it('findUserByEmail normalises the email and keeps the hash beside the user, never in it', async () => {
     const created = await makeUser('a@example.com')
 
-    const found = await user.verifyCredentials({
-      input: { email: 'A@example.com', password: PASSWORD },
-    })
+    const found = await user.findUserByEmail('  A@Example.com ')
 
-    expect(found.id).toBe(created.id)
+    expect(found?.user.id).toBe(created.id)
+    expect(found?.passwordHash).toStartWith('$argon2id$')
+    expect(found?.user).not.toHaveProperty('passwordHash')
   })
 
-  it('verifyCredentials gives an unknown email and a wrong password the same message', async () => {
-    await makeUser('a@example.com')
-
-    const unknown = await user
-      .verifyCredentials({ input: { email: 'nobody@example.com', password: PASSWORD } })
-      .catch((error: unknown) => error)
-    const wrong = await user
-      .verifyCredentials({ input: { email: 'a@example.com', password: 'wrong password' } })
-      .catch((error: unknown) => error)
-
-    expect(unknown).toMatchObject({ code: 'unauthenticated', message: 'invalid credentials' })
-    expect(wrong).toMatchObject({ code: 'unauthenticated', message: 'invalid credentials' })
-  })
-
-  it('verifyCredentials rejects a blocked user with forbidden only after the password', async () => {
+  it('findUserByEmail returns null for an unknown email and finds a blocked user', async () => {
     const created = await makeUser('a@example.com')
-    const record = await repository.findById(created.id)
+    const record = await service.findById(created.id)
     if (record === undefined) throw new Error('record missing')
-    await repository.update({ ...record, status: 'blocked' })
+    await service.update({ ...record, status: 'blocked' })
 
-    expect(
-      await rejection(
-        user.verifyCredentials({ input: { email: 'a@example.com', password: PASSWORD } }),
-      ),
-    ).toMatchObject({ code: 'forbidden', message: 'account blocked' })
-    expect(
-      await rejection(
-        user.verifyCredentials({ input: { email: 'a@example.com', password: 'wrong password' } }),
-      ),
-    ).toMatchObject({ code: 'unauthenticated' })
+    expect(await user.findUserByEmail('nobody@example.com')).toBeNull()
+    expect((await user.findUserByEmail('a@example.com'))?.user.status).toBe('blocked')
     expect(await rejection(user.getActiveUser(created.id))).toMatchObject({ code: 'forbidden' })
   })
 
@@ -350,22 +331,16 @@ describe('controller', () => {
 
   it('findUserByTarget finds by email and by verified phone, and returns null otherwise', async () => {
     const created = await makeUser('a@example.com')
-    await user.updateMe({
-      caller: { id: created.id, role: 'user', sessionId: 's' },
-      input: { phone: '+14155550101' },
-    })
-    const unverified = await user.findUserByTarget({
-      target: { type: 'phone', value: '+14155550101' },
-    })
-    await user.markVerified({ id: created.id, type: 'phone' })
+    await request(app)
+      .patch('/api/user/me')
+      .set('Authorization', await bearer(created))
+      .send({ phone: '+14155550101' })
+    const unverified = await user.findUserByTarget({ type: 'phone', value: '+14155550101' })
+    await user.markVerified(created.id, 'phone')
 
-    const byEmail = await user.findUserByTarget({
-      target: { type: 'email', value: 'a@example.com' },
-    })
-    const byPhone = await user.findUserByTarget({
-      target: { type: 'phone', value: '+14155550101' },
-    })
-    const none = await user.findUserByTarget({ target: { type: 'email', value: 'x@example.com' } })
+    const byEmail = await user.findUserByTarget({ type: 'email', value: 'a@example.com' })
+    const byPhone = await user.findUserByTarget({ type: 'phone', value: '+14155550101' })
+    const none = await user.findUserByTarget({ type: 'email', value: 'x@example.com' })
 
     expect(unverified).toBeNull()
     expect(byEmail?.id).toBe(created.id)
@@ -376,11 +351,11 @@ describe('controller', () => {
   it('markVerified sets the matching timestamp; setUserRole rejects an unknown id', async () => {
     const created = await makeUser('a@example.com')
 
-    const verified = await user.markVerified({ id: created.id, type: 'email' })
+    const verified = await user.markVerified(created.id, 'email')
 
     expect(verified.emailVerifiedAt).not.toBeNull()
     expect(verified.phoneVerifiedAt).toBeNull()
-    expect(await rejection(user.setUserRole({ id: 'missing', role: 'admin' }))).toMatchObject({
+    expect(await rejection(user.setUserRole('missing', 'admin'))).toMatchObject({
       code: 'not_found',
     })
   })

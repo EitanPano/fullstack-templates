@@ -1,15 +1,15 @@
 // validate.ts belongs: request validation as middleware. Every route validates the parts it
 // reads here, so a failure is always the same 400 envelope naming the part and the fields.
-// It does not belong: business rules (service.ts) or response shaping.
+// It does not belong: business rules (controller.ts) or response shaping.
 //
-// Every route copies this pattern; the same object is passed to both calls so the handler's
-// types follow the schemas:
+// Every module copies this pattern; the same object (declared in schema.ts) is passed to both
+// calls so the handler's types follow the schemas:
 //
-//   const createInput = { body: CreateModuleBody }
-//   moduleRoute.post('/', requireAuth, validate(createInput), async (_req, res) => { // @auth
-//   moduleRoute.post('/', validate(createInput), async (_req, res) => { // @noauth
-//     const { body } = readInput(res, createInput)
-//   })
+//   export const createModuleRequest = { body: CreateModuleBody } // schema.ts
+//   const validateCreate = validate(createModuleRequest) // routes.ts
+//   router.post('/', requireAuth, validateCreate, createModule) // @auth
+//   router.post('/', validateCreate, createModule) // @noauth
+//   const { body } = readInput(res, createModuleRequest) // controller.ts, in the handler
 //
 // Mount it after any rate limiter and before the handler: a 429 should not wait for parsing,
 // and a handler never sees unparsed input. readInput is an explicit helper rather than a

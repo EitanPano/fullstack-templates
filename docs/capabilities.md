@@ -59,14 +59,14 @@ Overlays and flags compose in a fixed order:
 3. Apply flags: remove `onlyPaths`, run the marker pass, apply dependency changes.
 
 A flag's `onlyPaths` therefore also removes overlay files at those paths: the postgres
-overlay ships its `user` repository and `session` rewrite, and `auth=false` drops them.
+overlay ships its `user` service and `session` rewrite, and `auth=false` drops them.
 Every template's `tests/cases.yaml` covers each flag alone, each capability alone, and
 each capability with every flag off. The README matrix lists only tested combinations.
 
 ## Database
 
 For a server: a `Resource` connected at boot, pinged by readiness and closed on shutdown;
-one repository per module; a separate test database; migrations or indexes shipped with the
+one data-access file per module; a separate test database; migrations or indexes shipped with the
 change that needs them. For a worker: the same client, no HTTP. These are the harness's
 `database` skill rules, made language-neutral; the language specifics live in the overlay
 and the template's `AGENTS.md`.

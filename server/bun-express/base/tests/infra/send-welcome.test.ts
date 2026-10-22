@@ -38,7 +38,7 @@ afterEach(() => {
 
 describe('sendWelcome', () => {
   it('mails the new user when user.registered is published', async () => {
-    await user.createUser({ input: { email: 'new@example.com', password: PASSWORD } })
+    await user.createUser({ email: 'new@example.com', password: PASSWORD })
     await drain()
 
     expect(sent).toHaveLength(1)
@@ -50,9 +50,7 @@ describe('sendWelcome', () => {
   it('does not fail createUser when the provider rejects', async () => {
     registerProvider('mail', { send: () => Promise.reject(new Error('smtp down')) })
 
-    const created = await user.createUser({
-      input: { email: 'other@example.com', password: PASSWORD },
-    })
+    const created = await user.createUser({ email: 'other@example.com', password: PASSWORD })
     await drain()
 
     expect(created.email).toBe('other@example.com')

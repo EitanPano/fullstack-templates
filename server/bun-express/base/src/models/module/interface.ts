@@ -1,7 +1,7 @@
 // This directory is the reference a developer copies for a new entity; the file kinds an entity
 // does not need are deleted after the copy.
 //
-// interface.ts belongs: the stored record, exactly what a repository reads and writes.
+// interface.ts belongs: the stored record, exactly what a module's service.ts reads and writes.
 // Timestamps are `Date`. An optional field is written `field?: T` (the project compiles with
 // `exactOptionalPropertyTypes`, so an absent field and `undefined` are different things).
 // It does not belong: the public shape, request inputs or value sets (type.ts, enum.ts).

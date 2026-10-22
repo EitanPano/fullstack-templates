@@ -3,7 +3,7 @@ templates:
   - id: bun-express
     kind: server
     path: server/bun-express
-    version: 1.0.0
+    version: 2.0.0
     summary: "Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus"
   - id: next
     kind: frontend

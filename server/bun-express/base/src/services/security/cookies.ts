@@ -1,5 +1,6 @@
 // cookies.ts belongs: reading and writing the auth cookies and the bearer header. Cookies are
-// transport, so only route.ts files call this; controllers and services never see a cookie.
+// transport, so only controller.ts files (the HTTP handlers) call this; services never see a
+// cookie.
 // It does not belong: token creation or verification (jwt.ts).
 import type { CookieOptions, Request, Response } from 'express'
 import { BEARER_PREFIX, COOKIE_NAMES, COOKIE_PATHS } from '../../config/constants'

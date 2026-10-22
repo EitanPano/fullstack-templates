@@ -29,7 +29,7 @@ Needs Bun 1.4+ and Node 24+.
 <!-- matrix:start -->
 | Template | Kind | Version | Flags | Capabilities | Summary |
 | --- | --- | --- | --- | --- | --- |
-| `bun-express` | server | 1.0.0 | auth | — | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
+| `bun-express` | server | 2.0.0 | auth | — | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
 | `next` | frontend | 1.0.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
 
 | Stack | Packages | Summary |

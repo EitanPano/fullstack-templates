@@ -40,6 +40,12 @@ export const ListUserQuery = PageQuery
 
 export const UserPage = pageOf(PublicUser, 'User')
 
+// The request parts each endpoint validates: routes.ts hands one to validate(), the controller
+// reads the parsed result back with readInput(), so the two cannot disagree.
+export const updateMeRequest = { body: UpdateMeBody }
+export const listUserRequest = { query: ListUserQuery }
+export const getUserRequest = { params: UserIdParams }
+
 export function registerUser(registry: OpenAPIRegistry) {
   registry.registerPath({
     method: 'get',

@@ -1,6 +1,7 @@
 // subscribers/ belongs: a reaction to an event, a `{ topic, handle }` object listed in
-// `infra/pubsub.ts`. It may call controllers and `services/`; never a route, service or
-// repository of a module. It does not belong: the rule that raised the event.
+// `infra/pubsub.ts`. It may call a module's controller.ts (its exported rules, never a handler)
+// and `services/`; never a module's routes or service. It does not belong: the rule that raised
+// the event.
 //
 // A failure (unknown user, blocked user, provider error) propagates to the bus, which logs it
 // (`subscriber failed topic=user.registered`) and never surfaces it to the publisher. The bus

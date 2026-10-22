@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import express from 'express'
 import request from 'supertest'
 
-import { ready } from '../src/api/health/route'
+import { getReadiness } from '../src/api/health/controller'
 import type { Resource } from '../src/infra/dependency'
 import { app } from '../src/server'
 
@@ -28,7 +28,7 @@ describe('GET /api/health/ready', () => {
 
   it('answers ok with an empty dependency map when nothing is registered', async () => {
     const probe = express()
-    probe.get('/ready', ready([]))
+    probe.get('/ready', getReadiness([]))
 
     const res = await request(probe).get('/ready')
 
@@ -38,7 +38,7 @@ describe('GET /api/health/ready', () => {
 
   it('reports degraded with 503 when a resource ping fails', async () => {
     const probe = express()
-    probe.get('/ready', ready([down]))
+    probe.get('/ready', getReadiness([down]))
 
     const res = await request(probe).get('/ready')
 

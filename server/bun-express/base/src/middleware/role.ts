@@ -1,8 +1,8 @@
 // role.ts belongs: the declarative role gate of a route. It does not belong: ownership or
-// other per-record rules (service.ts).
+// other per-record rules (controller.ts).
 //
-// The route gate is declarative and fails fast; the service still checks the forwarded caller
-// (plan 004 A4).
+// The route gate is declarative and fails fast; the controller's rule still checks the forwarded
+// caller (plan 004 A4).
 import type { RequestHandler } from 'express'
 
 import type { UserRole } from '../models/user/enum'

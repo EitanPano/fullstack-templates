@@ -28,7 +28,8 @@ export const Credentials = z
   .openapi('Credentials')
 export type Credentials = z.infer<typeof Credentials>
 
-// The route reads the transport (cookie first); the body is the fallback for a server-side client.
+// The controller reads the transport (cookie first); the body is the fallback for a server-side
+// client.
 export const RefreshBody = z
   .object({ refreshToken: z.string().optional() })
   .optional()
@@ -76,6 +77,15 @@ export const OtpVerified = z
   .openapi('OtpVerified') satisfies z.ZodType<OtpVerifiedType>
 
 export const Accepted = z.object({}).openapi('Accepted')
+
+// The request parts each endpoint validates: routes.ts hands one to validate(), the controller
+// reads the parsed result back with readInput(), so the two cannot disagree.
+export const registerRequest = { body: Credentials }
+export const loginRequest = { body: Credentials }
+export const refreshRequest = { body: RefreshBody }
+export const logoutRequest = { body: LogoutBody }
+export const otpRequest = { body: OtpRequestBody }
+export const otpVerificationRequest = { body: OtpVerificationBody }
 
 export function registerAuth(registry: OpenAPIRegistry) {
   registry.registerPath({

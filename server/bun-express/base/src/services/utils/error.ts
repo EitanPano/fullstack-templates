@@ -28,7 +28,7 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
   upstream_unavailable: 503,
 }
 
-// The one error type services throw. The route layer never builds HTTP errors itself.
+// The one error type controllers throw. A handler never builds HTTP errors itself.
 export class AppError extends Error {
   readonly code: ErrorCode
   readonly status: number

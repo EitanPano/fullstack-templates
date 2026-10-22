@@ -1,19 +1,19 @@
 import cookieParser from 'cookie-parser' // @auth
 import cors from 'cors'
-import express, { Router } from 'express'
+import express from 'express'
 import helmet from 'helmet'
 
 import { corsOptions } from './config/cors'
 import { env } from './config/env'
-import { mountRoutes } from './config/routes'
+import { registerRoutes } from './config/routes'
 import { errorHandler } from './middleware/error-handler'
 import { notFound } from './middleware/not-found'
 import { requestId } from './middleware/request-id'
 import { requestLog } from './middleware/request-log'
 import { buildOpenApiDocument } from './openapi'
 
-// The app, assembled in one place: middleware, the /api router built from the module list,
-// then the 404 and the error handler last. server.ts imports middleware/, config/ and
+// The app, assembled in one place: middleware, every module mounted under /api by
+// config/routes.ts, then the 404 and the error handler last. server.ts imports middleware/, config/ and
 // openapi.ts and nothing from api/ (routes come through config/routes.ts) or infra/. Nothing
 // here listens or touches infrastructure: tests import `app` as is, and index.ts starts the
 // infra, listens and handles shutdown.
@@ -38,9 +38,7 @@ app.use(express.json({ limit: '1mb' }))
 app.use(cookieParser()) // @auth
 
 // One line per module lives in config/routes.ts.
-const api = Router()
-mountRoutes(api)
-app.use('/api', api)
+registerRoutes(app)
 
 // The generated contract, served for tooling.
 app.get('/openapi.json', (_req, res) => {

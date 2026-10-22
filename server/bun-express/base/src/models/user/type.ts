@@ -16,6 +16,14 @@ export type PublicUser = {
   updatedAt: string
 }
 
+// The stored credential of an account, handed to auth (the module that verifies passwords)
+// beside the public shape, never inside it, so a response built from `user` cannot carry the
+// hash. `passwordHash` is undefined for an account that has no password.
+export type UserCredentials = {
+  user: PublicUser
+  passwordHash: string | undefined
+}
+
 export type CreateUserInput = {
   email: string
   password: string

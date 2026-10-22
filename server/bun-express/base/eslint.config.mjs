@@ -6,21 +6,23 @@ import tseslint from 'typescript-eslint'
 // encoded as deny zones, so a new file or subdirectory is constrained by default. Leaves:
 // models/ imports models/ only; config/constants.ts and config/env.ts import nothing from
 // src/; config/cors.ts imports config/env.ts; services/utils/ is pure. Named rules:
-// config/routes.ts is imported by server.ts and openapi.ts only and imports route.ts and
-// schema.ts only; infra/dependency.ts is open except to the leaves; stores (infra/ files other
-// than dependency.ts and pubsub.ts) are reached through services/db.ts and cache.ts, the bus
-// through services/event.ts; route/controller/service/schema never touch db.ts or cache.ts,
-// controllers and routes never publish. Per layer, the table's "may import" lists are deny
-// zones for everything else (route, controller, service, schema, repository/model, middleware,
-// services, infra, server.ts, openapi.ts, index.ts). infra/ imports api/ only in jobs/,
-// subscribers/ and scripts/, and there only controllers, schemas (type-only) and, in scripts,
-// model.ts. Nothing imports index.ts; only index.ts imports server.ts; only config/routes.ts
-// imports a route.ts. Cross-module imports are the regex blocks below.
+// config/routes.ts is imported by server.ts only and imports routes.ts and middleware/ only;
+// openapi.ts imports schema.ts; infra/dependency.ts is open except to the leaves; stores
+// (infra/ files other than dependency.ts and pubsub.ts) are reached through services/db.ts and
+// cache.ts, the bus through services/event.ts; only a module's service.ts and model.ts touch
+// db.ts or cache.ts, and they never publish: a controller does. Per layer, the table's "may
+// import" lists are deny zones for everything else (routes, controller, schema,
+// service/model, middleware, services, infra, server.ts, openapi.ts, index.ts). infra/
+// imports api/ only in jobs/, subscribers/ and scripts/, and there only controllers, schemas
+// (type-only) and, in scripts, model.ts. Nothing imports index.ts; only index.ts imports
+// server.ts; only config/routes.ts imports a routes.ts. Cross-module imports are the regex
+// blocks below: a module's controller.ts is its only door.
 // Not enforced (review): a vendor SDK package is imported only by its services/<vendor>.ts;
-// a route holds no logic beyond mounting, validating, one controller call and the response;
-// a controller forwards the caller; a cross-module flow is not atomic; which module has a // @auth
-// a cross-module flow is not atomic; which module has a // @noauth
-// service.ts.
+// a routes.ts holds nothing but the middleware chain and the handler per endpoint; another
+// module or a job calls a controller's exported rules, never a handler; a rule forwards the // @auth
+// caller; a cross-module flow is not atomic. // @auth
+// module or a job calls a controller's exported rules, never a handler; a cross-module flow // @noauth
+// is not atomic. // @noauth
 // src() turns a trailing `.ts` into `.{ts,mts}`, so every single-file pattern ends in a brace
 // and is recognised as a glob on Windows (a pattern with a single `*` or `!(…)` and no brace
 // is not), which also keeps `from` from mixing globs and plain paths. A directory pattern
@@ -128,21 +130,30 @@ const layering = [
     target: src('config/routes.ts'),
     from: [
       g.models,
-      g.middleware,
       g.infra,
       g.services,
       g.server,
       g.index,
       g.openapi,
       configExcept('routes'),
-      moduleFile('{controller,service,repository,model}'),
+      moduleFile('!(routes)'),
     ],
-    message: 'config/routes.ts imports every module route.ts and schema.ts and nothing else',
+    message:
+      'config/routes.ts imports every module routes.ts (and middleware/ for a mount-wide gate) and nothing else',
   },
   {
-    target: [g.models, g.api, g.middleware, g.infra, g.services, g.index, configExcept('routes')],
+    target: [
+      g.models,
+      g.api,
+      g.middleware,
+      g.infra,
+      g.services,
+      g.index,
+      g.openapi,
+      configExcept('routes'),
+    ],
     from: src('config/routes.ts'),
-    message: 'config/routes.ts is imported by server.ts and openapi.ts only',
+    message: 'config/routes.ts is imported by server.ts only',
   },
 
   // infra/dependency.ts and the stores
@@ -166,7 +177,7 @@ const layering = [
   // The store seams
   {
     target: [
-      moduleFile('{route,controller,service,schema}'),
+      moduleFile('{routes,controller,schema}'),
       g.middleware,
       g.server,
       g.index,
@@ -174,11 +185,11 @@ const layering = [
     ],
     from: src('services/db.ts'),
     message:
-      'only repository.ts and model.ts (and services/) use services/db.ts: a route, controller, service, schema, middleware or entry never touches a store',
+      'only a module service.ts and model.ts (and services/) use services/db.ts: a routes.ts, controller, schema, middleware or entry never touches a store',
   },
   {
     target: [
-      moduleFile('{route,controller,service,schema}'),
+      moduleFile('{routes,controller,schema}'),
       src('middleware/!(rate-limit).ts'),
       g.server,
       g.index,
@@ -186,12 +197,12 @@ const layering = [
     ],
     from: src('services/cache.ts'),
     message:
-      'only repository.ts and model.ts (and services/, and middleware/rate-limit.ts) use services/cache.ts',
+      'only a module service.ts and model.ts (and services/, and middleware/rate-limit.ts) use services/cache.ts',
   },
   {
-    target: moduleFile('{controller,route}'),
+    target: moduleFile('{routes,service,model}'),
     from: src('services/event.ts'),
-    message: 'a controller or route never publishes events: a service does',
+    message: 'a routes.ts, service.ts or model.ts never publishes events: a controller does',
   },
 
   // services/
@@ -247,7 +258,7 @@ const layering = [
   {
     target: moduleFile('schema'),
     from: [
-      moduleFile('{route,controller,service,repository,model}'),
+      moduleFile('{routes,controller,service,model}'),
       g.middleware,
       g.infra,
       ...servicesExcept({ dirs: ['utils'] }),
@@ -257,51 +268,37 @@ const layering = [
       "schema.ts is the leaf of a module: it imports services/utils/, models/, config/constants.ts and another module's schema.ts only",
   },
   {
-    target: moduleFile('route'),
+    target: moduleFile('routes'),
     from: [
-      moduleFile('{service,repository,model}'),
-      ...servicesExcept({ dirs: ['utils'], inside: { security: ['cookies'] } }), // @auth
-      ...servicesExcept({ dirs: ['utils'] }), // @noauth
-      ...infraExcept({ files: ['dependency'] }),
+      moduleFile('{service,model}'),
+      ...servicesExcept({ dirs: ['utils'] }),
+      g.infra,
       configExcept('constants'),
     ],
     message:
-      'a route adapts HTTP to its controller: it imports its controller and schema, middleware/, services/utils/, services/security/cookies.ts, models/, config/constants.ts and infra/dependency.ts types only', // @auth
-      'a route adapts HTTP to its controller: it imports its controller and schema, middleware/, services/utils/, models/, config/constants.ts and infra/dependency.ts types only', // @noauth
+      'a routes.ts wires middleware to its handlers: it imports its controller and schema, middleware/, services/utils/, models/ and config/constants.ts only',
   },
   {
     target: moduleFile('controller'),
     from: [
-      moduleFile('{route,repository,model}'),
-      g.middleware,
+      moduleFile('{routes,model}'),
       ...infraExcept({ files: ['dependency'] }),
       src('config/routes.ts'),
     ],
     message:
-      "a controller calls its service or another module's controller; it never touches the data layer, a route, middleware/ or infra/ (except dependency.ts)",
+      'a controller holds the rules and the handlers: it reaches data through its own service.ts and never imports a routes.ts, a model.ts, config/routes.ts or infra/ (except dependency.ts)',
   },
   {
-    target: moduleFile('service'),
+    target: moduleFile('{service,model}'),
     from: [
-      moduleFile('{route,controller}'),
-      g.middleware,
-      ...infraExcept({ files: ['dependency'] }),
-      src('config/routes.ts'),
-    ],
-    message:
-      'a service never imports a route, a controller, middleware/ or infra/ (except dependency.ts)',
-  },
-  {
-    target: moduleFile('{repository,model}'),
-    from: [
-      moduleFile('{route,controller,service,schema}'),
+      moduleFile('{routes,controller,schema}'),
       g.middleware,
       g.infra,
       ...servicesExcept({ files: ['logger', 'db', 'cache'], dirs: ['utils'] }),
       configExcept('constants'),
     ],
     message:
-      'the data layer is the bottom of a module: it imports services/db.ts, services/cache.ts, services/logger.ts, services/utils/, models/ and config/constants.ts only',
+      'service.ts (and model.ts) is the data layer at the bottom of a module: it imports services/db.ts, services/cache.ts, services/logger.ts, services/utils/, models/ and config/constants.ts only',
   },
 
   // api/ is reached from above only
@@ -323,7 +320,7 @@ const layering = [
   },
   {
     target: src('infra/{jobs,subscribers,scripts}/**'),
-    from: moduleFile('{route,service,repository}'),
+    from: moduleFile('{routes,service}'),
     message:
       'jobs, subscribers and scripts reach a module through its controller.ts and schema.ts (scripts also model.ts)',
   },
@@ -364,8 +361,8 @@ const layering = [
       g.server,
       g.index,
     ],
-    from: moduleFile('route'),
-    message: 'only config/routes.ts imports a route.ts',
+    from: moduleFile('routes'),
+    message: 'only config/routes.ts imports a routes.ts',
   },
   {
     target: g.server,
@@ -376,14 +373,14 @@ const layering = [
   {
     target: g.openapi,
     from: [
-      g.api,
+      moduleFile('!(schema)'),
       g.infra,
       g.middleware,
       g.models,
       ...servicesExcept({ dirs: ['utils'] }),
-      configExcept('routes'),
+      g.config,
     ],
-    message: 'openapi.ts imports config/routes.ts and services/utils/ only',
+    message: "openapi.ts imports every module's schema.ts and services/utils/ only",
   },
   {
     target: g.index,
@@ -415,8 +412,9 @@ const layering = [
 // block refuses all of it except a type-only import of the other module's schema.ts (a type
 // carries no behaviour). Two blocks widen that for the files that may cross: controller.ts
 // (the other module's controller, and its schema as a value) and schema.ts (the other
-// module's schema as a value, to embed its entity). A later flat-config block replaces the
-// rule for the files it matches, so each block states its whole policy.
+// module's schema as a value, to embed its entity). A third keeps HTTP out of the data layer.
+// A later flat-config block replaces the rule for the files it matches, so each block states
+// its whole policy.
 const otherModule = '^\\.\\./[^./][^/]*/'
 // A trailing .ts or .mts must not slip past an anchored name.
 const end = '(\\.m?ts)?$'
@@ -486,18 +484,35 @@ export default tseslint.config(
       '@typescript-eslint/no-restricted-imports': [
         'error',
         {
-          paths: [
-            {
-              name: 'express',
-              message:
-                'a controller never sees HTTP: no req, res, status or Express types; the route adapter does that',
-            },
-          ],
           patterns: [
             {
               regex: `${otherModule}(?!(controller|schema)${end})`,
               message:
-                "a controller crosses a module boundary through the other module's controller.ts (and its schema.ts)",
+                "a controller crosses a module boundary through the other module's controller.ts (and its schema.ts), never its service.ts",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/api/**/{service,model}.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'express',
+              message:
+                'the data layer never sees HTTP: no req, res, status or Express types; the controller does that',
+            },
+          ],
+          patterns: [
+            {
+              regex: `${otherModule}`,
+              message:
+                "the data layer never crosses a module boundary: a controller calls the other module's controller",
             },
           ],
         },
