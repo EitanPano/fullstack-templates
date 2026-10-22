@@ -1,0 +1,65 @@
+schemaVersion: 1
+id: bun-express
+kind: server
+name: Express 5 on Bun
+version: 1.0.0
+summary: "Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus"
+runtime: { language: typescript, platform: bun, minVersion: '1.4' }
+tools:
+  - { name: bun, min: '1.4' }
+  - { name: node, min: '24' }
+placeholders: [PROJECT_NAME]
+flags:
+  auth:
+    summary: Accounts, sessions, JWT, OTP; off means every endpoint is public
+    default: true
+    onlyPaths:
+      - src/api/auth
+      - src/api/user
+      - src/infra/jobs/session-cleanup.ts
+      - src/infra/subscribers/send-welcome.ts
+      - src/middleware/auth.ts
+      - src/middleware/role.ts
+      - src/models/auth
+      - src/models/session
+      - src/models/user
+      - src/services/communicate/templates
+      - src/services/security/cookies.ts
+      - src/services/security/jwt.ts
+      - src/services/security/otp.ts
+      - src/services/session.ts
+      - tests/auth.test.ts
+      - tests/infra/send-welcome.test.ts
+      - tests/infra/session-cleanup.test.ts
+      - tests/middleware/auth.test.ts
+      - tests/middleware/role.test.ts
+      - tests/services/cookies.test.ts
+      - tests/services/jwt.test.ts
+      - tests/services/otp.test.ts
+      - tests/services/session.test.ts
+      - tests/user.test.ts
+    dependencies:
+      remove: [cookie-parser, jose, '@types/cookie-parser']
+capabilities:
+  database: { providers: [] }
+  cache: { providers: [] }
+  messaging: { providers: [], mode: push }
+dependencies: { manifest: package.json, adapter: npm }
+commands:
+  install: bun install
+  dev: bun run dev
+  check: bun run check
+  typecheck: bun run typecheck
+  lint: bun run lint
+  format: bun run format
+  test: bun test
+  contract: bun run openapi
+contract: { produces: openapi.json }
+http: { port: 4000, health: /api/health, ready: /api/health/ready }
+gitignore: [node]
+agents: AGENTS.md
+defaultStack: next-bun-express
+postGenerate:
+  - install
+  - contract
+  - format
