@@ -134,8 +134,9 @@ function applyMarkerPass(pkg: PackagePlan, staging: string, pkgStaging: string):
 function sweepMarkers(staging: string, pkgStaging: string): void {
   for (const file of textFiles(pkgStaging)) {
     const lines = readFileSync(file, 'utf8').split('\n')
+    const syntax = commentSyntaxFor(file)
     for (const [index, line] of lines.entries()) {
-      const found = findLeftoverMarker(line)
+      const found = findLeftoverMarker(line, syntax)
       if (found !== null) {
         throw new GenerateError(
           `${toWhere(staging, file)}:${String(index + 1)}: undeclared marker ${found}`,

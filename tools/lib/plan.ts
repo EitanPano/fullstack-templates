@@ -1,4 +1,14 @@
-import { DEFAULT_DIR_BY_KIND, type Catalog, type LoadedTemplate } from './catalog'
+import {
+  CAPABILITY_KINDS,
+  DEFAULT_DIR_BY_KIND,
+  type Catalog,
+  type CapabilitySpec,
+  type CommandName,
+  type LoadedOverlay,
+  type LoadedProvider,
+  type LoadedTemplate,
+} from './catalog'
+import { isKind } from './capability-kinds'
 import { toProjectName } from './placeholders'
 
 export interface Answers {
@@ -26,7 +36,12 @@ export interface PackagePlan {
   dir: string
   template: LoadedTemplate
   flags: Record<string, boolean>
+  // Kind to provider id, only the selected ones.
   capabilities: Record<string, string>
+  // The selected overlays, in the order the template declares its capability kinds.
+  overlays: LoadedOverlay[]
+  // The template's commands plus those of each selected overlay.
+  commands: Partial<Record<CommandName, string>> & { check: string }
   selections: Record<string, boolean>
   serverDir: string | null
   serverPort: number | null
@@ -38,6 +53,8 @@ export interface GenerationPlan {
   projectName: string
   stackId: string | null
   packages: PackagePlan[]
+  // Providers selected by any package, unique, ordered by kind then id.
+  providers: LoadedProvider[]
   catalogVersion: string | undefined
   skipPostGenerate: boolean
 }
@@ -120,20 +137,99 @@ function routeShorthandFlags(
   return routed
 }
 
+// A declared kind with an empty provider list still counts as declared.
+function declaredSpec(template: LoadedTemplate, kind: string): CapabilitySpec | undefined {
+  return isKind(kind) ? template.manifest.capabilities?.[kind] : undefined
+}
+
+function routeShorthandCapabilities(
+  members: Member[],
+  entries: string[],
+): Map<string, Record<string, string>> {
+  const routed = new Map<string, Record<string, string>>()
+  for (const entry of entries) {
+    const [kind, provider] = parsePair(entry, 'a capability')
+    const owners = members.filter((m) => declaredSpec(m.template, kind) !== undefined)
+    if (owners.length === 0) throw new PlanError(`unknown capability: ${kind}`)
+    if (owners.length > 1) {
+      const dirs = owners.map((m) => m.dir).join(' and ')
+      throw new PlanError(
+        `capability ${kind} is ambiguous: declared by ${dirs}; set it in an answers file`,
+      )
+    }
+    const owner = owners[0] as Member
+    assertListed(owner, kind, provider)
+    routed.set(owner.dir, { ...routed.get(owner.dir), [kind]: provider })
+  }
+  return routed
+}
+
 // "server" is reserved: a manifest cannot declare a flag of that name, so a marker can ask whether
 // the plan has a server package (a lone frontend must not depend on one).
 export const SERVER_SELECTION = 'server'
 
-function buildSelections(
-  member: Member,
+// Shared by the plan and the marker dry-run so the two cannot drift: every flag, the reserved
+// server, then per declared kind `<kind>` (a provider is selected) and `<kind>:<provider>` for
+// each provider the template lists.
+export function selectionsFor(
+  template: LoadedTemplate,
   flags: Record<string, boolean>,
   hasServer: boolean,
+  capabilities: Record<string, string>,
 ): Record<string, boolean> {
   const selections: Record<string, boolean> = { ...flags, [SERVER_SELECTION]: hasServer }
-  for (const kind of Object.keys(member.template.manifest.capabilities ?? {})) {
-    selections[kind] = false
+  for (const [kind, spec] of Object.entries(template.manifest.capabilities ?? {})) {
+    selections[kind] = capabilities[kind] !== undefined
+    for (const provider of spec.providers) {
+      selections[`${kind}:${provider}`] = capabilities[kind] === provider
+    }
   }
   return selections
+}
+
+function assertListed(member: Member, kind: string, provider: string): void {
+  const spec = declaredSpec(member.template, kind)
+  if (spec === undefined) {
+    throw new PlanError(`unknown capability for ${member.dir}: ${kind}`)
+  }
+  if (!spec.providers.includes(provider)) {
+    const listed =
+      spec.providers.length === 0 ? 'it lists none' : `it lists ${spec.providers.join(', ')}`
+    throw new PlanError(
+      `${member.dir} has no provider "${provider}" for capability ${kind}: ${listed}`,
+    )
+  }
+}
+
+function overlaysFor(member: Member, capabilities: Record<string, string>): LoadedOverlay[] {
+  const overlays: LoadedOverlay[] = []
+  for (const kind of Object.keys(member.template.manifest.capabilities ?? {})) {
+    const provider = capabilities[kind]
+    if (provider === undefined) continue
+    const overlay = member.template.overlays.get(`${kind}/${provider}`)
+    if (overlay === undefined) {
+      throw new PlanError(`${member.dir}: no overlay for ${kind}/${provider}`)
+    }
+    overlays.push(overlay)
+  }
+  return overlays
+}
+
+function providersFor(catalog: Catalog, packages: PackagePlan[]): LoadedProvider[] {
+  const found = new Map<string, LoadedProvider>()
+  for (const pkg of packages) {
+    for (const overlay of pkg.overlays) {
+      const key = `${overlay.kind}/${overlay.provider}`
+      const provider = catalog.providers.get(key)
+      if (provider === undefined) throw new PlanError(`${pkg.dir}: unknown provider ${key}`)
+      found.set(key, provider)
+    }
+  }
+  return [...found.values()].sort(
+    (a, b) =>
+      CAPABILITY_KINDS.indexOf(a.kind) - CAPABILITY_KINDS.indexOf(b.kind) ||
+      a.id.localeCompare(b.id),
+  )
 }
 
 export function resolveRequest(catalog: Catalog, input: RequestInput): GenerationPlan {
@@ -147,15 +243,6 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
     }
   }
 
-  const hasCapability =
-    input.capabilities.length > 0 ||
-    Object.values(answerPackages).some((p) => Object.keys(p.capabilities ?? {}).length > 0)
-  // Milestone 3 must add the unknown-capability-kind check when this early refusal is lifted.
-  if (hasCapability) {
-    for (const entry of input.capabilities) parsePair(entry, 'a capability')
-    throw new PlanError('no provider overlays exist in this catalog yet')
-  }
-
   const servers = members.filter((m) => m.template.manifest.kind === 'server')
   if (servers.length > 1) {
     throw new PlanError(
@@ -165,6 +252,7 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
   const server = servers[0]
 
   const shorthand = routeShorthandFlags(members, input.flags)
+  const shorthandCapabilities = routeShorthandCapabilities(members, input.capabilities)
   const packages = members.map((member): PackagePlan => {
     const specs = member.template.manifest.flags ?? {}
     const flags: Record<string, boolean> = {}
@@ -175,6 +263,13 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
       flags[name] = value
     }
     Object.assign(flags, shorthand.get(member.dir))
+    const capabilities: Record<string, string> = {}
+    for (const [kind, provider] of Object.entries(answerPackages[member.dir]?.capabilities ?? {})) {
+      assertListed(member, kind, provider)
+      capabilities[kind] = provider
+    }
+    Object.assign(capabilities, shorthandCapabilities.get(member.dir))
+    const overlays = overlaysFor(member, capabilities)
     const consumer =
       member.template.manifest.contract !== undefined &&
       'consumes' in member.template.manifest.contract
@@ -182,8 +277,14 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
       dir: member.dir,
       template: member.template,
       flags,
-      capabilities: {},
-      selections: buildSelections(member, flags, server !== undefined),
+      capabilities,
+      overlays,
+      commands: Object.assign(
+        {},
+        member.template.manifest.commands,
+        ...overlays.map((overlay) => overlay.manifest.commands),
+      ) as PackagePlan['commands'],
+      selections: selectionsFor(member.template, flags, server !== undefined, capabilities),
       serverDir: server?.dir ?? null,
       serverPort: server?.template.manifest.http?.port ?? null,
       contractSkipped: consumer && server === undefined,
@@ -195,6 +296,7 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
     projectName: toProjectName(input.answers?.projectName ?? input.name),
     stackId,
     packages,
+    providers: providersFor(catalog, packages),
     catalogVersion: input.catalogVersion,
     skipPostGenerate: input.skipPostGenerate,
   }

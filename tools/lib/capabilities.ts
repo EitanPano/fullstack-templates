@@ -1,21 +1,16 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
-import {
-  CAPABILITY_KINDS,
-  type CapabilityKind,
-  type CapabilityManifest,
-  type LoadedOverlay,
-  type LoadedProvider,
-  type LoadedTemplate,
-  type ProviderManifest,
+import type {
+  CapabilityManifest,
+  LoadedOverlay,
+  LoadedProvider,
+  LoadedTemplate,
+  ProviderManifest,
 } from './catalog'
+import { CAPABILITY_KINDS, isKind, type CapabilityKind } from './capability-kinds'
 import { readChecked, subdirectories } from './read-checked'
 
-// Read inside functions only: catalog.ts and this file import each other.
 const kindList = () => CAPABILITY_KINDS.join(', ')
-
-const isKind = (name: string): name is CapabilityKind =>
-  (CAPABILITY_KINDS as readonly string[]).includes(name)
 
 // shared/providers/<kind>/<id>/provider.yaml; the directory names are the identity.
 export function loadProviders(root: string, problems: string[]): Map<string, LoadedProvider> {

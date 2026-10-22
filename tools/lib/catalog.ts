@@ -7,6 +7,7 @@ import {
   loadOverlays,
   loadProviders,
 } from './capabilities'
+import { CAPABILITY_KINDS, type CapabilityKind } from './capability-kinds'
 import { readChecked, subdirectories } from './read-checked'
 
 export type TemplateKind = 'server' | 'frontend' | 'worker'
@@ -58,9 +59,7 @@ export interface FlagSpec {
   dependencies?: DependencyChange
 }
 
-export type CapabilityKind = 'database' | 'cache' | 'messaging'
-
-export const CAPABILITY_KINDS: readonly CapabilityKind[] = ['database', 'cache', 'messaging']
+export { CAPABILITY_KINDS, type CapabilityKind }
 
 export interface CapabilitySpec {
   providers: string[]
