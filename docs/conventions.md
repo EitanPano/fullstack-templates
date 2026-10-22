@@ -11,20 +11,22 @@ language-neutral core.
 **Server**
 
 - Two entry files: one that reads config, connects dependencies, listens and handles
-  shutdown (`index`), and one that builds the application without listening (`server`),
-  so tests import the app and never start infrastructure.
+  shutdown (`index` in TypeScript, `main` in Python), and one that builds the application
+  without listening (`server`), so tests import the app and never start infrastructure.
 - Directories: `config/` (env read once, constants, CORS, the route mount table),
-  `api/<module>/` (`routes` the router: middleware and one handler per endpoint, `controller`
+  `api/<module>/` (`routes` the router: the gates and one handler per endpoint, `controller`
   the business rules, the module's only public API and its HTTP handlers, `schema` the leaf,
   `service` the module's private queries, only when it has data of its own),
   `models/<name>/` (entity types), `middleware/`, `services/` (stateful shared
   capabilities; `security/`, `communicate/`, pure `utils/`), `infra/` (live connections
   as resources, `jobs/`, `subscribers/`, `scripts/`).
-- Request flow: `config routes → module routes → middleware → controller handler → service →
-  db seam → infra store`. A module's routes hold nothing but the middleware chain and the
-  handler per endpoint; the handler holds the endpoint's logic. Behaviour crosses modules
-  only through rules a controller exports for that purpose, and a module's service is never
-  imported from outside it.
+- Request flow: `config routes → module routes → gates → controller handler → service →
+  db seam → infra store`. The gates are what the framework runs before a handler (middleware
+  in Express, dependencies in FastAPI): authentication, roles, rate limits. Validation comes
+  from the schema through the framework's own mechanism. A module's routes hold nothing but the
+  gate chain and the handler per endpoint; the handler holds the endpoint's logic. Behaviour
+  crosses modules only through rules a controller exports for that purpose, and a module's
+  service is never imported from outside it.
 - Import direction enforced by the language's tool: ESLint zones (TypeScript),
   import-linter (Python), ArchUnit (Java), NetArchTest (.NET), deptrac (PHP). What the
   tool cannot express is listed in `AGENTS.md` as a review rule.
@@ -39,16 +41,19 @@ language-neutral core.
 - Logging: one line per request (method, path without query, status, duration, request
   id), every unexpected error with its stack, secrets redacted.
 - One Docker image, non-root user, port from env.
+- File names follow the language (kebab-case in TypeScript, snake_case in Python, where a module
+  name must be importable); the package's `AGENTS.md` states the form.
 
-The per-language equivalents (the table every new server template is written against):
+The per-language equivalents (the table every new server template is written against;
+[ADR 0002](adr/0002-python-fastapi.md) fixes the python-fastapi column and its file mapping):
 
 | Concern | bun-express | python-fastapi | dotnet-minimal-api | java-spring-boot | php-laravel |
 | --- | --- | --- | --- | --- | --- |
-| Validation + contract | zod, zod-to-openapi | pydantic, FastAPI's OpenAPI | FluentValidation, Swashbuckle | Bean Validation, springdoc | Form requests, Scramble |
-| Layer enforcement | ESLint import zones | import-linter | NetArchTest | ArchUnit | deptrac |
-| Gates (`check`) | tsc, eslint, prettier, bun test | mypy, ruff, pytest | dotnet build, format, test | mvn verify, spotless | phpstan, pint, pest |
+| Validation + contract | zod, zod-to-openapi | pydantic, FastAPI's OpenAPI (shaped) | FluentValidation, Swashbuckle | Bean Validation, springdoc | Form requests, Scramble |
+| Layer enforcement | ESLint import zones | import-linter, with a custom contract | NetArchTest | ArchUnit | deptrac |
+| Gates (`check`) | tsc, eslint, prettier, bun test | mypy, ruff, import-linter, pytest | dotnet build, format, test | mvn verify, spotless | phpstan, pint, pest |
 | Env | zod-parsed `env.ts` | pydantic-settings | `IOptions` + validation | `@ConfigurationProperties` | `config/` + env |
-| Jobs / bus | croner, in-process bus | APScheduler, in-process | hosted services | `@Scheduled`, events | scheduler, events |
+| Jobs / bus | croner, in-process bus | APScheduler 3, in-process bus | hosted services | `@Scheduled`, events | scheduler, events |
 
 **Frontend**
 
