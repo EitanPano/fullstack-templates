@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it, setSystemTime } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it, setSystemTime } from 'bun:test'
 import { Cron } from 'croner'
 
 import { sessionCleanup } from '../../src/infra/jobs/session-cleanup'
@@ -8,15 +8,15 @@ import { describeStore, recordExists, resetStore } from '../store'
 
 const DAY = 24 * 60 * 60 * 1000
 
-beforeEach(async () => {
-  await resetStore()
-})
-
 afterEach(() => {
   setSystemTime()
 })
 
 describeStore('sessionCleanup', () => {
+  beforeEach(async () => {
+    await resetStore()
+  })
+
   it('purges expired sessions and keeps a fresh one', async () => {
     const old = await createSession('user-1')
     setSystemTime(new Date(Date.now() + 31 * DAY))
@@ -47,6 +47,9 @@ describeStore('sessionCleanup', () => {
     expect(await recordExists('session', live.session.id)).toBe(true)
   })
 
+})
+
+describe('sessionCleanup job', () => {
   it('has a valid cron pattern and its name', () => {
     expect(sessionCleanup.name).toBe('session-cleanup')
     const cron = new Cron(sessionCleanup.schedule, { paused: true })

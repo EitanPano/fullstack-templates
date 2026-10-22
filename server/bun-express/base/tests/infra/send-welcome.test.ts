@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 
-import { afterAll, afterEach, beforeAll, beforeEach, expect, it } from 'bun:test'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 
 import * as user from '../../src/api/user/controller'
 import { pubsub } from '../../src/infra/pubsub'
@@ -21,22 +21,22 @@ afterAll(async () => {
   await pubsub.close()
 })
 
-beforeEach(async () => {
-  await resetStore()
-  sent = []
-  registerProvider('mail', {
-    send: (message) => {
-      sent.push(message)
-      return Promise.resolve()
-    },
-  })
-})
-
 afterEach(() => {
   resetProviders()
 })
 
 describeStore('sendWelcome', () => {
+  beforeEach(async () => {
+    await resetStore()
+    sent = []
+    registerProvider('mail', {
+      send: (message) => {
+        sent.push(message)
+        return Promise.resolve()
+      },
+    })
+  })
+
   it('mails the new user when user.registered is published', async () => {
     await user.createUser({ email: 'new@example.com', password: PASSWORD })
     await drain()
@@ -57,6 +57,17 @@ describeStore('sendWelcome', () => {
     expect(sent).toHaveLength(0)
   })
 
+  it('rejects for an unknown user so the bus has something to log', async () => {
+    const failure = await sendWelcome.handle({ userId: 'missing' }).then(
+      () => undefined,
+      (error: unknown) => error,
+    )
+    expect(failure).toBeInstanceOf(Error)
+    expect(sent).toHaveLength(0)
+  })
+})
+
+describe('send-welcome module', () => {
   it('loads cleanly as the first module of a fresh process', () => {
     const backendRoot = join(import.meta.dir, '..', '..')
     const result = Bun.spawnSync(
@@ -66,14 +77,5 @@ describeStore('sendWelcome', () => {
 
     expect(result.stderr.toString()).toBe('')
     expect(result.exitCode).toBe(0)
-  })
-
-  it('rejects for an unknown user so the bus has something to log', async () => {
-    const failure = await sendWelcome.handle({ userId: 'missing' }).then(
-      () => undefined,
-      (error: unknown) => error,
-    )
-    expect(failure).toBeInstanceOf(Error)
-    expect(sent).toHaveLength(0)
   })
 })
