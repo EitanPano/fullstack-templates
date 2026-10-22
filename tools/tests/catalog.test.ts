@@ -196,6 +196,18 @@ describe('loadCatalog', () => {
     expect(problems(root)).toContain('has no package for this template')
   })
 
+  test('reports a template with no default case', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'server/mini/tests/cases.yaml', (t) => t.replace('name: default', 'name: base'))
+    expect(problems(root)).toContain('server/mini: tests/cases.yaml has no case named "default"')
+  })
+
+  test('reports a flag no case sets to its non-default value', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'server/mini/tests/cases.yaml', (t) => t.replace('auth: false', 'auth: true'))
+    expect(problems(root)).toContain('no case sets flag "auth" to false')
+  })
+
   test('reports a missing shared file', () => {
     const root = copyFixture('catalog')
     edit(root, 'server/mini/template.yaml', (t) =>

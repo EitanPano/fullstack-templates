@@ -3,3 +3,6 @@ cases:
   - name: default
   - name: auth-off
     flags: { auth: false }
+  - name: stack-auth-off
+    stack: next-bun-express
+    flags: { auth: false }

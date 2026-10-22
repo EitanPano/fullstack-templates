@@ -25,7 +25,10 @@ function runCase(catalog: Catalog, c: GenerationCase, out: string, options: Opti
     const { commands } = pkg.template.manifest
     const cwd = path.join(out, pkg.dir)
     runCommand(commands.check, cwd)
-    if (options.e2e && commands.testE2e) runCommand(commands.testE2e, cwd)
+    if (options.e2e && commands.testE2e) {
+      if (pkg.contractSkipped) console.log(`SKIP e2e ${pkg.dir}: no server in the plan`)
+      else runCommand(commands.testE2e, cwd)
+    }
   }
 }
 

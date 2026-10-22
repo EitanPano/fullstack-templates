@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { loadCatalog } from '../lib/catalog'
 import { PlanError, resolveRequest } from '../lib/plan'
@@ -51,6 +51,8 @@ describe('resolveRequest', () => {
       'flags:\n  auth:\n    summary: Auth\n    default: true\ngitignore:',
     )
     writeFileSync(file, yaml)
+    const cases = path.join(copy, 'frontend', 'mini-ui', 'tests', 'cases.yaml')
+    appendFileSync(cases, '  - name: auth-off\n    flags: { auth: false }\n')
     const ambiguous = loadCatalog(copy)
     let message = ''
     try {

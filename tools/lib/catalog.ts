@@ -263,6 +263,22 @@ function loadStacks(
   return stacks
 }
 
+// Every template must be generated at least with its defaults and once per flag flipped away from
+// its default, so no flag path ships untested.
+function checkCaseCoverage(template: LoadedTemplate, problems: string[]): void {
+  const { cases } = template.cases
+  if (!cases.some((testCase) => testCase.name === 'default')) {
+    problems.push(`${template.path}: tests/cases.yaml has no case named "default"`)
+  }
+  for (const [name, spec] of Object.entries(template.manifest.flags ?? {})) {
+    if (!cases.some((testCase) => testCase.flags?.[name] === !spec.default)) {
+      problems.push(
+        `${template.path}: no case sets flag "${name}" to ${String(!spec.default)}, its non-default value`,
+      )
+    }
+  }
+}
+
 function checkCrossReferences(
   templates: Map<string, LoadedTemplate>,
   stacks: Map<string, LoadedStack>,
@@ -292,6 +308,7 @@ function checkCrossReferences(
       }
     }
     const declared = new Set(Object.keys(manifest.flags ?? {}))
+    checkCaseCoverage(template, problems)
     for (const testCase of template.cases.cases) {
       for (const flag of Object.keys(testCase.flags ?? {})) {
         if (!declared.has(flag)) {

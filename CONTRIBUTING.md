@@ -67,8 +67,8 @@ extension or file name) and name a flag or a capability:
 - Names match `[a-z][a-z0-9-]*(:[a-z0-9-]+)?`; the optional `:<provider>` part targets one
   provider of a capability.
 - A name that no flag or capability declares fails validation, as does an unbalanced block
-  or a marker left in generated output. `validate` dry-runs every flag combination, so a
-  broken combination is caught before any project is generated.
+  or a marker left in generated output. `validate` dry-runs the marker pass for every flag
+  combination; `test-generated` proves each declared case generates and passes its gates.
 
 ```ts
 const sessions = createSessions() // @auth

@@ -39,6 +39,19 @@ describe('test-generated CLI', () => {
     expect(line).not.toBeNull()
     expect(existsSync((line as RegExpMatchArray)[1] as string)).toBe(true)
   })
+  test('--e2e skips the e2e suite of a package generated without a server', () => {
+    const root = copyFixture('catalog')
+    editManifest(
+      root,
+      'frontend/mini-ui/template.yaml',
+      'check: bun ./ok.ts',
+      'check: bun ./ok.ts\n  testE2e: bun ./fail.ts',
+    )
+    writeFileSync(path.join(root, 'frontend/mini-ui/base/fail.ts'), 'process.exit(3)\n')
+    const result = run(root, '--case', 'frontend/mini-ui/alone', '--e2e')
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('SKIP e2e frontend: no server in the plan')
+  })
   test('--keep leaves the directory of a passing case', () => {
     const result = run(FIXTURE, '--case', 'server/mini/default', '--keep')
     expect(result.status).toBe(0)
@@ -77,6 +90,6 @@ describe('test-generated CLI', () => {
     expect(result.status).toBe(1)
     expect(result.stdout).toMatch(/FAIL frontend\/mini-ui\/default \(.+\)/)
     expect(result.stdout).toContain('PASS server/mini/default')
-    expect(result.stdout).toContain('2 of 3 cases passed')
+    expect(result.stdout).toContain('2 of 4 cases passed')
   })
 })

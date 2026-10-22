@@ -6,6 +6,7 @@ import { FIXTURE } from './helpers'
 describe('cases', () => {
   test('lists every case with a stable id', () => {
     expect(listCases(loadCatalog(FIXTURE)).map((c) => c.id)).toEqual([
+      'frontend/mini-ui/alone',
       'frontend/mini-ui/default',
       'server/mini/auth-off',
       'server/mini/default',

@@ -227,4 +227,7 @@ describe('validateAgainst negatives', () => {
       }),
     ).not.toEqual([])
   })
+  test('rejects an empty cases list', () => {
+    expect(validateAgainst('cases', { schemaVersion: 1, cases: [] })).not.toEqual([])
+  })
 })
