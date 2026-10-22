@@ -1,0 +1,13 @@
+# dependencies and generated output
+node_modules/
+.superpowers/
+
+# secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
