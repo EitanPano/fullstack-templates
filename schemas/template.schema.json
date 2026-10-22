@@ -181,7 +181,7 @@
       },
       "propertyNames": {
         "not": {
-          "const": "server"
+          "enum": ["server", "database", "cache", "messaging"]
         }
       }
     },

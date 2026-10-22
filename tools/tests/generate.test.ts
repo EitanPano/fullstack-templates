@@ -481,8 +481,13 @@ describe('generate with a capability', () => {
       [
         '# database/fake provider',
         '# Connection string of the fake database',
-        '# Tests (testDb) use fake://localhost:5432/app_test.',
+        '# Tests (testDb) use fake://localhost:5432/app_test; override with TEST_DATABASE_URL.',
         'DATABASE_URL=fake://localhost:5432/app',
+        '',
+        '# database/fake provider',
+        '# Connections the fake database keeps open',
+        '# Tests (testDb) use 2.',
+        'FAKE_POOL_SIZE=5',
         '',
       ].join('\n'),
     )
@@ -497,7 +502,7 @@ describe('generate with a capability', () => {
     const text = read(out, 'backend', '.env.example')
     expect(text.startsWith('PORT=4000\r\n\r\n# database/fake provider\r\n')).toBe(true)
     expect(text.replaceAll('\r\n', '')).not.toContain('\n')
-    expect(text.endsWith('DATABASE_URL=fake://localhost:5432/app\r\n')).toBe(true)
+    expect(text.endsWith('FAKE_POOL_SIZE=5\r\n')).toBe(true)
   })
 
   test('assembles the provider service, the volume, the env and the dependency', () => {
@@ -506,9 +511,9 @@ describe('generate with a capability', () => {
     const compose = parse(read(out, 'docker-compose.yml'))
     expect(compose.services.database.image).toBe('fake-db:1')
     expect(compose.volumes).toEqual({ 'database-data': {} })
-    expect(compose.services.backend.environment.DATABASE_URL).toBe(
-      '${DATABASE_URL:-fake://database:5432/app}',
-    )
+    // a secret entry has no default; a plain one keeps its compose-network value
+    expect(compose.services.backend.environment.DATABASE_URL).toBe('${DATABASE_URL}')
+    expect(compose.services.backend.environment.FAKE_POOL_SIZE).toBe('${FAKE_POOL_SIZE:-5}')
     expect(compose.services.backend.depends_on).toEqual({
       database: { condition: 'service_healthy' },
     })

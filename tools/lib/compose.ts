@@ -41,7 +41,7 @@ export function assembleCompose(
 
 export interface ProviderEnvWiring {
   service: string
-  env: ReadonlyArray<{ name: string; compose: string }>
+  env: ReadonlyArray<{ name: string; compose: string; secret?: boolean }>
 }
 
 function parseChecked(text: string, what: string): Document {
@@ -53,7 +53,8 @@ function parseChecked(text: string, what: string): Document {
 }
 
 // The consumer reaches the provider by its service name, so it gets the compose-network value
-// (overridable from the shell) and waits for the provider's healthcheck.
+// (overridable from the shell) and waits for the provider's healthcheck. A secret entry gets no
+// default: its value comes from the shell, so the bundled credentials never reach production.
 export function wireConsumer(
   service: string,
   text: string,
@@ -72,8 +73,9 @@ export function wireConsumer(
     }
   }
   for (const { service: provider, env } of wirings) {
-    for (const { name, compose } of env) {
-      doc.setIn(['environment', name], `\${${name}:-${compose}}`)
+    for (const { name, compose, secret } of env) {
+      const value = secret === true ? `\${${name}}` : `\${${name}:-${compose}}`
+      doc.setIn(['environment', name], value)
     }
     doc.setIn(['depends_on', provider], { condition: 'service_healthy' })
   }

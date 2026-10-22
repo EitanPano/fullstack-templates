@@ -226,7 +226,9 @@ function appendEnvExample(
       groups.push([
         `# ${provider.kind}/${provider.id} provider`,
         `# ${entry.summary}`,
-        `# Tests (testDb) use ${entry.test}.`,
+        entry.testOverride === undefined
+          ? `# Tests (testDb) use ${entry.test}.`
+          : `# Tests (testDb) use ${entry.test}; override with ${entry.testOverride}.`,
         `${entry.name}=${entry.local}`,
       ])
     }
@@ -282,7 +284,7 @@ function composeFragment(
     const { manifest } = providerOf(providers, overlay.kind, overlay.provider)
     return {
       service: manifest.service,
-      env: manifest.env.map(({ name, compose }) => ({ name, compose })),
+      env: manifest.env.map(({ name, compose, secret }) => ({ name, compose, secret })),
     }
   })
   return wireConsumer(pkg.dir, text, wirings)

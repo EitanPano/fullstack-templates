@@ -65,7 +65,9 @@ function run(argv: string[]): void {
     console.log(`  cd ${pkg.dir} && ${pkg.template.manifest.commands.check}`)
   }
   if (plan.providers.length > 0) {
-    console.log(`  docker compose up -d ${plan.providers.map((p) => p.manifest.service).join(' ')}`)
+    console.log(
+      `  docker compose up -d --wait ${plan.providers.map((p) => p.manifest.service).join(' ')}`,
+    )
     for (const pkg of plan.packages) {
       for (const name of ['migrate', 'testDb'] as const) {
         const line = pkg.commands[name]

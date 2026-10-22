@@ -49,7 +49,10 @@ describe('assembleCompose', () => {
 
 const wiring: ProviderEnvWiring = {
   service: 'database',
-  env: [{ name: 'DATABASE_URL', compose: 'fake://database:5432/app' }],
+  env: [
+    { name: 'DATABASE_URL', compose: 'fake://database:5432/app', secret: true },
+    { name: 'POOL_SIZE', compose: '5' },
+  ],
 }
 const providerText =
   'services:\n  database:\n    image: fake-db:1\n    volumes:\n      - database-data:/var\nvolumes:\n  database-data: {}\n'
@@ -64,7 +67,8 @@ describe('wireConsumer', () => {
     const doc = parse(out)
     expect(doc.environment).toEqual({
       PORT: '4000',
-      DATABASE_URL: '${DATABASE_URL:-fake://database:5432/app}',
+      DATABASE_URL: '${DATABASE_URL}',
+      POOL_SIZE: '${POOL_SIZE:-5}',
     })
     expect(doc.depends_on).toEqual({ database: { condition: 'service_healthy' } })
     expect(out).toContain('# keep')
@@ -75,7 +79,8 @@ describe('wireConsumer', () => {
         wiring,
       ]),
     )
-    expect(doc.environment.DATABASE_URL).toBe('${DATABASE_URL:-fake://database:5432/app}')
+    expect(doc.environment.DATABASE_URL).toBe('${DATABASE_URL}')
+    expect(doc.environment.POOL_SIZE).toBe('${POOL_SIZE:-5}')
     expect(doc.depends_on).toEqual({
       cache: { condition: 'service_started' },
       database: { condition: 'service_healthy' },

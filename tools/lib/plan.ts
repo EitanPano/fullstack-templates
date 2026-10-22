@@ -291,12 +291,24 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
     }
   })
 
+  const providers = providersFor(catalog, packages)
+  // The provider's service and a package would be one Compose service: the provider would be
+  // dropped and the package would depend on itself.
+  for (const provider of providers) {
+    const clash = packages.find((pkg) => pkg.dir === provider.manifest.service)
+    if (clash !== undefined) {
+      throw new PlanError(
+        `package dir "${clash.dir}" is the Compose service name of provider ${provider.kind}/${provider.id}; choose another dir`,
+      )
+    }
+  }
+
   return {
     out: input.out,
     projectName: toProjectName(input.answers?.projectName ?? input.name),
     stackId,
     packages,
-    providers: providersFor(catalog, packages),
+    providers,
     catalogVersion: input.catalogVersion,
     skipPostGenerate: input.skipPostGenerate,
   }

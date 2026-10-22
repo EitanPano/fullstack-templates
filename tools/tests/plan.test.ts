@@ -237,6 +237,19 @@ describe('resolveRequest', () => {
       'backend and api',
     )
   })
+  test('refuses a package dir equal to a selected provider service name', () => {
+    expect(() =>
+      resolveRequest(catalog, {
+        ...base,
+        template: 'server/mini',
+        dir: 'database',
+        capabilities: ['database=fake'],
+      }),
+    ).toThrow(/package dir "database".*database\/fake/)
+    expect(
+      resolveRequest(catalog, { ...base, template: 'server/mini', dir: 'database' }).packages,
+    ).toHaveLength(1)
+  })
   test('rejects malformed shorthand entries', () => {
     expect(() => resolveRequest(catalog, { ...base, stack: 'mini', flags: ['auth'] })).toThrow(
       'auth',

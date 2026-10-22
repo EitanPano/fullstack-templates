@@ -43,16 +43,20 @@
             "pattern": "^[^\\r\\n]+$"
           },
           "local": {
-            "type": "string",
-            "minLength": 1
+            "$ref": "#/$defs/envValue"
           },
           "compose": {
-            "type": "string",
-            "minLength": 1
+            "$ref": "#/$defs/envValue"
           },
           "test": {
+            "$ref": "#/$defs/envValue"
+          },
+          "testOverride": {
             "type": "string",
-            "minLength": 1
+            "pattern": "^[A-Z][A-Z0-9_]*$"
+          },
+          "secret": {
+            "type": "boolean"
           }
         }
       }
@@ -65,6 +69,11 @@
     }
   },
   "$defs": {
+    "envValue": {
+      "type": "string",
+      "description": "A value written to a .env line and into a Compose interpolation: one line, with no newline, \"$\", braces, quotes or backslash.",
+      "pattern": "^[^\\r\\n$\\{\\}\"'\\\\]+$"
+    },
     "relativePath": {
       "type": "string",
       "description": "A POSIX relative path inside the provider directory: segments of letters, digits, dot, underscore, at and hyphen joined by \"/\"; no \"..\" segment, no leading \"/\", no drive letter, no backslash.",

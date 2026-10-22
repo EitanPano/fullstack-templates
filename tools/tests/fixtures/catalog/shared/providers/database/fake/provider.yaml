@@ -10,5 +10,12 @@ env:
     local: fake://localhost:5432/app
     compose: fake://database:5432/app
     test: fake://localhost:5432/app_test
+    testOverride: TEST_DATABASE_URL
+    secret: true
+  - name: FAKE_POOL_SIZE
+    summary: Connections the fake database keeps open
+    local: '5'
+    compose: '5'
+    test: '2'
 files:
   - db/init.sql

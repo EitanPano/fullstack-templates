@@ -46,7 +46,7 @@ describe('generate CLI', () => {
     expect(existsSync(path.join(out, 'db', 'init.sql'))).toBe(true)
     const next = result.stdout.slice(result.stdout.indexOf('Done. Next:')).split('\n')
     expect(next).toContain('  cd backend && bun ./ok.ts')
-    expect(next).toContain('  docker compose up -d database')
+    expect(next).toContain('  docker compose up -d --wait database')
     expect(next).toContain('  cd backend && bun run db:migrate')
     expect(next).toContain('  cd backend && bun run test:db')
   })

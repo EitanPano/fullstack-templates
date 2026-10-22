@@ -203,6 +203,7 @@ describe('validateAgainst negatives', () => {
     ['command', { commands: { check: 'echo $HOME' } }],
     ['postGenerate', { postGenerate: ['dev'] }],
     ['reserved flag', { flags: { server: { summary: 's', default: true } } }],
+    ['capability kind as a flag', { flags: { database: { summary: 's', default: true } } }],
   ])('rejects an unsafe template manifest value: %s', (_label, patch) => {
     expect(validateAgainst('template', { ...template, ...patch })).not.toEqual([])
   })
@@ -285,6 +286,22 @@ describe('provider and capability manifests', () => {
         summary: 's',
       }),
     ).toEqual([])
+  })
+  test('accepts a secret entry and a test override variable', () => {
+    const env = [{ ...provider.env[0], secret: true, testOverride: 'TEST_DATABASE_URL' }]
+    expect(validateAgainst('provider', { ...provider, env })).toEqual([])
+  })
+  test.each([
+    ['secret', { secret: 'yes' }],
+    ['testOverride', { testOverride: 'lower' }],
+    ['a newline', { local: 'a\nb=c' }],
+    ['a dollar sign', { compose: 'x://${HOST}/app' }],
+    ['a quote', { test: 'x://"h"/app' }],
+    ['a backslash', { local: 'x:\\h' }],
+    ['an empty value', { local: '' }],
+  ])('rejects a provider env entry with %s', (_label, patch) => {
+    const env = [{ ...provider.env[0], ...patch }]
+    expect(validateAgainst('provider', { ...provider, env })).not.toEqual([])
   })
   test('rejects a provider missing a required field', () => {
     const rest: Record<string, unknown> = { ...provider }

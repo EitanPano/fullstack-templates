@@ -72,6 +72,8 @@ export interface ProviderEnv {
   local: string
   compose: string
   test: string
+  testOverride?: string
+  secret?: boolean
 }
 
 export interface ProviderManifest {
