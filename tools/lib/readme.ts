@@ -12,13 +12,16 @@ export class ReadmeError extends Error {
 
 const KIND_ORDER = ['server', 'frontend', 'worker']
 
+// Plain code-unit order, so the committed matrix does not depend on the machine locale.
+const byId = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+
 const orDash = (items: string[]) => (items.length > 0 ? items.join(', ') : '—')
 
 export function renderMatrix(catalog: Catalog): string {
   const templates = [...catalog.templates.values()].sort(
     (a, b) =>
       KIND_ORDER.indexOf(a.manifest.kind) - KIND_ORDER.indexOf(b.manifest.kind) ||
-      a.manifest.id.localeCompare(b.manifest.id),
+      byId(a.manifest.id, b.manifest.id),
   )
   const rows = templates.map(({ manifest }) => {
     const flags = Object.keys(manifest.flags ?? {})
@@ -28,7 +31,7 @@ export function renderMatrix(catalog: Catalog): string {
     return `| \`${manifest.id}\` | ${manifest.kind} | ${manifest.version} | ${orDash(flags)} | ${orDash(capabilities)} | ${manifest.summary} |`
   })
   const stacks = [...catalog.stacks.values()]
-    .sort((a, b) => a.manifest.id.localeCompare(b.manifest.id))
+    .sort((a, b) => byId(a.manifest.id, b.manifest.id))
     .map(({ manifest }) => {
       const packages = manifest.packages.map((pkg) => `\`${pkg.template}\``).join(', ')
       return `| \`${manifest.id}\` | ${packages} | ${manifest.summary} |`

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import type { LoadedTemplate } from './catalog'
 import { listFiles } from './files'
@@ -11,13 +11,8 @@ export function dryRunMarkers(template: LoadedTemplate): string[] {
   const compose = path.join(template.dir, 'compose.yaml')
   const files = [...listFiles(path.join(template.dir, 'base')), compose]
     .filter((file) => isTextFile(file) && commentSyntaxFor(file) !== undefined)
-    .flatMap((file) => {
-      try {
-        return [{ file, content: readFileSync(file, 'utf8') }]
-      } catch {
-        return [] // compose.yaml is optional
-      }
-    })
+    .filter((file) => existsSync(file)) // compose.yaml is optional
+    .map((file) => ({ file, content: readFileSync(file, 'utf8') }))
 
   const problems = new Set<string>()
   for (let mask = 0; mask < 2 ** flagNames.length; mask++) {

@@ -5,6 +5,8 @@ import { CATALOG_ROOT, CliError, parseArgs } from './lib/cli'
 import { dryRunMarkers } from './lib/dry-run'
 import { MATRIX_END, MATRIX_START, ReadmeError, renderMatrix, replaceMatrix } from './lib/readme'
 
+const normalise = (text: string) => text.replaceAll('\r\n', '\n').trim()
+
 function checkReadme(root: string, matrix: string, write: boolean): string[] {
   const file = path.join(root, 'README.md')
   if (!existsSync(file)) return ['README.md: missing']
@@ -17,7 +19,7 @@ function checkReadme(root: string, matrix: string, write: boolean): string[] {
     }
     const start = readme.indexOf(MATRIX_START) + MATRIX_START.length
     const current = readme.slice(start, readme.indexOf(MATRIX_END))
-    return current.trim() === matrix.trim()
+    return normalise(current) === normalise(matrix)
       ? []
       : ['README.md: matrix is stale, run validate --readme']
   } catch (error) {

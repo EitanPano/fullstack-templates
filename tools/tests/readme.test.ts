@@ -11,6 +11,25 @@ describe('readme matrix', () => {
     expect(matrix).toContain('auth')
     expect(matrix).toContain('| `mini` | `server/mini`, `frontend/mini-ui` |')
   })
+  test('renders the header, cells and row order', () => {
+    const matrix = renderMatrix(loadCatalog(FIXTURE))
+    const lines = matrix.split('\n')
+    expect(lines[0]).toBe('| Template | Kind | Version | Flags | Capabilities | Summary |')
+    const mini = lines
+      .find((l) => l.startsWith('| `mini` |'))
+      ?.split('|')
+      .map((c) => c.trim())
+    const ui = lines
+      .find((l) => l.startsWith('| `mini-ui` |'))
+      ?.split('|')
+      .map((c) => c.trim())
+    expect(mini?.[4]).toBe('auth')
+    expect(mini?.[5]).toBe('—')
+    expect(ui?.[4]).toBe('—')
+    expect(matrix.indexOf('| `mini` | server')).toBeLessThan(
+      matrix.indexOf('| `mini-ui` | frontend'),
+    )
+  })
   test('replaces between markers and rejects a README without them', () => {
     const readme = `# x\n\n${MATRIX_START}\nold\n${MATRIX_END}\n\ntail\n`
     expect(replaceMatrix(readme, 'new')).toBe(
