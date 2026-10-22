@@ -56,3 +56,55 @@ describe('dryRunMarkers', () => {
     expect(dryRunMarkers(template).some((p) => p.startsWith('compose.yaml:'))).toBe(true)
   })
 })
+
+describe('dryRunMarkers with capabilities', () => {
+  const OVERLAY = 'server/mini/capabilities/database/fake/overlay/src'
+  const OVERLAY_PATH = 'capabilities/database/fake/overlay/src'
+
+  test('reports an unbalanced block inside an overlay file with its overlay path', () => {
+    const template = setup({ [`${OVERLAY}/x.ts`]: '// @auth-start\nx\n' }, 'server/mini')
+    expect(dryRunMarkers(template)).toContain(
+      `${OVERLAY_PATH}/x.ts:1: marker block is never closed`,
+    )
+  })
+
+  test('reports an unknown marker name in an overlay file', () => {
+    const template = setup({ [`${OVERLAY}/x.ts`]: 'x // @bogus\n' }, 'server/mini')
+    expect(dryRunMarkers(template)).toContain(`${OVERLAY_PATH}/x.ts:1: unknown marker name "bogus"`)
+  })
+
+  test('accepts a marker that only the provider selection defines, in a base file', () => {
+    const template = setup(
+      { 'server/mini/base/src/p.ts': 'a // @database:fake\nb // @nodatabase:fake\n' },
+      'server/mini',
+    )
+    expect(dryRunMarkers(template)).toEqual([])
+  })
+
+  test('reports an unknown provider in a base file', () => {
+    const template = setup({ 'server/mini/base/src/p.ts': 'a // @database:nope\n' }, 'server/mini')
+    expect(dryRunMarkers(template).some((p) => p.includes('base/src/p.ts:1'))).toBe(true)
+  })
+
+  test('does not check a base file the overlay replaces under that provider', () => {
+    // Only evaluated when a database is selected; the overlay's own src/index.ts replaces this copy.
+    const broken = '// @database-start\nx // @bogus\n// @database-end\n'
+    const shadowed = setup({ 'server/mini/base/src/index.ts': broken }, 'server/mini')
+    expect(dryRunMarkers(shadowed)).toEqual([])
+    const kept = setup({ 'server/mini/base/src/other.ts': broken }, 'server/mini')
+    expect(dryRunMarkers(kept)).toContain('base/src/other.ts:2: unknown marker name "bogus"')
+  })
+
+  test('takes -- markers in an overlay .sql file', () => {
+    const template = setup(
+      {
+        [`${OVERLAY}/init.sql`]:
+          'select 1 -- @auth\n-- @database:fake-start\nx\n-- @database:fake-end\n',
+      },
+      'server/mini',
+    )
+    expect(dryRunMarkers(template)).toEqual([])
+    const bad = setup({ [`${OVERLAY}/init.sql`]: 'select 1 -- @bogus\n' }, 'server/mini')
+    expect(dryRunMarkers(bad)).toContain(`${OVERLAY_PATH}/init.sql:1: unknown marker name "bogus"`)
+  })
+})

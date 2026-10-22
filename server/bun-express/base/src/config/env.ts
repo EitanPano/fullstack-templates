@@ -2,22 +2,17 @@ import { z } from 'zod'
 
 // The only file that reads process.env. Parsed once at startup; a missing or malformed
 // variable stops the process with a message naming it. A fresh clone runs with no env file
-// @auth-start
-// at all: every variable has a development default or is optional, except the four secrets
-// in production, which must be supplied (outside production they fall back to a plainly
-// fake default and `defaultedSecrets` names them so the entry can warn). A variable the
-// @auth-end
-// @noauth-start
-// at all: every variable has a development default or is optional, except the encryption
-// key in production, which must be supplied (outside production it falls back to a plainly
-// fake default and `defaultedSecrets` names it so the entry can warn). A variable the
-// @noauth-end
-// product adds (a database URL, a provider key) is declared here and in the example env file.
+// at all: every variable has a development default or is optional, except the secrets in
+// production, which must be supplied (outside production they fall back to a plainly fake
+// default and `defaultedSecrets` names them so the entry can warn). A variable the
+// product adds (a database URL, a provider key) is declared here and in the example env file. // @nodatabase
+// product adds (a provider key) is declared here and in the example env file. // @database
 const SECRET_NAMES = [
   'JWT_ACCESS_SECRET', // @auth
   'JWT_REFRESH_SECRET', // @auth
   'OTP_SECRET', // @auth
   'ENCRYPTION_KEY',
+  'DATABASE_URL', // @database
 ] as const
 type SecretName = (typeof SECRET_NAMES)[number]
 
@@ -27,6 +22,8 @@ const DEVELOPMENT_DEFAULTS: Record<SecretName, string> = {
   OTP_SECRET: 'dev-only-otp-secret-change-me-0123456789abc', // @auth
   // 32 bytes, base64.
   ENCRYPTION_KEY: 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=',
+  // The provider's local service. The URL carries the password, so it is a secret.
+  DATABASE_URL: 'postgres://app:app@localhost:5432/app', // @database:postgres
 }
 
 const BLANK_IS_UNSET = ['CORS_ORIGINS', 'COOKIE_DOMAIN', 'MAIL_FROM', 'TRUST_PROXY'] as const // @auth
@@ -44,6 +41,12 @@ const encryptionKey = z.string().refine((value) => Buffer.from(value, 'base64').
   message: 'must be base64 that decodes to 32 bytes',
 })
 
+// @database:postgres-start
+const databaseUrl = z.string().refine((value) => /^postgres(?:ql)?:\/\//.test(value), {
+  message: 'must be a postgres:// or postgresql:// URL',
+})
+
+// @database:postgres-end
 // Express accepts a boolean, a hop count or a subnet/address list for `trust proxy`.
 const trustProxy = z
   .string()
@@ -79,6 +82,7 @@ const schema = z
     JWT_REFRESH_SECRET: secret, // @auth
     OTP_SECRET: secret, // @auth
     ENCRYPTION_KEY: encryptionKey,
+    DATABASE_URL: databaseUrl, // @database:postgres
     COOKIE_DOMAIN: z.string().trim().min(1).optional(), // @auth
     MAIL_PROVIDER: provider,
     SMS_PROVIDER: provider,

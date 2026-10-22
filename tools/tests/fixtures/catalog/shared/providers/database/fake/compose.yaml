@@ -1,0 +1,7 @@
+services:
+  database:
+    image: fake-db:1
+    volumes:
+      - database-data:/var/lib/fake
+volumes:
+  database-data: {}

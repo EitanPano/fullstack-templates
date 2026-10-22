@@ -1,7 +1,14 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
-import { parse } from 'yaml'
-import { validateAgainst, type SchemaName } from './schema'
+import {
+  checkCapabilityCases,
+  checkProvidersUsed,
+  checkUnlistedCapabilities,
+  loadOverlays,
+  loadProviders,
+} from './capabilities'
+import { CAPABILITY_KINDS, type CapabilityKind } from './capability-kinds'
+import { readChecked, subdirectories } from './read-checked'
 
 export type TemplateKind = 'server' | 'frontend' | 'worker'
 
@@ -52,9 +59,43 @@ export interface FlagSpec {
   dependencies?: DependencyChange
 }
 
+export { CAPABILITY_KINDS, type CapabilityKind }
+
 export interface CapabilitySpec {
   providers: string[]
   mode?: 'push' | 'pull'
+}
+
+export interface ProviderEnv {
+  name: string
+  summary: string
+  local: string
+  compose: string
+  test: string
+  testOverride?: string
+  secret?: boolean
+}
+
+export interface ProviderManifest {
+  schemaVersion: 1
+  kind: CapabilityKind
+  id: string
+  name: string
+  service: string
+  compose: string
+  env: ProviderEnv[]
+  files?: string[]
+}
+
+export interface CapabilityManifest {
+  schemaVersion: 1
+  kind: CapabilityKind
+  provider: string
+  summary: string
+  dependencies?: DependencyChange
+  scripts?: Record<string, string>
+  flags?: Record<string, { onlyPaths: string[] }>
+  commands?: Partial<Record<CommandName, string>>
 }
 
 export interface TemplateManifest {
@@ -70,7 +111,7 @@ export interface TemplateManifest {
   commands: Partial<Record<CommandName, string>> & { check: string }
   agents: string
   flags?: Record<string, FlagSpec>
-  capabilities?: Record<string, CapabilitySpec>
+  capabilities?: Partial<Record<CapabilityKind, CapabilitySpec>>
   dependencies?: { manifest: string; adapter: 'npm' }
   contract?: { produces: string } | { consumes: string }
   http?: { port: number; health: string; ready?: string }
@@ -113,6 +154,8 @@ export interface LoadedTemplate {
   dir: string
   manifest: TemplateManifest
   cases: CasesFile
+  // Keyed `${kind}/${provider}`.
+  overlays: Map<string, LoadedOverlay>
 }
 
 export interface LoadedStack {
@@ -121,10 +164,27 @@ export interface LoadedStack {
   manifest: StackManifest
 }
 
+export interface LoadedProvider {
+  kind: CapabilityKind
+  id: string
+  dir: string
+  manifest: ProviderManifest
+}
+
+export interface LoadedOverlay {
+  kind: CapabilityKind
+  provider: string
+  dir: string
+  overlayDir: string
+  manifest: CapabilityManifest
+}
+
 export interface Catalog {
   root: string
   index: CatalogIndex
   templates: Map<string, LoadedTemplate>
+  // Keyed `${kind}/${id}`.
+  providers: Map<string, LoadedProvider>
   stacks: Map<string, LoadedStack>
 }
 
@@ -136,32 +196,6 @@ export class CatalogError extends Error {
 }
 
 const EMPTY_CASES: CasesFile = { schemaVersion: 1, cases: [] }
-
-// Reads and schema-checks one YAML file; a failure is recorded and yields undefined.
-function readChecked<T>(
-  file: string,
-  label: string,
-  schema: SchemaName,
-  problems: string[],
-): T | undefined {
-  if (!existsSync(file)) {
-    problems.push(`${label}: missing`)
-    return undefined
-  }
-  let data: unknown
-  try {
-    data = parse(readFileSync(file, 'utf8'))
-  } catch (error) {
-    problems.push(`${label}: invalid YAML (${error instanceof Error ? error.message : 'unknown'})`)
-    return undefined
-  }
-  const errors = validateAgainst(schema, data)
-  if (errors.length > 0) {
-    for (const message of errors) problems.push(`${label}: ${message}`)
-    return undefined
-  }
-  return data as T
-}
 
 function checkTemplateFiles(
   templatePath: string,
@@ -189,6 +223,7 @@ function checkTemplateFiles(
 function loadTemplates(
   root: string,
   index: CatalogIndex,
+  providers: Map<string, LoadedProvider>,
   problems: string[],
 ): Map<string, LoadedTemplate> {
   const templates = new Map<string, LoadedTemplate>()
@@ -224,7 +259,16 @@ function loadTemplates(
         problems,
       ) ?? EMPTY_CASES
     checkTemplateFiles(entry.path, dir, manifest, problems)
-    templates.set(entry.path, { path: entry.path, dir, manifest, cases })
+    const loaded: LoadedTemplate = {
+      path: entry.path,
+      dir,
+      manifest,
+      cases,
+      overlays: new Map(),
+    }
+    loaded.overlays = loadOverlays(loaded, providers, problems)
+    checkUnlistedCapabilities(loaded, problems)
+    templates.set(entry.path, loaded)
   }
   return templates
 }
@@ -309,6 +353,7 @@ function checkCrossReferences(
     }
     const declared = new Set(Object.keys(manifest.flags ?? {}))
     checkCaseCoverage(template, problems)
+    checkCapabilityCases(template, problems)
     for (const testCase of template.cases.cases) {
       for (const flag of Object.keys(testCase.flags ?? {})) {
         if (!declared.has(flag)) {
@@ -361,11 +406,6 @@ function checkSharedFiles(
   }
 }
 
-function subdirectories(dir: string): string[] {
-  if (!existsSync(dir)) return []
-  return readdirSync(dir).filter((name) => statSync(path.join(dir, name)).isDirectory())
-}
-
 function checkUnlisted(root: string, index: CatalogIndex, problems: string[]): void {
   const listed = new Set([...index.templates, ...index.stacks].map((e) => e.path))
   const groups: Array<[string, string]> = [
@@ -392,12 +432,14 @@ export function loadCatalog(root: string): Catalog {
   )
   if (!index) throw new CatalogError(problems)
 
-  const templates = loadTemplates(root, index, problems)
+  const providers = loadProviders(root, problems)
+  const templates = loadTemplates(root, index, providers, problems)
   const stacks = loadStacks(root, index, problems)
   checkCrossReferences(templates, stacks, problems)
+  checkProvidersUsed(providers, templates, problems)
   checkSharedFiles(root, templates, problems)
   checkUnlisted(root, index, problems)
 
   if (problems.length > 0) throw new CatalogError(problems)
-  return { root, index, templates, stacks }
+  return { root, index, templates, providers, stacks }
 }

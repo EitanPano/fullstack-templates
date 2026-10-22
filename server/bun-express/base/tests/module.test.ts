@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto'
 
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { beforeEach, expect, it } from 'bun:test'
 import request from 'supertest'
 
-import { memory } from '../src/infra/memory'
 import type { UserRole } from '../src/models/user/enum' // @auth
 import { drain, subscribe } from '../src/services/event'
 import { signAccess } from '../src/services/security/jwt' // @auth
 import { app } from '../src/server'
+import { describeStore, resetStore } from './store'
 
 // @auth-start
 // The route gates only read the access token, so callers are minted directly with signAccess
@@ -31,10 +31,10 @@ async function create(name: string): Promise<ModuleBody> {
 }
 
 beforeEach(async () => {
-  await memory.close()
+  await resetStore()
 })
 
-describe('GET /api/module', () => {
+describeStore('GET /api/module', () => {
   it('lists nothing when empty', async () => {
     const res = await request(app).get('/api/module')
 
@@ -72,7 +72,7 @@ describe('GET /api/module', () => {
   })
 })
 
-describe('POST /api/module', () => {
+describeStore('POST /api/module', () => {
   it('creates an active module with ISO timestamps', async () => {
     const res = await request(app)
       .post('/api/module')
@@ -126,7 +126,7 @@ describe('POST /api/module', () => {
   })
 })
 
-describe('GET /api/module/:id', () => {
+describeStore('GET /api/module/:id', () => {
   it('returns the module', async () => {
     const created = await create('one')
 
@@ -144,7 +144,7 @@ describe('GET /api/module/:id', () => {
   })
 })
 
-describe('PATCH /api/module/:id', () => {
+describeStore('PATCH /api/module/:id', () => {
   it('renames the module and keeps createdAt', async () => {
     const created = await create('old')
 
@@ -214,7 +214,7 @@ describe('PATCH /api/module/:id', () => {
   })
 })
 
-describe('DELETE /api/module/:id', () => {
+describeStore('DELETE /api/module/:id', () => {
   // @auth-start
   it('answers 401 without a token', async () => {
     const res = await request(app).delete(`/api/module/${randomUUID()}`)

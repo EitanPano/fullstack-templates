@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/EitanPano/fullstack-templates/schemas/provider.schema.json",
+  "title": "Provider manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "id", "name", "service", "compose", "env"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "enum": ["database", "cache", "messaging"]
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "service": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "compose": {
+      "$ref": "#/$defs/relativePath"
+    },
+    "env": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "summary", "local", "compose", "test"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$"
+          },
+          "summary": {
+            "type": "string",
+            "pattern": "^[^\\r\\n]+$"
+          },
+          "local": {
+            "$ref": "#/$defs/envValue"
+          },
+          "compose": {
+            "$ref": "#/$defs/envValue"
+          },
+          "test": {
+            "$ref": "#/$defs/envValue"
+          },
+          "testOverride": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$"
+          },
+          "secret": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/relativePath"
+      }
+    }
+  },
+  "$defs": {
+    "envValue": {
+      "type": "string",
+      "description": "A value written to a .env line and into a Compose interpolation: one line, with no newline, \"$\", braces, quotes or backslash.",
+      "pattern": "^[^\\r\\n$\\{\\}\"'\\\\]+$"
+    },
+    "relativePath": {
+      "type": "string",
+      "description": "A POSIX relative path inside the provider directory: segments of letters, digits, dot, underscore, at and hyphen joined by \"/\"; no \"..\" segment, no leading \"/\", no drive letter, no backslash.",
+      "pattern": "^(?!(.*/)?\\.\\.(/|$))[A-Za-z0-9._@-]+(/[A-Za-z0-9._@-]+)*$"
+    }
+  }
+}

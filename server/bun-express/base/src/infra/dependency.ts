@@ -1,5 +1,6 @@
 import { log, type Logger } from '../services/logger'
 import { memory } from './memory'
+import { postgres } from './postgres' // @database:postgres
 import { pubsub } from './pubsub'
 import { scheduler } from './scheduler'
 
@@ -211,6 +212,12 @@ function wait(ms: number): Promise<void> {
 }
 
 // In connection order; shutdown reverses it, so the scheduler stops first (no job starts
-// against a closing store) and the store closes last. The data-layer task replaces `memory`
-// with the engine's Resource (`infra/<engine>.ts`).
+// against a closing store) and the stores close last.
+// @nodatabase-start
+// The data-layer task replaces `memory` with the engine's Resource (`infra/<engine>.ts`).
 export const dependencies: readonly Resource[] = [memory, pubsub, scheduler]
+// @nodatabase-end
+// @database:postgres-start
+// `postgres` holds the records; `memory` stays as the cache until the cache task.
+export const dependencies: readonly Resource[] = [memory, postgres, pubsub, scheduler]
+// @database:postgres-end

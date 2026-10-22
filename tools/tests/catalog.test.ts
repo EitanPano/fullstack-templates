@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { CatalogError, loadCatalog } from '../lib/catalog'
 import { copyFixture, FIXTURE } from './helpers'
@@ -35,6 +35,8 @@ describe('loadCatalog', () => {
     expect(catalog.templates.get('server/mini')?.cases.cases.map((c) => c.name)).toEqual([
       'default',
       'auth-off',
+      'fake',
+      'auth-off-fake',
     ])
   })
 
@@ -204,7 +206,7 @@ describe('loadCatalog', () => {
 
   test('reports a flag no case sets to its non-default value', () => {
     const root = copyFixture('catalog')
-    edit(root, 'server/mini/tests/cases.yaml', (t) => t.replace('auth: false', 'auth: true'))
+    edit(root, 'server/mini/tests/cases.yaml', (t) => t.replaceAll('auth: false', 'auth: true'))
     expect(problems(root)).toContain('no case sets flag "auth" to false')
   })
 
@@ -214,5 +216,239 @@ describe('loadCatalog', () => {
       t.replace('gitignore: [node]', 'gitignore: [go]'),
     )
     expect(problems(root)).toContain('shared/gitignore/go.gitignore')
+  })
+
+  test('loads the fixture provider and overlay', () => {
+    const catalog = loadCatalog(FIXTURE)
+    expect([...catalog.providers.keys()]).toEqual(['database/fake'])
+    const provider = catalog.providers.get('database/fake')
+    expect(provider?.dir).toBe(path.join(FIXTURE, 'shared', 'providers', 'database', 'fake'))
+    expect(provider?.manifest.service).toBe('database')
+    expect(provider?.manifest.env[0]?.name).toBe('DATABASE_URL')
+    expect(provider?.manifest.files).toEqual(['db/init.sql'])
+    const template = catalog.templates.get('server/mini')
+    expect([...(template?.overlays.keys() ?? [])]).toEqual(['database/fake'])
+    const overlay = template?.overlays.get('database/fake')
+    expect(overlay?.dir).toBe(
+      path.join(FIXTURE, 'server', 'mini', 'capabilities', 'database', 'fake'),
+    )
+    expect(overlay?.overlayDir).toBe(path.join(overlay?.dir ?? '', 'overlay'))
+    expect(overlay?.manifest.commands).toEqual({
+      testDb: 'bun run test:db',
+      migrate: 'bun run db:migrate',
+    })
+    expect(overlay?.manifest.scripts?.['test:db']).toBe('bun ./ok.ts')
+    expect(catalog.templates.get('frontend/mini-ui')?.overlays.size).toBe(0)
+  })
+
+  test('loads a catalog without shared/providers', () => {
+    const root = copyFixture('catalog')
+    rmSync(path.join(root, 'shared', 'providers'), { recursive: true, force: true })
+    rmSync(path.join(root, 'server', 'mini', 'capabilities'), { recursive: true, force: true })
+    edit(root, 'server/mini/template.yaml', (text) =>
+      text.replace('providers: [fake]', 'providers: []'),
+    )
+    edit(root, 'server/mini/tests/cases.yaml', (text) =>
+      text.slice(0, text.indexOf('  - name: fake')),
+    )
+    expect(loadCatalog(root).providers.size).toBe(0)
+  })
+})
+
+describe('loadCatalog providers and capabilities', () => {
+  const providerDir = 'shared/providers/database/fake'
+  const overlayDir = 'server/mini/capabilities/database/fake'
+  const casesFile = 'server/mini/tests/cases.yaml'
+
+  test('reports a provider directory that is not a capability kind', () => {
+    const root = copyFixture('catalog')
+    mkdirSync(path.join(root, 'shared', 'providers', 'queue', 'x'), { recursive: true })
+    expect(problems(root)).toContain('shared/providers/queue: not a capability kind')
+  })
+
+  test('reports an invalid provider manifest naming its path', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${providerDir}/provider.yaml`, (t) => t.replace('service: database\n', ''))
+    const message = problems(root)
+    expect(message).toContain(`${providerDir}/provider.yaml`)
+    expect(message).toContain('service')
+  })
+
+  test('reports a provider directory without a manifest', () => {
+    const root = copyFixture('catalog')
+    rmSync(path.join(root, providerDir, 'provider.yaml'))
+    expect(problems(root)).toContain(`${providerDir}/provider.yaml: missing`)
+  })
+
+  test('reports a provider whose id differs from its directory', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${providerDir}/provider.yaml`, (t) => t.replace('id: fake', 'id: other'))
+    expect(problems(root)).toContain(`${providerDir}: id "other" differs from the directory`)
+  })
+
+  test('reports a provider whose kind differs from its directory', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${providerDir}/provider.yaml`, (t) => t.replace('kind: database', 'kind: cache'))
+    expect(problems(root)).toContain(`${providerDir}: kind "cache" differs from the directory`)
+  })
+
+  test('reports a provider whose compose file is missing', () => {
+    const root = copyFixture('catalog')
+    rmSync(path.join(root, providerDir, 'compose.yaml'))
+    expect(problems(root)).toContain(`${providerDir}: compose file compose.yaml is missing`)
+  })
+
+  test('reports a provider file that is missing', () => {
+    const root = copyFixture('catalog')
+    rmSync(path.join(root, providerDir, 'db', 'init.sql'))
+    expect(problems(root)).toContain(`${providerDir}: file db/init.sql is missing`)
+  })
+
+  test('reports an invalid capability manifest naming its path', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${overlayDir}/capability.yaml`, (t) =>
+      t.replace('summary: The fake database\n', ''),
+    )
+    const message = problems(root)
+    expect(message).toContain(`${overlayDir}/capability.yaml`)
+    expect(message).toContain('summary')
+  })
+
+  test('reports a capability flag the template does not declare', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${overlayDir}/capability.yaml`, (t) => t.replace('  auth:\n', '  ghost:\n'))
+    expect(problems(root)).toContain(
+      `${overlayDir}/capability.yaml: flag "ghost" is not declared by the template`,
+    )
+  })
+
+  test('reports a capability flag onlyPath missing from overlay/', () => {
+    const root = copyFixture('catalog')
+    rmSync(path.join(root, overlayDir, 'overlay', 'src', 'auth-database.ts'))
+    expect(problems(root)).toContain(
+      `${overlayDir}/capability.yaml: flag "auth" onlyPath "src/auth-database.ts" does not exist in overlay/`,
+    )
+  })
+
+  test('reports a listed provider without a capability directory', () => {
+    const root = copyFixture('catalog')
+    rmSync(path.join(root, overlayDir), { recursive: true })
+    expect(problems(root)).toContain(`${overlayDir}: directory is missing`)
+  })
+
+  test('reports a capability manifest that is missing', () => {
+    const root = copyFixture('catalog')
+    rmSync(path.join(root, overlayDir, 'capability.yaml'))
+    expect(problems(root)).toContain(`${overlayDir}/capability.yaml: missing`)
+  })
+
+  test('reports an overlay/ directory that is missing', () => {
+    const root = copyFixture('catalog')
+    rmSync(path.join(root, overlayDir, 'overlay'), { recursive: true })
+    expect(problems(root)).toContain(`${overlayDir}: overlay/ is missing`)
+  })
+
+  test('reports a capability whose provider differs from its path', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${overlayDir}/capability.yaml`, (t) =>
+      t.replace('provider: fake', 'provider: other'),
+    )
+    expect(problems(root)).toContain(`${overlayDir}: provider "other" differs from the path`)
+  })
+
+  test('reports a capability whose kind differs from its path', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${overlayDir}/capability.yaml`, (t) => t.replace('kind: database', 'kind: cache'))
+    expect(problems(root)).toContain(`${overlayDir}: kind "cache" differs from the path`)
+  })
+
+  test('reports a listed provider that does not exist in shared/providers', () => {
+    const root = copyFixture('catalog')
+    rmSync(path.join(root, providerDir), { recursive: true })
+    expect(problems(root)).toContain(
+      `${overlayDir}: provider database/fake is not in shared/providers`,
+    )
+  })
+
+  test('reports a command the template already defines', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'server/mini/template.yaml', (t) =>
+      t.replace('  contract: bun ./ok.ts', '  contract: bun ./ok.ts\n  migrate: bun ./ok.ts'),
+    )
+    expect(problems(root)).toContain(
+      `${overlayDir}/capability.yaml: command "migrate" is already defined by the template`,
+    )
+  })
+
+  test('reports a script the template manifest already defines', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'server/mini/base/package.json', (t) =>
+      t.replace('"dependencies"', '"scripts": { "db:migrate": "x" },\n  "dependencies"'),
+    )
+    expect(problems(root)).toContain(
+      `${overlayDir}/capability.yaml: script "db:migrate" is already defined by base/package.json`,
+    )
+  })
+
+  test('reports scripts or dependencies on a template without a dependencies adapter', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'server/mini/template.yaml', (t) =>
+      t.replace('dependencies:\n  manifest: package.json\n  adapter: npm\n', ''),
+    )
+    expect(problems(root)).toContain(
+      `${overlayDir}/capability.yaml: scripts or dependencies need a template with a dependencies adapter`,
+    )
+  })
+
+  test('reports a capability directory that is not a capability kind', () => {
+    const root = copyFixture('catalog')
+    mkdirSync(path.join(root, 'server', 'mini', 'capabilities', 'queue'))
+    expect(problems(root)).toContain('server/mini/capabilities/queue: not a capability kind')
+  })
+
+  test('reports a capability directory the template does not list', () => {
+    const root = copyFixture('catalog')
+    mkdirSync(path.join(root, 'server', 'mini', 'capabilities', 'database', 'extra'))
+    expect(problems(root)).toContain(
+      'server/mini/capabilities/database/extra: not listed in template.yaml capabilities',
+    )
+  })
+
+  test('reports a provider no template lists', () => {
+    const root = copyFixture('catalog')
+    const spare = 'shared/providers/database/spare'
+    cpSync(path.join(root, providerDir), path.join(root, spare), { recursive: true })
+    edit(root, `${spare}/provider.yaml`, (t) => t.replace('id: fake', 'id: spare'))
+    expect(problems(root)).toContain(`${spare}: no template lists this provider`)
+  })
+
+  test('reports a case capability of a kind the template does not declare', () => {
+    const root = copyFixture('catalog')
+    edit(root, casesFile, (t) => t.replace('      database: fake', '      cache: fake'))
+    expect(problems(root)).toContain('case "fake" uses undeclared capability "cache"')
+  })
+
+  test('reports a case capability naming a provider the template does not list', () => {
+    const root = copyFixture('catalog')
+    edit(root, casesFile, (t) => t.replace('      database: fake', '      database: nope'))
+    expect(problems(root)).toContain('case "fake" uses unlisted provider "nope" for database')
+  })
+
+  test('reports a provider with no case that selects only it at the default flags', () => {
+    const root = copyFixture('catalog')
+    edit(root, casesFile, (t) =>
+      t.replace('name: fake\n', 'name: fake\n    flags:\n      auth: false\n'),
+    )
+    expect(problems(root)).toContain(
+      'server/mini: no case selects only database=fake with the default flags',
+    )
+  })
+
+  test('reports a provider with no case that turns every flag off', () => {
+    const root = copyFixture('catalog')
+    edit(root, casesFile, (t) => t.replace('flags:\n      auth: false\n    capab', 'capab'))
+    expect(problems(root)).toContain(
+      'server/mini: no case selects database=fake with every flag false',
+    )
   })
 })

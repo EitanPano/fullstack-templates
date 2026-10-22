@@ -34,3 +34,6 @@ gitignore: [node]
 agents: AGENTS.md
 defaultStack: mini
 postGenerate: [install, contract]
+capabilities:
+  database:
+    providers: [fake]

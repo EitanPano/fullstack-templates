@@ -15,6 +15,7 @@ export class MarkerError extends Error {
 const SLASH: CommentSyntax = ['//', '']
 const HASH: CommentSyntax = ['#', '']
 const HTML: CommentSyntax = ['<!--', ' -->']
+const DASH: CommentSyntax = ['--', '']
 
 const BY_EXTENSION: Readonly<Record<string, CommentSyntax>> = {
   ...Object.fromEntries(
@@ -28,6 +29,7 @@ const BY_EXTENSION: Readonly<Record<string, CommentSyntax>> = {
       .map((ext) => [ext, HASH]),
   ),
   ...Object.fromEntries('.md .html .vue .xml'.split(' ').map((ext) => [ext, HTML])),
+  '.sql': DASH,
 }
 
 // Dotfiles have no extension in path.extname, so they are matched by name.
@@ -44,14 +46,19 @@ export function commentSyntaxFor(filePath: string): CommentSyntax | undefined {
 
 const NAME = '[a-z][a-z0-9-]*(?::[a-z0-9-]+)?'
 
-// A marker as written in a comment; plain text such as an `@auth/core` import is not one.
-const LEFTOVER = new RegExp(
-  String.raw`(?:\/\/|#|<!--)[ \t]*@${NAME}(?=[ \t]*(?:-->)?[ \t\r]*$)`,
-  'm',
-)
+const escapeRegExp = (text: string) => text.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-export function findLeftoverMarker(content: string): string | null {
-  return LEFTOVER.exec(content)?.[0] ?? null
+const GENERIC_OPENS = ['//', '#', '<!--']
+
+// A marker as written in a comment; plain text such as an `@auth/core` import is not one. The
+// file's own comment opener counts too, so `-- @x` is a marker in .sql and plain text elsewhere.
+export function findLeftoverMarker(content: string, syntax?: CommentSyntax): string | null {
+  const opens = syntax === undefined ? GENERIC_OPENS : [...new Set([...GENERIC_OPENS, syntax[0]])]
+  const pattern = new RegExp(
+    String.raw`(?:${opens.map(escapeRegExp).join('|')})[ \t]*@${NAME}(?=[ \t]*(?:-->)?[ \t\r]*$)`,
+    'm',
+  )
+  return pattern.exec(content)?.[0] ?? null
 }
 
 type Block = { name: string; negated: boolean; where: string }
@@ -62,10 +69,9 @@ export function applyMarkers(
   where: string,
   selections: Readonly<Record<string, boolean>>,
 ): string {
-  const escape = (text: string) => text.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')
   // Group 1 is the code before the marker (empty for a block marker on its own line).
   const marker = new RegExp(
-    String.raw`^(.*\S[ \t]+|[ \t]*)${escape(open)} @(${NAME})${escape(close)}[ \t]*$`,
+    String.raw`^(.*\S[ \t]+|[ \t]*)${escapeRegExp(open)} @(${NAME})${escapeRegExp(close)}[ \t]*$`,
   )
 
   // `@no<name>` negates `<name>`; a name that is itself selected wins, so `notify` stays a name.

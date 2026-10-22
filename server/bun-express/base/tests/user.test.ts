@@ -1,13 +1,12 @@
 import { randomUUID } from 'node:crypto'
 
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { beforeEach, expect, it } from 'bun:test'
 import express from 'express'
 import request from 'supertest'
 
 import * as user from '../src/api/user/controller'
 import { getUserRequest, listUserRequest } from '../src/api/user/schema'
 import * as service from '../src/api/user/service'
-import { memory } from '../src/infra/memory'
 import { requireAuth } from '../src/middleware/auth'
 import { errorHandler } from '../src/middleware/error-handler'
 import { validate } from '../src/middleware/validate'
@@ -16,9 +15,10 @@ import type { PublicUser } from '../src/models/user/type'
 import { app } from '../src/server'
 import { drain, subscribe } from '../src/services/event'
 import { signAccess } from '../src/services/security/jwt'
+import { describeStore, resetStore } from './store'
 
 beforeEach(async () => {
-  await memory.close()
+  await resetStore()
 })
 
 const PASSWORD = 'correct horse battery'
@@ -49,7 +49,7 @@ const rejection = (promise: Promise<unknown>) =>
 type ErrorBody = { error: { code: string; message: string } }
 type Page = { items: PublicUser[]; nextCursor: string | null }
 
-describe('GET /api/user/me', () => {
+describeStore('GET /api/user/me', () => {
   it('answers 401 without credentials', async () => {
     const res = await request(app).get('/api/user/me')
 
@@ -84,7 +84,7 @@ describe('GET /api/user/me', () => {
   it('answers 401 when the account behind a valid token is gone', async () => {
     const account = await makeUser('a@example.com')
     const header = await bearer(account)
-    await memory.close()
+    await resetStore()
 
     const res = await request(app).get('/api/user/me').set('Authorization', header)
 
@@ -93,7 +93,7 @@ describe('GET /api/user/me', () => {
   })
 })
 
-describe('PATCH /api/user/me', () => {
+describeStore('PATCH /api/user/me', () => {
   const patch = async (account: PublicUser, body: object) =>
     request(app)
       .patch('/api/user/me')
@@ -159,7 +159,7 @@ describe('PATCH /api/user/me', () => {
   it('answers 401 when the account behind the token is gone', async () => {
     const account = await makeUser('a@example.com')
     const header = await bearer(account)
-    await memory.close()
+    await resetStore()
 
     const res = await request(app).patch('/api/user/me').set('Authorization', header).send({})
 
@@ -173,7 +173,7 @@ describe('PATCH /api/user/me', () => {
   })
 })
 
-describe('GET /api/user', () => {
+describeStore('GET /api/user', () => {
   it('answers 403 for a user caller', async () => {
     const account = await makeUser('a@example.com')
 
@@ -224,7 +224,7 @@ describe('GET /api/user', () => {
   })
 })
 
-describe('GET /api/user/:id', () => {
+describeStore('GET /api/user/:id', () => {
   it('answers 404 for an unknown id', async () => {
     const header = await bearer(await admin())
 
@@ -255,7 +255,7 @@ describe('GET /api/user/:id', () => {
   })
 })
 
-describe('controller', () => {
+describeStore('controller', () => {
   // The handlers mounted without routes.ts's requireRole gate: their own role check must hold.
   function ungated() {
     const probe = express()

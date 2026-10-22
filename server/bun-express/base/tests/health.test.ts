@@ -5,6 +5,7 @@ import request from 'supertest'
 import { getReadiness } from '../src/api/health/controller'
 import type { Resource } from '../src/infra/dependency'
 import { app } from '../src/server'
+import { describeStore } from './store'
 
 const down: Resource = {
   name: 'db',
@@ -13,19 +14,26 @@ const down: Resource = {
   close: () => Promise.resolve(),
 }
 
-describe('GET /api/health/ready', () => {
-  // Through `app` the answer is the real dependency list: the memory store, the bus and the
-  // scheduler, always ok. The probe apps below pin the other states with their own lists.
-  it('lists the memory store, the bus and the scheduler as ok', async () => {
+describeStore('GET /api/health/ready through the app', () => {
+  // Through `app` the answer is the real dependency list, always ok. The probe apps below
+  // pin the other states with their own lists.
+  it('lists every dependency as ok', async () => {
     const res = await request(app).get('/api/health/ready')
 
     const body = res.body as { status: string; dependencies: Record<string, string> }
 
     expect(res.status).toBe(200)
     expect(body.status).toBe('ok')
-    expect(body.dependencies).toEqual({ memory: 'ok', pubsub: 'ok', scheduler: 'ok' })
+    expect(body.dependencies).toEqual({
+      memory: 'ok',
+      postgres: 'ok', // @database:postgres
+      pubsub: 'ok',
+      scheduler: 'ok',
+    })
   })
+})
 
+describe('GET /api/health/ready', () => {
   it('answers ok with an empty dependency map when nothing is registered', async () => {
     const probe = express()
     probe.get('/ready', getReadiness([]))
