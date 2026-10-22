@@ -270,6 +270,8 @@ describeStore('rotateSession', () => {
     at(1000)
     // An open transaction revokes the row; the grace retry reads the unrevoked row (MVCC), then
     // its touch blocks on the row lock. Committing lets the touch re-check `revoked_at is null`.
+    // A row-lock wait is an ungranted `transactionid` lock; that lock type carries no database
+    // column, so the waiting backends are matched to this database through pg_stat_activity.
     let retry: Promise<unknown> | undefined
     await getDb().begin(async (tx) => {
       await tx`update session set revoked_at = ${new Date()}, grace_token = null
@@ -277,7 +279,9 @@ describeStore('rotateSession', () => {
       retry = failureOf(rotateSession({ sessionId: first.session.id, presentedHash: oldHash }))
       for (let attempt = 0; attempt < 100; attempt++) {
         const [waiting] = await getDb()<{ n: number }[]>`
-          select count(*)::int as n from pg_locks where not granted`
+          select count(*)::int as n from pg_locks
+          where not granted and locktype = 'transactionid'
+            and pid in (select pid from pg_stat_activity where datname = current_database())`
         if ((waiting?.n ?? 0) > 0) return
         await new Promise((resolve) => setTimeout(resolve, 50))
       }

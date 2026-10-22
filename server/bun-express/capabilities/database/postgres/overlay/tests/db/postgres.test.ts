@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { rmSync } from 'node:fs'
 import { mkdtemp, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -20,9 +21,14 @@ import { getDb } from '../../src/services/db'
 import { AppError } from '../../src/services/utils/error'
 import { describeStore, resetStore } from '../store'
 
-// Probe tables and migration records these tests create are removed in afterEach: a record in
-// schema_migration would survive resetStore and make the next run skip its file.
-const probes: { tables: string[]; files: string[] } = { tables: [], files: [] }
+// Probe tables, migration records and migration directories these tests create are removed in
+// afterEach: a record in schema_migration would survive resetStore and make the next run skip
+// its file.
+const probes: { tables: string[]; files: string[]; directories: string[] } = {
+  tables: [],
+  files: [],
+  directories: [],
+}
 
 function probeName(): string {
   return `probe_${randomUUID().replaceAll('-', '')}`
@@ -30,6 +36,7 @@ function probeName(): string {
 
 async function migrationDirectory(files: Record<string, string>): Promise<string> {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'migrations-'))
+  probes.directories.push(directory)
   for (const [name, text] of Object.entries(files)) {
     await writeFile(path.join(directory, name), text)
     probes.files.push(name)
@@ -70,6 +77,9 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  for (const directory of probes.directories.splice(0)) {
+    rmSync(directory, { recursive: true, force: true })
+  }
   const db = getDb()
   for (const table of probes.tables.splice(0)) await db.unsafe(`drop table if exists ${table}`)
   const files = probes.files.splice(0)
