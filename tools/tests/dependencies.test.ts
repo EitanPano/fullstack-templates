@@ -42,4 +42,35 @@ describe('npm adapter', () => {
     expect(Object.keys(JSON.parse(out).dependencies)).toEqual(['express', 'zod'])
     expect(out.endsWith('\n')).toBe(true)
   })
+  test('removes a package listed in both maps from both', () => {
+    const file = pkg({ dependencies: { a: '1' }, devDependencies: { a: '1', b: '2' } })
+    applyDependencyChange(file, 'npm', { remove: ['a'] }, 'x')
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({
+      dependencies: {},
+      devDependencies: { b: '2' },
+    })
+  })
+  test('wraps invalid JSON in DependencyError naming the path', () => {
+    const file = pkg({})
+    writeFileSync(file, '{ not json')
+    expect(() => applyDependencyChange(file, 'npm', { remove: ['a'] }, 'auth')).toThrow(
+      DependencyError,
+    )
+    expect(() => applyDependencyChange(file, 'npm', { remove: ['a'] }, 'auth')).toThrow(file)
+  })
+  test('add creates an absent devDependencies map', () => {
+    const file = pkg({ dependencies: { a: '1' } })
+    applyDependencyChange(file, 'npm', { add: { devDependencies: { t: '5' } } }, 'db')
+    expect(JSON.parse(readFileSync(file, 'utf8')).devDependencies).toEqual({ t: '5' })
+  })
+  test('preserves unrelated keys and their order', () => {
+    const file = pkg({ name: 'n', scripts: { dev: 'x' }, dependencies: { a: '1' }, private: true })
+    applyDependencyChange(file, 'npm', { add: { dependencies: { b: '2' } } }, 'db')
+    expect(Object.keys(JSON.parse(readFileSync(file, 'utf8')))).toEqual([
+      'name',
+      'scripts',
+      'dependencies',
+      'private',
+    ])
+  })
 })

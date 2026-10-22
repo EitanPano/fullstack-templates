@@ -12,9 +12,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function readManifest(file: string): Manifest {
-  const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'))
-  if (!isRecord(parsed)) throw new DependencyError(`${file} is not a JSON object`)
+function readManifest(file: string, where: string): Manifest {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(readFileSync(file, 'utf8'))
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+    throw new DependencyError(`${where}: cannot read ${file}: ${reason}`)
+  }
+  if (!isRecord(parsed)) throw new DependencyError(`${where}: ${file} is not a JSON object`)
   return parsed
 }
 
@@ -28,15 +34,20 @@ function sortKeys(map: DependencyMap): DependencyMap {
 }
 
 function applyNpm(file: string, change: DependencyChange, where: string): void {
-  const pkg = readManifest(file)
+  const pkg = readManifest(file, where)
   for (const name of change.remove ?? []) {
-    const key = MAP_KEYS.find((candidate) => mapOf(pkg, candidate)?.[name] !== undefined)
-    if (key === undefined) {
+    let found = false
+    for (const key of MAP_KEYS) {
+      const map = mapOf(pkg, key)
+      if (map?.[name] === undefined) continue
+      delete map[name]
+      found = true
+    }
+    if (!found) {
       throw new DependencyError(
         `${where}: ${name} is missing from ${file} dependencies and devDependencies`,
       )
     }
-    delete (pkg[key] as DependencyMap)[name]
   }
   for (const key of MAP_KEYS) {
     const added = change.add?.[key]
