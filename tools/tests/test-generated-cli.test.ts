@@ -97,4 +97,24 @@ describe('test-generated CLI', () => {
     expect(result.stdout).toContain('PASS server/mini/default')
     expect(result.stdout).toContain('4 of 6 cases passed')
   })
+  test('--list includes the capability cases', () => {
+    const ids = JSON.parse(run(FIXTURE, '--list').stdout)
+    expect(ids).toContain('server/mini/fake')
+    expect(ids).toContain('server/mini/auth-off-fake')
+  })
+  test('--with-services is accepted and changes nothing for a case without providers', () => {
+    const result = run(FIXTURE, '--case', 'server/mini/default', '--with-services')
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('PASS server/mini/default')
+  })
+  test('without --with-services a capability case skips migrate and testDb', () => {
+    const result = run(FIXTURE, '--case', 'server/mini/fake')
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('needs --with-services')
+  })
+  test('an unknown flag fails with usage', () => {
+    const result = run(FIXTURE, '--with-service')
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain('usage:')
+  })
 })
