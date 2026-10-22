@@ -319,6 +319,97 @@ describe('Mover', () => {
     expect(mover.rollback()).toEqual([path.join(staging, 'replaced-0')])
     expect(existsSync(path.join(staging, 'replaced-0', 'old.txt'))).toBe(true)
   })
+
+  const codeError = (code: string) => Object.assign(new Error(`${code}: rename`), { code })
+
+  test('a transient EPERM on a rename is retried and the move succeeds', () => {
+    const { staging, from, to } = layout()
+    const calls: Array<[string, string]> = []
+    const delays: number[] = []
+    const mover = new Mover(
+      staging,
+      (a, b) => {
+        calls.push([a, b])
+        if (calls.length === 1) throw codeError('EPERM')
+        renameSync(a, b)
+      },
+      (ms) => {
+        delays.push(ms)
+      },
+    )
+    mover.move(from, to)
+    // The first rename (the replaced directory to its backup) failed once, then went through.
+    expect(calls.filter(([a]) => a === to)).toHaveLength(2)
+    expect(calls).toHaveLength(3)
+    expect(delays).toEqual([100])
+    expect(readFileSync(path.join(to, 'f.txt'), 'utf8')).toBe('new')
+    expect(mover.rollback()).toBeNull()
+    expect(readFileSync(path.join(to, 'old.txt'), 'utf8')).toBe('old')
+  })
+
+  test('a transient EPERM on the final rename into a free target is retried', () => {
+    const { staging, from, to } = layout()
+    removeTree(to)
+    const delays: number[] = []
+    let failed = false
+    const mover = new Mover(
+      staging,
+      (a, b) => {
+        if (a === from && !failed) {
+          failed = true
+          throw codeError('EPERM')
+        }
+        renameSync(a, b)
+      },
+      (ms) => {
+        delays.push(ms)
+      },
+    )
+    mover.move(from, to)
+    expect(failed).toBe(true)
+    expect(delays).toEqual([100])
+    expect(readFileSync(path.join(to, 'f.txt'), 'utf8')).toBe('new')
+    expect(mover.rollback()).toBeNull()
+  })
+
+  test('a rename that keeps failing with EPERM is tried five times, then rethrown unchanged', () => {
+    const { staging, from, to } = layout()
+    const original = codeError('EPERM')
+    const delays: number[] = []
+    let calls = 0
+    const mover = new Mover(
+      staging,
+      () => {
+        calls += 1
+        throw original
+      },
+      (ms) => {
+        delays.push(ms)
+      },
+    )
+    expect(() => mover.move(from, to)).toThrow(original)
+    expect(calls).toBe(5)
+    expect(delays).toEqual([100, 200, 300, 400])
+  })
+
+  test('an error that is not a transient lock is not retried', () => {
+    const { staging, from, to } = layout()
+    const delays: number[] = []
+    let calls = 0
+    const mover = new Mover(
+      staging,
+      () => {
+        calls += 1
+        throw codeError('ENOENT')
+      },
+      (ms) => {
+        delays.push(ms)
+      },
+    )
+    expect(() => mover.move(from, to)).toThrow('ENOENT')
+    expect(calls).toBe(1)
+    expect(delays).toEqual([])
+  })
 })
 
 describe('generate: compose and the reserved server selection', () => {
