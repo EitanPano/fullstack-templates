@@ -41,7 +41,7 @@ flags:
     dependencies:
       remove: [cookie-parser, jose, '@types/cookie-parser']
 capabilities:
-  database: { providers: [] }
+  database: { providers: [postgres] }
   cache: { providers: [] }
   messaging: { providers: [], mode: push }
 dependencies: { manifest: package.json, adapter: npm }

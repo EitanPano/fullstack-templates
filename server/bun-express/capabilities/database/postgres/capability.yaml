@@ -1,0 +1,10 @@
+schemaVersion: 1
+kind: database
+provider: postgres
+summary: Postgres through Bun's built-in SQL client, SQL migrations and a separate test database
+scripts:
+  db:migrate: bun run src/infra/scripts/migrate.ts
+  test:db: bun test --preload ./tests/db/setup.ts
+commands:
+  testDb: bun run test:db
+  migrate: bun run db:migrate
