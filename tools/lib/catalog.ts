@@ -233,6 +233,10 @@ function loadStacks(
   const stacks = new Map<string, LoadedStack>()
   for (const entry of index.stacks) {
     const dir = path.join(root, entry.path)
+    if (!existsSync(dir)) {
+      problems.push(`${entry.path}: directory is listed in index.yaml but missing`)
+      continue
+    }
     const manifest = readChecked<StackManifest>(
       path.join(dir, 'stack.yaml'),
       `${entry.path}/stack.yaml`,
@@ -256,7 +260,6 @@ function checkCrossReferences(
   stacks: Map<string, LoadedStack>,
   problems: string[],
 ): void {
-  const kinds = new Set<string>([...templates.values()].map((t) => t.manifest.kind))
   for (const template of templates.values()) {
     const { manifest } = template
     if (manifest.defaultStack && !stacks.has(manifest.defaultStack)) {
@@ -264,9 +267,21 @@ function checkCrossReferences(
     }
     const consumes =
       manifest.contract && 'consumes' in manifest.contract ? manifest.contract.consumes : ''
-    const kind = /^<([a-z]+)>/.exec(consumes)?.[1]
-    if (kind && !kinds.has(kind)) {
-      problems.push(`${template.path}: contract.consumes names no template of kind "${kind}"`)
+    if (consumes) {
+      const kind = /^<(server|frontend|worker)>\/.+$/.exec(consumes)?.[1]
+      const stack = manifest.defaultStack ? stacks.get(manifest.defaultStack) : undefined
+      if (!kind) {
+        problems.push(
+          `${template.path}: contract.consumes "${consumes}" must have the form <kind>/<path>`,
+        )
+      } else if (
+        stack &&
+        !stack.manifest.packages.some((pkg) => templates.get(pkg.template)?.manifest.kind === kind)
+      ) {
+        problems.push(
+          `${template.path}: contract.consumes names kind "${kind}" but defaultStack "${stack.manifest.id}" has no such package`,
+        )
+      }
     }
     const declared = new Set(Object.keys(manifest.flags ?? {}))
     for (const testCase of template.cases.cases) {

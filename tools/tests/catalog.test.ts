@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { CatalogError, loadCatalog } from '../lib/catalog'
 import { copyFixture, FIXTURE } from './helpers'
@@ -39,9 +39,93 @@ describe('loadCatalog', () => {
   })
 
   test('reports a listed template whose directory is missing', () => {
-    expect(() => loadCatalog(path.join(import.meta.dir, 'fixtures', 'broken-index'))).toThrow(
-      CatalogError,
+    expect(problems(path.join(import.meta.dir, 'fixtures', 'broken-index'))).toContain(
+      'server/ghost',
     )
+  })
+
+  test('reports a listed stack whose directory is missing', () => {
+    expect(problems(path.join(import.meta.dir, 'fixtures', 'broken-index'))).toContain(
+      'stacks/mini',
+    )
+  })
+
+  test('reports a contract.consumes that is not <kind>/<path>', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'frontend/mini-ui/template.yaml', (t) =>
+      t.replace('<server>/openapi.json', 'openapi.json'),
+    )
+    expect(problems(root)).toContain('contract.consumes')
+  })
+
+  test('reports a consumed kind the default stack does not provide', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'frontend/mini-ui/template.yaml', (t) => t.replace('<server>', '<worker>'))
+    const message = problems(root)
+    expect(message).toContain('frontend/mini-ui')
+    expect(message).toContain('worker')
+    expect(message).toContain('"mini"')
+  })
+
+  test('reports a defaultStack that is not a stack', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'server/mini/template.yaml', (t) =>
+      t.replace('defaultStack: mini', 'defaultStack: nope'),
+    )
+    expect(problems(root)).toContain('nope')
+  })
+
+  test('reports a stack package whose template is not loaded', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'stacks/mini/stack.yaml', (t) =>
+      t.replace('template: server/mini', 'template: server/gone'),
+    )
+    expect(problems(root)).toContain('server/gone')
+  })
+
+  test('reports a duplicate stack package dir', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'stacks/mini/stack.yaml', (t) => t.replace('dir: frontend', 'dir: backend'))
+    expect(problems(root)).toContain('package dir "backend" is used twice')
+  })
+
+  test('reports a stack id that differs from the index', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'stacks/mini/stack.yaml', (t) => t.replace('id: mini', 'id: other'))
+    const message = problems(root)
+    expect(message).toContain('stacks/mini')
+    expect(message).toContain('other')
+  })
+
+  test('reports a stack summary that differs from the index', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'stacks/mini/stack.yaml', (t) => t.replace('summary: Mini', 'summary: Changed'))
+    const message = problems(root)
+    expect(message).toContain('stacks/mini')
+    expect(message).toContain('summary')
+  })
+
+  test.each([
+    ['base/', 'frontend/mini-ui/base'],
+    ['compose.yaml', 'frontend/mini-ui/compose.yaml'],
+    ['tests/cases.yaml', 'frontend/mini-ui/tests/cases.yaml'],
+    ['AGENTS.md', 'frontend/mini-ui/base/AGENTS.md'],
+  ])('reports a missing template file %s', (expected, file) => {
+    const root = copyFixture('catalog')
+    rmSync(path.join(root, file), { recursive: true })
+    const message = problems(root)
+    expect(message).toContain('frontend/mini-ui')
+    expect(message).toContain(expected)
+  })
+
+  test.each([
+    'shared/docker/compose.yaml',
+    'shared/editorconfig/.editorconfig',
+    'shared/gitignore/base.gitignore',
+  ])('reports a missing %s', (file) => {
+    const root = copyFixture('catalog')
+    rmSync(path.join(root, file))
+    expect(problems(root)).toContain(file)
   })
 
   test('reports an index entry whose version differs from the manifest', () => {
