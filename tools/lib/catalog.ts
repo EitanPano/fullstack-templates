@@ -193,6 +193,10 @@ function loadTemplates(
 ): Map<string, LoadedTemplate> {
   const templates = new Map<string, LoadedTemplate>()
   for (const entry of index.templates) {
+    if (entry.path !== `${entry.kind}/${entry.id}`) {
+      problems.push(`${entry.path}: path must be ${entry.kind}/${entry.id}`)
+      continue
+    }
     const dir = path.join(root, entry.path)
     if (!existsSync(dir)) {
       problems.push(`${entry.path}: directory is listed in index.yaml but missing`)
@@ -232,6 +236,10 @@ function loadStacks(
 ): Map<string, LoadedStack> {
   const stacks = new Map<string, LoadedStack>()
   for (const entry of index.stacks) {
+    if (entry.path !== `stacks/${entry.id}`) {
+      problems.push(`${entry.path}: path must be stacks/${entry.id}`)
+      continue
+    }
     const dir = path.join(root, entry.path)
     if (!existsSync(dir)) {
       problems.push(`${entry.path}: directory is listed in index.yaml but missing`)

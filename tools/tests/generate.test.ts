@@ -4,7 +4,13 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import path from 'node:path'
 import { parse } from 'yaml'
 import { loadCatalog } from '../lib/catalog'
-import { GenerateError, STAGING_DIR, generate, packagePlaceholders } from '../lib/generate'
+import {
+  GenerateError,
+  STAGING_DIR,
+  assertInside,
+  generate,
+  packagePlaceholders,
+} from '../lib/generate'
 import { catalogIdentity } from '../lib/provenance'
 import { resolveRequest } from '../lib/plan'
 import { FIXTURE, copyFixture, tempDir } from './helpers'
@@ -254,5 +260,15 @@ describe('generate: edges', () => {
     expect(merged).toContain('*.log')
     expect(merged).toContain('fullstack-templates: base')
     expect(merged).toContain('fullstack-templates: node')
+  })
+})
+
+describe('assertInside', () => {
+  const root = path.resolve('/work/staging/backend')
+  test('accepts a path below the root', () => {
+    expect(() => assertInside(root, path.join(root, 'src', 'a.ts'), 'x')).not.toThrow()
+  })
+  test.each(['..', '../other', 'src/../../other', ''])('refuses %p', (rel) => {
+    expect(() => assertInside(root, path.join(root, rel), 'x')).toThrow(GenerateError)
   })
 })

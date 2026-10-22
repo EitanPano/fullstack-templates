@@ -18,23 +18,45 @@
     "agents"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
-    "kind": { "enum": ["server", "frontend", "worker"] },
-    "name": { "type": "string", "minLength": 1 },
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "kind": {
+      "enum": ["server", "frontend", "worker"]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
     "version": {
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"
     },
-    "summary": { "type": "string", "pattern": "^[^\\r\\n]+$" },
+    "summary": {
+      "type": "string",
+      "pattern": "^[^\\r\\n]+$"
+    },
     "runtime": {
       "type": "object",
       "additionalProperties": false,
       "required": ["language", "platform"],
       "properties": {
-        "language": { "type": "string", "minLength": 1 },
-        "platform": { "type": "string", "minLength": 1 },
-        "minVersion": { "type": "string", "minLength": 1 }
+        "language": {
+          "type": "string",
+          "minLength": 1
+        },
+        "platform": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minVersion": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "tools": {
@@ -44,34 +66,67 @@
         "additionalProperties": false,
         "required": ["name"],
         "properties": {
-          "name": { "type": "string", "minLength": 1 },
-          "min": { "type": "string", "minLength": 1 }
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "min": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
     "placeholders": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" }
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9_]*$"
+      }
     },
     "commands": {
       "type": "object",
       "additionalProperties": false,
       "required": ["check"],
       "properties": {
-        "install": { "type": "string", "minLength": 1 },
-        "dev": { "type": "string", "minLength": 1 },
-        "check": { "type": "string", "minLength": 1 },
-        "typecheck": { "type": "string", "minLength": 1 },
-        "lint": { "type": "string", "minLength": 1 },
-        "format": { "type": "string", "minLength": 1 },
-        "test": { "type": "string", "minLength": 1 },
-        "testDb": { "type": "string", "minLength": 1 },
-        "testE2e": { "type": "string", "minLength": 1 },
-        "contract": { "type": "string", "minLength": 1 },
-        "migrate": { "type": "string", "minLength": 1 }
+        "install": {
+          "$ref": "#/$defs/command"
+        },
+        "dev": {
+          "$ref": "#/$defs/command"
+        },
+        "check": {
+          "$ref": "#/$defs/command"
+        },
+        "typecheck": {
+          "$ref": "#/$defs/command"
+        },
+        "lint": {
+          "$ref": "#/$defs/command"
+        },
+        "format": {
+          "$ref": "#/$defs/command"
+        },
+        "test": {
+          "$ref": "#/$defs/command"
+        },
+        "testDb": {
+          "$ref": "#/$defs/command"
+        },
+        "testE2e": {
+          "$ref": "#/$defs/command"
+        },
+        "contract": {
+          "$ref": "#/$defs/command"
+        },
+        "migrate": {
+          "$ref": "#/$defs/command"
+        }
       }
     },
-    "agents": { "type": "string", "minLength": 1 },
+    "agents": {
+      "$ref": "#/$defs/relativePath"
+    },
     "flags": {
       "type": "object",
       "additionalProperties": {
@@ -79,43 +134,77 @@
         "additionalProperties": false,
         "required": ["summary", "default"],
         "properties": {
-          "summary": { "type": "string", "pattern": "^[^\\r\\n]+$" },
-          "default": { "type": "boolean" },
-          "onlyPaths": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "summary": {
+            "type": "string",
+            "pattern": "^[^\\r\\n]+$"
+          },
+          "default": {
+            "type": "boolean"
+          },
+          "onlyPaths": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/relativePath"
+            }
+          },
           "dependencies": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "remove": { "type": "array", "items": { "type": "string" } },
+              "remove": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
               "add": {
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
                   "dependencies": {
                     "type": "object",
-                    "additionalProperties": { "type": "string" }
+                    "additionalProperties": {
+                      "type": "string"
+                    }
                   },
                   "devDependencies": {
                     "type": "object",
-                    "additionalProperties": { "type": "string" }
+                    "additionalProperties": {
+                      "type": "string"
+                    }
                   }
                 }
               }
             }
           }
         }
+      },
+      "propertyNames": {
+        "not": {
+          "const": "server"
+        }
       }
     },
     "capabilities": {
       "type": "object",
-      "propertyNames": { "enum": ["database", "cache", "messaging"] },
+      "propertyNames": {
+        "enum": ["database", "cache", "messaging"]
+      },
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
         "required": ["providers"],
         "properties": {
-          "providers": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-          "mode": { "enum": ["push", "pull"] }
+          "providers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "mode": {
+            "enum": ["push", "pull"]
+          }
         }
       }
     },
@@ -124,8 +213,12 @@
       "additionalProperties": false,
       "required": ["manifest", "adapter"],
       "properties": {
-        "manifest": { "type": "string", "minLength": 1 },
-        "adapter": { "enum": ["npm"] }
+        "manifest": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "adapter": {
+          "enum": ["npm"]
+        }
       }
     },
     "contract": {
@@ -134,13 +227,22 @@
           "type": "object",
           "additionalProperties": false,
           "required": ["produces"],
-          "properties": { "produces": { "type": "string", "minLength": 1 } }
+          "properties": {
+            "produces": {
+              "$ref": "#/$defs/relativePath"
+            }
+          }
         },
         {
           "type": "object",
           "additionalProperties": false,
           "required": ["consumes"],
-          "properties": { "consumes": { "type": "string", "minLength": 1 } }
+          "properties": {
+            "consumes": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       ]
     },
@@ -149,18 +251,33 @@
       "additionalProperties": false,
       "required": ["port", "health"],
       "properties": {
-        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
-        "health": { "type": "string", "minLength": 1 },
-        "ready": { "type": "string", "minLength": 1 }
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "health": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ready": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
-    "gitignore": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "gitignore": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      }
+    },
     "postGenerate": {
       "type": "array",
       "items": {
         "enum": [
           "install",
-          "dev",
           "check",
           "typecheck",
           "lint",
@@ -173,6 +290,22 @@
         ]
       }
     },
-    "defaultStack": { "type": "string", "minLength": 1 }
+    "defaultStack": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "description": "A POSIX relative path inside the package: segments of letters, digits, dot, underscore, at and hyphen joined by \"/\"; no \"..\" segment, no leading \"/\", no drive letter, no backslash.",
+      "pattern": "^(?!(.*/)?..(/|$))[A-Za-z0-9._@-]+(/[A-Za-z0-9._@-]+)*$"
+    },
+    "command": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A program plus whitespace-separated arguments, run without a shell: no pipes, redirects, quoting, variables or command substitution.",
+      "pattern": "^[^&|;<>'\"$`]+$"
+    }
   }
 }

@@ -6,7 +6,9 @@
   "additionalProperties": false,
   "required": ["schemaVersion", "templates", "stacks"],
   "properties": {
-    "schemaVersion": { "const": 1 },
+    "schemaVersion": {
+      "const": 1
+    },
     "templates": {
       "type": "array",
       "items": {
@@ -14,14 +16,25 @@
         "additionalProperties": false,
         "required": ["id", "kind", "path", "version", "summary"],
         "properties": {
-          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
-          "kind": { "enum": ["server", "frontend", "worker"] },
-          "path": { "type": "string", "minLength": 1 },
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "kind": {
+            "enum": ["server", "frontend", "worker"]
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^(server|frontend|worker)/[a-z][a-z0-9-]*$"
+          },
           "version": {
             "type": "string",
             "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"
           },
-          "summary": { "type": "string", "pattern": "^[^\\r\\n]+$" }
+          "summary": {
+            "type": "string",
+            "pattern": "^[^\\r\\n]+$"
+          }
         }
       }
     },
@@ -32,9 +45,18 @@
         "additionalProperties": false,
         "required": ["id", "path", "summary"],
         "properties": {
-          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
-          "path": { "type": "string", "minLength": 1 },
-          "summary": { "type": "string", "pattern": "^[^\\r\\n]+$" }
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^stacks/[a-z][a-z0-9-]*$"
+          },
+          "summary": {
+            "type": "string",
+            "pattern": "^[^\\r\\n]+$"
+          }
         }
       }
     }

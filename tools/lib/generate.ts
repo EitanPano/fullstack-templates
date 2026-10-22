@@ -94,12 +94,22 @@ function checkPreconditions(plan: GenerationPlan, staging: string): void {
   mkdirSync(staging, { recursive: true })
 }
 
+// Schemas constrain manifest paths, but a staged path is the last line before a delete or a write.
+export function assertInside(root: string, target: string, what: string): void {
+  const base = path.resolve(root)
+  const resolved = path.resolve(target)
+  if (!resolved.startsWith(base + path.sep)) {
+    throw new GenerateError(`${what} resolves outside the package: ${target}`)
+  }
+}
+
 function removeOnlyPaths(pkg: PackagePlan, pkgStaging: string): void {
   const specs = pkg.template.manifest.flags ?? {}
   for (const [name, on] of Object.entries(pkg.flags)) {
     if (on) continue
     for (const only of specs[name]?.onlyPaths ?? []) {
       const target = path.join(pkgStaging, only)
+      assertInside(pkgStaging, target, `${pkg.dir}: flag ${name} onlyPath`)
       if (!existsSync(target)) {
         throw new GenerateError(
           `${pkg.dir}: flag ${name} lists onlyPaths ${only}, which is missing`,
@@ -141,8 +151,10 @@ function removeDependencies(pkg: PackagePlan, pkgStaging: string): void {
   for (const [name, on] of Object.entries(pkg.flags)) {
     const change = manifest.flags?.[name]?.dependencies
     if (on || change === undefined) continue
+    const manifestFile = path.join(pkgStaging, manifest.dependencies.manifest)
+    assertInside(pkgStaging, manifestFile, `${pkg.dir}: dependencies.manifest`)
     applyDependencyChange(
-      path.join(pkgStaging, manifest.dependencies.manifest),
+      manifestFile,
       manifest.dependencies.adapter,
       change,
       `${pkg.dir} (flag ${name})`,

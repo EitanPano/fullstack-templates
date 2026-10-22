@@ -163,6 +163,18 @@ describe('loadCatalog', () => {
     expect(problems(root)).toContain('nope')
   })
 
+  test('reports an index template path that is not <kind>/<id>', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'index.yaml', (t) => t.replace('path: server/mini', 'path: server/other'))
+    expect(problems(root)).toContain('path must be server/mini')
+  })
+
+  test('reports an index stack path that is not stacks/<id>', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'index.yaml', (t) => t.replace('path: stacks/mini', 'path: stacks/other'))
+    expect(problems(root)).toContain('path must be stacks/mini')
+  })
+
   test('reports a missing shared file', () => {
     const root = copyFixture('catalog')
     edit(root, 'server/mini/template.yaml', (t) =>

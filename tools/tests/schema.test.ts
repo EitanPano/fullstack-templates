@@ -191,4 +191,40 @@ describe('validateAgainst negatives', () => {
     expect(errors).toContainEqual('/cases must be array')
     expect(errors.some((e) => e.includes('must be unique'))).toBe(false)
   })
+
+  test.each([
+    ['onlyPaths', { flags: { auth: { summary: 's', default: true, onlyPaths: ['../x'] } } }],
+    ['agents', { agents: '/abs' }],
+    ['agents', { agents: 'C:/x' }],
+    ['dependencies.manifest', { dependencies: { manifest: 'a/../b', adapter: 'npm' } }],
+    ['contract.produces', { contract: { produces: '../openapi.json' } }],
+    ['gitignore', { gitignore: ['../x'] }],
+    ['command', { commands: { check: 'bun run a | tee b' } }],
+    ['command', { commands: { check: 'echo $HOME' } }],
+    ['postGenerate', { postGenerate: ['dev'] }],
+    ['reserved flag', { flags: { server: { summary: 's', default: true } } }],
+  ])('rejects an unsafe template manifest value: %s', (_label, patch) => {
+    expect(validateAgainst('template', { ...template, ...patch })).not.toEqual([])
+  })
+  test('rejects index and stack paths outside the layout', () => {
+    const entry = { id: 'x', kind: 'server', path: '../x', version: '1.0.0', summary: 's' }
+    expect(
+      validateAgainst('index', { schemaVersion: 1, templates: [entry], stacks: [] }),
+    ).not.toEqual([])
+    expect(
+      validateAgainst('index', {
+        schemaVersion: 1,
+        templates: [],
+        stacks: [{ id: 'x', path: 'other/x', summary: 's' }],
+      }),
+    ).not.toEqual([])
+    expect(
+      validateAgainst('stack', {
+        schemaVersion: 1,
+        id: 'x',
+        summary: 's',
+        packages: [{ template: '../x', dir: 'backend' }],
+      }),
+    ).not.toEqual([])
+  })
 })
