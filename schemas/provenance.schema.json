@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/EitanPano/fullstack-templates/schemas/provenance.schema.json",
+  "title": "Provenance record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "catalog",
+    "generatedAt",
+    "stack",
+    "packages",
+    "providers",
+    "answers"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "version", "commit"],
+      "properties": {
+        "repository": { "type": "string" },
+        "version": { "type": "string" },
+        "commit": { "type": ["string", "null"] }
+      }
+    },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "stack": { "type": ["string", "null"] },
+    "packages": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["template", "version", "flags", "capabilities", "commands"],
+        "properties": {
+          "template": { "type": "string" },
+          "version": { "type": "string" },
+          "flags": { "type": "object", "additionalProperties": { "type": "boolean" } },
+          "capabilities": { "type": "object", "additionalProperties": { "type": "string" } },
+          "commands": { "type": "object", "additionalProperties": { "type": "string" } },
+          "http": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["port", "health"],
+            "properties": {
+              "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+              "health": { "type": "string" },
+              "ready": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "providers": { "type": "object" },
+    "answers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["projectName"],
+      "properties": { "projectName": { "type": "string", "minLength": 1 } }
+    }
+  }
+}

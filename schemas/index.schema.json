@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/EitanPano/fullstack-templates/schemas/index.schema.json",
+  "title": "Catalog index",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "templates", "stacks"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "templates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "path", "version", "summary"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "kind": { "enum": ["server", "frontend", "worker"] },
+          "path": { "type": "string", "minLength": 1 },
+          "version": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"
+          },
+          "summary": { "type": "string", "pattern": "^[^\\n]+$" }
+        }
+      }
+    },
+    "stacks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "path", "summary"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "path": { "type": "string", "minLength": 1 },
+          "summary": { "type": "string", "pattern": "^[^\\n]+$" }
+        }
+      }
+    }
+  }
+}

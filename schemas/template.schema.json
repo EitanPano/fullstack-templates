@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/EitanPano/fullstack-templates/schemas/template.schema.json",
+  "title": "Template manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "kind",
+    "name",
+    "version",
+    "summary",
+    "runtime",
+    "tools",
+    "placeholders",
+    "commands",
+    "agents"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "kind": { "enum": ["server", "frontend", "worker"] },
+    "name": { "type": "string", "minLength": 1 },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"
+    },
+    "summary": { "type": "string", "pattern": "^[^\\n]+$" },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["language", "platform"],
+      "properties": {
+        "language": { "type": "string", "minLength": 1 },
+        "platform": { "type": "string", "minLength": 1 },
+        "minVersion": { "type": "string", "minLength": 1 }
+      }
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "min": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "placeholders": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" }
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check"],
+      "properties": {
+        "install": { "type": "string", "minLength": 1 },
+        "dev": { "type": "string", "minLength": 1 },
+        "check": { "type": "string", "minLength": 1 },
+        "typecheck": { "type": "string", "minLength": 1 },
+        "lint": { "type": "string", "minLength": 1 },
+        "format": { "type": "string", "minLength": 1 },
+        "test": { "type": "string", "minLength": 1 },
+        "testDb": { "type": "string", "minLength": 1 },
+        "testE2e": { "type": "string", "minLength": 1 },
+        "contract": { "type": "string", "minLength": 1 },
+        "migrate": { "type": "string", "minLength": 1 }
+      }
+    },
+    "agents": { "type": "string", "minLength": 1 },
+    "flags": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["summary", "default"],
+        "properties": {
+          "summary": { "type": "string", "pattern": "^[^\\n]+$" },
+          "default": { "type": "boolean" },
+          "onlyPaths": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "dependencies": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "remove": { "type": "array", "items": { "type": "string" } },
+              "add": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "dependencies": {
+                    "type": "object",
+                    "additionalProperties": { "type": "string" }
+                  },
+                  "devDependencies": {
+                    "type": "object",
+                    "additionalProperties": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "propertyNames": { "enum": ["database", "cache", "messaging"] },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["providers"],
+        "properties": {
+          "providers": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "mode": { "enum": ["push", "pull"] }
+        }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest", "adapter"],
+      "properties": {
+        "manifest": { "type": "string", "minLength": 1 },
+        "adapter": { "enum": ["npm"] }
+      }
+    },
+    "contract": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["produces"],
+          "properties": { "produces": { "type": "string", "minLength": 1 } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["consumes"],
+          "properties": { "consumes": { "type": "string", "minLength": 1 } }
+        }
+      ]
+    },
+    "http": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["port", "health"],
+      "properties": {
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "health": { "type": "string", "minLength": 1 },
+        "ready": { "type": "string", "minLength": 1 }
+      }
+    },
+    "gitignore": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "postGenerate": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "install",
+          "dev",
+          "check",
+          "typecheck",
+          "lint",
+          "format",
+          "test",
+          "testDb",
+          "testE2e",
+          "contract",
+          "migrate"
+        ]
+      }
+    },
+    "defaultStack": { "type": "string", "minLength": 1 }
+  }
+}
