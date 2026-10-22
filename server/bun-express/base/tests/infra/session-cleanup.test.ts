@@ -1,26 +1,22 @@
-import { afterEach, beforeEach, describe, expect, it, setSystemTime } from 'bun:test'
+import { afterEach, beforeEach, expect, it, setSystemTime } from 'bun:test'
 import { Cron } from 'croner'
 
-import { memory } from '../../src/infra/memory'
 import { sessionCleanup } from '../../src/infra/jobs/session-cleanup'
 import { createScheduler } from '../../src/infra/scheduler'
-import { getDb } from '../../src/services/db'
-import type { SessionRecord } from '../../src/models/session/interface'
 import { createSession, revokeSession } from '../../src/services/session'
+import { describeStore, recordExists, resetStore } from '../store'
 
 const DAY = 24 * 60 * 60 * 1000
 
 beforeEach(async () => {
-  await memory.close()
+  await resetStore()
 })
 
 afterEach(() => {
   setSystemTime()
 })
 
-const stored = (id: string) => getDb().collection<SessionRecord>('session').get(id)
-
-describe('sessionCleanup', () => {
+describeStore('sessionCleanup', () => {
   it('purges expired sessions and keeps a fresh one', async () => {
     const old = await createSession('user-1')
     setSystemTime(new Date(Date.now() + 31 * DAY))
@@ -28,8 +24,8 @@ describe('sessionCleanup', () => {
 
     await sessionCleanup.run()
 
-    expect(await stored(old.session.id)).toBeUndefined()
-    expect(await stored(fresh.session.id)).toBeDefined()
+    expect(await recordExists('session', old.session.id)).toBe(false)
+    expect(await recordExists('session', fresh.session.id)).toBe(true)
   })
 
   it('purges a revoked session', async () => {
@@ -39,8 +35,8 @@ describe('sessionCleanup', () => {
 
     await sessionCleanup.run()
 
-    expect(await stored(revoked.session.id)).toBeUndefined()
-    expect(await stored(live.session.id)).toBeDefined()
+    expect(await recordExists('session', revoked.session.id)).toBe(false)
+    expect(await recordExists('session', live.session.id)).toBe(true)
   })
 
   it('does nothing when no session is dead', async () => {
@@ -48,7 +44,7 @@ describe('sessionCleanup', () => {
 
     await sessionCleanup.run()
 
-    expect(await stored(live.session.id)).toBeDefined()
+    expect(await recordExists('session', live.session.id)).toBe(true)
   })
 
   it('has a valid cron pattern and its name', () => {

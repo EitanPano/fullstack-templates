@@ -1,13 +1,13 @@
 import { join } from 'node:path'
 
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
+import { afterAll, afterEach, beforeAll, beforeEach, expect, it } from 'bun:test'
 
 import * as user from '../../src/api/user/controller'
-import { memory } from '../../src/infra/memory'
 import { pubsub } from '../../src/infra/pubsub'
 import { drain } from '../../src/services/event'
 import { sendWelcome } from '../../src/infra/subscribers/send-welcome'
 import { registerProvider, resetProviders, type Message } from '../../src/services/communicate'
+import { describeStore, resetStore } from '../store'
 
 const PASSWORD = 'correct horse battery'
 
@@ -22,7 +22,7 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
-  await memory.close()
+  await resetStore()
   sent = []
   registerProvider('mail', {
     send: (message) => {
@@ -36,7 +36,7 @@ afterEach(() => {
   resetProviders()
 })
 
-describe('sendWelcome', () => {
+describeStore('sendWelcome', () => {
   it('mails the new user when user.registered is published', async () => {
     await user.createUser({ email: 'new@example.com', password: PASSWORD })
     await drain()

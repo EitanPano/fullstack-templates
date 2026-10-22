@@ -1,26 +1,16 @@
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  setSystemTime,
-} from 'bun:test'
+import { afterAll, afterEach, beforeAll, beforeEach, expect, it, setSystemTime } from 'bun:test'
 import request from 'supertest'
 
 import * as userService from '../src/api/user/service'
-import { memory } from '../src/infra/memory'
 import { pubsub } from '../src/infra/pubsub'
 import type { AuthTokens } from '../src/models/auth/type'
 import type { PublicUser } from '../src/models/user/type'
 import { app } from '../src/server'
 import { type Message, registerProvider, resetProviders } from '../src/services/communicate'
 import { createConsoleProvider } from '../src/services/communicate/console'
-import { getDb } from '../src/services/db'
 import { drain } from '../src/services/event'
 import { createLogger } from '../src/services/logger'
+import { deleteRecord, describeStore, resetStore } from './store'
 
 const PASSWORD = 'correct horse battery'
 
@@ -42,7 +32,7 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
-  await memory.close()
+  await resetStore()
   sent = []
   const capture = {
     send(message: Message) {
@@ -109,7 +99,7 @@ async function block(id: string) {
   await userService.update({ ...record, status: 'blocked' })
 }
 
-describe('register', () => {
+describeStore('register', () => {
   it('answers 201 with tokens, two httpOnly cookies and no passwordHash', async () => {
     const res = await register('ada@example.com')
 
@@ -153,7 +143,7 @@ describe('register', () => {
   })
 })
 
-describe('login', () => {
+describeStore('login', () => {
   it('answers 200 with tokens', async () => {
     await register('ada@example.com')
     const res = await login('Ada@example.com')
@@ -203,7 +193,7 @@ describe('login', () => {
   })
 })
 
-describe('refresh', () => {
+describeStore('refresh', () => {
   it('rotates the refresh token', async () => {
     const { res } = await signedIn('ada@example.com')
     const old = tokenFromCookie(res, 'refresh_token')
@@ -282,7 +272,7 @@ describe('refresh', () => {
   })
 })
 
-describe('logout', () => {
+describeStore('logout', () => {
   it('answers 204, clears the cookies and kills the refresh token', async () => {
     const { res, bearer } = await signedIn('ada@example.com')
     const out = await request(app).post('/api/auth/logout').set('Authorization', bearer)
@@ -326,7 +316,7 @@ describe('logout', () => {
   })
 })
 
-describe('otp request', () => {
+describeStore('otp request', () => {
   it('answers 202 for an unknown target and sends nothing', async () => {
     const res = await request(app)
       .post('/api/auth/otp')
@@ -435,7 +425,7 @@ describe('otp request', () => {
 
   it('answers 401 for verify when the caller account was deleted', async () => {
     const { res, bearer } = await signedIn('ada@example.com')
-    await getDb().collection('user').delete(body(res).user.id)
+    await deleteRecord('user', body(res).user.id)
     const out = await request(app)
       .post('/api/auth/otp')
       .set('Authorization', bearer)
@@ -482,7 +472,7 @@ describe('otp request', () => {
   })
 })
 
-describe('otp verification', () => {
+describeStore('otp verification', () => {
   const target = { type: 'email', value: 'ada@example.com' }
   const verify = (code: string, purpose = 'login') =>
     request(app).post('/api/auth/otp/verification').send({ target, purpose, code })
@@ -613,7 +603,7 @@ describe('otp verification', () => {
   })
 })
 
-describe('otp login verifies the target', () => {
+describeStore('otp login verifies the target', () => {
   const target = { type: 'email', value: 'ada@example.com' }
   const verifyLogin = (code: string | undefined) =>
     request(app).post('/api/auth/otp/verification').send({ target, purpose: 'login', code })
@@ -650,7 +640,7 @@ describe('otp login verifies the target', () => {
   })
 })
 
-describe('phone ownership', () => {
+describeStore('phone ownership', () => {
   const phone = { type: 'phone', value: '+14155550123' }
   const claim = (bearer: string) =>
     request(app).patch('/api/user/me').set('Authorization', bearer).send({ phone: phone.value })
@@ -713,7 +703,7 @@ describe('phone ownership', () => {
   })
 })
 
-describe('delivery failures', () => {
+describeStore('delivery failures', () => {
   it('answers 503 for a verify code when the provider fails, without leaking its message', async () => {
     registerProvider('mail', {
       send: () => Promise.reject(new Error('vendor echoed code 424242')),

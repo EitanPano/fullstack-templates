@@ -3,11 +3,12 @@ import { createServer } from 'node:http'
 import { fileURLToPath } from 'node:url'
 
 import { loadEnv } from '../src/config/env'
+import { describeStore } from './store'
 
 // The process entry under a real bind failure, in a child process: it must not report
 // success, and it must leave with a non-zero code instead of lingering. The blocker is an
 // http server like the entry's own, so the second bind fails the same way on every OS.
-describe('the entry', () => {
+describeStore('the entry', () => {
   it('exits 1 and logs the failure when the port is already taken', async () => {
     const blocker = createServer()
     await new Promise<void>((resolve) => {
