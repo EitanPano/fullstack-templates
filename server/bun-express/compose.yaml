@@ -16,13 +16,13 @@ environment:
   # Comma-separated browser origins; empty keeps CORS off (the Next.js server is the client).
   CORS_ORIGINS: ${CORS_ORIGINS:-}
   # Scheduled jobs run on exactly one replica. The template itself runs as one instance
-  # @auth-start
-  # until the data-layer and cache tasks (users, sessions, rate limits and the bus live
-  # in one process).
-  # @auth-end
-  # @noauth-start
-  # until the data-layer and cache tasks (rate limits and the bus live in one process).
-  # @noauth-end
+  # @nodatabase-start
+  # until the data-layer and cache tasks (the stores, rate limits and the bus live in one
+  # process).
+  # @nodatabase-end
+  # @database:postgres-start
+  # until the cache task (the cache, rate limits and the bus live in one process).
+  # @database:postgres-end
   JOBS_ENABLED: ${JOBS_ENABLED:-true}
 # Loopback only: the frontend container reaches the backend on the compose network.
 # Publishing the port on every interface with TRUST_PROXY=1 would let any direct caller

@@ -295,9 +295,10 @@ describe('healthCheck', () => {
 })
 
 describe('dependencies', () => {
-  it('lists the store, the bus and the scheduler in connection order', () => {
+  it('lists the stores, the bus and the scheduler in connection order', () => {
     expect(dependencies.map((dependency) => dependency.name)).toEqual([
       'memory',
+      'postgres', // @database:postgres
       'pubsub',
       'scheduler',
     ])

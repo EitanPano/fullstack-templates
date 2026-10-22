@@ -2,9 +2,17 @@ import { env } from '../config/env'
 import { log, type Logger } from '../services/logger'
 import type { Resource } from './dependency'
 
+// @nodatabase-start
 // The template's only store: a record store and a key-value store held in process memory,
 // exposed as one Resource. The data-layer task adds `infra/<engine>.ts` and the cache task
 // `infra/redis.ts`, each a Resource, and rebinds `services/db.ts` / `services/cache.ts`.
+// @nodatabase-end
+// @database:postgres-start
+// The cache: a key-value store held in process memory, exposed as one Resource. The records
+// live in `infra/postgres.ts`; the record store below is the base template's and nothing in
+// this variant reads it. The cache task adds `infra/redis.ts`, a Resource, and rebinds
+// `services/cache.ts`.
+// @database:postgres-end
 // Records are cloned on the way in and out so a caller cannot change the store through a
 // reference, which a real engine would not allow either. `structuredClone` rejects functions and
 // class instances with non-cloneable fields; records are plain data.

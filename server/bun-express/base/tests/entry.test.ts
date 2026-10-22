@@ -46,6 +46,7 @@ const productionSource = {
   JWT_REFRESH_SECRET: `${SECRET}-2`, // @auth
   OTP_SECRET: `${SECRET}-3`, // @auth
   ENCRYPTION_KEY: KEY,
+  DATABASE_URL: 'postgres://app:a-real-password@db.internal:5432/app', // @database:postgres
 }
 
 // loadEnv takes an explicit source, so these cases never read the real environment.
@@ -124,8 +125,7 @@ describe('loadEnv', () => {
     expect(env.ENCRYPTION_KEY).toBe(KEY) // @noauth
   })
 
-  it('falls back to development defaults and names the four secrets', () => { // @auth
-  it('falls back to a development default and names the encryption key', () => { // @noauth
+  it('falls back to development defaults and names each secret it defaulted', () => {
     const { env, defaultedSecrets } = loadEnv({})
 
     expect(defaultedSecrets).toEqual([
@@ -133,6 +133,7 @@ describe('loadEnv', () => {
       'JWT_REFRESH_SECRET', // @auth
       'OTP_SECRET', // @auth
       'ENCRYPTION_KEY',
+      'DATABASE_URL', // @database:postgres
     ])
     expect(env.NODE_ENV).toBe('development')
     expect(env.PORT).toBe(4000)
@@ -144,9 +145,43 @@ describe('loadEnv', () => {
   it('records only the secrets that fell back', () => {
     const { defaultedSecrets } = loadEnv({ OTP_SECRET: `${SECRET}-3` })
 
-    expect(defaultedSecrets).toEqual(['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'ENCRYPTION_KEY'])
+    expect(defaultedSecrets).toEqual([
+      'JWT_ACCESS_SECRET',
+      'JWT_REFRESH_SECRET',
+      'ENCRYPTION_KEY',
+      'DATABASE_URL', // @database:postgres
+    ])
   })
   // @auth-end
+
+  // @database:postgres-start
+  it('requires the database URL in production and names it', () => {
+    const { DATABASE_URL: _omitted, ...source } = productionSource
+
+    expect(() => loadEnv(source)).toThrow(/DATABASE_URL/)
+  })
+
+  it('rejects a URL that is not a postgres one without echoing it', () => {
+    const attempt = () =>
+      loadEnv({ ...productionSource, DATABASE_URL: 'mysql://app:hunter2@db.internal/app' })
+
+    expect(attempt).toThrow(/DATABASE_URL: must be a postgres/)
+    expect(attempt).not.toThrow(/hunter2/)
+  })
+
+  it('accepts the postgresql scheme and refuses the local default in production', () => {
+    const url = 'postgresql://app:a-real-password@db.internal:5432/app'
+
+    expect(loadEnv({ ...productionSource, DATABASE_URL: url }).env.DATABASE_URL).toBe(url)
+    expect(() =>
+      loadEnv({ ...productionSource, DATABASE_URL: 'postgres://app:app@localhost:5432/app' }),
+    ).toThrow(/DATABASE_URL: is a placeholder/)
+  })
+
+  it('defaults the database URL to the local service outside production', () => {
+    expect(loadEnv({}).env.DATABASE_URL).toBe('postgres://app:app@localhost:5432/app')
+  })
+  // @database:postgres-end
 
   it('parses TRUST_PROXY as a boolean, a number or a string', () => {
     expect(loadEnv({}).env.TRUST_PROXY).toBe(false)
