@@ -314,6 +314,22 @@ describe('loadCatalog providers and capabilities', () => {
     expect(message).toContain('summary')
   })
 
+  test('reports a capability flag the template does not declare', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${overlayDir}/capability.yaml`, (t) => t.replace('  auth:\n', '  ghost:\n'))
+    expect(problems(root)).toContain(
+      `${overlayDir}/capability.yaml: flag "ghost" is not declared by the template`,
+    )
+  })
+
+  test('reports a capability flag onlyPath missing from overlay/', () => {
+    const root = copyFixture('catalog')
+    rmSync(path.join(root, overlayDir, 'overlay', 'src', 'auth-database.ts'))
+    expect(problems(root)).toContain(
+      `${overlayDir}/capability.yaml: flag "auth" onlyPath "src/auth-database.ts" does not exist in overlay/`,
+    )
+  })
+
   test('reports a listed provider without a capability directory', () => {
     const root = copyFixture('catalog')
     rmSync(path.join(root, overlayDir), { recursive: true })

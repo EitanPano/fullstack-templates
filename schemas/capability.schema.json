@@ -61,6 +61,26 @@
         "minLength": 1
       }
     },
+    "flags": {
+      "type": "object",
+      "description": "Per template flag: overlay files that exist only while the flag is on.",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["onlyPaths"],
+        "properties": {
+          "onlyPaths": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/relativePath"
+            }
+          }
+        }
+      }
+    },
     "commands": {
       "type": "object",
       "additionalProperties": false,
@@ -80,6 +100,11 @@
     }
   },
   "$defs": {
+    "relativePath": {
+      "type": "string",
+      "description": "A POSIX relative path inside the overlay: segments of letters, digits, dot, underscore, at and hyphen joined by '/'; no '..' segment, no leading '/', no drive letter, no backslash.",
+      "pattern": "^(?!(.*/)?\\.\\.(/|$))[A-Za-z0-9._@-]+(/[A-Za-z0-9._@-]+)*$"
+    },
     "command": {
       "type": "string",
       "minLength": 1,

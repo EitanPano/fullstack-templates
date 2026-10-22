@@ -92,6 +92,7 @@ export interface CapabilityManifest {
   summary: string
   dependencies?: DependencyChange
   scripts?: Record<string, string>
+  flags?: Record<string, { onlyPaths: string[] }>
   commands?: Partial<Record<CommandName, string>>
 }
 

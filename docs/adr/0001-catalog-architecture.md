@@ -605,6 +605,9 @@ After v1, in this order unless Eitan reorders: `server/python-fastapi`, then
 - An overlay's `scripts` reach the package manifest through the template's dependency
   adapter, appended after the existing scripts. A name the base already defines is an error
   at load time, so no overlay replaces a script silently.
+- A capability manifest may declare `flags.<name>.onlyPaths`: overlay files removed when that
+  template flag is off, for a file the base does not have. The loader refuses a flag the
+  template does not declare and a path missing from `overlay/`.
 - Selections are `<kind>` (a provider is chosen) and `<kind>:<provider>`, next to the flags.
   Markers use them: `@database`, `@nodatabase`, `@database:postgres`, in the `-start` / `-end`
   forms as well. `.sql` files take `--` as their comment syntax.

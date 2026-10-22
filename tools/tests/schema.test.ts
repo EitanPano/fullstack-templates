@@ -343,6 +343,16 @@ describe('provider and capability manifests', () => {
       validateAgainst('capability', { ...capability, scripts: { 'test:db': '' } }),
     ).not.toEqual([])
   })
+  test('accepts per-flag onlyPaths and rejects an unknown key or a bad path', () => {
+    const flags = { auth: { onlyPaths: ['tests/db/user.test.ts'] } }
+    expect(validateAgainst('capability', { ...capability, flags })).toEqual([])
+    const bad = (value: unknown) =>
+      validateAgainst('capability', { ...capability, flags: value }).length
+    expect(bad({ auth: { onlyPaths: [], extra: 1 } })).toBeGreaterThan(0)
+    expect(bad({ auth: { onlyPaths: ['../x'] } })).toBeGreaterThan(0)
+    expect(bad({ Auth: { onlyPaths: [] } })).toBeGreaterThan(0)
+  })
+
   test('rejects an unknown capability field', () => {
     expect(validateAgainst('capability', { ...capability, extra: 1 })).not.toEqual([])
   })

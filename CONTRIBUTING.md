@@ -88,8 +88,10 @@ An overlay binds one provider to one template, in
 - [ ] Shared files carry markers where the two variants differ: `@<kind>` (any provider),
       `@no<kind>` (none) or `@<kind>:<provider>` at the end of a line, or the `-start` and
       `-end` forms around a block. Keep the no-capability variant byte for byte what it was.
-- [ ] A file that only makes sense with a flag on lives under that flag's `onlyPaths`; the
-      generator copies overlays before it removes `onlyPaths`, so `auth=false` drops it.
+- [ ] A file that only makes sense with a flag on lives under that flag's `onlyPaths` in the
+      template, or is listed in the capability's `flags.<name>.onlyPaths` (for a new file the
+      base lacks); the generator copies overlays before it removes both, so `auth=false`
+      drops it.
 - [ ] Two cases in `tests/cases.yaml`: the capability alone at the default flags, and the
       capability with every flag off (`validate` fails without them).
 - [ ] `bun tools/test-generated.ts --case <id> --with-services` green for both: migrate,

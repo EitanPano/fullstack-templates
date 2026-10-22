@@ -601,6 +601,25 @@ describe('generate with a capability', () => {
     expect(read(withAuth, 'backend', 'src', 'auth.ts')).toContain('auth-with-database')
   })
 
+  test('a capability flag onlyPath exists only while the flag is on', () => {
+    const off = tempDir()
+    generate(catalog, fake(off, { flags: ['auth=false'] }))
+    expect(existsSync(path.join(off, 'backend', 'src', 'auth-database.ts'))).toBe(false)
+    const on = tempDir()
+    generate(catalog, fake(on))
+    expect(read(on, 'backend', 'src', 'auth-database.ts')).toContain('auth-only-overlay')
+  })
+
+  test('a capability flag onlyPath missing after the overlay copy fails and names the path', () => {
+    const root = copyFixture('catalog')
+    const broken = loadCatalog(root)
+    rmSync(path.join(root, 'server/mini/capabilities/database/fake/overlay/src/auth-database.ts'))
+    const options = { capabilities: ['database=fake'], flags: ['auth=false'] }
+    expect(() => generate(broken, resolveRequest(broken, request(tempDir(), options)))).toThrow(
+      'src/auth-database.ts',
+    )
+  })
+
   test('a generation without capabilities has no provider, scripts or env block', () => {
     const out = tempDir()
     generate(catalog, resolveRequest(catalog, request(out)))

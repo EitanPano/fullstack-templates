@@ -51,6 +51,8 @@ scripts:                                                          # lines for th
   db:migrate: bun run src/infra/scripts/migrate.ts
   test:db: bun test --preload ./tests/db/setup.ts
 commands: { testDb: bun run test:db, migrate: bun run db:migrate }   # merged into the template's
+flags:                                                            # optional: overlay files that exist
+  auth: { onlyPaths: [tests/db/user.test.ts] }                    # only while the template flag is on
 ```
 
 `scripts` go into the package manifest through the template's dependency adapter (`npm` for
@@ -77,13 +79,15 @@ Overlays and flags compose in a fixed order:
 
 1. Copy `base/`.
 2. Copy every selected overlay over it.
-3. Apply flags: remove `onlyPaths`, run the marker pass, apply dependency changes.
+3. Apply flags: remove `onlyPaths` (the template's, then each selected overlay's
+   `flags.<name>.onlyPaths`), run the marker pass, apply dependency changes.
 4. Add the overlay's dependencies and scripts, then substitute placeholders.
 
 A flag's `onlyPaths` therefore also removes overlay files at those paths: the postgres
 overlay ships its `user` service and `session` rewrite, and `auth=false` drops them. An
 overlay file that only makes sense with a flag on belongs under one of that flag's
-`onlyPaths`.
+`onlyPaths`, or is listed in the capability's own `flags.<name>.onlyPaths`; `validate` fails
+on a flag the template does not declare and on a path the overlay does not contain.
 
 ## Root assembly
 

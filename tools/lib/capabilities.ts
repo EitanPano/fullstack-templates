@@ -71,6 +71,7 @@ function templateScripts(template: LoadedTemplate, problems: string[]): Set<stri
 function checkOverlayManifest(
   template: LoadedTemplate,
   manifest: CapabilityManifest,
+  overlayDir: string,
   label: string,
   problems: string[],
 ): void {
@@ -79,6 +80,19 @@ function checkOverlayManifest(
       problems.push(
         `${label}/capability.yaml: command "${name}" is already defined by the template`,
       )
+    }
+  }
+  for (const [flag, spec] of Object.entries(manifest.flags ?? {})) {
+    if (!(flag in (template.manifest.flags ?? {}))) {
+      problems.push(`${label}/capability.yaml: flag "${flag}" is not declared by the template`)
+      continue
+    }
+    for (const only of spec.onlyPaths) {
+      if (!existsSync(path.join(overlayDir, only))) {
+        problems.push(
+          `${label}/capability.yaml: flag "${flag}" onlyPath "${only}" does not exist in overlay/`,
+        )
+      }
     }
   }
   const scriptNames = Object.keys(manifest.scripts ?? {})
@@ -135,7 +149,7 @@ export function loadOverlays(
       if (manifest.provider !== provider) {
         problems.push(`${label}: provider "${manifest.provider}" differs from the path`)
       }
-      checkOverlayManifest(template, manifest, label, problems)
+      checkOverlayManifest(template, manifest, overlayDir, label, problems)
       overlays.set(`${kind}/${provider}`, { kind, provider, dir, overlayDir, manifest })
     }
   }

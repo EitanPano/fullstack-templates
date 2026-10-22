@@ -109,20 +109,30 @@ export function assertInside(root: string, target: string, what: string): void {
   }
 }
 
+function removeOnlyPath(pkg: PackagePlan, pkgStaging: string, only: string, owner: string): void {
+  const target = path.join(pkgStaging, only)
+  assertInside(pkgStaging, target, `${pkg.dir}: ${owner} onlyPath`)
+  if (!existsSync(target)) {
+    throw new GenerateError(`${pkg.dir}: ${owner} lists onlyPaths ${only}, which is missing`)
+  }
+  removeTree(target)
+  pruneEmptyParents(path.dirname(target), pkgStaging)
+}
+
+// A flag that is off removes the template's onlyPaths and each selected overlay's own, after the
+// overlay copy, so a capability can add a file that exists only while the flag is on.
 function removeOnlyPaths(pkg: PackagePlan, pkgStaging: string): void {
   const specs = pkg.template.manifest.flags ?? {}
   for (const [name, on] of Object.entries(pkg.flags)) {
     if (on) continue
     for (const only of specs[name]?.onlyPaths ?? []) {
-      const target = path.join(pkgStaging, only)
-      assertInside(pkgStaging, target, `${pkg.dir}: flag ${name} onlyPath`)
-      if (!existsSync(target)) {
-        throw new GenerateError(
-          `${pkg.dir}: flag ${name} lists onlyPaths ${only}, which is missing`,
-        )
+      removeOnlyPath(pkg, pkgStaging, only, `flag ${name}`)
+    }
+    for (const overlay of pkg.overlays) {
+      for (const only of overlay.manifest.flags?.[name]?.onlyPaths ?? []) {
+        const owner = `flag ${name} (capability ${overlay.kind}/${overlay.provider})`
+        removeOnlyPath(pkg, pkgStaging, only, owner)
       }
-      removeTree(target)
-      pruneEmptyParents(path.dirname(target), pkgStaging)
     }
   }
 }
