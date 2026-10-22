@@ -1,4 +1,4 @@
-import { cpSync, readdirSync, rmSync, rmdirSync } from 'node:fs'
+import { cpSync, readdirSync, rmSync, rmdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 
 export function listFiles(dir: string): string[] {
@@ -12,8 +12,39 @@ export function listFiles(dir: string): string[] {
   return found
 }
 
+// A contributor's local state (installs, build output, env files, editor droppings) must never
+// reach a generated project: it would break determinism (D6) and can leak secrets.
+export const COPY_EXCLUDES = {
+  directories: [
+    'node_modules',
+    '.git',
+    '.next',
+    'dist',
+    'coverage',
+    'test-results',
+    'playwright-report',
+  ],
+  files: ['next-env.d.ts', '.DS_Store', 'Thumbs.db'],
+  suffixes: ['.tsbuildinfo'],
+  envPrefix: '.env',
+  envKept: '.env.example',
+} as const
+
+export function isExcluded(name: string, isDirectory: boolean): boolean {
+  if (isDirectory) return (COPY_EXCLUDES.directories as readonly string[]).includes(name)
+  if ((COPY_EXCLUDES.files as readonly string[]).includes(name)) return true
+  if (COPY_EXCLUDES.suffixes.some((suffix) => name.endsWith(suffix))) return true
+  return name.startsWith(COPY_EXCLUDES.envPrefix) && name !== COPY_EXCLUDES.envKept
+}
+
 export function copyTree(from: string, to: string): void {
-  cpSync(from, to, { recursive: true })
+  cpSync(from, to, {
+    recursive: true,
+    filter: (source) => {
+      if (path.resolve(source) === path.resolve(from)) return true
+      return !isExcluded(path.basename(source), statSync(source).isDirectory())
+    },
+  })
 }
 
 export function removeTree(dir: string): void {
