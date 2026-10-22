@@ -4,10 +4,10 @@ import path from 'node:path'
 import { CatalogError, loadCatalog, type Catalog } from './lib/catalog'
 import { listCases, requestFor, type GenerationCase } from './lib/cases'
 import { CATALOG_ROOT, CliError, fail, parseArgs } from './lib/cli'
-import { CommandError, runCommand } from './lib/commands'
+import { runCommand } from './lib/commands'
 import { removeTree } from './lib/files'
-import { generate, GenerateError } from './lib/generate'
-import { PlanError, resolveRequest } from './lib/plan'
+import { generate } from './lib/generate'
+import { resolveRequest } from './lib/plan'
 
 const USAGE =
   'usage: bun tools/test-generated.ts [--catalog <root>] [--list] [--case <id>]... [--e2e] [--keep]'
@@ -17,7 +17,7 @@ interface Options {
   keep: boolean
 }
 
-// A failure of any kind in one case is that case's FAIL, never an abort of the run.
+// Any throw for one case, expected or not, is that case's FAIL and never aborts the run.
 function runCase(catalog: Catalog, c: GenerationCase, out: string, options: Options): void {
   const plan = resolveRequest(catalog, requestFor(c, out))
   generate(catalog, plan, { log: () => undefined })
@@ -58,15 +58,8 @@ function run(argv: string[]): number {
     try {
       runCase(catalog, c, out, options)
     } catch (error) {
-      if (!(
-        error instanceof GenerateError ||
-        error instanceof CommandError ||
-        error instanceof PlanError
-      )) {
-        throw error
-      }
       ok = false
-      console.log(error.message)
+      console.log(error instanceof Error ? error.message : String(error))
     }
     if (ok) {
       console.log(`PASS ${c.id}`)
@@ -75,6 +68,7 @@ function run(argv: string[]): number {
       console.log(`FAIL ${c.id} (${out})`)
     }
     if (ok && !options.keep) removeTree(out)
+    else if (ok) console.log(`KEPT ${out}`)
   }
   console.log(`${selected.length - failed} of ${selected.length} cases passed`)
   return failed > 0 ? 1 : 0
