@@ -1,0 +1,8 @@
+schemaVersion: 1
+id: next-bun-express
+summary: Next.js 16 in front of Express 5 on Bun
+packages:
+  - template: server/bun-express
+    dir: backend
+  - template: frontend/next
+    dir: frontend

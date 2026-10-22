@@ -1,0 +1,7 @@
+name: __PROJECT_NAME__
+
+# `docker compose --profile app up --build` runs the stack from the two Dockerfiles.
+# Infrastructure the product adds later (the database chosen in .doc/architecture.md, a
+# queue) is a service without a profile, so `docker compose up -d <service>` starts it alone
+# for local development; the `database` skill shows the service shape per engine.
+services: {}

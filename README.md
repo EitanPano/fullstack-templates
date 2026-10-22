@@ -9,3 +9,8 @@ usable on its own.
 
 Status: design accepted, first templates landing. The architecture is in
 [docs/adr/0001-catalog-architecture.md](docs/adr/0001-catalog-architecture.md).
+
+## Templates
+
+<!-- matrix:start -->
+<!-- matrix:end -->
