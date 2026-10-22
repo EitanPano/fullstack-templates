@@ -23,7 +23,7 @@ bun tools/validate.ts [--readme]
 bun tools/generate.ts --stack <id> --out <dir> --name <name> \
   [--flag k=v] [--capability k=v] [--answers <file>] [--template <kind/id>] \
   [--skip-post-generate] [--keep-staging]
-bun tools/test-generated.ts [--list] [--case <id>] [--e2e] [--keep]
+bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] [--keep]
 ```
 
 - `validate` checks the catalog (manifests, indexes, schemas, markers, placeholders) and
@@ -33,7 +33,7 @@ bun tools/test-generated.ts [--list] [--case <id>] [--e2e] [--keep]
   `--skip-post-generate` leaves out install, contract and format; `--keep-staging` keeps the
   working directory for inspection.
 - `test-generated` generates each case from every template's `tests/cases.yaml` and runs
-  its gates. `--list` prints the cases, `--case` runs one, `--e2e` adds the e2e suite and
+  its gates. `--list` prints the cases, `--case` runs one, `--e2e` adds the e2e suite (`--install-browsers` first installs Playwright's Chromium in each generated package that has one) and
   `--keep` keeps the output.
 
 ## Adding a template

@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { CatalogError, loadCatalog, type Catalog } from './lib/catalog'
 import { listCases, requestFor, type GenerationCase } from './lib/cases'
+import { browserInstallCommand } from './lib/browsers'
 import { CATALOG_ROOT, CliError, fail, parseArgs } from './lib/cli'
 import { runCommand } from './lib/commands'
 import { removeTree } from './lib/files'
@@ -10,10 +11,11 @@ import { generate } from './lib/generate'
 import { resolveRequest } from './lib/plan'
 
 const USAGE =
-  'usage: bun tools/test-generated.ts [--catalog <root>] [--list] [--case <id>]... [--e2e] [--keep]'
+  'usage: bun tools/test-generated.ts [--catalog <root>] [--list] [--case <id>]... [--e2e [--install-browsers]] [--keep]'
 
 interface Options {
   e2e: boolean
+  installBrowsers: boolean
   keep: boolean
 }
 
@@ -27,7 +29,10 @@ function runCase(catalog: Catalog, c: GenerationCase, out: string, options: Opti
     runCommand(commands.check, cwd)
     if (options.e2e && commands.testE2e) {
       if (pkg.contractSkipped) console.log(`SKIP e2e ${pkg.dir}: no server in the plan`)
-      else runCommand(commands.testE2e, cwd)
+      else {
+        if (options.installBrowsers) runCommand(browserInstallCommand(process.platform), cwd)
+        runCommand(commands.testE2e, cwd)
+      }
     }
   }
 }
@@ -36,7 +41,7 @@ function run(argv: string[]): number {
   const args = parseArgs(argv, {
     values: ['catalog'],
     repeatable: ['case'],
-    booleans: ['list', 'e2e', 'keep'],
+    booleans: ['list', 'e2e', 'keep', 'install-browsers'],
   })
   const catalog = loadCatalog(
     args.values.catalog ? path.resolve(args.values.catalog) : CATALOG_ROOT,
@@ -52,7 +57,11 @@ function run(argv: string[]): number {
     if (!cases.some((c) => c.id === id)) throw new CliError(`unknown case: ${id}`)
   }
   const selected = wanted.length > 0 ? cases.filter((c) => wanted.includes(c.id)) : cases
-  const options = { e2e: args.booleans.e2e as boolean, keep: args.booleans.keep as boolean }
+  const options = {
+    e2e: args.booleans.e2e as boolean,
+    installBrowsers: args.booleans['install-browsers'] as boolean,
+    keep: args.booleans.keep as boolean,
+  }
 
   let failed = 0
   for (const c of selected) {

@@ -52,6 +52,11 @@ describe('test-generated CLI', () => {
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('SKIP e2e frontend: no server in the plan')
   })
+  test('--install-browsers is accepted and does nothing for a package without e2e', () => {
+    const result = run(FIXTURE, '--case', 'server/mini/default', '--e2e', '--install-browsers')
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('PASS server/mini/default')
+  })
   test('--keep leaves the directory of a passing case', () => {
     const result = run(FIXTURE, '--case', 'server/mini/default', '--keep')
     expect(result.status).toBe(0)
