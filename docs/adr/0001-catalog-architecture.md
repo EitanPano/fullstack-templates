@@ -585,3 +585,12 @@ After v1, in this order unless Eitan reorders: `server/python-fastapi`, then
   `repository.ts` becomes `service.ts`, the module's private queries. `config/routes.ts` is a
   mount table (`registerRoutes(app)`, one `app.use` per module) and the OpenAPI registration
   list moves to `openapi.ts`. `conventions.md` carries the new contract.
+
+## Amendments (v0.2.0)
+
+- The bootstrap skill reads three small catalog files with the model in the loop: `index.yaml`,
+  the chosen `stacks/<id>/stack.yaml` and each listed `template.yaml`; Goal 4's 'at most two'
+  becomes 'these three'.
+- The generator's final move retries a rename that fails with `EPERM`, `EBUSY` or `EACCES`
+  (five attempts, growing delays) before rolling back: Windows holds files briefly after the
+  post-generate commands.
