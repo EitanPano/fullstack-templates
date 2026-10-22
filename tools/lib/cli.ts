@@ -49,7 +49,7 @@ export function parseArgs(argv: string[], spec: ArgSpec): ParsedArgs {
   return { values, lists, booleans }
 }
 
-export function fail(message: string, code: 1 | 2): never {
-  process.stderr.write(`generate: ${message}\n`)
+export function fail(message: string, code: 1 | 2, program: string): never {
+  process.stderr.write(`${program}: ${message}\n`)
   process.exit(code)
 }

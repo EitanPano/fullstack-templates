@@ -26,7 +26,9 @@ describe('test-generated CLI', () => {
     expect(result.stdout).toContain('PASS frontend/mini-ui/default')
   })
   test('rejects an unknown case id as a usage error', () => {
-    expect(run(FIXTURE, '--case', 'server/nope/default').status).toBe(2)
+    const result = run(FIXTURE, '--case', 'server/nope/default')
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain('test-generated: unknown case')
   })
   test('fails and keeps the directory when a check fails', () => {
     const root = copyFixture('catalog')

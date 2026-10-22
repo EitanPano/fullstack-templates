@@ -40,7 +40,7 @@ function run(argv: string[]): void {
     'catalog-version': version,
   } = args.values
   if (!out) throw new CliError('--out is required')
-  if (!name) throw new CliError('--name is required')
+  if (name === undefined) throw new CliError('--name is required')
   if (!stack && !template) throw new CliError('one of --stack or --template is required')
 
   const loaded = loadCatalog(catalog ? path.resolve(catalog) : CATALOG_ROOT)
@@ -72,16 +72,16 @@ function main(): void {
   } catch (error) {
     if (error instanceof CliError) {
       process.stderr.write(`${USAGE}\n`)
-      fail(error.message, 2)
+      fail(error.message, 2, 'generate')
     }
     if (
       error instanceof CatalogError ||
       error instanceof PlanError ||
       error instanceof GenerateError
     ) {
-      fail(error.message, 1)
+      fail(error.message, 1, 'generate')
     }
-    fail(error instanceof Error ? error.message : String(error), 1)
+    fail(error instanceof Error ? error.message : String(error), 1, 'generate')
   }
 }
 

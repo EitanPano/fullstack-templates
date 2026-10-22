@@ -295,19 +295,24 @@ function runPostGenerate(plan: GenerationPlan, staging: string, log: Log): void 
 }
 
 // Every rename is recorded with its inverse, so a failure part-way puts `out` back as it was.
-class Mover {
+export class Mover {
   private readonly undo: Array<() => void> = []
+  private readonly backups: string[] = []
 
-  constructor(private readonly backupDir: string) {}
+  constructor(
+    private readonly backupDir: string,
+    private readonly rename: (from: string, to: string) => void = renameSync,
+  ) {}
 
   move(from: string, to: string): void {
     if (existsSync(to)) {
       const backup = path.join(this.backupDir, `replaced-${String(this.undo.length)}`)
-      renameSync(to, backup)
-      this.undo.push(() => renameSync(backup, to))
+      this.rename(to, backup)
+      this.backups.push(backup)
+      this.undo.push(() => this.rename(backup, to))
     }
-    renameSync(from, to)
-    this.undo.push(() => renameSync(to, from))
+    this.rename(from, to)
+    this.undo.push(() => this.rename(to, from))
   }
 
   ensureDir(dir: string): void {
@@ -316,14 +321,18 @@ class Mover {
     this.undo.push(() => rmSync(dir, { recursive: true, force: true }))
   }
 
-  rollback(): void {
+  // Keeps restoring after a failed step. Returns the backup paths when any step failed, because
+  // then the staging directory holds the only copy of what was replaced and must survive.
+  rollback(): string[] | null {
+    let failed = false
     for (const step of this.undo.reverse()) {
       try {
         step()
       } catch {
-        // Keep restoring the rest; the original error is the one worth reporting.
+        failed = true
       }
     }
+    return failed ? [...this.backups] : null
   }
 }
 
@@ -353,6 +362,7 @@ export function generate(
   const staging = path.join(plan.out, STAGING_DIR)
   const mover = new Mover(staging)
   let failed = true
+  let keepForRecovery = false
   try {
     mkdirSync(plan.out, { recursive: true })
     if (!statSync(plan.out).isDirectory()) throw new GenerateError(`${plan.out} is not a directory`)
@@ -378,10 +388,17 @@ export function generate(
       provenancePath: path.join(plan.out, provenancePath),
     }
   } catch (error) {
-    mover.rollback()
+    const stranded = mover.rollback()
+    const base = error instanceof Error ? error.message : String(error)
+    if (stranded !== null) {
+      keepForRecovery = true
+      const backups = stranded.length > 0 ? ` and the replaced files in ${stranded.join(', ')}` : ''
+      const where = `staging kept at ${staging}${backups}`
+      throw new GenerateError(`${base}\nrollback failed: ${plan.out} may be half-written; ${where}`)
+    }
     if (error instanceof GenerateError) throw error
-    throw new GenerateError(error instanceof Error ? error.message : String(error))
+    throw new GenerateError(base)
   } finally {
-    if (!failed || !options.keepStaging) removeTree(staging)
+    if (!keepForRecovery && (!failed || !options.keepStaging)) removeTree(staging)
   }
 }

@@ -1,11 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { parse } from 'yaml'
 import { loadCatalog } from '../lib/catalog'
 import {
   GenerateError,
+  Mover,
   STAGING_DIR,
   assertInside,
   generate,
@@ -174,14 +175,26 @@ describe('catalogIdentity', () => {
     const root = copyFixture('catalog')
     git(root, 'init', '-q')
     git(root, 'add', '.')
-    git(root, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'init')
+    git(
+      root,
+      '-c',
+      'user.name=t',
+      '-c',
+      'user.email=t@t',
+      '-c',
+      'commit.gpgsign=false',
+      'commit',
+      '-q',
+      '-m',
+      'init',
+    )
     git(root, 'remote', 'add', 'origin', 'https://u:t@example.com/x.git')
     const first = catalogIdentity(root)
     expect(first.repository).toBe('https://example.com/x.git')
     expect(first.commit).toMatch(/^[0-9a-f]{40}$/)
     expect(first.version).toBe('unversioned')
-    git(root, 'tag', 'v0.1.0')
-    git(root, 'tag', 'v0.2.0')
+    git(root, '-c', 'tag.gpgSign=false', 'tag', 'v0.1.0')
+    git(root, '-c', 'tag.gpgSign=false', 'tag', 'v0.2.0')
     expect(catalogIdentity(root).version).toBe('v0.2.0')
   })
 })
@@ -270,5 +283,39 @@ describe('assertInside', () => {
   })
   test.each(['..', '../other', 'src/../../other', ''])('refuses %p', (rel) => {
     expect(() => assertInside(root, path.join(root, rel), 'x')).toThrow(GenerateError)
+  })
+})
+
+describe('Mover', () => {
+  function layout() {
+    const root = tempDir()
+    const staging = path.join(root, 'staging')
+    mkdirSync(path.join(staging, 'new'), { recursive: true })
+    writeFileSync(path.join(staging, 'new', 'f.txt'), 'new')
+    mkdirSync(path.join(root, 'target'))
+    writeFileSync(path.join(root, 'target', 'old.txt'), 'old')
+    return { staging, from: path.join(staging, 'new'), to: path.join(root, 'target') }
+  }
+
+  test('a clean rollback restores the replaced directory and reports nothing', () => {
+    const { staging, from, to } = layout()
+    const mover = new Mover(staging)
+    mover.move(from, to)
+    expect(readFileSync(path.join(to, 'f.txt'), 'utf8')).toBe('new')
+    expect(mover.rollback()).toBeNull()
+    expect(readFileSync(path.join(to, 'old.txt'), 'utf8')).toBe('old')
+  })
+
+  test('a failing undo step reports the backup paths so the caller keeps them', () => {
+    const { staging, from, to } = layout()
+    let failing = false
+    const mover = new Mover(staging, (a, b) => {
+      if (failing) throw new Error('disk gone')
+      renameSync(a, b)
+    })
+    mover.move(from, to)
+    failing = true
+    expect(mover.rollback()).toEqual([path.join(staging, 'replaced-0')])
+    expect(existsSync(path.join(staging, 'replaced-0', 'old.txt'))).toBe(true)
   })
 })

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { existsSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { FIXTURE, tempDir } from './helpers'
 
@@ -93,5 +93,22 @@ describe('generate CLI', () => {
     ])
     expect(result.status).toBe(2)
     expect(result.stderr).toContain('generate:')
+  })
+
+  test('an empty --name is not a usage error and falls back to app', () => {
+    const out = tempDir()
+    const result = run([
+      '--stack',
+      'mini',
+      '--out',
+      out,
+      '--name',
+      '',
+      '--catalog',
+      FIXTURE,
+      '--skip-post-generate',
+    ])
+    expect(result.status).toBe(0)
+    expect(readFileSync(path.join(out, 'docker-compose.yml'), 'utf8')).toContain('name: app')
   })
 })

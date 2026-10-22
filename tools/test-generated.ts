@@ -80,10 +80,10 @@ function main(): void {
   } catch (error) {
     if (error instanceof CliError) {
       process.stderr.write(`${USAGE}\n`)
-      fail(error.message, 2)
+      fail(error.message, 2, 'test-generated')
     }
-    if (error instanceof CatalogError) fail(error.message, 1)
-    fail(error instanceof Error ? error.message : String(error), 1)
+    if (error instanceof CatalogError) fail(error.message, 1, 'test-generated')
+    fail(error instanceof Error ? error.message : String(error), 1, 'test-generated')
   }
 }
 

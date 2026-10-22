@@ -298,10 +298,17 @@ function checkCrossReferences(
           problems.push(`${template.path}: case "${testCase.name}" uses undeclared flag "${flag}"`)
         }
       }
-      if (testCase.stack && !stacks.has(testCase.stack)) {
-        problems.push(
-          `${template.path}: case "${testCase.name}" uses unknown stack "${testCase.stack}"`,
-        )
+      if (testCase.stack) {
+        const stack = stacks.get(testCase.stack)
+        if (!stack) {
+          problems.push(
+            `${template.path}: case "${testCase.name}" uses unknown stack "${testCase.stack}"`,
+          )
+        } else if (!stack.manifest.packages.some((pkg) => pkg.template === template.path)) {
+          problems.push(
+            `${template.path}: case "${testCase.name}" uses stack "${testCase.stack}", which has no package for this template`,
+          )
+        }
       }
     }
   }

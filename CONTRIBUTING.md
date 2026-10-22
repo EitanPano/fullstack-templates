@@ -51,6 +51,10 @@ Checklist, under `<kind>/<id>/` (for example `server/bun-express`):
 - [ ] `bun tools/validate.ts --readme`, then `bun tools/validate.ts` green.
 - [ ] Every case green locally: `bun tools/test-generated.ts`.
 
+A manifest `commands` entry is a program plus whitespace-separated arguments, run without a
+shell: no pipes, redirects, quoting, variables or command substitution (the schema rejects
+`& | ; < > ' " $` and backticks). Put anything more elaborate in a script and call that.
+
 ### Markers and placeholders
 
 Markers are written in the file's own comment syntax (`//`, `#` or `<!-- -->`, chosen by

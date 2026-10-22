@@ -175,6 +175,27 @@ describe('loadCatalog', () => {
     expect(problems(root)).toContain('path must be stacks/mini')
   })
 
+  test('reports a case whose stack has no package for the template', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'server/mini/tests/cases.yaml', (t) =>
+      t.replace('name: auth-off', 'name: auth-off\n    stack: other'),
+    )
+    mkdirSync(path.join(root, 'stacks', 'other'))
+    const stack = [
+      'schemaVersion: 1',
+      'id: other',
+      'summary: Other',
+      'packages:',
+      '  - template: frontend/mini-ui',
+      '    dir: frontend',
+      '',
+    ]
+    writeFileSync(path.join(root, 'stacks', 'other', 'stack.yaml'), stack.join('\n'))
+    const entry = ['  - id: other', '    path: stacks/other', '    summary: Other', '']
+    edit(root, 'index.yaml', (t) => t + entry.join('\n'))
+    expect(problems(root)).toContain('has no package for this template')
+  })
+
   test('reports a missing shared file', () => {
     const root = copyFixture('catalog')
     edit(root, 'server/mini/template.yaml', (t) =>
