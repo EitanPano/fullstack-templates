@@ -1,7 +1,6 @@
-services:
-  __PACKAGE_DIR__:
-    build: ./__PACKAGE_DIR__
-    environment:
-      PORT: '__PORT__'
-      SECRET: ${SECRET} # @auth
-    profiles: [app]
+build: ./__PACKAGE_DIR__
+# keep this comment
+environment:
+  PORT: '__PORT__'
+  SECRET: ${SECRET} # @auth
+profiles: [app]

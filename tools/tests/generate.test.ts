@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { parse } from 'yaml'
 import { loadCatalog } from '../lib/catalog'
-import { GenerateError, STAGING_DIR, generate } from '../lib/generate'
+import { GenerateError, STAGING_DIR, generate, packagePlaceholders } from '../lib/generate'
+import { catalogIdentity } from '../lib/provenance'
 import { resolveRequest } from '../lib/plan'
 import { FIXTURE, copyFixture, tempDir } from './helpers'
 
@@ -34,6 +36,9 @@ describe('generate', () => {
     expect(compose.name).toBe('demo')
     expect(compose.services.backend.build).toBe('./backend')
     expect(compose.services.backend.environment.SECRET).toBe('${SECRET}')
+    expect(readFileSync(path.join(out, 'docker-compose.yml'), 'utf8')).toContain(
+      '# keep this comment',
+    )
     expect(compose.services.frontend.environment.API_URL).toBe('http://backend:4000')
     expect(readFileSync(path.join(out, '.gitignore'), 'utf8')).toContain(
       'fullstack-templates: node',
@@ -116,5 +121,138 @@ describe('generate', () => {
     )
     expect(lines.some((l) => /contract.*skipped/.test(l))).toBe(true)
     expect(existsSync(path.join(out, 'frontend', 'src', 'client.ts'))).toBe(true)
+  })
+})
+
+const edit = (file: string, from: string, to: string) =>
+  writeFileSync(file, readFileSync(file, 'utf8').replace(from, to))
+
+const git = (cwd: string, ...args: string[]) => {
+  const result = spawnSync('git', args, { cwd, encoding: 'utf8' })
+  if (result.status !== 0) throw new Error(result.stderr)
+}
+
+describe('generate: the move', () => {
+  test('a failure during the move puts the target back as it was', () => {
+    const out = tempDir()
+    writeFileSync(path.join(out, '.fullstack'), 'a plain file')
+    expect(() => generate(catalog, resolveRequest(catalog, request(out)))).toThrow(GenerateError)
+    expect(existsSync(path.join(out, 'backend'))).toBe(false)
+    expect(existsSync(path.join(out, 'frontend'))).toBe(false)
+    expect(readFileSync(path.join(out, '.fullstack'), 'utf8')).toBe('a plain file')
+    expect(existsSync(path.join(out, STAGING_DIR))).toBe(false)
+  })
+
+  test('a rerun merges the packages already recorded in the provenance', () => {
+    const out = tempDir()
+    const only = (template: string) =>
+      resolveRequest(catalog, request(out, { stack: undefined, template }))
+    generate(catalog, only('server/mini'))
+    generate(catalog, only('frontend/mini-ui'))
+    const provenance = parse(readFileSync(path.join(out, '.fullstack', 'catalog.yaml'), 'utf8'))
+    expect(Object.keys(provenance.packages).sort()).toEqual(['backend', 'frontend'])
+  })
+})
+
+describe('catalogIdentity', () => {
+  test('a directory that is not a repository root is local and unversioned', () => {
+    const root = copyFixture('catalog')
+    expect(catalogIdentity(root)).toEqual({
+      repository: 'local',
+      version: 'unversioned',
+      commit: null,
+    })
+  })
+
+  test('reads the commit, strips credentials and picks the highest version tag', () => {
+    const root = copyFixture('catalog')
+    git(root, 'init', '-q')
+    git(root, 'add', '.')
+    git(root, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'init')
+    git(root, 'remote', 'add', 'origin', 'https://u:t@example.com/x.git')
+    const first = catalogIdentity(root)
+    expect(first.repository).toBe('https://example.com/x.git')
+    expect(first.commit).toMatch(/^[0-9a-f]{40}$/)
+    expect(first.version).toBe('unversioned')
+    git(root, 'tag', 'v0.1.0')
+    git(root, 'tag', 'v0.2.0')
+    expect(catalogIdentity(root).version).toBe('v0.2.0')
+  })
+})
+
+describe('generate: edges', () => {
+  test('packagePlaceholders falls back to the conventional server when the plan has none', () => {
+    const plan = resolveRequest(
+      catalog,
+      request(tempDir(), { stack: undefined, template: 'frontend/mini-ui' }),
+    )
+    const lines: string[] = []
+    const values = packagePlaceholders(plan, plan.packages[0]!, (l) => lines.push(l))
+    expect(values).toMatchObject({ SERVER_DIR: 'backend', SERVER_PORT: '4000', PORT: '3000' })
+    expect(lines).toHaveLength(1)
+  })
+
+  test('a lone frontend with a compose fragment logs the server assumption once', () => {
+    const lines: string[] = []
+    generate(
+      catalog,
+      resolveRequest(
+        catalog,
+        request(tempDir(), { stack: undefined, template: 'frontend/mini-ui' }),
+      ),
+      { log: (l) => lines.push(l) },
+    )
+    expect(lines.filter((l) => /server references/.test(l))).toHaveLength(1)
+  })
+
+  test('a missing onlyPaths entry fails and names the path', () => {
+    const root = copyFixture('catalog')
+    const broken = loadCatalog(root)
+    rmSync(path.join(root, 'server/mini/base/src/auth.ts')) // removed after loading: the loader checks onlyPaths
+    expect(() =>
+      generate(broken, resolveRequest(broken, request(tempDir(), { flags: ['auth=false'] }))),
+    ).toThrow('src/auth.ts')
+  })
+
+  test('a declared placeholder left in a file fails and names the file', () => {
+    const root = copyFixture('catalog')
+    writeFileSync(path.join(root, 'server/mini/base/src/note.ts'), 'const x = "__OTHER__"\n')
+    edit(
+      path.join(root, 'server/mini/template.yaml'),
+      'placeholders: [PROJECT_NAME]',
+      'placeholders: [PROJECT_NAME, OTHER]',
+    )
+    const broken = loadCatalog(root)
+    expect(() => generate(broken, resolveRequest(broken, request(tempDir())))).toThrow(/note.ts/)
+  })
+
+  test('keepStaging leaves the staging directory after a failure', () => {
+    const root = copyFixture('catalog')
+    writeFileSync(path.join(root, 'server/mini/base/src/extra.ts'), 'x // @oauth\n')
+    const broken = loadCatalog(root)
+    const out = tempDir()
+    expect(() =>
+      generate(broken, resolveRequest(broken, request(out)), { keepStaging: true }),
+    ).toThrow(GenerateError)
+    expect(existsSync(path.join(out, STAGING_DIR))).toBe(true)
+  })
+
+  test('a CRLF line keeps its carriage return when its marker is stripped', () => {
+    const root = copyFixture('catalog')
+    writeFileSync(path.join(root, 'server/mini/base/src/crlf.ts'), 'a // @auth\r\nb\r\n')
+    const crlf = loadCatalog(root)
+    const out = tempDir()
+    generate(crlf, resolveRequest(crlf, request(out)))
+    expect(readFileSync(path.join(out, 'backend', 'src', 'crlf.ts'), 'utf8')).toBe('a\r\nb\r\n')
+  })
+
+  test('the merged .gitignore keeps the original lines and both sections', () => {
+    const out = tempDir()
+    writeFileSync(path.join(out, '.gitignore'), '*.log\n')
+    generate(catalog, resolveRequest(catalog, request(out)))
+    const merged = readFileSync(path.join(out, '.gitignore'), 'utf8')
+    expect(merged).toContain('*.log')
+    expect(merged).toContain('fullstack-templates: base')
+    expect(merged).toContain('fullstack-templates: node')
   })
 })

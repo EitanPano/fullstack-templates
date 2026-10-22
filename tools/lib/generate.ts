@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import path from 'node:path'
 import { parse, stringify } from 'yaml'
 import type { Catalog } from './catalog'
@@ -15,7 +23,7 @@ import {
   substitutePlaceholders,
 } from './placeholders'
 import type { GenerationPlan, PackagePlan } from './plan'
-import { PROVENANCE_PATH, buildProvenance, catalogIdentity } from './provenance'
+import { PROVENANCE_PATH, buildProvenance, catalogIdentity, type Provenance } from './provenance'
 import { validateAgainst } from './schema'
 
 export const STAGING_DIR = '.fullstack-staging'
@@ -142,39 +150,46 @@ function removeDependencies(pkg: PackagePlan, pkgStaging: string): void {
   }
 }
 
-function buildPackage(plan: GenerationPlan, pkg: PackagePlan, staging: string, log: Log): void {
+function buildPackage(
+  pkg: PackagePlan,
+  values: Readonly<Record<string, string>>,
+  staging: string,
+): void {
   const pkgStaging = path.join(staging, pkg.dir)
   copyTree(path.join(pkg.template.dir, 'base'), pkgStaging)
   removeOnlyPaths(pkg, pkgStaging)
   applyMarkerPass(pkg, staging, pkgStaging)
   sweepMarkers(staging, pkgStaging)
   removeDependencies(pkg, pkgStaging)
-  const values = packagePlaceholders(plan, pkg, log)
   for (const file of textFiles(pkgStaging)) {
     rewrite(file, (content) => substitutePlaceholders(content, values))
   }
 }
 
-function composeFragment(plan: GenerationPlan, pkg: PackagePlan, log: Log): string | undefined {
+function composeFragment(
+  pkg: PackagePlan,
+  values: Readonly<Record<string, string>>,
+): string | undefined {
   const file = path.join(pkg.template.dir, 'compose.yaml')
   if (!existsSync(file)) return undefined
-  const where = `${pkg.template.path}/compose.yaml`
-  const marked = applyMarkers(readFileSync(file, 'utf8'), ['#', ''], where, pkg.selections)
-  const text = substitutePlaceholders(marked, packagePlaceholders(plan, pkg, log))
-  // A fragment is written as a whole compose file; assembleCompose takes the service body.
-  const parsed: unknown = parse(text)
-  const services = (parsed as { services?: Record<string, unknown> } | null)?.services
-  const body = services?.[pkg.dir]
-  if (body === undefined) {
-    throw new GenerateError(`${where}: no service named ${pkg.dir} in the compose fragment`)
-  }
-  return stringify(body)
+  const syntax = commentSyntaxFor(file)
+  const content = readFileSync(file, 'utf8')
+  const marked =
+    syntax === undefined
+      ? content
+      : applyMarkers(content, syntax, `${pkg.template.path}/compose.yaml`, pkg.selections)
+  return substitutePlaceholders(marked, values)
 }
 
-function writeCompose(catalog: Catalog, plan: GenerationPlan, staging: string, log: Log): void {
+function writeCompose(
+  catalog: Catalog,
+  plan: GenerationPlan,
+  values: ReadonlyMap<string, Record<string, string>>,
+  staging: string,
+): void {
   const skeleton = readFileSync(path.join(catalog.root, 'shared', 'docker', 'compose.yaml'), 'utf8')
   const fragments = plan.packages.flatMap((pkg) => {
-    const text = composeFragment(plan, pkg, log)
+    const text = composeFragment(pkg, values.get(pkg.dir) ?? {})
     return text === undefined ? [] : [{ service: pkg.dir, text }]
   })
   writeFileSync(path.join(staging, 'docker-compose.yml'), assembleCompose(skeleton, fragments))
@@ -191,8 +206,13 @@ function writeGitignore(catalog: Catalog, plan: GenerationPlan, staging: string)
   writeFileSync(path.join(staging, '.gitignore'), mergeGitignore(existing, sections))
 }
 
-function writeRootFiles(catalog: Catalog, plan: GenerationPlan, staging: string, log: Log): void {
-  writeCompose(catalog, plan, staging, log)
+function writeRootFiles(
+  catalog: Catalog,
+  plan: GenerationPlan,
+  perPackage: ReadonlyMap<string, Record<string, string>>,
+  staging: string,
+): void {
+  writeCompose(catalog, plan, perPackage, staging)
   copyTree(
     path.join(catalog.root, 'shared', 'editorconfig', '.editorconfig'),
     path.join(staging, '.editorconfig'),
@@ -221,6 +241,12 @@ function writeProvenance(
   now: Date,
 ): string {
   const provenance = buildProvenance(plan, catalogIdentity(catalog.root, plan.catalogVersion), now)
+  // A rerun adds packages to a project; the ones generated earlier stay recorded.
+  const earlier = path.join(plan.out, PROVENANCE_PATH)
+  if (existsSync(earlier)) {
+    const previous = parse(readFileSync(earlier, 'utf8')) as Partial<Provenance> | null
+    provenance.packages = { ...previous?.packages, ...provenance.packages }
+  }
   const errors = validateAgainst('provenance', provenance)
   if (errors.length > 0) throw new GenerateError(`provenance is invalid: ${errors.join('; ')}`)
   const file = path.join(staging, PROVENANCE_PATH)
@@ -256,21 +282,53 @@ function runPostGenerate(plan: GenerationPlan, staging: string, log: Log): void 
   }
 }
 
-function moveIntoPlace(plan: GenerationPlan, staging: string, log: Log): void {
-  for (const pkg of plan.packages) {
-    renameSync(path.join(staging, pkg.dir), path.join(plan.out, pkg.dir))
+// Every rename is recorded with its inverse, so a failure part-way puts `out` back as it was.
+class Mover {
+  private readonly undo: Array<() => void> = []
+
+  constructor(private readonly backupDir: string) {}
+
+  move(from: string, to: string): void {
+    if (existsSync(to)) {
+      const backup = path.join(this.backupDir, `replaced-${String(this.undo.length)}`)
+      renameSync(to, backup)
+      this.undo.push(() => renameSync(backup, to))
+    }
+    renameSync(from, to)
+    this.undo.push(() => renameSync(to, from))
   }
-  // A rerun may have left .fullstack behind; renaming the file over its old copy always works.
-  mkdirSync(path.join(plan.out, path.dirname(PROVENANCE_PATH)), { recursive: true })
-  renameSync(path.join(staging, PROVENANCE_PATH), path.join(plan.out, PROVENANCE_PATH))
+
+  ensureDir(dir: string): void {
+    if (existsSync(dir)) return
+    mkdirSync(dir, { recursive: true })
+    this.undo.push(() => rmSync(dir, { recursive: true, force: true }))
+  }
+
+  rollback(): void {
+    for (const step of this.undo.reverse()) {
+      try {
+        step()
+      } catch {
+        // Keep restoring the rest; the original error is the one worth reporting.
+      }
+    }
+  }
+}
+
+function moveIntoPlace(plan: GenerationPlan, staging: string, mover: Mover, log: Log): void {
+  for (const pkg of plan.packages) {
+    mover.move(path.join(staging, pkg.dir), path.join(plan.out, pkg.dir))
+  }
+  mover.ensureDir(path.join(plan.out, path.dirname(PROVENANCE_PATH)))
+  mover.move(path.join(staging, PROVENANCE_PATH), path.join(plan.out, PROVENANCE_PATH))
   for (const name of ['docker-compose.yml', '.editorconfig']) {
     if (existsSync(path.join(plan.out, name))) {
       log(`${name} already exists in ${plan.out}; kept`)
     } else {
-      renameSync(path.join(staging, name), path.join(plan.out, name))
+      mover.move(path.join(staging, name), path.join(plan.out, name))
     }
   }
-  renameSync(path.join(staging, '.gitignore'), path.join(plan.out, '.gitignore'))
+  mover.move(path.join(staging, '.gitignore'), path.join(plan.out, '.gitignore'))
 }
 
 export function generate(
@@ -281,17 +339,19 @@ export function generate(
   const log = options.log ?? (() => undefined)
   const now = options.now ?? (() => new Date())
   const staging = path.join(plan.out, STAGING_DIR)
+  const mover = new Mover(staging)
   let failed = true
   try {
     mkdirSync(plan.out, { recursive: true })
     if (!statSync(plan.out).isDirectory()) throw new GenerateError(`${plan.out} is not a directory`)
     checkPreconditions(plan, staging)
-    for (const pkg of plan.packages) buildPackage(plan, pkg, staging, log)
-    writeRootFiles(catalog, plan, staging, log)
+    const values = new Map(plan.packages.map((p) => [p.dir, packagePlaceholders(plan, p, log)]))
+    for (const pkg of plan.packages) buildPackage(pkg, values.get(pkg.dir) ?? {}, staging)
+    writeRootFiles(catalog, plan, values, staging)
     sweepPlaceholders(plan, staging)
     const provenancePath = writeProvenance(catalog, plan, staging, now())
     runPostGenerate(plan, staging, log)
-    moveIntoPlace(plan, staging, log)
+    moveIntoPlace(plan, staging, mover, log)
     failed = false
     return {
       out: plan.out,
@@ -299,6 +359,7 @@ export function generate(
       provenancePath: path.join(plan.out, provenancePath),
     }
   } catch (error) {
+    mover.rollback()
     if (error instanceof GenerateError) throw error
     throw new GenerateError(error instanceof Error ? error.message : String(error))
   } finally {
