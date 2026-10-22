@@ -25,4 +25,18 @@ describe('assembleCompose', () => {
   test('rejects a fragment that is not a mapping', () => {
     expect(() => assembleCompose(skeleton, [{ service: 'x', text: '- a\n' }])).toThrow(ComposeError)
   })
+  test('rejects a fragment with a YAML syntax error, naming the service', () => {
+    expect(() => assembleCompose(skeleton, [{ service: 'db', text: 'build: [\n' }])).toThrow(/db/)
+    expect(() => assembleCompose(skeleton, [{ service: 'db', text: 'build: [\n' }])).toThrow(
+      ComposeError,
+    )
+  })
+  test('rejects a duplicate service name', () => {
+    const fragment = { service: 'db', text: 'image: postgres\n' }
+    expect(() => assembleCompose(skeleton, [fragment, fragment])).toThrow(ComposeError)
+  })
+  test('creates services when the skeleton has none', () => {
+    const out = assembleCompose('name: demo\n', [{ service: 'db', text: 'image: postgres\n' }])
+    expect(parse(out).services.db.image).toBe('postgres')
+  })
 })
