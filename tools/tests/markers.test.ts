@@ -44,6 +44,26 @@ describe('applyMarkers', () => {
     expect(() => applyMarkers('// @auth-start\nx\n', ts, 'f.ts', on)).toThrow('never closed')
     expect(() => applyMarkers('x\n// @auth-end\n', ts, 'f.ts', on)).toThrow('unbalanced')
   })
+  test('keeps a negated block only when its flag is off', () => {
+    const src = '// @noauth-start\nx\n// @noauth-end\ny\n'
+    expect(applyMarkers(src, ts, 'f.ts', off)).toBe('x\ny\n')
+    expect(applyMarkers(src, ts, 'f.ts', on)).toBe('y\n')
+  })
+  test('resolves a selected name that starts with no as the name, not negated', () => {
+    expect(applyMarkers('a // @nothing\n', ts, 'f.ts', { nothing: true, thing: false })).toBe('a\n')
+    expect(applyMarkers('a // @nothing\n', ts, 'f.ts', { nothing: false, thing: true })).toBe('')
+  })
+  test('rejects a mismatched block pair', () => {
+    const src = '// @a-start\nx\n// @b-end\n'
+    expect(() => applyMarkers(src, ts, 'f.ts', { a: true, b: true })).toThrow('unbalanced')
+  })
+  test('preserves CRLF through block markers', () => {
+    const src = '// @auth-start\r\nx\r\n// @auth-end\r\ny\r\n'
+    expect(applyMarkers(src, ts, 'f.ts', on)).toBe('x\r\ny\r\n')
+  })
+  test('does not resolve inherited object keys as names', () => {
+    expect(() => applyMarkers('a // @constructor\n', ts, 'f.ts', on)).toThrow(MarkerError)
+  })
 })
 
 describe('findLeftoverMarker', () => {

@@ -70,8 +70,8 @@ export function applyMarkers(
 
   // `@no<name>` negates `<name>`; a name that is itself selected wins, so `notify` stays a name.
   const resolve = (raw: string, at: string) => {
-    if (raw in selections) return { name: raw, negated: false }
-    if (raw.startsWith('no') && raw.slice(2) in selections) {
+    if (Object.hasOwn(selections, raw)) return { name: raw, negated: false }
+    if (raw.startsWith('no') && Object.hasOwn(selections, raw.slice(2))) {
       return { name: raw.slice(2), negated: true }
     }
     throw new MarkerError(at, `unknown marker name "${raw}"`)
