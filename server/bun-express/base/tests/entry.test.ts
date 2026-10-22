@@ -161,6 +161,13 @@ describe('loadEnv', () => {
     expect(() => loadEnv(source)).toThrow(/DATABASE_URL/)
   })
 
+  it('treats the empty string Compose passes for an unset variable as missing in production', () => {
+    expect(() => loadEnv({ ...productionSource, DATABASE_URL: '' })).toThrow(/DATABASE_URL/)
+    expect(loadEnv({ NODE_ENV: 'development', DATABASE_URL: '' }).defaultedSecrets).toContain(
+      'DATABASE_URL',
+    )
+  })
+
   it('rejects a URL that is not a postgres one without echoing it', () => {
     const attempt = () =>
       loadEnv({ ...productionSource, DATABASE_URL: 'mysql://app:hunter2@db.internal/app' })

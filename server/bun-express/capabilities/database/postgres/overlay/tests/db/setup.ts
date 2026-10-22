@@ -35,9 +35,19 @@ try {
 } catch (error) {
   const reason = error instanceof Error ? error.message : String(error)
   console.error(
-    `test database "${target.name}" on ${target.host} is not ready: ${reason}. Start it with: docker compose up -d database (at the project root)`,
+    `test database "${target.name}" on ${target.host} is not ready: ${reason}. Start it with: docker compose up -d --wait database (at the project root)`,
   )
   process.exit(1)
 } finally {
   await postgres.close().catch(() => undefined)
+}
+
+// `describeStore` skips its suites unless the config names a test database. A run that skipped
+// them all would exit 0, so the preload fails it instead.
+const { storeEnabled } = await import('../store')
+if (!storeEnabled) {
+  console.error(
+    'test:db would skip every store-backed suite: tests/store.ts does not see a database whose name ends in _test',
+  )
+  process.exit(1)
 }

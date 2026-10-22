@@ -16,9 +16,11 @@ function databaseName(url: string): string {
   }
 }
 
-export const describeStore: typeof describe = databaseName(env.DATABASE_URL).endsWith('_test')
-  ? describe
-  : describe.skip
+// `test:db` reads `storeEnabled` (tests/db/setup.ts) and fails when it is false, so a run that
+// skipped every store-backed suite cannot pass.
+export const storeEnabled = databaseName(env.DATABASE_URL).endsWith('_test')
+
+export const describeStore: typeof describe = storeEnabled ? describe : describe.skip
 
 function quoted(identifier: string): string {
   return `"${identifier.replaceAll('"', '""')}"`
