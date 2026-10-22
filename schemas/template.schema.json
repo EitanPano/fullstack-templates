@@ -299,7 +299,7 @@
     "relativePath": {
       "type": "string",
       "description": "A POSIX relative path inside the package: segments of letters, digits, dot, underscore, at and hyphen joined by \"/\"; no \"..\" segment, no leading \"/\", no drive letter, no backslash.",
-      "pattern": "^(?!(.*/)?..(/|$))[A-Za-z0-9._@-]+(/[A-Za-z0-9._@-]+)*$"
+      "pattern": "^(?!(.*/)?\\.\\.(/|$))[A-Za-z0-9._@-]+(/[A-Za-z0-9._@-]+)*$"
     },
     "command": {
       "type": "string",

@@ -230,4 +230,16 @@ describe('validateAgainst negatives', () => {
   test('rejects an empty cases list', () => {
     expect(validateAgainst('cases', { schemaVersion: 1, cases: [] })).not.toEqual([])
   })
+  test.each(['src/db/x', 'lib/ui', 'db', 'package.json', '.github/x', 'a..b/c'])(
+    'accepts the relative path %s',
+    (agents) => {
+      expect(validateAgainst('template', { ...template, agents })).toEqual([])
+    },
+  )
+  test.each(['../x', 'a/../b', '/abs', 'C:/x', 'a/..', '..'])(
+    'rejects the relative path %s',
+    (agents) => {
+      expect(validateAgainst('template', { ...template, agents })).not.toEqual([])
+    },
+  )
 })
