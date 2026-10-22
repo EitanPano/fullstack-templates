@@ -1,0 +1,31 @@
+schemaVersion: 1
+id: next
+kind: frontend
+name: Next.js 16 App Router
+version: 1.0.0
+summary: "Next.js 16 App Router with a typed client generated from the server's contract"
+runtime: { language: typescript, platform: node, minVersion: '24' }
+tools:
+  - { name: bun, min: '1.4' }
+  - { name: node, min: '24' }
+placeholders: [PROJECT_NAME]
+dependencies: { manifest: package.json, adapter: npm }
+commands:
+  install: bun install
+  dev: bun run dev
+  check: bun run check
+  typecheck: bun run typecheck
+  lint: bun run lint
+  format: bun run format
+  test: bun run test
+  testE2e: bun run test:e2e
+  contract: bun run api:types
+contract: { consumes: '<server>/openapi.json' }
+http: { port: 3000, health: / }
+gitignore: [node]
+agents: AGENTS.md
+defaultStack: next-bun-express
+postGenerate:
+  - install
+  - contract
+  - format
