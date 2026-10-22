@@ -21,7 +21,7 @@
             "type": "string",
             "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"
           },
-          "summary": { "type": "string", "pattern": "^[^\\n]+$" }
+          "summary": { "type": "string", "pattern": "^[^\\r\\n]+$" }
         }
       }
     },
@@ -34,7 +34,7 @@
         "properties": {
           "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
           "path": { "type": "string", "minLength": 1 },
-          "summary": { "type": "string", "pattern": "^[^\\n]+$" }
+          "summary": { "type": "string", "pattern": "^[^\\r\\n]+$" }
         }
       }
     }

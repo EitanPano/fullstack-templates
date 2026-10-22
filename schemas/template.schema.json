@@ -26,7 +26,7 @@
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"
     },
-    "summary": { "type": "string", "pattern": "^[^\\n]+$" },
+    "summary": { "type": "string", "pattern": "^[^\\r\\n]+$" },
     "runtime": {
       "type": "object",
       "additionalProperties": false,
@@ -79,7 +79,7 @@
         "additionalProperties": false,
         "required": ["summary", "default"],
         "properties": {
-          "summary": { "type": "string", "pattern": "^[^\\n]+$" },
+          "summary": { "type": "string", "pattern": "^[^\\r\\n]+$" },
           "default": { "type": "boolean" },
           "onlyPaths": { "type": "array", "items": { "type": "string", "minLength": 1 } },
           "dependencies": {
