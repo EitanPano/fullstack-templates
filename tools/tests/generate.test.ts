@@ -15,6 +15,7 @@ import {
 } from '../lib/generate'
 import { catalogIdentity } from '../lib/provenance'
 import { resolveRequest } from '../lib/plan'
+import { validateAgainst } from '../lib/schema'
 import { FIXTURE, copyFixture, tempDir } from './helpers'
 
 const catalog = loadCatalog(FIXTURE)
@@ -456,5 +457,162 @@ describe('generate: compose and the reserved server selection', () => {
     generate(catalog, only(out, 'server/mini'), { log: (l) => lines.push(l) })
     expect(readFileSync(path.join(out, 'docker-compose.yml'), 'utf8')).toBe(before)
     expect(lines).toContain('docker-compose.yml already has service backend; kept')
+  })
+})
+
+describe('generate with a capability', () => {
+  const fake = (out: string, extra = {}) =>
+    resolveRequest(catalog, request(out, { capabilities: ['database=fake'], ...extra }))
+  const read = (out: string, ...parts: string[]) => readFileSync(path.join(out, ...parts), 'utf8')
+
+  test('copies the overlay over the base and writes the scripts', () => {
+    const out = tempDir()
+    generate(catalog, fake(out))
+    expect(read(out, 'backend', 'src', 'index.ts')).toBe("export const app = 'app-with-database'\n")
+    expect(existsSync(path.join(out, 'backend', 'src', 'database.ts'))).toBe(true)
+    const pkg = JSON.parse(read(out, 'backend', 'package.json'))
+    expect(pkg.scripts).toEqual({ 'test:db': 'bun ./ok.ts', 'db:migrate': 'bun ./ok.ts' })
+  })
+
+  test('appends the provider block to a new .env.example', () => {
+    const out = tempDir()
+    generate(catalog, fake(out))
+    expect(read(out, 'backend', '.env.example')).toBe(
+      [
+        '# database/fake provider',
+        '# Connection string of the fake database',
+        '# Tests (testDb) use fake://localhost:5432/app_test.',
+        'DATABASE_URL=fake://localhost:5432/app',
+        '',
+      ].join('\n'),
+    )
+  })
+
+  test('appends to an existing .env.example keeping its line endings', () => {
+    const root = copyFixture('catalog')
+    writeFileSync(path.join(root, 'server/mini/base/.env.example'), 'PORT=4000\r\n')
+    const out = tempDir()
+    const local = loadCatalog(root)
+    generate(local, resolveRequest(local, request(out, { capabilities: ['database=fake'] })))
+    const text = read(out, 'backend', '.env.example')
+    expect(text.startsWith('PORT=4000\r\n\r\n# database/fake provider\r\n')).toBe(true)
+    expect(text.replaceAll('\r\n', '')).not.toContain('\n')
+    expect(text.endsWith('DATABASE_URL=fake://localhost:5432/app\r\n')).toBe(true)
+  })
+
+  test('assembles the provider service, the volume, the env and the dependency', () => {
+    const out = tempDir()
+    generate(catalog, fake(out))
+    const compose = parse(read(out, 'docker-compose.yml'))
+    expect(compose.services.database.image).toBe('fake-db:1')
+    expect(compose.volumes).toEqual({ 'database-data': {} })
+    expect(compose.services.backend.environment.DATABASE_URL).toBe(
+      '${DATABASE_URL:-fake://database:5432/app}',
+    )
+    expect(compose.services.backend.depends_on).toEqual({
+      database: { condition: 'service_healthy' },
+    })
+    expect(compose.services.frontend.environment.DATABASE_URL).toBeUndefined()
+  })
+
+  test('copies the provider files to the project root', () => {
+    const out = tempDir()
+    generate(catalog, fake(out))
+    expect(read(out, 'db', 'init.sql')).toBe('-- fake database init\n')
+  })
+
+  test('records capabilities, commands and providers in the provenance', () => {
+    const out = tempDir()
+    generate(catalog, fake(out))
+    const provenance = parse(read(out, '.fullstack', 'catalog.yaml'))
+    expect(provenance.packages.backend.capabilities).toEqual({ database: 'fake' })
+    expect(provenance.packages.backend.commands.testDb).toBe('bun run test:db')
+    expect(provenance.packages.backend.commands.migrate).toBe('bun run db:migrate')
+    expect(provenance.packages.frontend.capabilities).toEqual({})
+    expect(provenance.providers).toEqual({ database: 'fake' })
+    expect(validateAgainst('provenance', provenance)).toEqual([])
+  })
+
+  test('runs the post-generate commands the plan resolved', () => {
+    const out = tempDir()
+    const lines: string[] = []
+    generate(catalog, fake(out, { skipPostGenerate: false }), { log: (l) => lines.push(l) })
+    expect(lines.some((l) => l.startsWith('==> backend: '))).toBe(true)
+  })
+
+  test('a rerun adding a package keeps the existing provider file and service', () => {
+    const out = tempDir()
+    const only = (template: string, extra = {}) =>
+      resolveRequest(catalog, request(out, { stack: undefined, template, ...extra }))
+    generate(catalog, only('server/mini', { capabilities: ['database=fake'] }))
+    writeFileSync(path.join(out, 'db', 'init.sql'), '-- edited\n')
+    const lines: string[] = []
+    generate(catalog, only('frontend/mini-ui'), { log: (l) => lines.push(l) })
+    expect(read(out, 'db', 'init.sql')).toBe('-- edited\n')
+    expect(parse(read(out, '.fullstack', 'catalog.yaml')).providers).toEqual({ database: 'fake' })
+
+    const again = tempDir()
+    generate(catalog, only('frontend/mini-ui', { out: again }))
+    generate(catalog, only('server/mini', { out: again, capabilities: ['database=fake'] }))
+    expect(existsSync(path.join(again, 'db', 'init.sql'))).toBe(true)
+  })
+
+  test('logs the provider file it keeps when the project already has it', () => {
+    const out = tempDir()
+    mkdirSync(path.join(out, 'db'))
+    writeFileSync(path.join(out, 'db', 'init.sql'), '-- mine\n')
+    const lines: string[] = []
+    generate(catalog, fake(out), { log: (l) => lines.push(l) })
+    expect(read(out, 'db', 'init.sql')).toBe('-- mine\n')
+    expect(lines).toContain(`db/init.sql already exists in ${out}; kept`)
+  })
+
+  test('a rerun keeps the provider service already in docker-compose.yml', () => {
+    const out = tempDir()
+    generate(catalog, fake(out))
+    const file = path.join(out, 'docker-compose.yml')
+    writeFileSync(file, readFileSync(file, 'utf8').replace('fake-db:1', 'edited:2'))
+    const lines: string[] = []
+    generate(
+      catalog,
+      resolveRequest(
+        catalog,
+        request(out, {
+          stack: undefined,
+          template: 'server/mini',
+          dir: 'api',
+          capabilities: ['database=fake'],
+        }),
+      ),
+      { log: (l) => lines.push(l) },
+    )
+    expect(parse(read(out, 'docker-compose.yml')).services.database.image).toBe('edited:2')
+    expect(lines).toContain('docker-compose.yml already has service database; kept')
+    expect(lines).toContain('db/init.sql already exists in ' + out + '; kept')
+  })
+
+  test('auth off still removes an overlay file under an onlyPaths entry', () => {
+    const out = tempDir()
+    generate(catalog, fake(out, { flags: ['auth=false'] }))
+    expect(existsSync(path.join(out, 'backend', 'src', 'auth.ts'))).toBe(false)
+    expect(existsSync(path.join(out, 'backend', 'src', 'database.ts'))).toBe(true)
+    const withAuth = tempDir()
+    generate(catalog, fake(withAuth))
+    expect(read(withAuth, 'backend', 'src', 'auth.ts')).toContain('auth-with-database')
+  })
+
+  test('a generation without capabilities has no provider, scripts or env block', () => {
+    const out = tempDir()
+    generate(catalog, resolveRequest(catalog, request(out)))
+    expect(existsSync(path.join(out, 'db'))).toBe(false)
+    expect(existsSync(path.join(out, 'backend', '.env.example'))).toBe(false)
+    expect(JSON.parse(read(out, 'backend', 'package.json')).scripts).toBeUndefined()
+    const compose = parse(read(out, 'docker-compose.yml'))
+    expect(compose.services.database).toBeUndefined()
+    expect(compose.volumes).toBeUndefined()
+    expect(compose.services.backend.depends_on).toBeUndefined()
+    const provenance = parse(read(out, '.fullstack', 'catalog.yaml'))
+    expect(provenance.providers).toEqual({})
+    expect(provenance.packages.backend.capabilities).toEqual({})
   })
 })

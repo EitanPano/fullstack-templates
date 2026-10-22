@@ -64,6 +64,15 @@ function run(argv: string[]): void {
   for (const pkg of plan.packages) {
     console.log(`  cd ${pkg.dir} && ${pkg.template.manifest.commands.check}`)
   }
+  if (plan.providers.length > 0) {
+    console.log(`  docker compose up -d ${plan.providers.map((p) => p.manifest.service).join(' ')}`)
+    for (const pkg of plan.packages) {
+      for (const name of ['migrate', 'testDb'] as const) {
+        const line = pkg.commands[name]
+        if (line !== undefined) console.log(`  cd ${pkg.dir} && ${line}`)
+      }
+    }
+  }
 }
 
 function main(): void {

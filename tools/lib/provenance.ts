@@ -28,7 +28,7 @@ export interface Provenance {
       http?: { port: number; health: string; ready?: string }
     }
   >
-  providers: Record<string, never>
+  providers: Record<string, string>
   answers: { projectName: string }
 }
 
@@ -45,7 +45,7 @@ export function buildProvenance(
       version: manifest.version,
       flags: pkg.flags,
       capabilities: pkg.capabilities,
-      commands: manifest.commands,
+      commands: pkg.commands,
       ...(manifest.http === undefined ? {} : { http: manifest.http }),
     }
   }
@@ -55,7 +55,7 @@ export function buildProvenance(
     generatedAt: now.toISOString(),
     stack: plan.stackId,
     packages,
-    providers: {},
+    providers: Object.fromEntries(plan.providers.map((p) => [p.kind, p.id])),
     answers: { projectName: plan.projectName },
   }
 }
