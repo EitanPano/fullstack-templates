@@ -1,0 +1,36 @@
+schemaVersion: 1
+id: mini
+kind: server
+name: Mini server
+version: 1.0.0
+summary: A minimal server fixture
+runtime:
+  language: typescript
+  platform: bun
+tools:
+  - name: bun
+    min: '1.4'
+placeholders: [PROJECT_NAME]
+flags:
+  auth:
+    summary: Accounts
+    default: true
+    onlyPaths: [src/auth.ts, tests/auth.test.ts]
+    dependencies:
+      remove: [jose]
+dependencies:
+  manifest: package.json
+  adapter: npm
+commands:
+  install: bun ./ok.ts
+  check: bun ./ok.ts
+  contract: bun ./ok.ts
+contract:
+  produces: openapi.json
+http:
+  port: 4000
+  health: /api/health
+gitignore: [node]
+agents: AGENTS.md
+defaultStack: mini
+postGenerate: [install, contract]

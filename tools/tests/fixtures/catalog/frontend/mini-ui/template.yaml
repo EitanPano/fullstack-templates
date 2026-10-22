@@ -1,0 +1,29 @@
+schemaVersion: 1
+id: mini-ui
+kind: frontend
+name: Mini UI
+version: 1.0.0
+summary: A minimal frontend fixture
+runtime:
+  language: typescript
+  platform: bun
+tools:
+  - name: bun
+    min: '1.4'
+placeholders: [PROJECT_NAME]
+dependencies:
+  manifest: package.json
+  adapter: npm
+commands:
+  install: bun ./ok.ts
+  check: bun ./ok.ts
+  contract: bun ./ok.ts
+contract:
+  consumes: '<server>/openapi.json'
+http:
+  port: 3000
+  health: /
+gitignore: [node]
+agents: AGENTS.md
+defaultStack: mini
+postGenerate: [install, contract]

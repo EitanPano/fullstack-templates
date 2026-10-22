@@ -1,0 +1,11 @@
+schemaVersion: 1
+templates:
+  - id: ghost
+    kind: server
+    path: server/ghost
+    version: 1.0.0
+    summary: A template that does not exist
+stacks:
+  - id: mini
+    path: stacks/mini
+    summary: Mini server and UI

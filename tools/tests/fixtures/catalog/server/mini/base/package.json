@@ -1,0 +1,5 @@
+{
+  "name": "__PROJECT_NAME__-backend",
+  "dependencies": { "express": "^5", "jose": "^6" },
+  "devDependencies": {}
+}

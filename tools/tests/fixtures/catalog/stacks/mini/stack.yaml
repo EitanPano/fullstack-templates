@@ -1,0 +1,8 @@
+schemaVersion: 1
+id: mini
+summary: Mini server and UI
+packages:
+  - template: server/mini
+    dir: backend
+  - template: frontend/mini-ui
+    dir: frontend

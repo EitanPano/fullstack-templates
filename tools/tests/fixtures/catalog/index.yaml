@@ -1,0 +1,16 @@
+schemaVersion: 1
+templates:
+  - id: mini
+    kind: server
+    path: server/mini
+    version: 1.0.0
+    summary: A minimal server fixture
+  - id: mini-ui
+    kind: frontend
+    path: frontend/mini-ui
+    version: 1.0.0
+    summary: A minimal frontend fixture
+stacks:
+  - id: mini
+    path: stacks/mini
+    summary: Mini server and UI
