@@ -242,8 +242,16 @@ describe('loadCatalog', () => {
   })
 
   test('loads a catalog without shared/providers', () => {
-    const catalog = loadCatalog(path.join(import.meta.dir, '..', '..'))
-    expect(catalog.providers.size).toBe(0)
+    const root = copyFixture('catalog')
+    rmSync(path.join(root, 'shared', 'providers'), { recursive: true, force: true })
+    rmSync(path.join(root, 'server', 'mini', 'capabilities'), { recursive: true, force: true })
+    edit(root, 'server/mini/template.yaml', (text) =>
+      text.replace('providers: [fake]', 'providers: []'),
+    )
+    edit(root, 'server/mini/tests/cases.yaml', (text) =>
+      text.slice(0, text.indexOf('  - name: fake')),
+    )
+    expect(loadCatalog(root).providers.size).toBe(0)
   })
 })
 
