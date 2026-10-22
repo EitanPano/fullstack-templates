@@ -46,7 +46,7 @@ function toRecord(row: UserRow): UserRecord {
   }
 }
 
-const UserCursor = z.object({ createdAt: z.string(), id: z.string() })
+const UserCursor = z.object({ createdAt: z.iso.datetime(), id: z.string() })
 
 export async function findById(
   id: string,

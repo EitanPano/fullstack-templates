@@ -8,3 +8,6 @@ scripts:
 commands:
   testDb: bun run test:db
   migrate: bun run db:migrate
+flags:
+  auth:
+    onlyPaths: [tests/db/user.test.ts]

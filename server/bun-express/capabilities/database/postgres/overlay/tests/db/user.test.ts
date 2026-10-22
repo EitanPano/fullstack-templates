@@ -1,4 +1,3 @@
-// @auth-start
 import { randomUUID } from 'node:crypto'
 
 import { beforeEach, expect, it } from 'bun:test'
@@ -8,6 +7,7 @@ import * as userService from '../../src/api/user/service'
 import { pubsub } from '../../src/infra/pubsub'
 import type { UserRecord } from '../../src/models/user/interface'
 import { app } from '../../src/server'
+import { signAccess } from '../../src/services/security/jwt'
 import { classifyPostgresError } from '../../src/services/utils/postgres-error'
 import { describeStore, resetStore } from '../store'
 
@@ -80,6 +80,22 @@ describeStore('user service on postgres', () => {
   })
 })
 
+describeStore('GET /api/user on postgres', () => {
+  it('answers 400 validation_failed for a forged cursor with a non-date createdAt', async () => {
+    const boss = await userService.insert(record('boss@example.com', { role: 'admin' }))
+    const { token } = await signAccess({ sub: boss.id, role: 'admin', sid: randomUUID() })
+    const cursor = Buffer.from(JSON.stringify({ createdAt: 'x', id: 'y' })).toString('base64url')
+
+    const res = await request(app)
+      .get('/api/user')
+      .query({ cursor })
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.status).toBe(400)
+    expect((res.body as ErrorBody).error.code).toBe('validation_failed')
+  })
+})
+
 describeStore('POST /api/auth/register on postgres', () => {
   it('answers one 201 and one 409 conflict for two concurrent registrations of one email', async () => {
     await pubsub.connect()
@@ -104,4 +120,3 @@ describeStore('POST /api/auth/register on postgres', () => {
     }
   })
 })
-// @auth-end

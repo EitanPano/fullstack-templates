@@ -263,6 +263,31 @@ describeStore('rotateSession', () => {
     expect(row?.tokenHash).toBe(sha256(first.refreshToken))
   })
 
+  test('a grace hit is refused when the session is revoked before the touch', async () => {
+    const first = await createSession('u1')
+    const oldHash = sha256(first.refreshToken)
+    await rotateSession({ sessionId: first.session.id, presentedHash: oldHash })
+    at(1000)
+    // An open transaction revokes the row; the grace retry reads the unrevoked row (MVCC), then
+    // its touch blocks on the row lock. Committing lets the touch re-check `revoked_at is null`.
+    let retry: Promise<unknown> | undefined
+    await getDb().begin(async (tx) => {
+      await tx`update session set revoked_at = ${new Date()}, grace_token = null
+        where id = ${first.session.id}`
+      retry = failureOf(rotateSession({ sessionId: first.session.id, presentedHash: oldHash }))
+      for (let attempt = 0; attempt < 100; attempt++) {
+        const [waiting] = await getDb()<{ n: number }[]>`
+          select count(*)::int as n from pg_locks where not granted`
+        if ((waiting?.n ?? 0) > 0) return
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      }
+      throw new Error('the grace touch never waited on the row lock')
+    })
+
+    expect(await retry).toMatchObject({ code: 'unauthenticated', message: 'invalid refresh token' })
+    expect((await stored(first.session.id))?.revokedAt).toBeDefined()
+  })
+
   test('a revoke-all racing a rotation leaves the session revoked', async () => {
     const first = await createSession('u1')
     await Promise.allSettled([
