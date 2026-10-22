@@ -27,6 +27,8 @@
 - `config/routes.ts` exports `registerRoutes(app)`, one `app.use('/api/<name>', …)` per module;
   the OpenAPI registration list moves to `openapi.ts`.
 - ESLint zones and `AGENTS.md` follow the new layering.
+- `AGENTS.md` gains the agent-facing sections Adding a module, Adding the data layer, Errors and
+  Tests, and the last harness-only remarks leave the base.
 
 ## 1.0.0 — 2026-10-22
 

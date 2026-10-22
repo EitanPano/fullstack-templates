@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 
-/* Design tokens: declare here, expose to utilities through @theme inline (.claude/rules/ui-and-styling.md). */
+/* Design tokens: declare here, expose to utilities through @theme inline (see `AGENTS.md › Styling`). */
 :root {
   --background: #ffffff;
   --foreground: #171717;

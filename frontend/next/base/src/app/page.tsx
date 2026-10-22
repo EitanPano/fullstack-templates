@@ -9,7 +9,7 @@ export default async function HomePage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 p-8">
       <h1 className="text-3xl font-semibold">__PROJECT_NAME__</h1>
-      <p>Replace this page with the first feature from the backlog.</p>
+      <p>Replace this page with the first feature.</p>
       <HealthStatus health={health} />
       <RefreshButton action={refreshHealth} />
     </main>

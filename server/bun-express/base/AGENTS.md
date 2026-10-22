@@ -1,10 +1,9 @@
 # Backend
 
-The layer map of `backend/`. What holds everywhere (versions, commands, definition of
-done, and the conventions under `.claude/rules/`) is in the repository's `AGENTS.md`;
-nothing here repeats them. This file ships with the package; an agent working in this directory loads it. The orchestrator and the reviewers read it explicitly, since their own
-work does not touch those files. The `api-design` skill is the procedure for adding or
-changing a module, the `database` skill for the data layer.
+The layer map of `backend/`. What holds for the whole repository (versions, commands,
+definition of done) is in the repository's root `AGENTS.md`; nothing here repeats it. This
+file ships with the package; an agent working in this directory loads it, and a planner or
+reviewer reads it explicitly.
 
 ## Packages and conventions
 
@@ -27,8 +26,8 @@ changing a module, the `database` skill for the data layer.
   process memory, a `Resource`). Every infrastructure dependency is a `Resource` from
   `infra/dependency.ts`, listed in `dependencies` in that file: connected at boot with
   bounded retry, pinged by `GET /api/health/ready`, closed on shutdown. Reconnecting after a
-  drop is the driver's job. The data-layer task replaces `memory` with the chosen engine
-  (`database` skill).
+  drop is the driver's job. The data-layer task adds the chosen engine beside `memory`
+  (see Adding the data layer).
 
 ## Layer map
 
@@ -285,8 +284,8 @@ review rules are review rules.
 ## Authentication
 
 The template ships working auth (`api/auth/`, `api/user/`); a product starts from it. The
-client, token, OTP and verification model is recorded in `.doc/architecture.md` (Auth) and
-changes only by plan. The verify functions in `security/jwt.ts` return `null` for an
+client, token, OTP and verification model is recorded in the project's architecture record
+(Auth) and changes only by plan. The verify functions in `security/jwt.ts` return `null` for an
 invalid or expired token.
 
 - Where rules live. Every module's rules live in its `controller.ts`. A capability module
@@ -309,9 +308,9 @@ invalid or expired token.
 <!-- @noauth-start -->
 ## Authentication
 
-This scaffold has no authentication (`--auth none`, recorded as `Auth: none` in
-`.doc/architecture.md`): every endpoint is public and no module takes a caller. Adding
-authentication later is a planned change, not a patch to one module.
+This scaffold was generated with the `auth` flag off (recorded as Auth: none in
+the project's architecture record): every endpoint is public and no module takes a caller.
+Adding authentication later is a planned change, not a patch to one module.
 <!-- @noauth-end -->
 
 ## The engine seam
@@ -320,14 +319,149 @@ authentication later is a planned change, not a patch to one module.
 active store, and the type changes with the engine. The data-layer task rewrites `db.ts`,
 <!-- @auth-start -->
 every module's `service.ts` and `services/session.ts`, adds `infra/<engine>.ts` and
-`infra/scripts/migrate.ts`, and replaces `memory` in `dependencies`. The cache task
+`infra/scripts/migrate.ts`, and adds the engine resource to `dependencies`; `memory` leaves
+it only when the cache task has moved `services/cache.ts` to its own store. The cache task
 <!-- @auth-end -->
 <!-- @noauth-start -->
 every module's `service.ts`, adds `infra/<engine>.ts` and `infra/scripts/migrate.ts`, and
-replaces `memory` in `dependencies`. The cache task
+adds the engine resource to `dependencies`; `memory` leaves it only when the cache task has
+moved `services/cache.ts` to its own store. The cache task
 <!-- @noauth-end -->
 rewrites `cache.ts`, adds `infra/redis.ts` and gives `infra/pubsub.ts` its adapter
-(`database` skill). Until then nothing survives a restart.
+(see Adding the data layer). Until then nothing survives a restart.
 
 The layer map is language-neutral on purpose: the Python and .NET server templates mirror
 the same directories and rules.
+
+## Adding a module
+
+Work in this order, test first.
+
+1. Types in `models/<name>/`.
+2. `schema.ts`: zod schemas that `satisfies` the `models/` types, one `<operation>Request`
+   object per endpoint (only the parts it reads) and `register<Name>`.
+3. `tests/<name>.test.ts` (see Tests), red.
+4. `service.ts`, only when the module has data (`findModuleById`, `listModules`).
+5. `controller.ts`: one handler per endpoint, then the exported rules other modules need.
+6. `routes.ts`: middleware as named constants, then one `router.<method>` line per endpoint.
+7. One line in `config/routes.ts` and one in `openapi.ts`; `bun run openapi`, then
+   `bun run check`.
+
+Start by copying `api/module/` and `models/module/`, renaming in directories, files,
+identifiers, comments and constants: `module` to `<name>`, `Module` to `<Name>`, `MODULE` to
+`<NAME>`. Drop the reference module (both directories, its lines in `config/routes.ts` and
+`openapi.ts`, `tests/module.test.ts`) once a real one exists.
+
+- One request object, two readers: `validate(<operation>Request)` in `routes.ts` and
+  `readInput(res, <operation>Request)` in the handler, so the types follow the schemas.
+<!-- @auth-start -->
+- Fail closed. `routes.ts` mounts `requireAuth`, and `requireRole('admin')` where a role is
+  needed; the handler calls `requireCaller(res)` and checks the role again, so an endpoint
+  mounted without its gate still refuses. A rule that takes a caller acts only on that
+  caller's own data.
+<!-- @auth-end -->
+<!-- @noauth-start -->
+- Every endpoint is public: no gate, no caller. A plan that adds accounts adds both.
+<!-- @noauth-end -->
+- Every list endpoint paginates with `PageQuery` and `pageOf` from
+  `services/utils/pagination.ts`: `?cursor=&limit=` in, `{ items, nextCursor }` out. The
+  service fetches `limit + 1` rows and `toPage` slices; the cursor is opaque to clients.
+- Another module is reached only through its exported controller rules, never its `service.ts`.
+- Paths are singular (`/api/post`, `/api/post/:id`), bodies are JSON only. Statuses: 200
+  read and update, 201 create (the created resource), 204 delete (no body), 400 validation,
+<!-- @auth-start -->
+  401 unauthenticated, 403 forbidden,
+<!-- @auth-end -->
+  404 missing, 409 conflict.
+
+`api/module/` is the worked example.
+
+## Adding the data layer
+
+The data-layer task swaps `infra/memory.ts` for a real engine behind The engine seam. It
+delivers:
+
+1. `infra/<engine>.ts`: the client and its `Resource` (`connect` with bounded retry, `ping`
+   as the cheapest round trip, `close`), joining `dependencies` (`memory` stays until the
+   cache task has replaced `services/cache.ts`, whose TTL sweep starts in its `connect()`); no
+   connecting at import, since `bun run check` imports `app` without Docker.
+2. `services/db.ts` rewritten to export the engine client (its type changes).
+3. Every module's `service.ts` rewritten against it, signatures unchanged. <!-- @noauth -->
+3. Every module's `service.ts` and `services/session.ts`, signatures unchanged. <!-- @auth -->
+4. `model.ts` where the engine defines storage in code, held to `models/<name>/interface.ts`.
+5. `infra/scripts/migrate.ts` and a `db:migrate` script in `package.json`.
+6. `DATABASE_URL` in `config/env.ts` and `.env.example`; the engine's Compose service at the
+   project root (`docker compose up -d <service>`).
+7. A test database and a `test:db` script (below).
+
+Every engine: a record has a string `id` and `createdAt` and `updatedAt` set on every write;
+an unreachable store surfaces as `AppError('upstream_unavailable')`; a transaction belongs to
+one module's controller and never spans modules. For an SQL engine every query function in a
+module's `service.ts` takes the client or an open transaction as its first argument (one
+`Executor` type covers both), so the controller can open a transaction and call its service
+inside it. Every field a query filters or sorts on is
+indexed, including the `(createdAt, id)` pair behind cursor pagination; a change to the
+stored shape ships its migration or index definition in the same task. Dropping or resetting
+a database is a human's job.
+Auth assumes: `rotateSession` is a conditional update, so one rotation wins; email is <!-- @auth -->
+unique, phone only among verified phones (a partial unique index). <!-- @auth -->
+
+Test database: a second database `app_test` on the same service; `bunfig.toml` preloads
+`tests/db/setup.ts`, which points `DATABASE_URL` at it before `config/env.ts` loads.
+`tests/db/helpers.ts` exports `describeDb` (`describe` when `TEST_DATABASE_URL` is set, else
+`describe.skip`), `migrateTestDb()` and `resetTestDb()`. Store-backed tests live in
+`tests/db/` and run under `bun run test:db`, which `check` never runs. Never fake a service
+with `mock.module`: it is process-global in `bun test`.
+
+- Postgres: Bun's built-in `SQL`. Migrations are SQL files applied in order by `db:migrate`.
+  Singular snake_case tables and columns; `service.ts` maps rows to the camelCase record.
+  The index ships with the migration that needs it. `resetTestDb()` truncates.
+- MongoDB: the `mongodb` driver. Singular collections, camelCase fields. `model.ts` exports
+  the collection name, document type and index definitions; `migrate.ts` creates the indexes
+  and runs backfills when a stored shape changes. Transactions need a replica set.
+- Cache (Redis or Valkey), its own task: `services/cache.ts` over `infra/redis.ts` (a
+  `Resource`), same helpers; keys prefixed, always with a TTL; `incr` sets the TTL on the
+  first increment only; `infra/pubsub.ts` gets its adapter.
+
+## Errors
+
+Controllers and services throw `AppError(code, message, details?)` from
+`services/utils/error.ts`; only `middleware/error-handler.ts` builds an error response.
+
+| Code | Status | Use for |
+| --- | --- | --- |
+| `validation_failed` | 400 | bad input; `details` is `{ path, message }[]` |
+<!-- @auth-start -->
+| `unauthenticated` | 401 | missing, invalid or expired token; wrong credentials |
+| `forbidden` | 403 | authenticated but not allowed: role, blocked account, another user's data |
+<!-- @auth-end -->
+| `not_found` | 404 | missing resource, or one the caller may not know exists |
+| `conflict` | 409 | state conflict, duplicate key |
+| `payload_too_large`, `unsupported_media_type`, `rate_limited` | 413, 415, 429 | body parser limits; throttling |
+| `internal` | 500 | unexpected |
+| `upstream_unavailable` | 503 | a dependency failed; safe to retry later |
+
+The envelope is `{ "error": { "code", "message", "details"? }, "requestId" }` (`ErrorBody`,
+also in `openapi.json`). A validation failure is a 400 naming the part (`body`, `query`,
+`params`) and the failing fields. Anything that is not an `AppError` leaves as a bare
+`internal` envelope; its stack is logged with the `requestId` and never sent, nor is query
+text or a secret. Log through `services/logger.ts`: one line per request, every unexpected
+error with its stack, ids and never payloads, secret-looking keys redacted.
+
+Every endpoint's test covers its validation failure and its not-found path, asserting the
+envelope's `code` and `requestId`, not only the status.
+A gated endpoint also tests its 401 and, where it checks a role, its 403. <!-- @auth -->
+
+## Tests
+
+- `bun test` with supertest against `app` from `server.ts`, never `index.ts` and never live
+  infrastructure. One `tests/<name>.test.ts` per module; the rest mirror `src/`
+  (`tests/middleware/`, `tests/services/`, `tests/infra/`, `tests/db/`).
+- Time is driven with `setSystemTime`. An event's effect is asserted after `await drain()`.
+  `beforeEach` resets the store (`await memory.close()`).
+- Messages are captured through a provider registered with `registerProvider`. <!-- @auth -->
+- Store-backed tests use `describeDb` (see Adding the data layer). `tests/openapi.test.ts`
+  fails on a stale `openapi.json`: run `bun run openapi`.
+- Every new behaviour gets a happy-path test and at least one failure or empty-path test.
+  No `.skip` and no `.only`; a removed test is named and justified in the stage report.
+  `bun run check` never needs Docker.
