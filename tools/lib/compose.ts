@@ -1,4 +1,4 @@
-import { isMap, parseDocument } from 'yaml'
+import { isMap, parseDocument, type Document } from 'yaml'
 
 export class ComposeError extends Error {}
 
@@ -35,6 +35,91 @@ export function assembleCompose(
       throw new ComposeError(`Compose fragment for service "${service}" is not a YAML mapping`)
     }
     doc.setIn(['services', service], fragment.contents)
+  }
+  return doc.toString()
+}
+
+export interface ProviderEnvWiring {
+  service: string
+  env: ReadonlyArray<{ name: string; compose: string }>
+}
+
+function parseChecked(text: string, what: string): Document {
+  const doc = parseDocument(text)
+  if (doc.errors.length > 0) {
+    throw new ComposeError(`${what} is not valid YAML: ${doc.errors[0]?.message}`)
+  }
+  return doc
+}
+
+// The consumer reaches the provider by its service name, so it gets the compose-network value
+// (overridable from the shell) and waits for the provider's healthcheck.
+export function wireConsumer(
+  service: string,
+  text: string,
+  wirings: ReadonlyArray<ProviderEnvWiring>,
+): string {
+  const doc = parseChecked(text, `Compose fragment for service "${service}"`)
+  if (!isMap(doc.contents)) {
+    throw new ComposeError(`Compose fragment for service "${service}" is not a YAML mapping`)
+  }
+  for (const key of ['environment', 'depends_on']) {
+    const current = doc.get(key)
+    if (current !== undefined && current !== null && !isMap(current)) {
+      throw new ComposeError(
+        `Compose fragment for service "${service}": ${key} must be a mapping, not a list`,
+      )
+    }
+  }
+  for (const { service: provider, env } of wirings) {
+    for (const { name, compose } of env) {
+      doc.setIn(['environment', name], `\${${name}:-${compose}}`)
+    }
+    doc.setIn(['depends_on', provider], { condition: 'service_healthy' })
+  }
+  return doc.toString()
+}
+
+const PROVIDER_KEYS = new Set(['services', 'volumes'])
+
+// A rerun keeps what the project already has: the provider service (and with it its volumes)
+// is only added when the document lacks it.
+export function addProvider(
+  composeText: string,
+  service: string,
+  providerText: string,
+  log: (line: string) => void,
+): string {
+  const provider = parseChecked(providerText, `Compose document of provider service "${service}"`)
+  if (!isMap(provider.contents)) {
+    throw new ComposeError(`Compose document of provider service "${service}" is not a mapping`)
+  }
+  for (const pair of provider.contents.items) {
+    if (!PROVIDER_KEYS.has(String(pair.key))) {
+      throw new ComposeError(
+        `Compose document of provider service "${service}" has top-level key ${String(pair.key)}; only services and volumes are allowed`,
+      )
+    }
+  }
+  const node = provider.getIn(['services', service], true)
+  if (node === undefined) {
+    throw new ComposeError(`Compose document of provider service "${service}" does not define it`)
+  }
+  const doc = parseChecked(composeText, 'docker-compose.yml')
+  if (composeServices(composeText).has(service)) {
+    log(`docker-compose.yml already has service ${service}; kept`)
+    return composeText
+  }
+  const services = doc.get('services')
+  if (isMap(services)) services.flow = false
+  doc.setIn(['services', service], node)
+  const volumes = provider.get('volumes', true)
+  if (isMap(volumes)) {
+    for (const pair of volumes.items) {
+      if (!doc.hasIn(['volumes', String(pair.key)])) {
+        doc.setIn(['volumes', String(pair.key)], pair.value)
+      }
+    }
   }
   return doc.toString()
 }

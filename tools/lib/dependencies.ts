@@ -57,6 +57,34 @@ function applyNpm(file: string, change: DependencyChange, where: string): void {
   writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n')
 }
 
+function applyNpmScripts(file: string, scripts: Record<string, string>, where: string): void {
+  const pkg = readManifest(file, where)
+  const existing = isRecord(pkg.scripts) ? (pkg.scripts as Record<string, string>) : {}
+  for (const name of Object.keys(scripts)) {
+    if (name in existing) {
+      throw new DependencyError(`${where}: script ${name} already exists in ${file}`)
+    }
+  }
+  pkg.scripts = { ...existing, ...scripts }
+  writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n')
+}
+
+// The loader refuses a clashing script too; this is the last line before a write.
+export function applyScripts(
+  manifestPath: string,
+  adapter: 'npm',
+  scripts: Record<string, string>,
+  where: string,
+): void {
+  switch (adapter) {
+    case 'npm':
+      applyNpmScripts(manifestPath, scripts, where)
+      return
+    default:
+      throw new DependencyError(`${where}: unknown dependency adapter ${String(adapter)}`)
+  }
+}
+
 export function applyDependencyChange(
   manifestPath: string,
   adapter: 'npm',
