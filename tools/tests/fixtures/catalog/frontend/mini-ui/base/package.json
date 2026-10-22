@@ -1,1 +1,1 @@
-{ "name": "__PROJECT_NAME__-frontend", "dependencies": {} }
+{ "name": "__PROJECT_NAME__-frontend", "dependencies": { "jose": "^6" } }

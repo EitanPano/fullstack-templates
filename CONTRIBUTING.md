@@ -19,7 +19,7 @@ cd tools && bun install
 Then, from the repository root:
 
 ```sh
-bun tools/validate.ts [--readme]
+bun tools/validate.ts [--readme] [--lockfiles]
 bun tools/generate.ts --stack <id> --out <dir> --name <name> \
   [--flag k=v] [--capability k=v] [--answers <file>] [--template <kind/id>] \
   [--skip-post-generate] [--keep-staging]
@@ -28,6 +28,7 @@ bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] 
 
 - `validate` checks the catalog (manifests, indexes, schemas, markers, placeholders) and
   dry-runs every flag combination. `--readme` rewrites the generated matrix in `README.md`.
+  `--lockfiles` also runs `bun install --frozen-lockfile` against each npm template's `base/package.json` and `bun.lock` in a scratch copy, so a manifest edited without refreshing its lock fails.
   It prints `validate: ok` and exits 0 when everything holds.
 - `generate` builds a project from a stack, or from one template with `--template`.
   `--skip-post-generate` leaves out install, contract and format; `--keep-staging` keeps the
@@ -103,7 +104,7 @@ When Next is bumped:
 
 ## Lockfile policy
 
-Every `base/` commits its lockfile. `install` is plain `bun install`, so a flag that drops
+Every `base/` commits its lockfile, frozen in CI (`validate --lockfiles`). `install` is plain `bun install`, so a flag that drops
 packages prunes the lock in the generated project. A dependency bot to refresh the
 lockfiles is still to be configured.
 

@@ -21,6 +21,8 @@ jobs:
         run: bun install --frozen-lockfile && bun run check
       - name: Validate the catalog
         run: bun tools/validate.ts
+      - name: Check lockfiles are in sync
+        run: bun tools/validate.ts --lockfiles
 
   list:
     runs-on: ubuntu-latest

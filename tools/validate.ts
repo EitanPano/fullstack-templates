@@ -3,6 +3,7 @@ import path from 'node:path'
 import { CatalogError, loadCatalog } from './lib/catalog'
 import { CATALOG_ROOT, CliError, parseArgs } from './lib/cli'
 import { dryRunMarkers } from './lib/dry-run'
+import { checkLockfiles } from './lib/lockfiles'
 import { MATRIX_END, MATRIX_START, ReadmeError, renderMatrix, replaceMatrix } from './lib/readme'
 
 const normalise = (text: string) => text.replaceAll('\r\n', '\n').trim()
@@ -29,11 +30,12 @@ function checkReadme(root: string, matrix: string, write: boolean): string[] {
 }
 
 function run(argv: string[]): string[] {
-  const args = parseArgs(argv, { values: ['catalog'], booleans: ['readme'] })
+  const args = parseArgs(argv, { values: ['catalog'], booleans: ['readme', 'lockfiles'] })
   const root = args.values.catalog ? path.resolve(args.values.catalog) : CATALOG_ROOT
   const catalog = loadCatalog(root)
   const problems = [...catalog.templates.values()].flatMap((template) => dryRunMarkers(template))
   problems.push(...checkReadme(root, renderMatrix(catalog), args.booleans.readme === true))
+  if (args.booleans.lockfiles === true) problems.push(...checkLockfiles(catalog))
   return problems
 }
 
