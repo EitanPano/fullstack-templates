@@ -42,6 +42,8 @@ export interface GenerationPlan {
   skipPostGenerate: boolean
 }
 
+export const DIR_PATTERN = /^[a-z][a-z0-9-]*$/
+
 export class PlanError extends Error {
   constructor(message: string) {
     super(message)
@@ -62,6 +64,7 @@ function resolveMembers(
     throw new PlanError('give exactly one of a stack and a template')
   }
   if (input.stack !== undefined) {
+    if (input.dir !== undefined) throw new PlanError('--dir only applies with --template')
     const stack = catalog.stacks.get(input.stack)
     if (!stack) throw new PlanError(`unknown stack: ${input.stack}`)
     const members = stack.manifest.packages.map((entry) => {
@@ -75,6 +78,7 @@ function resolveMembers(
   const template = catalog.templates.get(input.template as string)
   if (!template) throw new PlanError(`unknown template: ${input.template}`)
   const dir = input.dir ?? DEFAULT_DIR_BY_KIND[template.manifest.kind]
+  if (!DIR_PATTERN.test(dir)) throw new PlanError(`invalid package dir: ${dir}`)
   return { members: [{ dir, template }], stackId: null }
 }
 
@@ -138,6 +142,7 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
   const hasCapability =
     input.capabilities.length > 0 ||
     Object.values(answerPackages).some((p) => Object.keys(p.capabilities ?? {}).length > 0)
+  // Milestone 3 must add the unknown-capability-kind check when this early refusal is lifted.
   if (hasCapability) {
     for (const entry of input.capabilities) parsePair(entry, 'a capability')
     throw new PlanError('no provider overlays exist in this catalog yet')

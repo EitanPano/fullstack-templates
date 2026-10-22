@@ -14,6 +14,19 @@ const base = {
   skipPostGenerate: true,
 }
 
+const STACK_FRONT_FIRST = [
+  'schemaVersion: 1',
+  'id: mini',
+  'summary: Mini server and UI',
+  'packages:',
+  '  - template: frontend/mini-ui',
+  '    dir: frontend',
+  '  - template: server/mini',
+  '    dir: backend',
+  '',
+].join('\n')
+const EXTRA_SERVER = '\n  - template: server/mini\n    dir: api\n'
+
 describe('resolveRequest', () => {
   test('resolves a stack with defaults, server wiring and contract order', () => {
     const plan = resolveRequest(catalog, { ...base, stack: 'mini' })
@@ -83,5 +96,45 @@ describe('resolveRequest', () => {
     expect(() =>
       resolveRequest(catalog, { ...base, stack: 'mini', template: 'server/mini' }),
     ).toThrow(PlanError)
+  })
+
+  test('orders a consumer after its server whatever the stack lists first', () => {
+    const copy = copyFixture('catalog')
+    writeFileSync(path.join(copy, 'stacks', 'mini', 'stack.yaml'), STACK_FRONT_FIRST)
+    const plan = resolveRequest(loadCatalog(copy), { ...base, stack: 'mini' })
+    expect(plan.packages.map((p) => p.dir)).toEqual(['backend', 'frontend'])
+  })
+  test('rejects a stack with two servers', () => {
+    const copy = copyFixture('catalog')
+    const file = path.join(copy, 'stacks', 'mini', 'stack.yaml')
+    writeFileSync(file, readFileSync(file, 'utf8').trimEnd() + EXTRA_SERVER)
+    expect(() => resolveRequest(loadCatalog(copy), { ...base, stack: 'mini' })).toThrow(
+      'backend and api',
+    )
+  })
+  test('rejects malformed shorthand entries', () => {
+    expect(() => resolveRequest(catalog, { ...base, stack: 'mini', flags: ['auth'] })).toThrow(
+      'auth',
+    )
+    expect(() =>
+      resolveRequest(catalog, { ...base, stack: 'mini', flags: ['auth=maybe'] }),
+    ).toThrow('maybe')
+    expect(() =>
+      resolveRequest(catalog, { ...base, stack: 'mini', capabilities: ['database'] }),
+    ).toThrow('database')
+  })
+  test('refuses --dir with a stack and an unsafe --dir', () => {
+    expect(() => resolveRequest(catalog, { ...base, stack: 'mini', dir: 'x' })).toThrow(
+      '--dir only applies',
+    )
+    expect(() =>
+      resolveRequest(catalog, { ...base, template: 'server/mini', dir: '../x' }),
+    ).toThrow(PlanError)
+    expect(() =>
+      resolveRequest(catalog, { ...base, template: 'server/mini', dir: '/abs' }),
+    ).toThrow(PlanError)
+    expect(
+      resolveRequest(catalog, { ...base, template: 'server/mini', dir: 'api' }).packages[0]?.dir,
+    ).toBe('api')
   })
 })
