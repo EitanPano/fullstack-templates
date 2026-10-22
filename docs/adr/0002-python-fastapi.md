@@ -37,6 +37,9 @@ Both are in the plan's ledger.
 
 ## Decisions
 
+The numbers follow plan 009. M4-20 to M4-22 are the harness's decisions (hooks, permissions,
+language-neutral rules) and live in the plan; M4-19 and M4-23 were added here.
+
 ### M4-1. Toolchain
 
 - **uv** manages Python, the virtual environment and the lockfile:
@@ -133,7 +136,7 @@ upper bound itself through `required-version`.
 
 | bun-express | python-fastapi |
 | --- | --- |
-| `src/index.ts` | `src/app/main.py`: composes the infra lifespan into `app`, runs uvicorn (M4-20) |
+| `src/index.ts` | `src/app/main.py`: composes the infra lifespan into `app`, runs uvicorn (M4-23) |
 | `src/server.ts` | `src/app/server.py`: `create_app(lifespan=None)` and `app = create_app()`; attaches no infra, so tests never start any |
 | `src/openapi.ts` | `src/app/openapi.py`: builds, shapes and caches the document (M4-9); `python -m app.openapi --write` |
 | `src/config/{env,constants,cors,routes}.ts` | `src/app/config/{env,constants,cors,routes}.py`; `routes.py` exports `register_routes(app)` |
@@ -160,7 +163,7 @@ upper bound itself through `required-version`.
 | `tests/store.ts`; overlay `tests/db/setup.ts` | `tests/store.py`; overlay `tests/db/plugin.py` |
 | `package.json`, `bun.lock` | `pyproject.toml`, `uv.lock`, `.python-version` |
 | `tsconfig.json`, `eslint.config.mjs`, `.prettierrc` | `[tool.mypy]`, `[tool.pydantic-mypy]`, `[tool.ruff]`, `[tool.importlinter]` in `pyproject.toml` |
-| `Dockerfile`, `.dockerignore`, `.env.example`, `compose.yaml`, `AGENTS.md` | the same names (M4-20) |
+| `Dockerfile`, `.dockerignore`, `.env.example`, `compose.yaml`, `AGENTS.md` | the same names (M4-23) |
 
 Rules for the layout:
 
@@ -498,7 +501,7 @@ Further rules:
   tests) is a synchronous test using `subprocess.run`.
 - asyncpg needs none of this; it remains the fallback if psycopg's Windows story regresses.
 
-### M4-20. The entry, the image and Compose
+### M4-23. The entry, the image and Compose
 
 Tests never start uvicorn, so this is where production can silently diverge. It is written down in
 full.
