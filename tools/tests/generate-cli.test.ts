@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { FIXTURE, tempDir } from './helpers'
 
@@ -53,5 +53,45 @@ describe('generate CLI', () => {
     expect(run(['--stack', 'nope', '--out', out, '--name', 'x', '--catalog', FIXTURE]).status).toBe(
       1,
     )
+  })
+
+  test('prints ==> step lines even with --skip-post-generate', () => {
+    const out = tempDir()
+    const result = run([
+      '--stack',
+      'mini',
+      '--out',
+      out,
+      '--name',
+      'Demo',
+      '--catalog',
+      FIXTURE,
+      '--skip-post-generate',
+    ])
+    expect(result.stdout).toContain('==> Preparing backend')
+  })
+
+  test.each([
+    ['a missing file', undefined],
+    ['invalid JSON', '{ not json'],
+    ['a non-object', '[]'],
+  ])('exits 2 when --answers is %s', (_label, body) => {
+    const dir = tempDir()
+    const file = path.join(dir, 'answers.json')
+    if (body !== undefined) writeFileSync(file, body)
+    const result = run([
+      '--stack',
+      'mini',
+      '--out',
+      path.join(dir, 'o'),
+      '--name',
+      'x',
+      '--catalog',
+      FIXTURE,
+      '--answers',
+      file,
+    ])
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain('generate:')
   })
 })

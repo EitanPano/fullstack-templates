@@ -268,7 +268,7 @@ function runPostGenerate(plan: GenerationPlan, staging: string, log: Log): void 
         log(`${pkg.dir}: contract step skipped, the plan has no server package`)
         continue
       }
-      log(`${pkg.dir}: ${line}`)
+      log(`==> ${pkg.dir}: ${line}`)
       const env = pkg.serverDir === null ? undefined : { FULLSTACK_SERVER_DIR: pkg.serverDir }
       try {
         runCommand(line, path.join(staging, pkg.dir), env)
@@ -345,12 +345,19 @@ export function generate(
     mkdirSync(plan.out, { recursive: true })
     if (!statSync(plan.out).isDirectory()) throw new GenerateError(`${plan.out} is not a directory`)
     checkPreconditions(plan, staging)
+    log(`==> Staging in ${staging}`)
     const values = new Map(plan.packages.map((p) => [p.dir, packagePlaceholders(plan, p, log)]))
-    for (const pkg of plan.packages) buildPackage(pkg, values.get(pkg.dir) ?? {}, staging)
+    for (const pkg of plan.packages) {
+      log(`==> Preparing ${pkg.dir} from ${pkg.template.path}`)
+      buildPackage(pkg, values.get(pkg.dir) ?? {}, staging)
+    }
+    log('==> Assembling root files')
     writeRootFiles(catalog, plan, values, staging)
     sweepPlaceholders(plan, staging)
+    log(`==> Writing ${PROVENANCE_PATH}`)
     const provenancePath = writeProvenance(catalog, plan, staging, now())
     runPostGenerate(plan, staging, log)
+    log(`==> Moving into ${plan.out}`)
     moveIntoPlace(plan, staging, mover, log)
     failed = false
     return {

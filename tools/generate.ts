@@ -11,11 +11,16 @@ const USAGE =
   '[--catalog-version <tag>] [--skip-post-generate] [--keep-staging]'
 
 function readAnswers(file: string): Answers {
+  let parsed: unknown
   try {
-    return JSON.parse(readFileSync(path.resolve(file), 'utf8')) as Answers
+    parsed = JSON.parse(readFileSync(path.resolve(file), 'utf8'))
   } catch (error) {
     throw new CliError(`cannot read --answers ${file}: ${(error as Error).message}`)
   }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new CliError('--answers must hold a JSON object')
+  }
+  return parsed as Answers
 }
 
 function run(argv: string[]): void {
