@@ -46,8 +46,12 @@ Generated alone or as the `server` of the `next-bun-express` stack.
   | migrate | `bun run db:migrate` |
   | testDb | `bun run test:db` |
 
-  `DATABASE_URL` is required in production. `check` skips the store-backed suites and needs
+  `DATABASE_URL` is required in production and has no default in Compose, so export it before
+  `docker compose --profile app up`. Nothing runs the migrations on boot: run
+  `docker compose --profile app run --rm backend bun run db:migrate` before the backend serves
+  traffic and after every deploy that ships a migration (elsewhere, the deploy pipeline runs
+  it). `check` skips the store-backed suites and needs
   no Docker; `test:db` runs everything against the `app_test` database of the same service
-  (`docker compose up -d database` first).
+  (`docker compose up -d --wait database` first).
 
 The layer map and conventions of the generated package are in `base/AGENTS.md`.

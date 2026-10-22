@@ -27,6 +27,8 @@ env:
     local: postgres://app:app@localhost:5432/app      # outside production
     compose: postgres://app:app@database:5432/app     # inside the compose network
     test: postgres://app:app@localhost:5432/app_test
+    testOverride: TEST_DATABASE_URL                   # optional: the variable that overrides `test`
+    secret: true                                      # optional: wired in Compose with no default
 files: [db/init.sql]                # copied to the project root; creates app_test
 ```
 
@@ -94,9 +96,14 @@ on a flag the template does not declare and on a path the overlay does not conta
 The generator completes the project root from the provider, once per project:
 
 - The consuming package's Compose service gets each env entry as
-  `NAME: ${NAME:-<compose value>}` and `depends_on` the provider's service with
-  `condition: service_healthy`.
-- The package's `.env.example` gets a block per env entry: its `summary`, the test URL, and
+  `NAME: ${NAME:-<compose value>}`, or as plain `NAME: ${NAME}` when the entry is a `secret`
+  (an unset secret reaches the package as an empty string, which the package's env module
+  rejects in production), and `depends_on` the provider's service with
+  `condition: service_healthy`. The bundled provider service and the `depends_on` stay because
+  the compose file is the local stack: a developer who exports `DATABASE_URL` pointing at the
+  bundled service made a conscious choice, and production does not refuse it.
+- The package's `.env.example` gets a block per env entry: its `summary`, the test URL (and
+  the variable that overrides it, when the entry has a `testOverride`), and
   `NAME=<local value>`.
 - The provider's service and volumes are added to the root `docker-compose.yml`. On a rerun
   the service the file already has is kept and the generator says so.

@@ -22,6 +22,10 @@
   new markers `@database` and `@database:postgres` (and `@nodatabase`) mark the files that
   differ: `env.ts`, `infra/dependency.ts`, `infra/memory.ts`, `error-handler.ts`, `compose.yaml`
   and the tests that follow them.
+- In Compose the backend gets `DATABASE_URL` as plain `${DATABASE_URL}`, with no default, so
+  the full stack never boots on the bundled credentials without an explicit export. Nothing
+  runs the migrations on boot; `AGENTS.md` and the README say when to run `db:migrate`.
+  `test:db` exits 1 when it would skip every store-backed suite.
 - `AGENTS.md` describes the Postgres variant, and corrects two statements: a query takes the
   `Executor` as an optional last argument (a controller cannot import `services/db.ts`, so a
   module exports `withTransaction`), and the test database is reached through `test:db`'s

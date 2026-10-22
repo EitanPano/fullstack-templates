@@ -1,6 +1,10 @@
 services:
   database:
     # The credentials are for local development only; production supplies its own DATABASE_URL.
+    # The backend gets DATABASE_URL with no default, so the bundled credentials reach it only
+    # when a developer exports a URL that points at this service. Production does not refuse
+    # that choice. This service and the backend's depends_on on it stay: the compose file is
+    # the local stack.
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: app

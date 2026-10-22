@@ -69,7 +69,9 @@ A provider is one implementation of a capability, described once for every langu
       with a healthcheck that is true only when the service is ready for connections, and
       the `volumes` it needs. Credentials in it are for local development only.
 - [ ] `env`: one entry per variable, with a `summary` (it becomes the `.env.example`
-      comment) and the `local`, `compose` and `test` values.
+      comment) and the `local`, `compose` and `test` values (one line, none of newline, `$`, braces,
+      quotes or backslash). Mark a credential `secret: true` so Compose wires it with no default,
+      and name the variable that overrides the test value in `testOverride`.
 - [ ] `files`: what is copied to the project root when absent, such as `db/init.sql` (which
       must create the test database).
 - [ ] At least one template lists the provider and ships its overlay; `validate` fails a
@@ -85,6 +87,8 @@ An overlay binds one provider to one template, in
       a name the base already has is refused) and `commands` (`testDb`, `migrate`).
 - [ ] `overlay/`: the files that replace or join `base/`, at the same relative paths.
 - [ ] The provider is listed in the template's `capabilities.<kind>.providers`.
+- [ ] A change to a base file that an overlay replaces updates the overlay copy in the same
+      pull request (see below).
 - [ ] Shared files carry markers where the two variants differ: `@<kind>` (any provider),
       `@no<kind>` (none) or `@<kind>:<provider>` at the end of a line, or the `-start` and
       `-end` forms around a block. Keep the no-capability variant byte for byte what it was.
@@ -98,6 +102,30 @@ An overlay binds one provider to one template, in
       `check`, `testDb`.
 - [ ] The template's `AGENTS.md` describes the variant, its `README.md` and `CHANGELOG.md`
       follow, and the version is bumped in `template.yaml` and `index.yaml`.
+
+### Keeping an overlay in step with the base
+
+An overlay file replaces the base file at the same path, so a fix to the base file does not
+reach a project generated with the capability unless the overlay copy gets it too. A pull
+request that changes a base file an overlay replaces updates that overlay copy in the same
+pull request. For `server/bun-express` with `database/postgres` the shadowed files are:
+
+- `src/api/module/service.ts`
+- `src/api/user/service.ts`
+- `src/services/db.ts`
+- `src/services/session.ts`
+- `tests/store.ts`
+- `tests/services/session.test.ts`
+
+List them for any overlay as the paths present in both `base/` and `overlay/`:
+
+```sh
+cd server/bun-express
+comm -12 <(cd base && find . -type f -not -path './node_modules/*' | sort)   <(cd capabilities/database/postgres/overlay && find . -type f | sort)
+```
+
+Pinning the base file's hash in the capability manifest, so `validate` flags a drift, is a
+follow-up.
 
 ### Markers and placeholders
 

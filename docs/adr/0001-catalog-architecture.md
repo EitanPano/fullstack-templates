@@ -378,7 +378,7 @@ A generated project's `docker-compose.yml` is assembled, not copied: the skeleto
 `shared/docker/` plus one service fragment per package (`compose.yaml` next to each
 `template.yaml`, parameterised by the package directory and port) plus one per selected
 provider. Application services sit under the `app` profile; providers have no profile, so
-`docker compose up -d database` starts one for local work, exactly as the harness does
+`docker compose up -d --wait database` starts one for local work, exactly as the harness does
 today. `.gitignore` is merged from the ecosystems the chosen templates declare;
 `.editorconfig` is copied.
 
@@ -615,7 +615,8 @@ After v1, in this order unless Eitan reorders: `server/python-fastapi`, then
   declare it, the answers file decides. A kind or provider a template does not list is refused
   with what it lists.
 - The root is assembled from the provider: the consumer's Compose service gets each env entry
-  as `NAME: ${NAME:-<compose value>}` and `depends_on` the provider's service with
+  as `NAME: ${NAME:-<compose value>}` (a `secret` entry gets no default: plain `NAME: ${NAME}`,
+  like the other production secrets) and `depends_on` the provider's service with
   `condition: service_healthy`; the package's `.env.example` gets a block per entry; the
   provider's service and volumes join `docker-compose.yml`; the provider's files are copied
   to the root only when absent. A rerun keeps what exists and says so.

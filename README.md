@@ -29,12 +29,19 @@ With a database (needs Docker):
 ```sh
 bun tools/generate.ts --stack next-bun-express --capability database=postgres \
   --out ../my-app --name my-app
-cd ../my-app && docker compose up -d database
+cd ../my-app && docker compose up -d --wait database
 cd backend && bun run db:migrate && bun run test:db
 ```
 
 The generator adds the Postgres service to the root `docker-compose.yml`, the `DATABASE_URL`
 variable to the backend's `.env.example`, and the migration and test-database scripts.
+
+To run the full stack (`docker compose --profile app up --build`), export `DATABASE_URL` first:
+it is a secret with no default in Compose, and the backend runs with `NODE_ENV: production`.
+Nothing runs the migrations on boot. Before the backend serves traffic, and after every deploy
+that ships a migration, run them: `docker compose --profile app run --rm backend bun run db:migrate`
+(with the production secrets and `DATABASE_URL` exported, as for `up`). The bundled `database`
+service is the local stack; production does not refuse its credentials if you export them.
 
 ## Templates
 
