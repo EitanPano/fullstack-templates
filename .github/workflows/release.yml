@@ -1,0 +1,79 @@
+# Proves a tagged commit passes validate and every generated case before the release is published.
+# The jobs are duplicated, not reused via workflow_call: a called workflow inherits the caller's
+# github.workflow, so their concurrency groups would collide.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.x
+      - name: Generator gates
+        working-directory: tools
+        run: bun install --frozen-lockfile && bun run check
+      - name: Validate the catalog
+        run: bun tools/validate.ts
+
+  list:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      cases: ${{ steps.cases.outputs.cases }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.x
+      - name: Install generator dependencies
+        working-directory: tools
+        run: bun install --frozen-lockfile
+      - name: List cases
+        id: cases
+        run: echo "cases=$(bun tools/test-generated.ts --list)" >> "$GITHUB_OUTPUT"
+
+  case:
+    needs: list
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        case: ${{ fromJson(needs.list.outputs.cases) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install generator dependencies
+        working-directory: tools
+        run: bun install --frozen-lockfile
+      - name: Install Playwright browser
+        if: startsWith(matrix.case, 'frontend/')
+        working-directory: frontend/next/base
+        run: bun install --frozen-lockfile && bun x playwright install --with-deps chromium
+      - name: Generate and test ${{ matrix.case }}
+        run: bun tools/test-generated.ts --case ${{ matrix.case }} --e2e
+
+  publish:
+    needs: [validate, case]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" --generate-notes

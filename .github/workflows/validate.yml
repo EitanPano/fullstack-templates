@@ -1,0 +1,26 @@
+# Proves the catalog is consistent: the generator's own gates pass and every template validates.
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.x
+      - name: Generator gates
+        working-directory: tools
+        run: bun install --frozen-lockfile && bun run check
+      - name: Validate the catalog
+        run: bun tools/validate.ts
