@@ -5,8 +5,8 @@
 - Bun 1.4 or newer.
 - Node 24 or newer.
 - git.
-- Docker, later: provider-backed tests (a database, a cache) need it once those overlays
-  exist. Every `check` command runs without Docker.
+- Docker with Compose: provider-backed tests (`--with-services`) start the provider's
+  service. Every `check` command runs without Docker.
 
 ## Running the tools
 
@@ -23,7 +23,7 @@ bun tools/validate.ts [--readme] [--lockfiles]
 bun tools/generate.ts --stack <id> --out <dir> --name <name> \
   [--flag k=v] [--capability k=v] [--answers <file>] [--template <kind/id>] \
   [--skip-post-generate] [--keep-staging]
-bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] [--keep]
+bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] [--with-services] [--keep]
 ```
 
 - `validate` checks the catalog (manifests, indexes, schemas, markers, placeholders) and
@@ -35,7 +35,9 @@ bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] 
   working directory for inspection.
 - `test-generated` generates each case from every template's `tests/cases.yaml` and runs
   its gates. `--list` prints the cases, `--case` runs one, `--e2e` adds the e2e suite (`--install-browsers` first installs Playwright's Chromium in each generated package that has one) and
-  `--keep` keeps the output.
+  `--keep` keeps the output. `--with-services` starts a case's provider services with
+  `docker compose up -d --wait`, runs `migrate`, `check`, `testDb` (and e2e), then
+  `docker compose down -v`; without it a case with providers runs `check` only.
 
 ## Adding a template
 
@@ -56,17 +58,57 @@ A manifest `commands` entry is a program plus whitespace-separated arguments, ru
 shell: no pipes, redirects, quoting, variables or command substitution (the schema rejects
 `& | ; < > ' " $` and backticks). Put anything more elaborate in a script and call that.
 
+## Adding a provider
+
+A provider is one implementation of a capability, described once for every language
+(`shared/providers/<kind>/<id>/`). Checklist:
+
+- [ ] `provider.yaml`, valid against `schemas/provider.schema.json`: `kind`, `id`, `name`,
+      `service` (the Compose service name), `compose` (the file below), `env` and `files`.
+- [ ] `compose.yaml`: a partial Compose document, a `services` map that defines `service`
+      with a healthcheck that is true only when the service is ready for connections, and
+      the `volumes` it needs. Credentials in it are for local development only.
+- [ ] `env`: one entry per variable, with a `summary` (it becomes the `.env.example`
+      comment) and the `local`, `compose` and `test` values.
+- [ ] `files`: what is copied to the project root when absent, such as `db/init.sql` (which
+      must create the test database).
+- [ ] At least one template lists the provider and ships its overlay; `validate` fails a
+      provider no template uses.
+
+## Adding an overlay
+
+An overlay binds one provider to one template, in
+`<kind>/<id>/capabilities/<capability>/<provider>/`. Checklist:
+
+- [ ] `capability.yaml`, valid against `schemas/capability.schema.json`: `kind`, `provider`,
+      `summary`, and as needed `dependencies`, `scripts` (lines for the package manifest;
+      a name the base already has is refused) and `commands` (`testDb`, `migrate`).
+- [ ] `overlay/`: the files that replace or join `base/`, at the same relative paths.
+- [ ] The provider is listed in the template's `capabilities.<kind>.providers`.
+- [ ] Shared files carry markers where the two variants differ: `@<kind>` (any provider),
+      `@no<kind>` (none) or `@<kind>:<provider>` at the end of a line, or the `-start` and
+      `-end` forms around a block. Keep the no-capability variant byte for byte what it was.
+- [ ] A file that only makes sense with a flag on lives under that flag's `onlyPaths`; the
+      generator copies overlays before it removes `onlyPaths`, so `auth=false` drops it.
+- [ ] Two cases in `tests/cases.yaml`: the capability alone at the default flags, and the
+      capability with every flag off (`validate` fails without them).
+- [ ] `bun tools/test-generated.ts --case <id> --with-services` green for both: migrate,
+      `check`, `testDb`.
+- [ ] The template's `AGENTS.md` describes the variant, its `README.md` and `CHANGELOG.md`
+      follow, and the version is bumped in `template.yaml` and `index.yaml`.
+
 ### Markers and placeholders
 
-Markers are written in the file's own comment syntax (`//`, `#` or `<!-- -->`, chosen by
-extension or file name) and name a flag or a capability:
+Markers are written in the file's own comment syntax (`//`, `--` in `.sql`, `#` or
+`<!-- -->`, chosen by extension or file name) and name a flag or a capability:
 
 - `@<name>` at the end of a line keeps that line only when `<name>` is on; `@no<name>`
   keeps it only when `<name>` is off.
 - `@<name>-start` and `@<name>-end` (or `@no<name>-start` ... `@no<name>-end`), each on a
   line of their own, wrap a block. Blocks do not nest.
-- Names match `[a-z][a-z0-9-]*(:[a-z0-9-]+)?`; the optional `:<provider>` part targets one
-  provider of a capability.
+- Names match `[a-z][a-z0-9-]*(:[a-z0-9-]+)?`; `@database` is true when any provider of the
+  capability is selected and `@database:postgres` when that provider is; the `no` prefix
+  negates either.
 - A name that no flag or capability declares fails validation, as does an unbalanced block
   or a marker left in generated output. `validate` dry-runs the marker pass for every flag
   combination; `test-generated` proves each declared case generates and passes its gates.
