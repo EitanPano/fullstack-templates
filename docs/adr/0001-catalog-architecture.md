@@ -558,3 +558,20 @@ After v1, in this order unless Eitan reorders: `server/python-fastapi`, then
   current files, not from the harness's history.
 - The first non-TypeScript template will stress D4; its ADR amends `conventions.md`
   where the contract was TypeScript in disguise.
+
+## Amendments (2026-10-22, v0.1.0)
+
+- Install is plain `bun install`; lockfile drift is caught by `validate --lockfiles`, which runs
+  a frozen install on each npm template's `base/` (R4).
+- `--answers` takes a JSON file.
+- Refusal semantics are D1's: generation refuses when a package directory already exists, not
+  when the target is non-empty.
+- On a rerun `docker-compose.yml` is merged by service, like `.gitignore`: the existing file is
+  the skeleton and only services it lacks are added.
+- `server` is a reserved selection for marker lines in `base/` and `compose.yaml`: true when the
+  plan has a server package, so a lone frontend drops its `API_URL` and `depends_on` lines.
+  Manifests cannot declare a flag named `server`, and `validate` dry-runs both values.
+- `bun.lock` is substituted like a text file, because it records the package name, which
+  carries a placeholder.
+- Index stack entries do not list packages; the bootstrap reads `stack.yaml` through the
+  catalog tools.
