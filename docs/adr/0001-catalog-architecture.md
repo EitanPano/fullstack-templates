@@ -586,7 +586,7 @@ After v1, in this order unless Eitan reorders: `server/python-fastapi`, then
   mount table (`registerRoutes(app)`, one `app.use` per module) and the OpenAPI registration
   list moves to `openapi.ts`. `conventions.md` carries the new contract.
 
-## Amendments (v0.2.0)
+## Amendments (v0.1.1)
 
 - The bootstrap skill reads three small catalog files with the model in the loop: `index.yaml`,
   the chosen `stacks/<id>/stack.yaml` and each listed `template.yaml`; Goal 4's 'at most two'
