@@ -13,6 +13,8 @@
 // re-run against what is stored (a grace hit answers with the winner's token, a revoked session
 // is refused, anything else is a replay). Revocation and the grace-path touch are narrow
 // filtered updates, never whole-record writes, so a concurrent revoke cannot be overwritten.
+// That re-check relies on Postgres's default READ COMMITTED isolation: under REPEATABLE READ or
+// SERIALIZABLE the losing conditional update fails with 40001 instead of re-checking.
 import { randomUUID } from 'node:crypto'
 import { REFRESH_REUSE_GRACE, REFRESH_TOKEN_TTL, SESSION_ABSOLUTE_TTL } from '../config/constants'
 import type { SessionRecord } from '../models/session/interface'

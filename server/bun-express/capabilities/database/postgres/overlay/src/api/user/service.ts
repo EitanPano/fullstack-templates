@@ -5,8 +5,10 @@
 //
 // This is the Postgres variant: the bodies are SQL against the "user" table
 // (infra/migrations/0001-init.sql) and the signatures are the memory variant's, plus an
-// optional last `db` so a controller can run several queries in one transaction. The list is
-// ordered by (created_at, id) and the cursor carries the last row's pair.
+// optional last `db` so a query can join a transaction a controller opened. This file exports no
+// `withTransaction`: the reference is `api/module/service.ts › withTransaction`, and a module adds
+// its own when a rule needs one. The list is ordered by (created_at, id) and the cursor carries
+// the last row's pair.
 //
 // A second insert of an email (or of a verified phone) violates a unique index; the error
 // handler maps that driver error to a 409, so nothing here checks first.
