@@ -4,6 +4,7 @@ import { CatalogError, loadCatalog } from './lib/catalog'
 import { CATALOG_ROOT, CliError, parseArgs } from './lib/cli'
 import { dryRunMarkers } from './lib/dry-run'
 import { checkLockfiles } from './lib/lockfiles'
+import { PinError, checkPins, pinCapability } from './lib/pins'
 import { MATRIX_END, MATRIX_START, ReadmeError, renderMatrix, replaceMatrix } from './lib/readme'
 
 const normalise = (text: string) => text.replaceAll('\r\n', '\n').trim()
@@ -30,10 +31,15 @@ function checkReadme(root: string, matrix: string, write: boolean): string[] {
 }
 
 function run(argv: string[]): string[] {
-  const args = parseArgs(argv, { values: ['catalog'], booleans: ['readme', 'lockfiles'] })
+  const args = parseArgs(argv, { values: ['catalog', 'pin'], booleans: ['readme', 'lockfiles'] })
   const root = args.values.catalog ? path.resolve(args.values.catalog) : CATALOG_ROOT
   const catalog = loadCatalog(root)
+  if (args.values.pin !== undefined) {
+    pinCapability(catalog, args.values.pin, (line) => console.log(line))
+    return []
+  }
   const problems = [...catalog.templates.values()].flatMap((template) => dryRunMarkers(template))
+  problems.push(...checkPins(catalog))
   problems.push(...checkReadme(root, renderMatrix(catalog), args.booleans.readme === true))
   if (args.booleans.lockfiles === true) problems.push(...checkLockfiles(catalog))
   return problems
@@ -48,10 +54,14 @@ function main(): void {
     else if (error instanceof CliError) {
       process.stdout.write(`validate: ${error.message}\n`)
       process.exit(2)
+    } else if (error instanceof PinError) {
+      process.stdout.write(`validate: ${error.message}\n`)
+      process.exit(2)
     } else throw error
   }
   if (problems.length === 0) {
-    console.log('validate: ok')
+    // --pin only rewrites the pins; it does not validate the catalog.
+    if (!process.argv.includes('--pin')) console.log('validate: ok')
     return
   }
   for (const problem of problems) console.log(`validate: ${problem}`)
