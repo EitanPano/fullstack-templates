@@ -2,6 +2,9 @@
 
 ## 2.2.0 — 2026-10-23
 
+- The development and test database URLs default to `127.0.0.1`, not `localhost`: the Compose service
+  publishes on IPv4 loopback only and Windows resolves `localhost` to `::1` first, which cost about
+  2 s per connection.
 - With `database/postgres`, the root `docker-compose.yml` gets a derived one-shot
   `backend-migrate` service on the app profile: the backend's image running `db:migrate` with
   the backend's environment, which the backend waits on (`service_completed_successfully`).

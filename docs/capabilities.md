@@ -25,9 +25,9 @@ compose: compose.yaml               # a partial Compose document: services and v
 env:
   - name: DATABASE_URL
     summary: Postgres connection URL. Required in production; outside production it defaults to the local service.
-    local: postgres://app:app@localhost:5432/app      # outside production
+    local: postgres://app:app@127.0.0.1:5432/app      # outside production
     compose: postgres://app:app@database:5432/app     # inside the compose network
-    test: postgres://app:app@localhost:5432/app_test
+    test: postgres://app:app@127.0.0.1:5432/app_test
     testOverride: TEST_DATABASE_URL                   # optional: the variable that overrides `test`
     secret: true                                      # optional: wired in Compose with no default
 files: [db/init.sql]                # copied to the project root; creates app_test

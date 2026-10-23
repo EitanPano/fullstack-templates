@@ -60,7 +60,7 @@ _DEVELOPMENT_DEFAULTS: Final = {
     # 32 bytes, base64.
     "ENCRYPTION_KEY": "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
     # The provider's local service. The URL carries the password, so it is a secret.
-    "DATABASE_URL": "postgres://app:app@localhost:5432/app",  # @database:postgres
+    "DATABASE_URL": "postgres://app:app@127.0.0.1:5432/app",  # @database:postgres
 }
 
 # Docker Compose passes an unset `${VAR}` as an empty string; blank means unset.

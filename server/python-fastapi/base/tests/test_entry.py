@@ -236,10 +236,10 @@ class TestLoadEnv:
 
         assert load_env({**PRODUCTION, "DATABASE_URL": url}).env.database_url == url
         with pytest.raises(EnvError, match="DATABASE_URL: is a placeholder"):
-            load_env({**PRODUCTION, "DATABASE_URL": "postgres://app:app@localhost:5432/app"})
+            load_env({**PRODUCTION, "DATABASE_URL": "postgres://app:app@127.0.0.1:5432/app"})
 
     def test_defaults_the_database_url_to_the_local_service_outside_production(self) -> None:
-        assert load_env({}).env.database_url == "postgres://app:app@localhost:5432/app"
+        assert load_env({}).env.database_url == "postgres://app:app@127.0.0.1:5432/app"
 
     # @database:postgres-end
     def test_treats_the_empty_string_compose_passes_for_an_unset_secret_as_missing(self) -> None:

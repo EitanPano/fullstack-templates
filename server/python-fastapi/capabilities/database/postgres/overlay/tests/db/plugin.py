@@ -19,7 +19,7 @@ from urllib.parse import unquote, urlsplit
 
 import pytest
 
-DEFAULT_TEST_URL: Final = "postgres://app:app@localhost:5432/app_test"
+DEFAULT_TEST_URL: Final = "postgres://app:app@127.0.0.1:5432/app_test"
 TEST_SUFFIX: Final = "_test"
 
 

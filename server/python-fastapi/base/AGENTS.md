@@ -690,11 +690,12 @@ Commands:
 Local service: `docker compose up -d --wait database` at the project root starts Postgres 17 on
 `127.0.0.1:5432` and returns when it is healthy (`migrate` has no connect retry, and on a fresh
 volume the image is not ready right away). `DATABASE_URL` is a secret, since it carries the
-password: required in production, defaulted outside it to `postgres://app:app@localhost:5432/app`
+password: required in production, defaulted outside it to `postgres://app:app@127.0.0.1:5432/app`
 (the entry warns once, like any defaulted secret), and it must be a `postgres://` or
-`postgresql://` URL. On Windows with Docker Desktop, `localhost` can resolve to `::1` first, where
-nothing answers, so every new connection waits out its 2 s `connect_timeout`: use `127.0.0.1` in
-`DATABASE_URL` and `TEST_DATABASE_URL` there. In `docker-compose.yml` it is wired as a plain
+`postgresql://` URL. The default host is `127.0.0.1`, not `localhost`: the service publishes on
+loopback IPv4 only, and on Windows `localhost` resolves to `::1` first, where nothing answers, so
+every new connection would wait out its 2 s `connect_timeout`. Keep `127.0.0.1` in `DATABASE_URL`
+and `TEST_DATABASE_URL` for local work. In `docker-compose.yml` it is wired as a plain
 `${DATABASE_URL}` with no default, like the other production secrets: the backend runs with
 `APP_ENV: production`, so an unset variable (Compose passes an empty string) stops it at startup
 with a message naming `DATABASE_URL`. To run the full stack locally, export a `DATABASE_URL`, e.g.
@@ -707,7 +708,7 @@ created; a volume that already existed needs `create database app_test owner app
 hand. `tests/db/plugin.py`, loaded by `test-db` (`pytest -p tests.db.plugin`, never by `check`):
 
 - points `DATABASE_URL` at `TEST_DATABASE_URL` (default
-  `postgres://app:app@localhost:5432/app_test`) in `pytest_load_initial_conftests`, before
+  `postgres://app:app@127.0.0.1:5432/app_test`) in `pytest_load_initial_conftests`, before
   `config/env.py` loads (`pytest_configure` is too late: `tests/conftest.py` imports the app
   first), and refuses a database whose name does not end in `_test`;
 - applies the migrations once and, when the database cannot be reached, exits 1 with one line

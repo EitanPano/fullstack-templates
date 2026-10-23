@@ -24,10 +24,11 @@ from app.config.env import env
 type Pool = AsyncConnectionPool[AsyncConnection[TupleRow]]
 
 # libpq applies `connect_timeout` to each address a host name resolves to (its minimum is 2 s), and
-# `localhost` resolves to `::1` first on Windows, where Docker publishes IPv4 only and the first
-# address stalls until its timeout. Two addresses at 2 s each, and the open that waits for them,
-# stay below `with_retry`'s 5 s attempt timeout, so a black-holed host fails the attempt with a
-# driver error instead of the generic timeout.
+# a name such as `localhost` resolves to `::1` first on Windows, where Docker publishes IPv4 only and
+# the first address stalls until its timeout (the defaults use `127.0.0.1` for that reason). Two
+# addresses at 2 s each, and the open that waits for them, stay below `with_retry`'s 5 s attempt
+# timeout, so a black-holed host fails the attempt with a driver error instead of the generic
+# timeout.
 CONNECT_TIMEOUT_SECONDS: Final = 2
 OPEN_TIMEOUT_SECONDS: Final = 4.5
 # How long a query waits for a free connection before the pool gives up (`PoolTimeout`, which the

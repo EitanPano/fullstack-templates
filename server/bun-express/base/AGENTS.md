@@ -545,7 +545,9 @@ Local service: `docker compose up -d --wait database` at the project root starts
 `127.0.0.1:5432` and returns when it is healthy (`migrate` has no connect retry, and on a fresh
 volume the image is not ready right away). `DATABASE_URL` is a secret, since it carries the
 password: required in production, defaulted outside it to
-`postgres://app:app@localhost:5432/app` (the entry warns once, like any defaulted secret), and
+`postgres://app:app@127.0.0.1:5432/app` (the entry warns once, like any defaulted secret; the host
+is `127.0.0.1` because the service publishes on IPv4 loopback only and Windows resolves `localhost`
+to `::1` first), and
 it must be a `postgres://` or `postgresql://` URL. In `docker-compose.yml` it is wired as a
 plain `${DATABASE_URL}` with no default, like the other production secrets: the backend runs
 with `NODE_ENV: production`, so an unset variable (Compose passes an empty string) stops it at
@@ -558,7 +560,7 @@ is the local stack.
 Test database: `app_test` on the same service, created by `db/init.sql` when the volume is
 first created; a volume that already existed needs `create database app_test owner app;` run
 once by hand. `tests/db/setup.ts`, preloaded by `test:db`, points `DATABASE_URL` at
-`TEST_DATABASE_URL` (default `postgres://app:app@localhost:5432/app_test`) before
+`TEST_DATABASE_URL` (default `postgres://app:app@127.0.0.1:5432/app_test`) before
 `config/env.ts` loads, refuses a database whose name does not end in `_test`, applies the
 migrations and, when the database cannot be reached, exits 1 with one line saying so. It also
 exits 1 when `describeStore` would skip every store-backed suite, so `test:db` cannot pass on

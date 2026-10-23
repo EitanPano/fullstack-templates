@@ -77,9 +77,9 @@ dev dependency; the image never uses it.
   `check` skips the store-backed suites and needs no Docker; `test-db` runs everything against the
   `app_test` database of the same service (`docker compose up -d --wait database` first). psycopg
   refuses Windows' default event loop, so the migrate script, the tests and uvicorn all run on
-  `infra/loop.py`'s selector loop. On Windows with Docker Desktop, use `127.0.0.1` rather than
-  `localhost` in `DATABASE_URL` and `TEST_DATABASE_URL`: `localhost` resolves to `::1` first, where
-  nothing answers, and every new connection then waits two seconds.
+  `infra/loop.py`'s selector loop. The development and test URLs default to `127.0.0.1`, not
+  `localhost`: the service publishes on IPv4 loopback only, and on Windows `localhost` resolves to
+  `::1` first, where nothing answers, so every new connection would wait two seconds.
 
 ## Cases
 

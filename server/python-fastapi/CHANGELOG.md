@@ -2,6 +2,9 @@
 
 ## 1.0.0 — 2026-10-23
 
+- The development and test database URLs default to `127.0.0.1`, not `localhost`: the Compose service
+  publishes on IPv4 loopback only and Windows resolves `localhost` to `::1` first, which cost about
+  2 s per connection.
 - First version: FastAPI on Python 3.14, managed by uv (0.12.23 up to 0.14, which installs Python 3.14), at
   behavioural parity with `server/bun-express` 2.2.0. Same layer map (`config/`, `api/<module>/`,
   `models/`, `middleware/`, `services/`, `infra/`), same request flow, same endpoints, same error

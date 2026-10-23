@@ -181,12 +181,12 @@ describe('loadEnv', () => {
 
     expect(loadEnv({ ...productionSource, DATABASE_URL: url }).env.DATABASE_URL).toBe(url)
     expect(() =>
-      loadEnv({ ...productionSource, DATABASE_URL: 'postgres://app:app@localhost:5432/app' }),
+      loadEnv({ ...productionSource, DATABASE_URL: 'postgres://app:app@127.0.0.1:5432/app' }),
     ).toThrow(/DATABASE_URL: is a placeholder/)
   })
 
   it('defaults the database URL to the local service outside production', () => {
-    expect(loadEnv({}).env.DATABASE_URL).toBe('postgres://app:app@localhost:5432/app')
+    expect(loadEnv({}).env.DATABASE_URL).toBe('postgres://app:app@127.0.0.1:5432/app')
   })
   // @database:postgres-end
 
