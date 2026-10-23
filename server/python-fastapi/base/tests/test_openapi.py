@@ -151,6 +151,13 @@ class TestTheShaping:
             if body is not None:
                 assert "required" not in as_object(body)
 
+    def test_leaves_no_docstring_as_a_component_description(self, document: Json) -> None:
+        """A model docstring is for maintainers (ErrorBody's points at AGENTS.md)."""
+        schemas = as_object(as_object(document["components"])["schemas"])
+
+        assert all("description" not in as_object(schema) for schema in schemas.values())
+        assert "AGENTS.md" not in json.dumps(document)
+
     def test_documents_a_body_route_with_its_inlined_schema(self) -> None:
         doc = build_openapi_document(probe_app())
 

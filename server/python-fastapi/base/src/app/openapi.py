@@ -9,7 +9,7 @@ generated client does not depend on which server it faces:
   `error_responses(...)`);
 - a model is a component only when its name is in `COMPONENTS`, the equivalent of zod's
   `.openapi('Name')`; every other `$ref` is inlined, and a cycle fails the build;
-- `operationId`, an operation's `description` (taken from a docstring) and
+- `operationId`, an operation's and a model's `description` (both taken from docstrings) and
   `requestBody.required` are dropped; summaries and tags stay as the routes declare them.
 
 The title, version and `servers` come from the app (`server.py`). `uv run poe contract` runs
@@ -44,6 +44,13 @@ def _object(value: JsonValue | None) -> Json:
     return value if isinstance(value, dict) else {}
 
 
+def _drop_docstring(schema: JsonValue) -> None:
+    """A model's class docstring becomes its schema `description`; it is for maintainers (it may
+    point at `AGENTS.md`), not for the contract. A `Field(description=...)` is kept."""
+    if isinstance(schema, dict):
+        schema.pop("description", None)
+
+
 def _inline(
     node: JsonValue, schemas: Json, components: frozenset[str], stack: tuple[str, ...]
 ) -> JsonValue:
@@ -59,7 +66,9 @@ def _inline(
         return node
     if name in stack:
         raise ValueError(f"cycle in the inlined schemas: {' -> '.join((*stack, name))}")
-    inlined = _inline(copy.deepcopy(schemas[name]), schemas, components, (*stack, name))
+    target = copy.deepcopy(schemas[name])
+    _drop_docstring(target)
+    inlined = _inline(target, schemas, components, (*stack, name))
     siblings = {
         key: _inline(value, schemas, components, stack)
         for key, value in node.items()
@@ -90,6 +99,7 @@ def shape_document(document: Json, *, components: frozenset[str]) -> Json:
         if name not in components:
             del schemas[name]
     for name in schemas:
+        _drop_docstring(schemas[name])
         schemas[name] = _inline(schemas[name], originals, components, (name,))
     if "paths" in shaped:
         shaped["paths"] = _inline(shaped["paths"], originals, components, ())

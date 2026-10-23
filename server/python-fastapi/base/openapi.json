@@ -126,8 +126,7 @@
           "error",
           "requestId"
         ],
-        "title": "ErrorBody",
-        "description": "The envelope every non-2xx response carries (see `AGENTS.md > Errors`). The model\ndocuments it; `error_body` builds it as a plain dict, so a failure never depends on pydantic."
+        "title": "ErrorBody"
       },
       "HealthResponse": {
         "properties": {
@@ -181,8 +180,7 @@
           "status",
           "dependencies"
         ],
-        "title": "Readiness",
-        "description": "The same body on 200 and 503: callers read the status code, operators read the map. It is\nnot the error envelope because nothing went wrong in the request."
+        "title": "Readiness"
       }
     }
   }
