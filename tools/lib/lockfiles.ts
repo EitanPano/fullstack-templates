@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import type { Catalog, LoadedTemplate } from './catalog'
+import type { Catalog, LoadedTemplate, TemplateManifest } from './catalog'
 import { CommandError, runCommand, runQuiet } from './commands'
 import { removeTree } from './files'
 
@@ -90,15 +90,30 @@ function checkPyproject(
   return undefined
 }
 
+// Exhaustive: an adapter added to DependencyAdapter fails the type check here until it has a check.
+function checkAdapter(
+  template: LoadedTemplate,
+  spec: NonNullable<TemplateManifest['dependencies']>,
+  runUv: QuietRunner,
+): string | undefined {
+  switch (spec.adapter) {
+    case 'npm':
+      return checkNpm(template, spec.manifest)
+    case 'pyproject':
+      return checkPyproject(template, spec.manifest, runUv)
+    default: {
+      const unreachable: never = spec.adapter
+      return `${template.path}: no lockfile check for adapter ${String(unreachable)}`
+    }
+  }
+}
+
 export function checkLockfiles(catalog: Catalog, runUv: QuietRunner = runQuiet): string[] {
   const problems: string[] = []
   for (const template of catalog.templates.values()) {
     const spec = template.manifest.dependencies
     if (spec === undefined) continue
-    const problem =
-      spec.adapter === 'npm'
-        ? checkNpm(template, spec.manifest)
-        : checkPyproject(template, spec.manifest, runUv)
+    const problem = checkAdapter(template, spec, runUv)
     if (problem !== undefined) problems.push(problem)
   }
   return problems
