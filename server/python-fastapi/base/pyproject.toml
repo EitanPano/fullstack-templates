@@ -3,9 +3,13 @@ name = "app"
 version = "0.1.0"
 requires-python = ">=3.14,<3.15"
 dependencies = [
+  "anyio>=4.15",
   "apscheduler>=3.11,<4",
+  "argon2-cffi>=25.1",
+  "cryptography>=50",
   "fastapi>=0.161",
   "pydantic>=2.14",
+  "pyjwt>=2.15",  # @auth
   "uvicorn>=0.54",
   "watchfiles>=1.1",
 ]
@@ -47,8 +51,8 @@ line-length = 100
 select = ["E", "F", "W", "I", "B", "UP", "A", "N", "ASYNC", "S", "DTZ", "RUF", "SIM", "PT", "ANN"]
 
 [tool.ruff.lint.per-file-ignores]
-# An assertion is how a test says what it expects.
-"tests/**" = ["S101"]
+# An assertion is how a test says what it expects; the tokens and passwords in a test are made up.
+"tests/**" = ["S101", "S105", "S106"]
 # The environment must be set before the first `app` import, so the imports follow the assignment.
 "tests/conftest.py" = ["E402"]
 
@@ -431,6 +435,7 @@ ignore_imports = [
   "app.infra.* -> app.services.logger",
   "app.infra.* -> app.services.db",
   "app.infra.* -> app.services.cache",
+  "app.infra.* -> app.services.session",  # @auth
   "app.infra.* -> app.services.event",
   "app.infra.* -> app.services.utils.**",
   "app.infra.* -> app.services.utils",
