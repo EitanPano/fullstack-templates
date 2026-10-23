@@ -212,7 +212,28 @@ describe('runCase app smoke', () => {
     await expect(runCase(loaded, c, tempDir(), APP, runner, lines().log, probe)).rejects.toThrow(
       'boom docker compose',
     )
-    expect(docker(calls).map((d) => d.line.includes(' down -v'))).toEqual([false, true])
+    // A failed smoke prints the container states and logs before the teardown destroys them.
+    const verbs = docker(calls).map((d) => d.line.split(' --profile app ')[1])
+    expect(verbs).toEqual(['up --build --wait', 'ps -a', 'logs --no-color --tail 200', 'down -v'])
+    const project = docker(calls)[0]?.line.match(/-p (\S+)/)?.[1]
+    expect(docker(calls)[1]?.line).toBe(`docker compose -p ${project} --profile app ps -a`)
+  })
+  test('a failing diagnostic is swallowed: the original error and the teardown still happen', async () => {
+    const { loaded, c } = appCatalog()
+    const { calls, runner } = recordWithVars(
+      (line) => line.includes(' up ') || line.includes(' ps ') || line.includes(' logs '),
+    )
+    await expect(runCase(loaded, c, tempDir(), APP, runner, lines().log, ok)).rejects.toThrow(
+      'boom docker compose -p',
+    )
+    expect(docker(calls).at(-1)?.line).toMatch(/--profile app down -v$/)
+    expect(docker(calls)).toHaveLength(4)
+  })
+  test('a passing smoke runs no diagnostics', async () => {
+    const { loaded, c } = appCatalog()
+    const { calls, runner } = recordWithVars()
+    await runCase(loaded, c, tempDir(), APP, runner, lines().log, ok)
+    expect(docker(calls).some((d) => / (ps|logs) /.test(d.line))).toBe(false)
   })
   test('the variables hold the provider value and random secrets, never placeholders', async () => {
     const { loaded, c } = appCatalog()

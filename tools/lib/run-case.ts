@@ -153,6 +153,18 @@ export async function runAppSmoke(
   } catch (error) {
     failure = error
   }
+  // A failure usually leaves its cause in the containers, and the teardown below destroys them:
+  // print what CI would otherwise never show. A diagnostic that itself fails changes nothing.
+  if (failure !== null) {
+    for (const verb of ['ps -a', 'logs --no-color --tail 200']) {
+      try {
+        deps.run(`docker compose -p ${project} --profile app ${verb}`, out, env)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        deps.log(`app smoke diagnostic failed (${verb}): ${message}`)
+      }
+    }
+  }
   try {
     deps.run(`docker compose -p ${project} --profile app down -v`, out, env)
   } catch (error) {
