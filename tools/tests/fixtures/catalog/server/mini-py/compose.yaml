@@ -1,0 +1,2 @@
+build: ./__PACKAGE_DIR__
+profiles: [app]

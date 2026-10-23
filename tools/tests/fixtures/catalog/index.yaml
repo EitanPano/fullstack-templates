@@ -5,6 +5,11 @@ templates:
     path: server/mini
     version: 1.0.0
     summary: A minimal server fixture
+  - id: mini-py
+    kind: server
+    path: server/mini-py
+    version: 1.0.0
+    summary: A minimal pyproject fixture
   - id: mini-ui
     kind: frontend
     path: frontend/mini-ui

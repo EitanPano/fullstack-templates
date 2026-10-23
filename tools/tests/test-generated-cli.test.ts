@@ -95,7 +95,7 @@ describe('test-generated CLI', () => {
     expect(result.status).toBe(1)
     expect(result.stdout).toMatch(/FAIL frontend\/mini-ui\/default \(.+\)/)
     expect(result.stdout).toContain('PASS server/mini/default')
-    expect(result.stdout).toContain('4 of 6 cases passed')
+    expect(result.stdout).toContain('6 of 8 cases passed')
   })
   test('--list includes the capability cases', () => {
     const ids = JSON.parse(run(FIXTURE, '--list').stdout)

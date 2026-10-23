@@ -8,6 +8,8 @@ describe('cases', () => {
     expect(listCases(loadCatalog(FIXTURE)).map((c) => c.id)).toEqual([
       'frontend/mini-ui/alone',
       'frontend/mini-ui/default',
+      'server/mini-py/auth-off',
+      'server/mini-py/default',
       'server/mini/auth-off',
       'server/mini/auth-off-fake',
       'server/mini/default',

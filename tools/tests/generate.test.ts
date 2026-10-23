@@ -640,3 +640,108 @@ describe('generate with a capability', () => {
     expect(provenance.packages.backend.capabilities).toEqual({})
   })
 })
+
+describe('generate: drop after post-generate', () => {
+  const codeError = (code: string) => Object.assign(new Error(`${code}: rm`), { code })
+
+  // mini whose install writes what it saw and builds a cache directory next to a file that stays.
+  function droppingCatalog() {
+    const root = copyFixture('catalog')
+    const template = path.join(root, 'server/mini/template.yaml')
+    edit(template, 'install: bun ./ok.ts', 'install: bun ./build.ts')
+    edit(
+      template,
+      'postGenerate: [install, contract]',
+      'postGenerate: [install, contract]\ndropAfterPostGenerate: [cache, nothing/here]',
+    )
+    writeFileSync(
+      path.join(root, 'server/mini/base/build.ts'),
+      [
+        "import { mkdirSync, writeFileSync } from 'node:fs'",
+        "mkdirSync('cache', { recursive: true })",
+        "writeFileSync('cache/built.txt', 'x')",
+        "writeFileSync('seen.txt', process.env.PYTHONDONTWRITEBYTECODE ?? 'unset')",
+        '',
+      ].join('\n'),
+    )
+    mkdirSync(path.join(root, 'server/mini/base/cache'))
+    writeFileSync(path.join(root, 'server/mini/base/cache/keep.txt'), 'x')
+    return loadCatalog(root)
+  }
+  const only = (cat: typeof catalog, out: string, extra = {}) =>
+    resolveRequest(cat, request(out, { stack: undefined, template: 'server/mini', ...extra }))
+
+  test('removes the listed paths from the output and tolerates a missing one', () => {
+    const cat = droppingCatalog()
+    const out = tempDir()
+    generate(cat, only(cat, out, { skipPostGenerate: false }))
+    expect(existsSync(path.join(out, 'backend', 'cache'))).toBe(false)
+    expect(existsSync(path.join(out, 'backend', 'seen.txt'))).toBe(true)
+  })
+
+  test('post-generate commands see PYTHONDONTWRITEBYTECODE=1', () => {
+    const cat = droppingCatalog()
+    const out = tempDir()
+    generate(cat, only(cat, out, { skipPostGenerate: false }))
+    expect(readFileSync(path.join(out, 'backend', 'seen.txt'), 'utf8')).toBe('1')
+  })
+
+  test('a transient EBUSY on removal is retried with growing delays, then succeeds', () => {
+    const cat = droppingCatalog()
+    const out = tempDir()
+    let calls = 0
+    const delays: number[] = []
+    generate(cat, only(cat, out, { skipPostGenerate: false }), {
+      remove: (target) => {
+        calls += 1
+        if (calls <= 2) throw codeError('EBUSY')
+        removeTree(target)
+      },
+      sleep: (ms) => delays.push(ms),
+    })
+    expect(calls).toBeGreaterThanOrEqual(3)
+    expect(delays.slice(0, 2)).toEqual([100, 200])
+    expect(existsSync(path.join(out, 'backend', 'cache'))).toBe(false)
+  })
+
+  test('a removal that keeps failing fails the generation and leaves the target untouched', () => {
+    const cat = droppingCatalog()
+    const out = tempDir()
+    expect(() =>
+      generate(cat, only(cat, out, { skipPostGenerate: false }), {
+        remove: () => {
+          throw codeError('EPERM')
+        },
+        sleep: () => undefined,
+      }),
+    ).toThrow('EPERM')
+    expect(existsSync(path.join(out, 'backend'))).toBe(false)
+  })
+
+  test('a non-transient removal error is not retried', () => {
+    const cat = droppingCatalog()
+    let calls = 0
+    expect(() =>
+      generate(cat, only(cat, tempDir(), { skipPostGenerate: false }), {
+        remove: () => {
+          calls += 1
+          throw codeError('ENOENT')
+        },
+        sleep: () => undefined,
+      }),
+    ).toThrow('ENOENT')
+    expect(calls).toBe(1)
+  })
+
+  test('nothing is dropped when post-generate is skipped', () => {
+    const cat = droppingCatalog()
+    const out = tempDir()
+    generate(cat, only(cat, out, { skipPostGenerate: true }), {
+      remove: () => {
+        throw new Error('must not be called')
+      },
+    })
+    expect(existsSync(path.join(out, 'backend', 'cache', 'keep.txt'))).toBe(true)
+    expect(existsSync(path.join(out, 'backend', 'seen.txt'))).toBe(false)
+  })
+})
