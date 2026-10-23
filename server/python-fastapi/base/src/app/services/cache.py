@@ -8,9 +8,11 @@ so what comes out is checked, not trusted.
 """
 
 from pydantic import TypeAdapter, ValidationError
-from pydantic_core import to_json
 
 from app.infra.memory import memory
+
+# Serialises what the value is at runtime: a model, a dict, a list, a number.
+_ANY = TypeAdapter(object)
 
 
 async def get[T](key: str, adapter: TypeAdapter[T]) -> T | None:
@@ -31,7 +33,7 @@ async def set_value(key: str, value: object, ttl_ms: int | None = None) -> None:
     # `null` that `get` could not tell from a miss.
     if value is None:
         raise ValueError("cannot cache None")
-    await memory.set(key, to_json(value).decode("utf-8"), ttl_ms)
+    await memory.set(key, _ANY.dump_json(value).decode("utf-8"), ttl_ms)
 
 
 async def delete(key: str) -> None:
