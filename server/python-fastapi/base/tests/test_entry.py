@@ -15,6 +15,13 @@ LONG_VALUE = "a-production-value-of-at-least-32-characters"
 KEY = base64.b64encode(bytes([7]) * 32).decode()
 DEFAULT_KEY = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
 PRODUCTION = {"APP_ENV": "production", "ENCRYPTION_KEY": KEY}
+# @auth-start
+PRODUCTION |= {
+    "JWT_ACCESS_SECRET": f"{LONG_VALUE}-1",
+    "JWT_REFRESH_SECRET": f"{LONG_VALUE}-2",
+    "OTP_SECRET": f"{LONG_VALUE}-3",
+}
+# @auth-end
 
 
 class TestTheEntryUnderABindFailure:
@@ -88,6 +95,24 @@ class TestLoadEnv:
         with pytest.raises(EnvError, match="ENCRYPTION_KEY"):
             load_env({"APP_ENV": "production"})
 
+    # @auth-start
+    def test_names_the_missing_jwt_secret_in_production(self) -> None:
+        source = {name: value for name, value in PRODUCTION.items() if name != "JWT_ACCESS_SECRET"}
+
+        with pytest.raises(EnvError, match="JWT_ACCESS_SECRET"):
+            load_env(source)
+
+    def test_rejects_a_too_short_secret_in_production(self) -> None:
+        with pytest.raises(EnvError, match="OTP_SECRET"):
+            load_env({**PRODUCTION, "OTP_SECRET": "short"})
+
+    def test_does_not_echo_a_rejected_jwt_secret(self) -> None:
+        with pytest.raises(EnvError) as raised:
+            load_env({**PRODUCTION, "JWT_ACCESS_SECRET": "short-value"})
+
+        assert "short-value" not in str(raised.value)
+
+    # @auth-end
     def test_rejects_an_encryption_key_that_is_not_32_bytes_in_production(self) -> None:
         short = base64.b64encode(bytes(16)).decode()
 
@@ -103,8 +128,32 @@ class TestLoadEnv:
             with pytest.raises(EnvError, match="ENCRYPTION_KEY: is a placeholder"):
                 load_env({**PRODUCTION, "ENCRYPTION_KEY": placeholder})
 
+    # @auth-start
+    def test_refuses_placeholder_jwt_and_otp_secrets_in_production_naming_the_variable(
+        self,
+    ) -> None:
+        with pytest.raises(EnvError, match="OTP_SECRET: is a placeholder"):
+            load_env({**PRODUCTION, "OTP_SECRET": f"change-me-{LONG_VALUE}"})
+        with pytest.raises(EnvError, match="JWT_ACCESS_SECRET: is a placeholder"):
+            load_env({**PRODUCTION, "JWT_ACCESS_SECRET": f"dev-only-{LONG_VALUE}"})
+        with pytest.raises(EnvError, match="JWT_REFRESH_SECRET: is a placeholder"):
+            load_env(
+                {**PRODUCTION, "JWT_REFRESH_SECRET": "dev-only-refresh-secret-change-me-012345678"}
+            )
+
+    def test_refuses_one_value_for_both_jwt_secrets_in_production(self) -> None:
+        shared = PRODUCTION["JWT_ACCESS_SECRET"]
+
+        with pytest.raises(
+            EnvError, match="JWT_REFRESH_SECRET: must differ from JWT_ACCESS_SECRET"
+        ):
+            load_env({**PRODUCTION, "JWT_REFRESH_SECRET": shared})
+
+    # @auth-end
     def test_does_not_apply_the_placeholder_check_outside_production(self) -> None:
         assert load_env({"ENCRYPTION_KEY": DEFAULT_KEY}).env.app_env == "development"
+        placeholder = {"OTP_SECRET": f"change-me-{LONG_VALUE}"}  # @auth
+        assert load_env(placeholder).env.app_env == "development"  # @auth
 
     def test_requires_mail_from_when_the_mail_provider_is_not_console(self) -> None:
         with pytest.raises(EnvError, match="MAIL_FROM"):
@@ -123,22 +172,39 @@ class TestLoadEnv:
 
         assert loaded.defaulted_secrets == []
         assert loaded.env.encryption_key == KEY
+        assert loaded.env.jwt_access_secret == f"{LONG_VALUE}-1"  # @auth
         assert loaded.env.app_env == "production"
 
     def test_falls_back_to_development_defaults_and_names_each_secret_it_defaulted(self) -> None:
         loaded = load_env({})
 
-        assert loaded.defaulted_secrets == ["ENCRYPTION_KEY"]
+        assert loaded.defaulted_secrets == [
+            "JWT_ACCESS_SECRET",  # @auth
+            "JWT_REFRESH_SECRET",  # @auth
+            "OTP_SECRET",  # @auth
+            "ENCRYPTION_KEY",
+        ]
         assert loaded.env.app_env == "development"
         assert loaded.env.port == 8000
+        assert loaded.env.jwt_access_secret != loaded.env.jwt_refresh_secret  # @auth
         assert len(base64.b64decode(loaded.env.encryption_key)) == 32
 
+    # @auth-start
+    def test_records_only_the_secrets_that_fell_back(self) -> None:
+        loaded = load_env({"OTP_SECRET": f"{LONG_VALUE}-3"})
+
+        assert loaded.defaulted_secrets == [
+            "JWT_ACCESS_SECRET",
+            "JWT_REFRESH_SECRET",
+            "ENCRYPTION_KEY",
+        ]
+
+    # @auth-end
     def test_treats_the_empty_string_compose_passes_for_an_unset_secret_as_missing(self) -> None:
         with pytest.raises(EnvError, match="ENCRYPTION_KEY"):
             load_env({**PRODUCTION, "ENCRYPTION_KEY": ""})
-        assert load_env({"APP_ENV": "development", "ENCRYPTION_KEY": ""}).defaulted_secrets == [
-            "ENCRYPTION_KEY"
-        ]
+        loaded = load_env({"APP_ENV": "development", "ENCRYPTION_KEY": ""})
+        assert "ENCRYPTION_KEY" in loaded.defaulted_secrets
 
     def test_reads_the_port_and_refuses_one_that_is_not_a_port(self) -> None:
         assert load_env({"PORT": "9000"}).env.port == 9000
@@ -189,6 +255,14 @@ class TestLoadEnv:
         for good in ("loopback, 10.0.0.0/8", "linklocal", "uniquelocal", "2001:db8::/32"):
             assert load_env({"TRUST_PROXY": good}).env.trust_proxy == good
 
+    # @auth-start
+    def test_treats_a_blank_cookie_domain_as_unset(self) -> None:
+        assert load_env({"COOKIE_DOMAIN": ""}).env.cookie_domain is None
+        assert load_env({"COOKIE_DOMAIN": " "}).env.cookie_domain is None
+        assert load_env({"COOKIE_DOMAIN": " x "}).env.cookie_domain == "x"
+        assert load_env({}).env.cookie_domain is None
+
+    # @auth-end
     def test_parses_jobs_enabled_as_a_boolean_true_by_default(self) -> None:
         assert load_env({}).env.jobs_enabled is True
         assert load_env({"JOBS_ENABLED": "false"}).env.jobs_enabled is False

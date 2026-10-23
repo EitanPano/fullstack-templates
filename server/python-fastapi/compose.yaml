@@ -5,6 +5,11 @@ environment:
   # Required in production; the backend fails fast at boot when one is missing. Plain
   # ${VAR} (not ${VAR:?}) so `docker compose up -d <service>` for local infrastructure
   # needs no secrets in the shell.
+  # @auth-start
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+  OTP_SECRET: ${OTP_SECRET}
+  # @auth-end
   ENCRYPTION_KEY: ${ENCRYPTION_KEY}
   # One reverse proxy in front (the Next.js server counts); IP-keyed rate limits depend on it.
   TRUST_PROXY: ${TRUST_PROXY:-1}

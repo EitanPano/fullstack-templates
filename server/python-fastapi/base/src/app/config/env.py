@@ -25,6 +25,7 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     Field,
+    StringConstraints,  # @auth
     ValidationError,
 )
 
@@ -42,15 +43,34 @@ class EnvError(ValueError):
     """The environment is unusable; the message names each variable and what is wrong."""
 
 
-_SECRET_NAMES: Final = ("ENCRYPTION_KEY",)
+_SECRET_NAMES: Final = (
+    "JWT_ACCESS_SECRET",  # @auth
+    "JWT_REFRESH_SECRET",  # @auth
+    "OTP_SECRET",  # @auth
+    "ENCRYPTION_KEY",
+)
 
 _DEVELOPMENT_DEFAULTS: Final = {
+    "JWT_ACCESS_SECRET": "dev-only-access-secret-change-me-0123456789",  # @auth
+    "JWT_REFRESH_SECRET": "dev-only-refresh-secret-change-me-012345678",  # @auth
+    "OTP_SECRET": "dev-only-otp-secret-change-me-0123456789abc",  # @auth
     # 32 bytes, base64.
     "ENCRYPTION_KEY": "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
 }
 
 # Docker Compose passes an unset `${VAR}` as an empty string; blank means unset.
-_BLANK_IS_UNSET: Final = ("CORS_ORIGINS", "MAIL_FROM", "TRUST_PROXY")
+_BLANK_IS_UNSET: Final = (
+    "CORS_ORIGINS",
+    "COOKIE_DOMAIN",  # @auth
+    "MAIL_FROM",
+    "TRUST_PROXY",
+)
+# @auth-start
+
+_MIN_SECRET_LENGTH: Final = 32
+type Secret = Annotated[str, Field(min_length=_MIN_SECRET_LENGTH)]
+type CookieDomain = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+# @auth-end
 
 _DEFAULT_MAIL_FROM: Final = "no-reply@example.com"
 
@@ -135,7 +155,11 @@ class Env(BaseModel):
         TrustProxy, BeforeValidator(_parse_trust_proxy), AfterValidator(_check_trust_proxy)
     ] = False
     cors_origins: Annotated[tuple[str, ...] | None, BeforeValidator(_split_origins)] = None
+    jwt_access_secret: Secret  # @auth
+    jwt_refresh_secret: Secret  # @auth
+    otp_secret: Secret  # @auth
     encryption_key: Annotated[str, AfterValidator(_check_encryption_key)]
+    cookie_domain: CookieDomain | None = None  # @auth
     mail_provider: Annotated[str, Field(min_length=1)] = "console"
     sms_provider: Annotated[str, Field(min_length=1)] = "console"
     whatsapp_provider: Annotated[str, Field(min_length=1)] = "console"
@@ -159,6 +183,11 @@ def _placeholder_problems(source: Mapping[str, str]) -> list[str]:
             continue
         if value.startswith(("change-me", "dev-only-")) or value == _DEVELOPMENT_DEFAULTS[name]:
             problems.append(f"{name}: is a placeholder, set a real secret")
+    # @auth-start
+    access = source.get("JWT_ACCESS_SECRET", "")
+    if access != "" and access == source.get("JWT_REFRESH_SECRET"):
+        problems.append("JWT_REFRESH_SECRET: must differ from JWT_ACCESS_SECRET")
+    # @auth-end
     return problems
 
 
