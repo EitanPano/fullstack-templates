@@ -9,6 +9,10 @@
 - A JSON body with a charset that does not start with `utf-` is a 415, as body-parser answers.
 - A compressed body (`Content-Encoding` other than identity) is a 415. Express inflates it; this
   template refuses, which removes a decompression-bomb surface no client in the stack needs.
+
+The two 415s are about a body, so they apply only to a request that carries one: a
+`Content-Length` above 0, or a chunked transfer. A GET with a stray `Content-Encoding` has nothing
+to inflate. The size limit is protective and applies to every body whatever its media type.
 """
 
 from email.message import Message as MimeMessage
@@ -52,6 +56,18 @@ def _has_unsupported_charset(scope: Scope) -> bool:
     return charset is not None and not charset.startswith("utf-")
 
 
+def _carries_body(scope: Scope) -> bool:
+    declared = _declared_length(scope)
+    if declared is not None and declared > 0:
+        return True
+    transfer_tokens = [
+        token.strip().lower()
+        for line in header_values(scope, "transfer-encoding")
+        for token in line.split(",")
+    ]
+    return "chunked" in transfer_tokens
+
+
 def _declared_length(scope: Scope) -> int | None:
     lines = header_values(scope, "content-length")
     # ASCII digits only; anything else is a malformed length the server refuses, not this module.
@@ -88,10 +104,11 @@ class BodyLimitMiddleware:
         await self.app(scope, counted_receive, send)
 
     def _refusal(self, scope: Scope) -> AppError | None:
-        if _is_compressed(scope):
-            return AppError("unsupported_media_type", "unsupported body encoding")
-        if _has_unsupported_charset(scope):
-            return AppError("unsupported_media_type", "unsupported body charset")
+        if _carries_body(scope):
+            if _is_compressed(scope):
+                return AppError("unsupported_media_type", "unsupported body encoding")
+            if _has_unsupported_charset(scope):
+                return AppError("unsupported_media_type", "unsupported body charset")
         declared = _declared_length(scope)
         if declared is not None and declared > self._max_bytes:
             return AppError("payload_too_large", _TOO_LARGE)

@@ -226,3 +226,53 @@ class TestACompressedBody:
             )
 
         assert res.status_code == 201
+
+
+async def _chunks() -> AsyncIterator[bytes]:
+    yield b'{"name":"ada"}'
+
+
+class TestOnlyARequestWithABodyIsChecked:
+    """The encoding and charset 415s are about a body: a request that carries none has nothing to
+    inflate or decode (ADR 0002, Deviations)."""
+
+    async def test_a_get_with_a_content_encoding_and_no_body_is_served(self) -> None:
+        async with http_client(probe_app()) as http:
+            res = await http.get("/api/health", headers={"content-encoding": "gzip"})
+
+        assert res.status_code == 200
+
+    async def test_a_json_charset_without_a_body_is_not_refused(self) -> None:
+        async with http_client(probe_app()) as http:
+            res = await http.get(
+                "/api/health", headers={"content-type": "application/json; charset=latin-1"}
+            )
+
+        assert res.status_code == 200
+
+    async def test_a_zero_content_length_is_no_body(self) -> None:
+        async with http_client(probe_app()) as http:
+            res = await http.post(
+                "/sink", content=b"", headers={"content-encoding": "gzip", "content-length": "0"}
+            )
+
+        assert res.status_code == 204
+
+    async def test_a_chunked_body_is_checked_though_it_declares_no_length(self) -> None:
+        async with http_client(probe_app()) as http:
+            res = await http.post(
+                "/greet", content=_chunks(), headers={**JSON, "content-encoding": "gzip"}
+            )
+
+        assert res.status_code == 415
+
+    async def test_a_body_over_the_limit_is_refused_whatever_its_media_type(self) -> None:
+        """The size limit is protective, so it is not tied to JSON."""
+        async with http_client(probe_app()) as http:
+            res = await http.post(
+                "/sink",
+                content=b"x" * (2 * 1024 * 1024),
+                headers={"content-type": "text/plain"},
+            )
+
+        assert res.status_code == 413
