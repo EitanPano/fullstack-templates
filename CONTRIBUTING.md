@@ -152,7 +152,7 @@ const sessions = null
 
 Placeholders are `__NAME__` tokens substituted in text files. A template declares its own
 in `placeholders` (usually `__PROJECT_NAME__`); the generator also provides
-`__PACKAGE_DIR__`, `__PORT__`, `__SERVER_DIR__` and `__SERVER_PORT__`. A declared token
+`__PACKAGE_DIR__`, `__PORT__`, `__SERVER_DIR__`, `__SERVER_PORT__` and `__SERVER_DEV_COMMAND__`. A declared token
 left in the output fails the run; undeclared tokens such as `__dirname` are ignored.
 
 ## Refreshing `frontend/next/base`

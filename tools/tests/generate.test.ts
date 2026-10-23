@@ -1,8 +1,16 @@
 import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import path from 'node:path'
-import { parse } from 'yaml'
+import { parse, parseDocument } from 'yaml'
 import { loadCatalog } from '../lib/catalog'
 import { removeTree } from '../lib/files'
 import {
@@ -209,7 +217,12 @@ describe('generate: edges', () => {
     )
     const lines: string[] = []
     const values = packagePlaceholders(plan, plan.packages[0]!, (l) => lines.push(l))
-    expect(values).toMatchObject({ SERVER_DIR: 'backend', SERVER_PORT: '4000', PORT: '3000' })
+    expect(values).toMatchObject({
+      SERVER_DIR: 'backend',
+      SERVER_PORT: '4000',
+      SERVER_DEV_COMMAND: 'bun run dev',
+      PORT: '3000',
+    })
     expect(lines).toHaveLength(1)
   })
 
@@ -743,5 +756,74 @@ describe('generate: drop after post-generate', () => {
     })
     expect(existsSync(path.join(out, 'backend', 'cache', 'keep.txt'))).toBe(true)
     expect(existsSync(path.join(out, 'backend', 'seen.txt'))).toBe(false)
+  })
+})
+
+describe('generate with a capability that declares container.migrate', () => {
+  function migrateCatalog() {
+    const root = copyFixture('catalog')
+    appendFileSync(
+      path.join(root, 'server/mini/capabilities/database/fake/capability.yaml'),
+      'container:\n  migrate: bun ./ok.ts\n',
+    )
+    return loadCatalog(root)
+  }
+  const fakeRequest = (cat: ReturnType<typeof loadCatalog>, out: string) =>
+    resolveRequest(cat, request(out, { capabilities: ['database=fake'] }))
+  const compose = (out: string) => readFileSync(path.join(out, 'docker-compose.yml'), 'utf8')
+
+  test('writes the derived one-shot service and the dependency on it', () => {
+    const cat = migrateCatalog()
+    const out = tempDir()
+    generate(cat, fakeRequest(cat, out))
+    const { services } = parse(compose(out))
+    expect(services['backend-migrate']).toEqual({
+      build: './backend',
+      environment: services.backend.environment,
+      command: 'bun ./ok.ts',
+      restart: 'no',
+      profiles: ['app'],
+      depends_on: { database: { condition: 'service_healthy' } },
+    })
+    expect(services.backend.depends_on['backend-migrate']).toEqual({
+      condition: 'service_completed_successfully',
+    })
+    expect(services.backend.depends_on.database).toEqual({ condition: 'service_healthy' })
+  })
+
+  test('adds nothing without the capability', () => {
+    const cat = migrateCatalog()
+    const out = tempDir()
+    generate(cat, resolveRequest(cat, request(out)))
+    expect(Object.keys(parse(compose(out)).services)).toEqual(['backend', 'frontend'])
+  })
+
+  test('a rerun keeps the service in the file and does not duplicate it', () => {
+    const cat = migrateCatalog()
+    const out = tempDir()
+    generate(cat, fakeRequest(cat, out))
+    const file = path.join(out, 'docker-compose.yml')
+    const doc = parseDocument(compose(out))
+    doc.setIn(['services', 'backend-migrate', 'command'], 'edited by hand')
+    doc.deleteIn(['services', 'backend'])
+    writeFileSync(file, doc.toString())
+    removeTree(path.join(out, 'backend'))
+    const lines: string[] = []
+    generate(
+      cat,
+      resolveRequest(
+        cat,
+        request(out, {
+          stack: undefined,
+          template: 'server/mini',
+          capabilities: ['database=fake'],
+        }),
+      ),
+      { log: (l) => lines.push(l) },
+    )
+    const text = compose(out)
+    expect(text.match(/^ {2}backend-migrate:/gm)).toHaveLength(1)
+    expect(parse(text).services['backend-migrate'].command).toBe('edited by hand')
+    expect(lines).toContain('docker-compose.yml already has service backend-migrate; kept')
   })
 })

@@ -276,3 +276,57 @@ describe('resolveRequest', () => {
     ).toBe('api')
   })
 })
+
+describe('resolveRequest: derived migrate service and the server dev command', () => {
+  const withMigrate = () => {
+    const root = copyFixture('catalog')
+    appendFileSync(
+      path.join(root, 'server/mini/capabilities/database/fake/capability.yaml'),
+      'container:\n  migrate: bun ./ok.ts\n',
+    )
+    return root
+  }
+
+  test('refuses a derived name that is a package dir', () => {
+    const root = withMigrate()
+    const stack = path.join(root, 'stacks/mini/stack.yaml')
+    appendFileSync(stack, '  - template: frontend/mini-ui\n    dir: backend-migrate\n')
+    const request = { ...base, stack: 'mini', capabilities: ['database=fake'] }
+    expect(() => resolveRequest(loadCatalog(root), request)).toThrow(PlanError)
+    expect(() => resolveRequest(loadCatalog(root), request)).toThrow(/backend-migrate/)
+  })
+
+  test('refuses a derived name that is a provider service', () => {
+    const root = withMigrate()
+    const file = path.join(root, 'shared/providers/database/fake/provider.yaml')
+    writeFileSync(
+      file,
+      readFileSync(file, 'utf8').replace('service: database', 'service: backend-migrate'),
+    )
+    const compose = path.join(root, 'shared/providers/database/fake/compose.yaml')
+    writeFileSync(compose, readFileSync(compose, 'utf8').replace('database:', 'backend-migrate:'))
+    expect(() =>
+      resolveRequest(loadCatalog(root), {
+        ...base,
+        stack: 'mini',
+        capabilities: ['database=fake'],
+      }),
+    ).toThrow(/backend-migrate.*Compose service/)
+  })
+
+  test('takes the server dev command from the plan, and bun run dev when there is no server', () => {
+    const root = copyFixture('catalog')
+    const file = path.join(root, 'server/mini/template.yaml')
+    writeFileSync(
+      file,
+      readFileSync(file, 'utf8').replace('commands:\n', 'commands:\n  dev: bun run serve\n'),
+    )
+    const stackPlan = resolveRequest(loadCatalog(root), { ...base, stack: 'mini' })
+    expect(stackPlan.packages[1]?.serverDevCommand).toBe('bun run serve')
+    const alone = resolveRequest(loadCatalog(root), {
+      ...base,
+      template: 'frontend/mini-ui',
+    })
+    expect(alone.packages[0]?.serverDevCommand).toBeNull()
+  })
+})

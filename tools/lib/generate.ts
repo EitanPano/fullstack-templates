@@ -15,6 +15,8 @@ import {
   addProvider,
   assembleCompose,
   composeServices,
+  deriveMigrate,
+  migrateServiceName,
   wireConsumer,
   type ProviderEnvWiring,
 } from './compose'
@@ -35,7 +37,7 @@ import { validateAgainst } from './schema'
 
 export const STAGING_DIR = '.fullstack-staging'
 
-const DEFAULT_SERVER = { dir: 'backend', port: '4000' }
+const DEFAULT_SERVER = { dir: 'backend', port: '4000', devCommand: 'bun run dev' }
 
 export interface GenerateOptions {
   keepStaging?: boolean
@@ -79,6 +81,7 @@ export function packagePlaceholders(
     PORT: http === undefined ? '' : String(http.port),
     SERVER_DIR: pkg.serverDir ?? DEFAULT_SERVER.dir,
     SERVER_PORT: pkg.serverPort === null ? DEFAULT_SERVER.port : String(pkg.serverPort),
+    SERVER_DEV_COMMAND: pkg.serverDevCommand ?? DEFAULT_SERVER.devCommand,
   }
 }
 
@@ -274,9 +277,9 @@ function composeFragment(
   pkg: PackagePlan,
   values: Readonly<Record<string, string>>,
   providers: readonly LoadedProvider[],
-): string | undefined {
+): Array<{ service: string; text: string }> {
   const file = path.join(pkg.template.dir, 'compose.yaml')
-  if (!existsSync(file)) return undefined
+  if (!existsSync(file)) return []
   const syntax = commentSyntaxFor(file)
   const content = readFileSync(file, 'utf8')
   const marked =
@@ -284,7 +287,7 @@ function composeFragment(
       ? content
       : applyMarkers(content, syntax, `${pkg.template.path}/compose.yaml`, pkg.selections)
   const text = substitutePlaceholders(marked, values)
-  if (pkg.overlays.length === 0) return text
+  if (pkg.overlays.length === 0) return [{ service: pkg.dir, text }]
   const wirings: ProviderEnvWiring[] = pkg.overlays.map((overlay) => {
     const { manifest } = providerOf(providers, overlay.kind, overlay.provider)
     return {
@@ -292,7 +295,25 @@ function composeFragment(
       env: manifest.env.map(({ name, compose, secret }) => ({ name, compose, secret })),
     }
   })
-  return wireConsumer(pkg.dir, text, wirings)
+  const wired = wireConsumer(pkg.dir, text, wirings)
+  // The migrate service is derived after the wiring so it copies the provider's env entries.
+  const migrating = pkg.overlays.filter((overlay) => overlay.manifest.container !== undefined)
+  const [first, ...more] = migrating
+  if (first?.manifest.container === undefined) return [{ service: pkg.dir, text: wired }]
+  if (more.length > 0) {
+    throw new GenerateError(`${pkg.dir}: more than one capability declares container.migrate`)
+  }
+  const provider = providerOf(providers, first.kind, first.provider)
+  const derived = deriveMigrate(
+    pkg.dir,
+    wired,
+    first.manifest.container.migrate,
+    provider.manifest.service,
+  )
+  return [
+    { service: pkg.dir, text: derived.consumer },
+    { service: migrateServiceName(pkg.dir), text: derived.migrate },
+  ]
 }
 
 // A rerun adds packages to a project: the existing docker-compose.yml is the skeleton and only
@@ -314,8 +335,15 @@ function writeCompose(
       log(`docker-compose.yml already has service ${pkg.dir}; kept`)
       return []
     }
-    const text = composeFragment(pkg, values.get(pkg.dir) ?? {}, plan.providers)
-    return text === undefined ? [] : [{ service: pkg.dir, text }]
+    if (present.has(pkg.dir)) {
+      log(`docker-compose.yml already has service ${pkg.dir}; kept`)
+      return []
+    }
+    return composeFragment(pkg, values.get(pkg.dir) ?? {}, plan.providers).filter(({ service }) => {
+      if (!present.has(service)) return true
+      log(`docker-compose.yml already has service ${service}; kept`)
+      return false
+    })
   })
   const missing = plan.providers.filter((p) => !present.has(p.manifest.service))
   if (existing !== undefined && fragments.length === 0 && missing.length === 0) {
