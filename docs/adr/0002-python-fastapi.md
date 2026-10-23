@@ -43,12 +43,16 @@ language-neutral rules) and live in the plan; M4-19 and M4-23 were added here.
 ### M4-1. Toolchain
 
 - **uv** manages Python, the virtual environment and the lockfile:
-  - `[tool.uv] required-version = ">=0.12.23,<0.13"`. A generated project's lock is re-written on
-    the host by post-generate `install`, so the host and the image must share one lock-compatible
-    minor.
-  - The generated Dockerfile copies uv from `ghcr.io/astral-sh/uv:0.12`.
-  - The catalog's CI and release workflow pin uv exactly (0.12.23) for `validate --lockfiles`.
-  - Moving to uv 0.13 is a template minor.
+  - `[tool.uv] required-version = ">=0.12.23,<0.14"`, and `uv_build>=0.12.23,<0.14`. uv 0.13.0
+    shipped on 2026-10-09 with no lockfile-format change, so both minors are supported.
+  - A generated project's lock is re-written on the host by post-generate `install`. The generated
+    Dockerfile copies uv from `ghcr.io/astral-sh/uv:0.13`, so the image's uv is never older than a
+    host's and reads a lock any supported host wrote. Cross-version compatibility is verified with
+    `uvx uv@0.13.1` against a lock written by 0.12.23.
+  - The catalog's CI and release workflow pin uv exactly (0.13.1) for `validate --lockfiles`.
+  - The tools preflight refuses a uv at or above 0.14 (M4-5), so a newer minor fails before staging.
+    Supporting the next minor is a template minor.
+  - Amended 2026-10-23 from `<0.13` and `uv:0.12` after the final review found uv 0.13 current.
 - **Python 3.14**, set in six places:
   - `.python-version` is `3.14`;
   - `requires-python = ">=3.14,<3.15"`;
@@ -126,11 +130,12 @@ When post-generate is going to run, the generator checks each planned template's
 staging:
 
 - it resolves the program through `resolveCommand` and runs `--version`;
-- it parses the first semantic version in the output and compares it with `min`;
-- a failure names the tool, the version found (or "not found") and the minimum.
+- it parses the first semantic version in the output and compares it with `min`, and with an
+  optional exclusive `max`;
+- a failure names the tool, the version found (or "not found") and the bound it breaks.
 
-python-fastapi declares `{ name: uv, min: '0.12.23' }`; uv provides Python itself. uv enforces the
-upper bound itself through `required-version`.
+python-fastapi declares `{ name: uv, min: '0.12.23', max: '0.14' }`; uv provides Python itself. The
+`max` matches `required-version`, so a too-new uv fails before staging instead of at post-generate.
 
 ### M4-6. File mapping
 
@@ -524,7 +529,7 @@ full.
     - `timeout_graceful_shutdown=10`.
 
     uvicorn's access log would log the query string, which bun-express deliberately never does.
-- **Dockerfile.** Two stages on `python:3.14-slim`, uv copied from `ghcr.io/astral-sh/uv:0.12`.
+- **Dockerfile.** Two stages on `python:3.14-slim`, uv copied from `ghcr.io/astral-sh/uv:0.13`.
   - The builder sets `UV_PYTHON_DOWNLOADS=never`, `UV_LINK_MODE=copy` and
     `UV_COMPILE_BYTECODE=1`.
   - It runs `uv sync --locked --no-dev --no-install-project` on `pyproject.toml`, `uv.lock` and
@@ -572,7 +577,7 @@ full.
    version: 1.0.0
    runtime: { language: python, platform: cpython, minVersion: '3.14' }
    tools:
-     - { name: uv, min: '0.12.23' }
+     - { name: uv, min: '0.12.23', max: '0.14' }
    placeholders: [PROJECT_NAME]
    flags:
      auth: { summary: …, default: true, onlyPaths: [ … ] }   # no dependencies: markers (M4-3)
