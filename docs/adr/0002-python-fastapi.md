@@ -210,7 +210,7 @@ from one of them.
 | --- | --- | --- |
 | `.optional()` | `name: str \| MISSING = MISSING` | absent allowed, `null` rejected, omitted from responses when missing; schema not nullable, not required |
 | `.nullable()` | `phone: str \| None` | always present, may be `null`; schema nullable and required |
-| `.nullable().optional()` | `phone: str \| None \| MISSING = MISSING` | absent keeps, `null` clears, a value sets (`UpdateMeBody.phone`); `model_fields_set` tells the cases apart |
+| `.nullable().optional()` | `phone: str \| MISSING \| None = MISSING` (ruff RUF036 puts `None` last) | absent keeps, `null` clears, a value sets (`UpdateMeBody.phone`); `model_fields_set` tells the cases apart |
 
 mypy narrows `is MISSING` and flags an unguarded use.
 
@@ -239,8 +239,9 @@ Both templates test every row. The Python test names the row in its docstring.
 4. `proxy`
 5. `request_log`
 6. `body_limit`
-7. the catch-all
-8. FastAPI's routing and exception handlers
+7. `head`
+8. the catch-all
+9. FastAPI's routing and exception handlers
 
 `add_middleware` stacks in reverse, so `server.py` adds them inner first, and a test asserts the
 resulting order. No pure middleware raises: one that refuses a request sends the envelope itself.
@@ -256,6 +257,7 @@ resulting order. No pure middleware raises: one that refuses a request sends the
 | Unsupported charset | 415 `unsupported_media_type` "unsupported body charset" (a JSON charset not starting with `utf-`) | the same check in `body_limit` |
 | Unknown path | 404 `not_found` "no route for METHOD path" | the same, from Starlette's 404. The path is `raw_path` decoded as ASCII, never the percent-decoded `path`, so `%0A` cannot forge a log line |
 | Wrong method on a known path | 404, as an unknown path (Express has no 405) | Starlette's 405 mapped to the same 404 envelope |
+| HEAD on a GET route | answered: the GET handler runs and the body is dropped (RFC 9110 requires HEAD wherever GET is supported) | a pure-ASGI `head` middleware, inside `body_limit`, runs the request as GET and sends the headers without the body; OpenAPI is unaffected |
 | Trailing slash | ignored (non-strict routing) | `redirect_slashes=False`: a 404 `not_found`, never a 307 (Deviations) |
 | Gate order | rate limit, auth, role, then validation, as mounted | dependencies run in declaration order, before body validation errors are raised |
 | Unexpected error | 500 `internal` "unexpected error", stack logged once, nothing leaked | the innermost catch-all middleware turns any exception into that envelope, so the 500 still passes through the request-id and security-header middleware. An `Exception` handler would sit on Starlette's outermost `ServerErrorMiddleware` and bypass them |
@@ -508,8 +510,10 @@ Tests never start uvicorn, so this is where production can silently diverge. It 
 full.
 
 - **`main.py`** composes the infra lifespan into `app` (`app.main:app`).
-  - On startup the lifespan logs the defaulted-secret warnings once, connects every resource and
-    logs `listening`. On shutdown it disconnects in reverse order.
+  - On startup the lifespan logs the defaulted-secret warnings once and connects every resource. On
+    shutdown it disconnects in reverse order. The lifespan does not log `listening`: uvicorn runs
+    it before binding, so the line would claim a listener that a failed bind then disproves.
+    uvicorn's own `Uvicorn running on …` line, logged after a successful bind, takes its place.
   - `main()` calls `uvicorn.run` with the app object, or, with `--reload`, with the import string
     `"app.main:app"`, `reload=True` and `reload_dirs=["src"]`.
   - Both calls set:
@@ -527,7 +531,8 @@ full.
     `.python-version` first, then copies `src` and runs `uv sync --locked --no-dev
     --no-editable`. Dependencies are a cached layer.
   - The runtime stage copies only `/app/.venv` (same path) and sets `ENV
-    PATH="/app/.venv/bin:$PATH"`, `ENV APP_ENV=production` and `ENV PORT=8000`.
+    PATH="/app/.venv/bin:$PATH"`, `ENV APP_ENV=production`, `ENV PORT=8000` and `ENV
+    PYTHONUNBUFFERED=1`, so log lines reach `docker logs` as they are written.
   - It runs as a non-root user, exposes 8000, and starts with `CMD ["python", "-m", "app.main"]`
     in exec form.
 - **`compose.yaml`** mirrors bun-express's fragment:
