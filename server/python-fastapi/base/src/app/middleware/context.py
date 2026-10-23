@@ -10,8 +10,11 @@ from urllib.parse import quote
 
 from starlette.types import Scope
 
+from app.models.auth.type import Caller  # @auth
+
 _REQUEST_ID_KEY: Final = "request_id"
 _CLIENT_IP_KEY: Final = "client_ip"
+_CALLER_KEY: Final = "caller"  # @auth
 _ORIGINAL_METHOD_KEY: Final = "app.original_method"
 _UNKNOWN: Final = "unknown"
 # Spaces and control characters: nothing a request target may carry, and nothing a log line may.
@@ -70,3 +73,20 @@ def method_of(scope: Scope) -> str:
     """The method the client sent (`HEAD` runs as `GET` inside `head.py`)."""
     original = scope.get(_ORIGINAL_METHOD_KEY)
     return original if isinstance(original, str) else str(scope["method"])
+
+
+# @auth-start
+
+
+def set_caller(scope: Scope, caller: Caller) -> None:
+    """Records who the request is from; only the auth gate calls it."""
+    _state(scope)[_CALLER_KEY] = caller
+
+
+def caller_of(scope: Scope) -> Caller | None:
+    """The authenticated caller, or `None` for an anonymous request."""
+    value = _state(scope).get(_CALLER_KEY)
+    return value if isinstance(value, Caller) else None
+
+
+# @auth-end
