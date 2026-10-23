@@ -43,6 +43,13 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.x
+      # The version is exact because the lock in base/ must be checked by the uv that wrote it
+      # (ADR 0002 M4-1). The action itself is pinned to a full tag: setup-uv publishes no moving
+      # major tag after v7.
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          version: "0.12.23"
+          enable-cache: true
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -50,4 +57,4 @@ jobs:
         working-directory: tools
         run: bun install --frozen-lockfile
       - name: Generate and test ${{ matrix.case }}
-        run: bun tools/test-generated.ts --case ${{ matrix.case }} --e2e --install-browsers --with-services
+        run: bun tools/test-generated.ts --case ${{ matrix.case }} --e2e --install-browsers --with-services --with-app
