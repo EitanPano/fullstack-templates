@@ -1,0 +1,8 @@
+schemaVersion: 1
+id: next-python-fastapi
+summary: Next.js 16 in front of FastAPI on Python 3.14
+packages:
+  - template: server/python-fastapi
+    dir: backend
+  - template: frontend/next
+    dir: frontend
