@@ -84,8 +84,9 @@ class PubSub:
         """Resolves once every handler started so far (and any they published) has settled."""
         # A handler may publish again, so loop until nothing is left. A finished task can stay in
         # the set until its discard callback has run, so the loop asks the tasks, not the set.
+        # `wait`, not `gather`: cancelling the caller must not cancel the reactions.
         while running := self._running():
-            await asyncio.gather(*running, return_exceptions=True)
+            await asyncio.wait(running)
 
     def _running(self) -> list[asyncio.Task[None]]:
         return [task for task in self._in_flight if not task.done()]
@@ -103,13 +104,16 @@ class PubSub:
     async def close(self) -> None:
         """Waits for reactions still running, but not forever: a hung handler must not hold the
         process past the shutdown cap."""
-        if running := self._running():
-            _, pending = await asyncio.wait(running, timeout=self._drain_timeout)
-            if pending:
-                self._logger.warning("bus drain timed out", {"pending": len(pending)})
-                for task in pending:
-                    task.cancel()
-                await asyncio.gather(*pending, return_exceptions=True)
+        try:
+            # One deadline for the whole drain, chained reactions included.
+            async with asyncio.timeout(self._drain_timeout):
+                await self.drain()
+        except TimeoutError:
+            pending = self._running()
+            self._logger.warning("bus drain timed out", {"pending": len(pending)})
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
         self._handlers.clear()
 
 

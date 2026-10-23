@@ -4,6 +4,15 @@ from app.infra.pubsub import DRAIN_TIMEOUT_MS, SubscriberEntry, create_pubsub
 from tests.support import recording_logger
 
 
+def undelivered() -> list[asyncio.Task[object]]:
+    """The bus's reaction tasks still alive on this loop."""
+    return [
+        task
+        for task in asyncio.all_tasks()
+        if getattr(task.get_coro(), "__qualname__", "") == "PubSub._deliver"
+    ]
+
+
 class TestPubSub:
     async def test_delivers_a_published_payload_to_a_subscriber(self) -> None:
         bus = create_pubsub(logger=recording_logger()[0])
@@ -238,3 +247,70 @@ class TestDetachedHandlers:
 
     def test_bounds_the_wait_at_five_seconds_by_default(self) -> None:
         assert DRAIN_TIMEOUT_MS == 5_000
+
+
+class TestShutdownAndCancellation:
+    async def test_close_waits_for_a_reaction_that_publishes_during_the_close(self) -> None:
+        bus = create_pubsub(logger=recording_logger()[0])
+        seen: list[str] = []
+
+        async def first(_: object) -> None:
+            await asyncio.sleep(0.01)
+            await bus.publish("second", None)
+            seen.append("first")
+
+        async def second(_: object) -> None:
+            await asyncio.sleep(0.01)
+            seen.append("second")
+
+        bus.subscribe("first", first)
+        bus.subscribe("second", second)
+
+        await bus.publish("first", None)
+        await bus.close()
+
+        assert sorted(seen) == ["first", "second"]
+        assert undelivered() == []
+
+    async def test_close_bounds_the_whole_chain_with_one_deadline_and_cancels_what_is_left(
+        self,
+    ) -> None:
+        logger, sink = recording_logger()
+        bus = create_pubsub(logger=logger, drain_timeout_ms=30)
+
+        async def first(_: object) -> None:
+            await bus.publish("second", None)
+
+        async def second(_: object) -> None:
+            await asyncio.Event().wait()
+
+        bus.subscribe("first", first)
+        bus.subscribe("second", second)
+
+        await bus.publish("first", None)
+        await bus.close()
+
+        assert "warning bus drain timed out pending=1" in sink.lines
+        assert undelivered() == []
+
+    async def test_cancelling_a_drain_does_not_cancel_the_reactions_it_waits_for(self) -> None:
+        bus = create_pubsub(logger=recording_logger()[0])
+        release = asyncio.Event()
+        finished = False
+
+        async def slow(_: object) -> None:
+            nonlocal finished
+            await release.wait()
+            finished = True
+
+        bus.subscribe("t", slow)
+        await bus.publish("t", None)
+        draining = asyncio.create_task(bus.drain())
+        await asyncio.sleep(0)
+
+        draining.cancel()
+        await asyncio.gather(draining, return_exceptions=True)
+        release.set()
+        await bus.drain()
+
+        assert finished is True
