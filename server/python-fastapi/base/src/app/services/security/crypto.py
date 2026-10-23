@@ -31,11 +31,14 @@ from app.config.env import env
 _HASHER: Final = PasswordHasher()
 
 # One argon2 run holds 64 MiB and a core for tens of milliseconds, and AnyIO's default thread
-# limit is 40, so a login burst could hold 40 x 64 MiB at once. This bounds hashing and verifying
-# (the dummy-hash path included) to one run per core. The tradeoff is queueing: past that
-# many concurrent logins a request waits for a slot instead of starting, which is the intent, but a
-# flood of logins delays every other hash. Rate limits upstream keep the queue short.
-HASH_LIMITER: Final = CapacityLimiter(os.cpu_count() or 2)
+# limit is 40, so a login burst could hold 40 x 64 MiB at once; `limiter=` replaces that cap, so
+# this one is the only bound. It is one run per core the process may use (`process_cpu_count`
+# honours affinity and, on 3.14, container limits that `os.cpu_count` ignores), at most 4: four
+# runs are about 256 MiB transient, which a small container survives, and more cores would not
+# make a login faster. The tradeoff is queueing: past that many concurrent logins a request waits
+# for a slot instead of starting, but a flood of logins delays every other hash. Rate limits
+# upstream keep the queue short.
+HASH_LIMITER: Final = CapacityLimiter(min(os.process_cpu_count() or 2, 4))
 
 
 async def hash_password(password: str) -> str:

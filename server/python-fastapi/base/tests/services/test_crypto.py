@@ -107,6 +107,10 @@ class TestPasswordHashing:
 
         assert peak == 2
 
+    def test_the_limiter_allows_at_most_four_hashes_at_once(self) -> None:
+        """64 MiB each: four is about 256 MiB transient, whatever the host's core count."""
+        assert 1 <= crypto.HASH_LIMITER.total_tokens <= 4
+
     # @auth-start
     async def test_dummy_hash_is_a_string_no_unrelated_password_matches(self) -> None:
         assert isinstance(DUMMY_HASH, str)
