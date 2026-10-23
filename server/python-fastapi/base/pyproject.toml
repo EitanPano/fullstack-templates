@@ -448,16 +448,15 @@ ignore_imports = [
 ]
 unmatched_ignore_imports_alerting = "none"
 
-# @auth-start
 # Jobs and subscribers reach a module through its controller and schema only: never a routes,
-# service or model. Which of those a job or a subscriber may call stays a review rule.
+# service or model. Which of those a job or a subscriber may call stays a review rule. The two
+# packages exist in every variant (empty without `auth`), so a first job is linted from the start.
 [[tool.importlinter.contracts]]
 name = "jobs and subscribers reach a module through its controller only"
 type = "forbidden"
 source_modules = ["app.infra.jobs", "app.infra.subscribers"]
 forbidden_modules = ["app.api.*.routes", "app.api.*.service", "app.api.*.model"]
 allow_indirect_imports = true
-# @auth-end
 
 # What each file of a module may import.
 [[tool.importlinter.contracts]]

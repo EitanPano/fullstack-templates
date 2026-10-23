@@ -15,8 +15,8 @@ flags:
     onlyPaths:
       - src/app/api/auth
       - src/app/api/user
-      - src/app/infra/jobs
-      - src/app/infra/subscribers
+      - src/app/infra/jobs/session_cleanup.py
+      - src/app/infra/subscribers/send_welcome.py
       - src/app/middleware/auth.py
       - src/app/middleware/role.py
       - src/app/models/auth
