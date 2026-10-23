@@ -14,9 +14,11 @@ from app.infra.pubsub import SubscriberEntry, Unsubscribe, pubsub
 
 __all__ = [
     "MODULE_CREATED",
+    "USER_REGISTERED",  # @auth
     "ModuleCreated",
     "Topic",
     "Unsubscribe",
+    "UserRegistered",  # @auth
     "drain",
     "publish",
     "subscribe",
@@ -37,6 +39,15 @@ class ModuleCreated(TypedDict):
 
 
 MODULE_CREATED: Final = Topic[ModuleCreated]("module.created")
+
+
+# @auth-start
+class UserRegistered(TypedDict):
+    user_id: str
+
+
+USER_REGISTERED: Final = Topic[UserRegistered]("user.registered")
+# @auth-end
 
 
 async def publish[P](topic: Topic[P], payload: P) -> None:

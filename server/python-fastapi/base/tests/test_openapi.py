@@ -129,7 +129,9 @@ class TestTheDocument:
         delete = as_object(as_object(paths["/api/module/{id}"])["delete"])
         assert as_object(as_object(delete["responses"])["204"]) == {"description": "Deleted"}
         create = as_object(as_object(paths["/api/module"])["post"])
-        assert set(as_object(create["responses"])) == {"201", "400", "500"}
+        expected = {"201", "400", "500"}
+        expected |= {"401"}  # @auth
+        assert set(as_object(create["responses"])) == expected
 
     def test_sets_the_document_metadata(self) -> None:
         doc = build_openapi_document(app)
@@ -182,6 +184,18 @@ class TestTheShaping:
                 "ModulePage",
                 "CreateModuleBody",
                 "UpdateModuleBody",
+                "AuthSession",  # @auth
+                "PublicUser",  # @auth
+                "AuthTokens",  # @auth
+                "Credentials",  # @auth
+                "RefreshBody",  # @auth
+                "LogoutBody",  # @auth
+                "Accepted",  # @auth
+                "OtpRequestBody",  # @auth
+                "OtpVerified",  # @auth
+                "OtpVerificationBody",  # @auth
+                "UpdateMeBody",  # @auth
+                "UserPage",  # @auth
             }
         )
 
@@ -297,6 +311,137 @@ class TestTheShaping:
         assert schemas["Node"] == as_object(as_object(recursive["components"])["schemas"])["Node"]
 
 
+class TestTheShapingOfUnionsAndOptionalBodies:
+    def test_unwraps_an_optional_body_to_the_model_itself(self) -> None:
+        document: Json = {
+            "paths": {
+                "/x": {
+                    "post": {
+                        "requestBody": {
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "anyOf": [
+                                            {"$ref": "#/components/schemas/Body"},
+                                            {"type": "null"},
+                                        ],
+                                        "title": "Body",
+                                    }
+                                }
+                            }
+                        },
+                        "responses": {},
+                    }
+                }
+            },
+            "components": {"schemas": {"Body": {"type": "object"}}},
+        }
+
+        shaped = shape_document(document, components=frozenset({"Body"}))
+
+        operation = as_object(as_object(as_object(shaped["paths"])["/x"])["post"])
+        schema = as_object(
+            as_object(
+                as_object(as_object(operation["requestBody"])["content"])["application/json"]
+            )["schema"]
+        )
+        assert schema == {"$ref": "#/components/schemas/Body"}
+
+    def test_inlines_the_variants_of_a_discriminated_union_and_drops_its_discriminator(
+        self,
+    ) -> None:
+        document: Json = {
+            "paths": {},
+            "components": {
+                "schemas": {
+                    "Holder": {
+                        "type": "object",
+                        "properties": {
+                            "target": {
+                                "oneOf": [
+                                    {"$ref": "#/components/schemas/A"},
+                                    {"$ref": "#/components/schemas/B"},
+                                ],
+                                "discriminator": {
+                                    "propertyName": "type",
+                                    "mapping": {
+                                        "a": "#/components/schemas/A",
+                                        "b": "#/components/schemas/B",
+                                    },
+                                },
+                            }
+                        },
+                    },
+                    "A": {"type": "object", "properties": {"type": {"const": "a"}}},
+                    "B": {"type": "object", "properties": {"type": {"const": "b"}}},
+                }
+            },
+        }
+
+        shaped = shape_document(document, components=frozenset({"Holder"}))
+
+        assert set(as_object(as_object(shaped["components"])["schemas"])) == {"Holder"}
+        assert "discriminator" not in json.dumps(shaped)
+        assert "#/components/schemas/A" not in json.dumps(shaped)
+
+
+# @auth-start
+class TestTheAuthContract:
+    def test_documents_every_auth_and_user_endpoint_at_its_singular_path(self) -> None:
+        doc = build_openapi_document(app)
+
+        paths = {path: set(as_object(item)) for path, item in as_object(doc["paths"]).items()}
+        assert paths["/api/auth/register"] == {"post"}
+        assert paths["/api/auth/login"] == {"post"}
+        assert paths["/api/auth/refresh"] == {"post"}
+        assert paths["/api/auth/logout"] == {"post"}
+        assert paths["/api/auth/otp"] == {"post"}
+        assert paths["/api/auth/otp/verification"] == {"post"}
+        assert paths["/api/user/me"] == {"get", "patch"}
+        assert paths["/api/user"] == {"get"}
+        assert paths["/api/user/{id}"] == {"get"}
+
+    def test_documents_the_gated_module_endpoints_with_their_401_and_403(self) -> None:
+        doc = build_openapi_document(app)
+
+        module = as_object(as_object(doc["paths"])["/api/module/{id}"])
+        delete = as_object(as_object(module["delete"])["responses"])
+        assert {"401", "403"} <= set(delete)
+        assert as_object(module["delete"])["summary"] == "Delete a module (admin only)"
+
+    def test_documents_the_tri_state_phone_as_an_optional_nullable_string(self) -> None:
+        doc = build_openapi_document(app)
+
+        update = as_object(as_object(as_object(doc["components"])["schemas"])["UpdateMeBody"])
+        assert "required" not in update
+        any_of = as_object(as_object(update["properties"])["phone"])["anyOf"]
+        assert isinstance(any_of, list)
+        assert {"type": "null"} in any_of
+
+    def test_documents_a_target_as_an_inline_union_with_no_dangling_discriminator(self) -> None:
+        doc = build_openapi_document(app)
+
+        body = as_object(as_object(as_object(doc["components"])["schemas"])["OtpRequestBody"])
+        target = as_object(as_object(body["properties"])["target"])
+        assert isinstance(target["oneOf"], list)
+        assert len(target["oneOf"]) == 2
+        assert "discriminator" not in target
+
+    def test_documents_the_refresh_and_logout_bodies_as_their_components(self) -> None:
+        doc = build_openapi_document(app)
+
+        for path, name in (
+            ("/api/auth/refresh", "RefreshBody"),
+            ("/api/auth/logout", "LogoutBody"),
+        ):
+            post = as_object(as_object(as_object(doc["paths"])[path])["post"])
+            media = as_object(
+                as_object(as_object(post["requestBody"])["content"])["application/json"]
+            )
+            assert media["schema"] == {"$ref": f"#/components/schemas/{name}"}
+
+
+# @auth-end
 class TestEveryDocumentedPathIsMounted:
     """The document comes from the mounted routers, so this holds by construction; the test
     keeps it from being lost to a refactor, as bun-express's does for its registration list."""

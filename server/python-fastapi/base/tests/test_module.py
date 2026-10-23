@@ -8,12 +8,27 @@ import httpx
 import pytest
 from pydantic import JsonValue
 
+from app.models.user.enums import UserRole  # @auth
 from app.services.event import MODULE_CREATED, ModuleCreated, Unsubscribe, drain, subscribe
+from app.services.security.jwt import AccessClaims, sign_access  # @auth
 from app.services.utils.api_model import ResponseModel
 from app.services.utils.pagination import encode_cursor
 from tests.store import reset_store, store_backed
 
 pytestmark = store_backed
+
+
+# @auth-start
+def bearer(role: UserRole) -> dict[str, str]:
+    """The route gates only read the access token, so callers are minted directly rather than
+    through `api/user`."""
+    claims = AccessClaims(sub=str(uuid.uuid4()), role=role, sid=str(uuid.uuid4()))
+    return {"Authorization": f"Bearer {sign_access(claims).token}"}
+
+
+USER = bearer(UserRole.user)
+ADMIN = bearer(UserRole.admin)
+# @auth-end
 
 
 class ModuleBody(ResponseModel):
@@ -52,7 +67,11 @@ def cleanups() -> Iterator[list[Unsubscribe]]:
 
 
 async def create(client: httpx.AsyncClient, name: str) -> ModuleBody:
-    res = await client.post("/api/module", json={"name": name})
+    res = await client.post(
+        "/api/module",
+        headers=USER,  # @auth
+        json={"name": name},
+    )
     assert res.status_code == 201
     return ModuleBody.model_validate(res.json())
 
@@ -142,7 +161,11 @@ class TestCreate:
     async def test_creates_an_active_module_with_iso_timestamps(
         self, client: httpx.AsyncClient
     ) -> None:
-        res = await client.post("/api/module", json={"name": "  First  "})
+        res = await client.post(
+            "/api/module",
+            headers=USER,  # @auth
+            json={"name": "  First  "},
+        )
         body = ModuleBody.model_validate(res.json())
 
         assert res.status_code == 201
@@ -178,7 +201,11 @@ class TestCreate:
     async def test_answers_400_for_a_name_outside_the_bounds(
         self, client: httpx.AsyncClient, label: str, name: str
     ) -> None:
-        res = await client.post("/api/module", json={"name": name})
+        res = await client.post(
+            "/api/module",
+            headers=USER,  # @auth
+            json={"name": name},
+        )
 
         assert res.status_code == 400, label
         error = res.json()["error"]
@@ -186,7 +213,11 @@ class TestCreate:
         assert error["details"][0]["path"] == "name"
 
     async def test_accepts_the_longest_name(self, client: httpx.AsyncClient) -> None:
-        res = await client.post("/api/module", json={"name": "x" * 100})
+        res = await client.post(
+            "/api/module",
+            headers=USER,  # @auth
+            json={"name": "x" * 100},
+        )
 
         assert res.status_code == 201
 
@@ -195,7 +226,11 @@ class TestCreate:
         self, client: httpx.AsyncClient, body: JsonValue
     ) -> None:
         """Row: Strict bodies. `5` is not a name, as zod's string is not a number."""
-        res = await client.post("/api/module", json=body)
+        res = await client.post(
+            "/api/module",
+            headers=USER,  # @auth
+            json=body,
+        )
 
         assert res.status_code == 400
         assert code_of(res) == "validation_failed"
@@ -204,7 +239,9 @@ class TestCreate:
         self, client: httpx.AsyncClient
     ) -> None:
         res = await client.post(
-            "/api/module", json={"name": "ok", "status": "archived", "id": "mine"}
+            "/api/module",
+            headers=USER,  # @auth
+            json={"name": "ok", "status": "archived", "id": "mine"},
         )
 
         assert res.status_code == 201
@@ -212,6 +249,22 @@ class TestCreate:
         assert res.json()["id"] != "mine"
 
 
+# @auth-start
+class TestCreateIsGated:
+    async def test_answers_401_without_a_token(self, client: httpx.AsyncClient) -> None:
+        res = await client.post("/api/module", json={"name": "x"})
+
+        assert res.status_code == 401
+        assert code_of(res) == "unauthenticated"
+
+    async def test_answers_401_before_validating_the_body(self, client: httpx.AsyncClient) -> None:
+        """Row: Gate order."""
+        res = await client.post("/api/module", json={})
+
+        assert res.status_code == 401
+
+
+# @auth-end
 class TestGet:
     async def test_returns_the_module(self, client: httpx.AsyncClient) -> None:
         created = await create(client, "one")
@@ -233,7 +286,11 @@ class TestUpdate:
     async def test_renames_the_module_and_keeps_created_at(self, client: httpx.AsyncClient) -> None:
         created = await create(client, "old")
 
-        res = await client.patch(f"/api/module/{created.id}", json={"name": "new"})
+        res = await client.patch(
+            f"/api/module/{created.id}",
+            headers=USER,  # @auth
+            json={"name": "new"},
+        )
         body = ModuleBody.model_validate(res.json())
 
         assert res.status_code == 200
@@ -245,7 +302,11 @@ class TestUpdate:
     async def test_archives_the_module(self, client: httpx.AsyncClient) -> None:
         created = await create(client, "keep")
 
-        res = await client.patch(f"/api/module/{created.id}", json={"status": "archived"})
+        res = await client.patch(
+            f"/api/module/{created.id}",
+            headers=USER,  # @auth
+            json={"status": "archived"},
+        )
         body = ModuleBody.model_validate(res.json())
 
         assert res.status_code == 200
@@ -254,16 +315,28 @@ class TestUpdate:
 
     async def test_keeps_what_the_update_did_not_name(self, client: httpx.AsyncClient) -> None:
         created = await create(client, "keep")
-        await client.patch(f"/api/module/{created.id}", json={"status": "archived"})
+        await client.patch(
+            f"/api/module/{created.id}",
+            headers=USER,  # @auth
+            json={"status": "archived"},
+        )
 
-        res = await client.patch(f"/api/module/{created.id}", json={"name": "renamed"})
+        res = await client.patch(
+            f"/api/module/{created.id}",
+            headers=USER,  # @auth
+            json={"name": "renamed"},
+        )
 
         assert res.json()["status"] == "archived"
 
     async def test_answers_400_for_an_empty_body(self, client: httpx.AsyncClient) -> None:
         created = await create(client, "x")
 
-        res = await client.patch(f"/api/module/{created.id}", json={})
+        res = await client.patch(
+            f"/api/module/{created.id}",
+            headers=USER,  # @auth
+            json={},
+        )
 
         assert res.status_code == 400
         error = res.json()["error"]
@@ -276,12 +349,20 @@ class TestUpdate:
     ) -> None:
         created = await create(client, "x")
 
-        res = await client.patch(f"/api/module/{created.id}", json=body)
+        res = await client.patch(
+            f"/api/module/{created.id}",
+            headers=USER,  # @auth
+            json=body,
+        )
 
         assert res.status_code == 400
 
     async def test_answers_404_for_an_unknown_id(self, client: httpx.AsyncClient) -> None:
-        res = await client.patch(f"/api/module/{uuid.uuid4()}", json={"name": "x"})
+        res = await client.patch(
+            f"/api/module/{uuid.uuid4()}",
+            headers=USER,  # @auth
+            json={"name": "x"},
+        )
 
         assert res.status_code == 404
         assert code_of(res) == "not_found"
@@ -289,25 +370,60 @@ class TestUpdate:
     async def test_validates_the_body_before_it_looks_for_the_module(
         self, client: httpx.AsyncClient
     ) -> None:
-        res = await client.patch(f"/api/module/{uuid.uuid4()}", json={})
+        res = await client.patch(
+            f"/api/module/{uuid.uuid4()}",
+            headers=USER,  # @auth
+            json={},
+        )
 
         assert res.status_code == 400
 
 
+# @auth-start
+class TestUpdateAndDeleteAreGated:
+    async def test_patch_answers_401_without_a_token(self, client: httpx.AsyncClient) -> None:
+        res = await client.patch(f"/api/module/{uuid.uuid4()}", json={"name": "x"})
+
+        assert res.status_code == 401
+
+    async def test_delete_answers_401_without_a_token(self, client: httpx.AsyncClient) -> None:
+        res = await client.delete(f"/api/module/{uuid.uuid4()}")
+
+        assert res.status_code == 401
+
+    async def test_delete_answers_403_for_a_user_and_keeps_the_module(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        created = await create(client, "keep")
+
+        res = await client.delete(f"/api/module/{created.id}", headers=USER)
+
+        assert res.status_code == 403
+        assert code_of(res) == "forbidden"
+        assert (await client.get(f"/api/module/{created.id}")).status_code == 200
+
+
+# @auth-end
 class TestDelete:
     async def test_answers_204_with_no_body_then_404_on_get(
         self, client: httpx.AsyncClient
     ) -> None:
         created = await create(client, "gone")
 
-        res = await client.delete(f"/api/module/{created.id}")
+        res = await client.delete(
+            f"/api/module/{created.id}",
+            headers=ADMIN,  # @auth
+        )
 
         assert res.status_code == 204
         assert res.content == b""
         assert (await client.get(f"/api/module/{created.id}")).status_code == 404
 
     async def test_answers_404_for_an_unknown_id(self, client: httpx.AsyncClient) -> None:
-        res = await client.delete(f"/api/module/{uuid.uuid4()}")
+        res = await client.delete(
+            f"/api/module/{uuid.uuid4()}",
+            headers=ADMIN,  # @auth
+        )
 
         assert res.status_code == 404
         assert code_of(res) == "not_found"

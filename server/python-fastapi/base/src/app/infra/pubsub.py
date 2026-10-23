@@ -127,9 +127,18 @@ def create_pubsub(
 
 
 # One line per subscriber, imported from `./subscribers/`. A function, so no binding is read at
-# module load. This variant has none.
+# module load, and a subscriber that publishes can import `services/event.py`, which imports this
+# module.
+# This variant has none. # @noauth
 def _subscribers() -> Sequence[SubscriberEntry]:
+    # @auth-start
+    from app.infra.subscribers.send_welcome import send_welcome
+
+    return [send_welcome]
+    # @auth-end
+    # @noauth-start
     return []
+    # @noauth-end
 
 
 pubsub: Final = create_pubsub(subscribers=_subscribers)

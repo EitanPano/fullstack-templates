@@ -10,7 +10,11 @@ generated client does not depend on which server it faces:
 - a model is a component only when its name is in `COMPONENTS`, the equivalent of zod's
   `.openapi('Name')`; every other `$ref` is inlined, and a cycle fails the build;
 - `operationId`, an operation's and a model's `description` (both taken from docstrings) and
-  `requestBody.required` are dropped; summaries and tags stay as the routes declare them.
+  `requestBody.required` are dropped; summaries and tags stay as the routes declare them;
+- an optional body (`Model | None = None`) is the model itself, as in zod's document: the absent
+  `required` already says it may be omitted;
+- a discriminated union is its inlined `oneOf`: pydantic's `discriminator.mapping` names the
+  variants by component, and they are not components, so the whole `discriminator` is dropped.
 
 The title, version and `servers` come from the app (`server.py`). `uv run poe contract` runs
 `python -m app.openapi --write`, which writes `openapi.json` at the package root; the frontend's
@@ -40,6 +44,18 @@ COMPONENTS: Final = frozenset(
         "ModulePage",
         "CreateModuleBody",
         "UpdateModuleBody",
+        "AuthSession",  # @auth
+        "PublicUser",  # @auth
+        "AuthTokens",  # @auth
+        "Credentials",  # @auth
+        "RefreshBody",  # @auth
+        "LogoutBody",  # @auth
+        "Accepted",  # @auth
+        "OtpRequestBody",  # @auth
+        "OtpVerified",  # @auth
+        "OtpVerificationBody",  # @auth
+        "UpdateMeBody",  # @auth
+        "UserPage",  # @auth
     }
 )
 
@@ -88,6 +104,35 @@ def _inline(
     return {**inlined, **siblings} if isinstance(inlined, dict) else inlined
 
 
+def _without_discriminators(node: JsonValue) -> JsonValue:
+    """Drops the `discriminator` of a union whose variants were inlined (its mapping would point at
+    components that do not exist)."""
+    if isinstance(node, list):
+        return [_without_discriminators(item) for item in node]
+    if not isinstance(node, dict):
+        return node
+    one_of = node.get("oneOf")
+    inlined = isinstance(one_of, list) and not any(
+        isinstance(variant, dict) and "$ref" in variant for variant in one_of
+    )
+    return {
+        key: _without_discriminators(value)
+        for key, value in node.items()
+        if not (key == "discriminator" and inlined)
+    }
+
+
+def _unwrap_optional_body(operation: Json) -> None:
+    """`anyOf: [{$ref}, {type: null}]` in a request body becomes the `$ref`."""
+    content = _object(_object(operation.get("requestBody")).get("content"))
+    for media in content.values():
+        body = _object(media)
+        schema = _object(body.get("schema"))
+        options = schema.get("anyOf")
+        if isinstance(options, list) and len(options) == 2 and {"type": "null"} in options:
+            body["schema"] = next(option for option in options if option != {"type": "null"})
+
+
 def shape_document(document: Json, *, components: frozenset[str]) -> Json:
     """The shaped copy of a generated document; the argument is left as it was."""
     shaped = copy.deepcopy(document)
@@ -100,6 +145,7 @@ def shape_document(document: Json, *, components: frozenset[str]) -> Json:
                 body.pop(key, None)
             _object(body.get("responses")).pop("422", None)
             _object(body.get("requestBody")).pop("required", None)
+            _unwrap_optional_body(body)
 
     schemas = _object(_object(shaped.get("components")).get("schemas"))
     for name in _VALIDATION_COMPONENTS:
@@ -113,6 +159,7 @@ def shape_document(document: Json, *, components: frozenset[str]) -> Json:
         schemas[name] = _inline(schemas[name], originals, components, (name,))
     if "paths" in shaped:
         shaped["paths"] = _inline(shaped["paths"], originals, components, ())
+    shaped = _object(_without_discriminators(shaped))
     return shaped
 
 

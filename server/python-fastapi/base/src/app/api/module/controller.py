@@ -12,7 +12,11 @@ import uuid
 from dataclasses import replace
 from typing import Annotated, assert_never
 
-from fastapi import Query, Response
+from fastapi import (
+    Query,
+    Request,  # @auth
+    Response,
+)
 from pydantic import MISSING
 
 from app.api.module import service
@@ -24,9 +28,12 @@ from app.api.module.schema import (
     ModuleStatusName,
     UpdateModuleBody,
 )
+from app.middleware.auth import require_caller  # @auth
+from app.models.auth.type import Caller  # @auth
 from app.models.module.enums import ModuleStatus
 from app.models.module.interface import ModuleRecord
 from app.models.module.type import CreateModuleInput, PublicModule, UpdateModuleInput
+from app.models.user.enums import UserRole  # @auth
 from app.services.event import MODULE_CREATED, publish
 from app.services.utils import clock
 from app.services.utils.error import AppError
@@ -65,6 +72,15 @@ def _to_response(public: PublicModule) -> Module:
     )
 
 
+# @auth-start
+def _assert_role(caller: Caller, role: UserRole) -> None:
+    """`routes.py` already gates delete with `require_role`; the handler checks the caller too, so
+    an endpoint mounted without its gate fails closed."""
+    if caller.role is not role:
+        raise AppError("forbidden", "insufficient role")
+
+
+# @auth-end
 async def _require_record(module_id: str) -> ModuleRecord:
     record = await service.find_module_by_id(module_id)
     if record is None:
@@ -86,6 +102,10 @@ async def get_module(module_id: ModuleId) -> Module:
     return _to_response(to_public(await _require_record(module_id)))
 
 
+# @auth-start
+# Any authenticated caller may create. An entity owned by its creator would store
+# `require_caller(request).id` in an `owner_id` field here; this template has no owner.
+# @auth-end
 # The event is published after the write: subscribers react detached from this request.
 async def create_module(body: CreateModuleBody) -> Module:
     data = CreateModuleInput(name=body.name)
@@ -103,6 +123,10 @@ async def create_module(body: CreateModuleBody) -> Module:
     return _to_response(to_public(record))
 
 
+# @auth-start
+# Any authenticated caller may update. An ownership rule would compare `require_caller(request).id`
+# with the loaded record's `owner_id` and raise `forbidden` on a mismatch; the template has none.
+# @auth-end
 async def update_module(module_id: ModuleId, body: UpdateModuleBody) -> Module:
     data = UpdateModuleInput(
         name=None if body.name is MISSING else body.name,
@@ -120,7 +144,11 @@ async def update_module(module_id: ModuleId, body: UpdateModuleBody) -> Module:
     return _to_response(to_public(saved))
 
 
-async def delete_module(module_id: ModuleId) -> Response:
+async def delete_module(
+    request: Request,  # @auth
+    module_id: ModuleId,
+) -> Response:
+    _assert_role(require_caller(request), UserRole.admin)  # @auth
     if not await service.delete_module(module_id):
         raise AppError("not_found", "module not found")
     return Response(status_code=204)

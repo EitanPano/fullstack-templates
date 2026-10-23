@@ -110,6 +110,13 @@ layers = [
   "app.config.cors",
   "app.config.constants | app.config.env",
 ]
+# @auth-start
+# The bus lists its subscribers inside a function, and a subscriber calls a controller (which
+# publishes through the bus), so import-linter sees a path from services up to api through the
+# lists. The bus never imports a subscriber at load: the import runs when it connects.
+ignore_imports = ["app.infra.pubsub -> app.infra.subscribers.send_welcome"]
+unmatched_ignore_imports_alerting = "none"
+# @auth-end
 
 # Leaves: models/ imports models/ only (not even pydantic: the wire shape is in a module's schema).
 [[tool.importlinter.contracts]]
@@ -442,6 +449,17 @@ ignore_imports = [
 ]
 unmatched_ignore_imports_alerting = "none"
 
+# @auth-start
+# Jobs and subscribers reach a module through its controller and schema only: never a routes,
+# service or model. Which of those a job or a subscriber may call stays a review rule.
+[[tool.importlinter.contracts]]
+name = "jobs and subscribers reach a module through its controller only"
+type = "forbidden"
+source_modules = ["app.infra.jobs", "app.infra.subscribers"]
+forbidden_modules = ["app.api.*.routes", "app.api.*.service", "app.api.*.model"]
+allow_indirect_imports = true
+# @auth-end
+
 # What each file of a module may import.
 [[tool.importlinter.contracts]]
 name = "schema is the leaf of a module"
@@ -552,6 +570,7 @@ name = "modules are independent: a controller and a schema are a module's only d
 type = "independence"
 modules = ["app.api.*"]
 ignore_imports = [
+  "app.infra.pubsub -> app.infra.subscribers.send_welcome",  # @auth
   "app.api.*.controller -> app.api.*.controller",
   "app.api.*.controller -> app.api.*.schema",
   "app.api.*.schema -> app.api.*.schema",

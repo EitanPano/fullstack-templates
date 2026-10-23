@@ -178,9 +178,17 @@ def create_scheduler(
 
 
 # One line per job, imported from `./jobs/`. A function, like the bus's list, so no binding is read
-# at module load. This variant has none.
+# at module load.
+# This variant has none. # @noauth
 def _jobs() -> Sequence[Job]:
+    # @auth-start
+    from app.infra.jobs.session_cleanup import session_cleanup
+
+    return [session_cleanup]
+    # @auth-end
+    # @noauth-start
     return []
+    # @noauth-end
 
 
 scheduler: Final = create_scheduler(jobs=_jobs, enabled=env.jobs_enabled)
