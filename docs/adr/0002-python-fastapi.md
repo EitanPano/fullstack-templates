@@ -1,6 +1,6 @@
 # ADR 0002: server/python-fastapi, the first template outside TypeScript
 
-Status: proposed (2026-10-23)
+Status: accepted (2026-10-23, gate G1 of plan 009)
 Owner: Eitan
 Plan: `fullstack-dev-harness/.plan/009-2026-10-23-python-fastapi.md` (milestone 4)
 Amends: ADR 0001 (Constraints, D2, D4, Delivery order) and `docs/conventions.md`
@@ -641,5 +641,5 @@ full.
 
 ## Status of this ADR
 
-Proposed for G1 (plan 009). Implementation tasks T1 and later start only after Eitan approves it.
+Accepted by Eitan at G1 (2026-10-23); T1 and later build against it.
 An As built section is added when the template ships.
