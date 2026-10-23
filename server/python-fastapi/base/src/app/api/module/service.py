@@ -10,9 +10,8 @@ from datetime import datetime
 
 from pydantic import AwareDatetime, BaseModel
 
-from app.infra.memory import Collection
 from app.models.module.interface import ModuleRecord
-from app.services.db import get_db
+from app.services.db import Collection, get_db
 from app.services.utils.pagination import Slice, decode_cursor, encode_cursor, to_page
 
 
