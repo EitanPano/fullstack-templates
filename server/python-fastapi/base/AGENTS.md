@@ -29,7 +29,8 @@ import name can take); a name never shadows the standard library (`enums.py`, no
   `parse_duration`.
 - Every infrastructure dependency is a `Resource` from `infra/dependency.py`, listed in
   `dependencies` in that file: connected at boot with bounded retry, pinged by
-  `GET /api/health/ready`, closed in reverse on shutdown. This slice of the template lists none.
+  `GET /api/health/ready`, closed in reverse on shutdown. This template lists the in-memory store
+  (`memory`), the in-process bus (`pubsub`) and the scheduler (`scheduler`), in that order.
 - One event loop class everywhere: `infra/loop.py` gives `selector_loop_factory`, which uvicorn
   and the tests' `anyio_backend` fixture use. Never run a database driver on Windows' default
   Proactor loop.
@@ -42,24 +43,31 @@ src/app/
   server.py           `create_app()` and `app`; never listens, attaches no infra
   openapi.py          builds, shapes and caches the contract; `--write` emits openapi.json
   config/             env.py · constants.py · cors.py · routes.py
+  models/<name>/      interface · type · enums · constants: an entity's types (module: the reference)
   api/<name>/         routes · controller · schema; service only when the module has data
-                      (health: the reference for now)
+                      (module: the reference; health owns no data)
   middleware/         request_id · request_log · security_headers · cors · proxy · body_limit ·
-                      error_handler · not_found · head · context · asgi
-  services/           logger.py · utils/ (error · openapi · clock · api_model)
-  infra/              dependency.py · loop.py
+                      error_handler · not_found · head · context · asgi · rate_limit (a gate)
+  services/           logger.py · db.py · cache.py · event.py (the seams) ·
+                      utils/ (error · openapi · clock · api_model · pagination)
+  infra/              dependency.py · loop.py · memory.py · pubsub.py · scheduler.py
 tests/                mirrors src/app/ (a package throughout, so two test_x.py cannot clash)
 openapi.json          the committed contract, written by the `contract` command
 ```
 
-`models/` (entity types), `services/` seams for data, cache and events, `infra/` stores, jobs and
-subscribers, and `middleware/` gates (authentication, roles, rate limits) arrive with the modules
-and the stores; this file grows with them.
+`infra/jobs/` and `infra/subscribers/` (a job is a crontab pattern and an async function; a
+subscriber reacts to a topic) arrive with the first one; `middleware/` gates for authentication and
+roles arrive with the accounts. This file grows with them.
+
+Where does X go: a limit of the data (a length) in `models/<name>/constants.py`, a policy (a window,
+a count) in `config/constants.py`; a query in the module's `service.py`; a rule another module
+needs in the controller (exported, no request or response); a reaction to an event in
+`infra/subscribers/`; a stateful capability the services share in `services/`.
 
 ## Request flow
 
 `config/routes.py → api/<name>/routes.py → gates → controller.py (handler, and any rule it shares)
-→ service.py → db seam → infra store`. A `routes.py` holds nothing but one `router.add_api_route`
+→ service.py → db seam (services/db.py) → infra store (infra/memory.py)`. A `routes.py` holds nothing but one `router.add_api_route`
 per endpoint, naming the handler, the status and response model, the error responses, the summary
 and the gates (FastAPI dependencies, in declaration order, before body validation errors are
 raised). A handler holds its endpoint's logic. Validation comes from the handler's signature:
@@ -74,31 +82,51 @@ refuses a request sends the error envelope itself.
 ## Import direction
 
 `import-linter` enforces the import direction (`uv run poe lint` runs it; the contracts are in
-`pyproject.toml`): the leaves (`config/constants.py`, `config/env.py` import nothing from the app;
-`config/cors.py` imports `config/env.py`), `services/utils/` is pure, `config/routes.py` is the
-only importer of a `routes.py` and `server.py` the only importer of `config/routes.py`, `middleware/`
-and `services/` never import `api/`, nothing imports `main.py`, and a module's files import only what
-their role allows (a `schema` is the leaf, a `controller` never imports its `routes`).
+`pyproject.toml`): the leaves (`models/` imports `models/` only; `config/constants.py`,
+`config/env.py` import nothing from the app; `config/cors.py` imports `config/env.py`),
+`services/utils/` is pure, `config/routes.py` is the only importer of a `routes.py` and `server.py`
+the only importer of `config/routes.py`, `middleware/` and `services/` never import `api/`, nothing
+imports `main.py`, and a module's files import only what their role allows (a `schema` is the leaf,
+a `controller` never imports its `routes`, a `service` is the data layer and never sees HTTP).
+
+The seams are closed by default: a store (`infra/memory.py`, `infra/<engine>.py`) is imported by
+`services/db.py` and `services/cache.py` only, the bus (`infra/pubsub.py`) by `services/event.py`
+only, every other service reaches infra through `infra/dependency.py`. Only a module's `service`
+uses `services/db.py`; only a `service` and `middleware/rate_limit.py` use `services/cache.py`;
+only a controller publishes through `services/event.py`.
 
 Module privacy, that a module's `service` is imported only from inside its own module, is an
-`independence` contract that arrives with the second module. Until then it is a review rule, with
-these: a vendor SDK is imported only by its own `services/<vendor>.py`; a `routes.py` holds nothing
-but the gates and the handler per endpoint; another module or a job calls a controller's exported
-rules, never a handler; a cross-module flow is not atomic.
+`independence` contract over `api.*`: a controller imports another module's controller and schema,
+a schema another module's schema, and nothing else crosses a module boundary. It is one point
+stricter than bun-express's ESLint zone, which lets any file import another module's schema as a
+type; import-linter cannot tell a type-only import. The rest is a review rule: a vendor SDK is
+imported only by its own `services/<vendor>.py`; a `routes.py` holds nothing but the gates and the
+handler per endpoint; another module or a job calls a controller's exported rules, never a handler;
+a cross-module flow is not atomic.
 
 ## Adding a module
 
 Work in this order, test first.
 
-1. Types in `models/<name>/` (`interface`, `type`, `enums`, `constants`).
+Copy `models/module/` and `api/module/`, the reference; the docstring of each file says what
+belongs there and what does not.
+
+1. Types in `models/<name>/` (`interface` the stored record, `type` the public shape and inputs,
+   `enums`, `constants`). A record is a frozen dataclass; models import no pydantic.
 2. `schema.py`: pydantic models. A request body derives from `RequestModel`, a query from
-   `QueryModel`, a response from `ResponseModel` (`services/utils/api_model.py`).
+   `QueryModel`, a response from `ResponseModel` (`services/utils/api_model.py`). A list's page is
+   a concrete subclass of `Page[T]` (`class ModulePage(Page[Module])`), its query is `PageQuery`.
 3. `tests/test_<name>.py` (see Tests), red.
-4. `service.py`, only when the module has data.
-5. `controller.py`: one handler per endpoint, then the exported rules other modules need.
-6. `routes.py`: `router: APIRouter` and one `router.add_api_route(...)` per endpoint. A collection
-   endpoint's path is `""`, not `"/"`: with redirect slashes off, `"/"` under the `/api/<name>`
-   prefix would serve and document `/api/<name>/`.
+4. `service.py`, only when the module has data: queries through `get_db()`, one collection per
+   entity, and a cursor model for `decode_cursor` when the list pages.
+5. `controller.py`: one handler per endpoint (it maps the stored record to the wire and raises
+   `AppError`), publishes the event after the write, then the exported rules other modules need.
+6. `routes.py`: `router: APIRouter` and one `router.add_api_route(...)` per endpoint, with its
+   gates as `dependencies=[Depends(...)]`. A rate limit is `rate_limit(name=, limit=, window=,
+   key=)` from `middleware/rate_limit.py` with `by_ip`, `by_body_string(field)` or
+   `by_body_path(...)`; it runs before the body is validated. A collection endpoint's path is `""`,
+   not `"/"`: with redirect slashes off, `"/"` under the `/api/<name>` prefix would serve and
+   document `/api/<name>/`.
 7. One line in `config/routes.py`, the component names in `openapi.py`'s `COMPONENTS`, then the
    `contract` command.
 
@@ -124,11 +152,16 @@ The wire format is fixed by the three bases:
 
 ## Adding the data layer
 
-This slice of the template has no store: no engine, no `services/db.py`, no migrations. The
-dependency list in `infra/dependency.py` is empty, so `GET /api/health/ready` answers an empty
-map. The task that adds the in-process stores, and the database overlay after it, replace this
-section with the seam, the migration and the test-database rules; follow the root `AGENTS.md` and
-the `database` skill meanwhile.
+The store is `infra/memory.py`: a record store and a key-value store held in process memory, one
+`Resource`. The seams are files, not types: `services/db.py` exports `get_db()` (a record store,
+`collection(name, RecordType)` with `get`, `put` (upsert), `delete` and `find`), `services/cache.py`
+the JSON helpers over the key-value store (`get(key, TypeAdapter)`, `set_value`, `delete`, `incr`),
+`services/event.py` the typed bus (`publish`, `subscribe`, `drain`; a `Topic` constant carries its
+payload type). A database overlay rewrites `services/db.py` to export its client, rewrites every
+`service.py` against it and adds `infra/<engine>.py` to `dependencies`; the data-layer rules of the
+`database` skill apply. The scheduler (`infra/scheduler.py`, APScheduler) starts in `connect()`
+unless `JOBS_ENABLED=false`, runs each job with one instance at a time, and its job list is empty
+here. Every expiry reads `services/utils/clock.py`, never `time.monotonic()`.
 
 ## Errors
 
@@ -171,6 +204,9 @@ envelope's `code` and `requestId`, not only the status.
   (`anyio_backend` in `tests/conftest.py`).
 - `tests/` mirrors `src/app/` and is a package throughout. `tests/conftest.py` sets
   `APP_ENV=test` before any `app` import, because `config/env.py` reads the environment once.
+- A store-backed suite is marked `store_backed` (`tests/store.py`) and resets the store through
+  `reset_store()`, `record_exists(collection, id)` and `delete_record(collection, id)`, never
+  through the store directly. An event's effect is awaited with `drain()`.
 - Time is moved with `time-machine` (`time_machine.travel(..., tick=False)`).
 - A test that spawns a process (the entry test) is synchronous and uses `subprocess.run`: the
   selector loop cannot run asyncio subprocesses on Windows.
