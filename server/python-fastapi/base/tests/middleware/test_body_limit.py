@@ -103,6 +103,25 @@ class TestTheStreamedBody:
             "requestId": res.headers["x-request-id"],
         }
 
+    async def test_refuses_a_chunked_overflow_on_a_route_with_a_body_parameter(self) -> None:
+        """Row: Body over 1 MB. FastAPI parses the body itself here and must re-raise the
+        HTTPException the limit raises (ADR M4-8) instead of turning it into its plain 400."""
+
+        async def chunks() -> AsyncIterator[bytes]:
+            yield b'{"name":"'
+            for _ in range(3):
+                yield b"x" * 600_000
+            yield b'"}'
+
+        async with http_client(probe_app()) as http:
+            res = await http.post("/greet", content=chunks(), headers=JSON)
+
+        assert res.status_code == 413
+        assert res.json() == {
+            "error": {"code": "payload_too_large", "message": "request body is too large"},
+            "requestId": res.headers["x-request-id"],
+        }
+
     async def test_lets_a_stream_within_the_limit_through(self) -> None:
         """Row: Body over 1 MB."""
 
