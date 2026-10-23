@@ -8,6 +8,11 @@ in `connect()`, never at import, because it binds to the running event loop. Eve
 instead of overlapping it, and missed runs collapse into one, which is what croner's `protect`
 did. APScheduler 3 reads weekday numbers with 0 as Monday, not Sunday as crontab does: name days
 (`mon`, `sun`) in a schedule.
+
+A job running at `close()` finishes, as croner's `stop()` lets it: APScheduler's asyncio executor
+cancels the coroutines of running jobs on shutdown whatever `wait` says, so each firing runs the job
+in a task of its own (`fire`) that this cancellation does not reach, and `close()` waits for those
+tasks for `STOP_TIMEOUT_MS` before cancelling what is left.
 """
 
 import asyncio
@@ -21,6 +26,8 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.config.env import env
 from app.services.logger import Logger, log
+
+STOP_TIMEOUT_MS: Final = 5_000
 
 
 @dataclass(frozen=True)
@@ -44,10 +51,19 @@ class ScheduledJob:
 class Scheduler:
     name: Final = "scheduler"
 
-    def __init__(self, *, jobs: Jobs, enabled: bool, logger: Logger = log) -> None:
+    def __init__(
+        self,
+        *,
+        jobs: Jobs,
+        enabled: bool,
+        logger: Logger = log,
+        stop_timeout_ms: int = STOP_TIMEOUT_MS,
+    ) -> None:
         self._source = jobs
         self._enabled = enabled
         self._logger = logger
+        self._stop_timeout = stop_timeout_ms / 1000
+        self._firings: set[asyncio.Task[None]] = set()
         self._scheduler: AsyncIOScheduler | None = None
 
     def _jobs(self) -> Sequence[Job]:
@@ -73,6 +89,14 @@ class Scheduler:
         else:
             self._logger.info("job finished", {"job": job.name, "durationMs": _elapsed_ms(started)})
 
+    async def fire(self, job: Job) -> None:
+        """What the cron calls. The job runs in a task of its own, so a cancelled firing (the
+        executor's, on shutdown) leaves it running; `close()` waits for it."""
+        task = asyncio.create_task(self._run_job(job))
+        self._firings.add(task)
+        task.add_done_callback(self._firings.discard)
+        await asyncio.shield(task)
+
     async def connect(self) -> None:
         jobs = self._jobs()
         if not self._enabled:
@@ -84,7 +108,7 @@ class Scheduler:
         for job in jobs:
             # A bad pattern raises here, before the scheduler starts.
             scheduler.add_job(
-                self._run_job,
+                self.fire,
                 CronTrigger.from_crontab(job.schedule),
                 args=[job],
                 id=job.name,
@@ -104,6 +128,14 @@ class Scheduler:
         scheduler.shutdown()
         # APScheduler's asyncio shutdown is queued on the loop: let it run before returning.
         await asyncio.sleep(0)
+        running = [task for task in self._firings if not task.done()]
+        if running:
+            _, pending = await asyncio.wait(running, timeout=self._stop_timeout)
+            if pending:
+                self._logger.warning("scheduler stop timed out", {"pending": len(pending)})
+                for task in pending:
+                    task.cancel()
+                await asyncio.gather(*pending, return_exceptions=True)
 
     def running(self) -> list[str]:
         """The names of the jobs the cron is scheduling; empty when disabled or closed."""
@@ -135,8 +167,14 @@ def _elapsed_ms(started: float) -> int:
     return round((time.perf_counter() - started) * 1000)
 
 
-def create_scheduler(*, jobs: Jobs, enabled: bool, logger: Logger = log) -> Scheduler:
-    return Scheduler(jobs=jobs, enabled=enabled, logger=logger)
+def create_scheduler(
+    *,
+    jobs: Jobs,
+    enabled: bool,
+    logger: Logger = log,
+    stop_timeout_ms: int = STOP_TIMEOUT_MS,
+) -> Scheduler:
+    return Scheduler(jobs=jobs, enabled=enabled, logger=logger, stop_timeout_ms=stop_timeout_ms)
 
 
 # One line per job, imported from `./jobs/`. A function, like the bus's list, so no binding is read

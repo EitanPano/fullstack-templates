@@ -1,3 +1,4 @@
+import asyncio
 import re
 
 import pytest
@@ -145,3 +146,83 @@ class TestScheduler:
 
         with pytest.raises(ValueError, match="Wrong number of fields"):
             await scheduler.connect()
+
+
+class TestAJobRunningAtClose:
+    """croner's `stop()` lets a running job finish; so does this scheduler, within a bound.
+
+    APScheduler's asyncio executor cancels the coroutines of running jobs on shutdown (verified in
+    `apscheduler/executors/asyncio.py`: `shutdown(wait)` cancels every pending future whatever
+    `wait` says), so the scheduler runs each job in a task of its own that the executor's
+    cancellation does not reach.
+    """
+
+    async def test_lets_a_running_job_finish_before_close_returns(self) -> None:
+        started = asyncio.Event()
+        release = asyncio.Event()
+        finished = False
+
+        async def slow() -> None:
+            nonlocal finished
+            started.set()
+            await release.wait()
+            finished = True
+
+        job = Job(name="slow", schedule=NEVER, run=slow)
+        scheduler = create_scheduler(jobs=[job], enabled=True, logger=recording_logger()[0])
+        await scheduler.connect()
+        firing = asyncio.create_task(scheduler.fire(job))
+        await started.wait()
+
+        closing = asyncio.create_task(scheduler.close())
+        await asyncio.sleep(0.01)
+        assert closing.done() is False
+        release.set()
+        await closing
+        await firing
+
+        assert finished is True
+
+    async def test_a_cancelled_firing_does_not_cancel_the_job(self) -> None:
+        """What APScheduler's executor does to its own wrapper on shutdown."""
+        started = asyncio.Event()
+        release = asyncio.Event()
+        finished = False
+
+        async def slow() -> None:
+            nonlocal finished
+            started.set()
+            await release.wait()
+            finished = True
+
+        job = Job(name="slow", schedule=NEVER, run=slow)
+        scheduler = create_scheduler(jobs=[job], enabled=True, logger=recording_logger()[0])
+        await scheduler.connect()
+        firing = asyncio.create_task(scheduler.fire(job))
+        await started.wait()
+
+        firing.cancel()
+        await asyncio.gather(firing, return_exceptions=True)
+        release.set()
+        await scheduler.close()
+
+        assert finished is True
+
+    async def test_gives_up_on_a_hung_job_after_the_bound_and_says_so(self) -> None:
+        logger, sink = recording_logger()
+        started = asyncio.Event()
+
+        async def hangs() -> None:
+            started.set()
+            await asyncio.Event().wait()
+
+        job = Job(name="hangs", schedule=NEVER, run=hangs)
+        scheduler = create_scheduler(jobs=[job], enabled=True, logger=logger, stop_timeout_ms=10)
+        await scheduler.connect()
+        firing = asyncio.create_task(scheduler.fire(job))
+        await started.wait()
+
+        await scheduler.close()
+        await asyncio.gather(firing, return_exceptions=True)
+
+        assert "warning scheduler stop timed out pending=1" in sink.lines
