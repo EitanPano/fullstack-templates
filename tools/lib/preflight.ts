@@ -14,12 +14,12 @@ export const runVersion: VersionRunner = (name) => {
 }
 
 type Version = [number, number, number]
-
-// The first MAJOR.MINOR[.PATCH] in the text, so `uv 0.12.23 (abc 2026-10-01)` reads as 0.12.23.
+// The first MAJOR[.MINOR[.PATCH]] in the text, so `uv 0.12.23 (abc 2026-10-01)` reads as 0.12.23
+// and a template may declare a minimum of just `24`.
 export function parseVersion(text: string): Version | undefined {
-  const match = /(\d+)\.(\d+)(?:\.(\d+))?/.exec(text)
+  const match = /(\d+)(?:\.(\d+))?(?:\.(\d+))?/.exec(text)
   if (match === null) return undefined
-  return [Number(match[1]), Number(match[2]), Number(match[3] ?? 0)]
+  return [Number(match[1]), Number(match[2] ?? 0), Number(match[3] ?? 0)]
 }
 
 function compare(a: Version, b: Version): number {

@@ -25,6 +25,10 @@ describe('parseVersion', () => {
   test('reads MAJOR.MINOR as patch 0 and takes the first version', () => {
     expect(parseVersion('1.4 and 9.9.9')).toEqual([1, 4, 0])
   })
+  test('reads a bare major, as the node minimum is declared', () => {
+    expect(parseVersion('24')).toEqual([24, 0, 0])
+    expect(parseVersion('v24.11.0')).toEqual([24, 11, 0])
+  })
   test('returns undefined without a version', () => {
     expect(parseVersion('no digits here')).toBeUndefined()
   })

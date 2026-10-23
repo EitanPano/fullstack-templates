@@ -2,7 +2,8 @@ import { describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { loadCatalog } from '../lib/catalog'
-import { checkLockfiles } from '../lib/lockfiles'
+import { CommandError } from '../lib/commands'
+import { checkLockfiles, type QuietRunner } from '../lib/lockfiles'
 import { copyFixture, FIXTURE } from './helpers'
 
 // The pyproject checks run the real uv; fail with a reason, not a spawn error, when it is absent.
@@ -12,12 +13,12 @@ function requireUv(): void {
   }
 }
 
-function checkOnly(root: string, template: string): string[] {
+function checkOnly(root: string, template: string, runUv?: QuietRunner): string[] {
   const catalog = loadCatalog(root)
   for (const key of [...catalog.templates.keys()]) {
     if (key !== template) catalog.templates.delete(key)
   }
-  return checkLockfiles(catalog)
+  return checkLockfiles(catalog, runUv)
 }
 
 describe('checkLockfiles', () => {
@@ -58,5 +59,25 @@ describe('checkLockfiles', () => {
     expect(checkOnly(root, 'server/mini-py')).toEqual([
       'server/mini-py: uv.lock is missing next to base/pyproject.toml',
     ])
+  })
+
+  test('quotes uv for a failure that is not drift instead of calling the lock stale', () => {
+    const failing: QuietRunner = (line, cwd) => {
+      const stderr = '\nerror: failed to fetch idna\n  caused by: dns\n'
+      throw new CommandError(line, cwd, 2, undefined, stderr)
+    }
+    expect(checkOnly(FIXTURE, 'server/mini-py', failing)).toEqual([
+      'server/mini-py: uv lock --check failed: error: failed to fetch idna',
+    ])
+  })
+
+  test('says uv is not available when it cannot be started', () => {
+    const missing: QuietRunner = (line, cwd) => {
+      throw new CommandError(line, cwd, null, 'cannot run uv: ENOENT')
+    }
+    const [problem, ...rest] = checkOnly(FIXTURE, 'server/mini-py', missing)
+    expect(rest).toEqual([])
+    expect(problem).toContain('server/mini-py: cannot check uv.lock, uv is not available on PATH')
+    expect(problem).not.toContain('out of date')
   })
 })
