@@ -58,6 +58,21 @@ describe('generation from the real catalog', () => {
     })
   })
 
+  test('next-python-fastapi with Postgres wires the uv command, port 8000 and the migrate service', () => {
+    generated({ stack: 'next-python-fastapi', capabilities: ['database=postgres'] }, (out) => {
+      expect(playwright(out)).toContain("command: 'uv run poe dev'")
+      const recorded = parse(readFileSync(path.join(out, '.fullstack', 'catalog.yaml'), 'utf8'))
+      expect(recorded.packages.backend.http.port).toBe(8000)
+      expect(playwright(out)).toContain('http://localhost:8000/api/health')
+      const { services } = composeOf(out)
+      expect(services.backend.ports).toEqual(['127.0.0.1:8000:8000'])
+      expect(services['backend-migrate'].command).toBe('python -m app.infra.scripts.migrate')
+      expect(services.backend.depends_on['backend-migrate'].condition).toBe(
+        'service_completed_successfully',
+      )
+    })
+  })
+
   test('frontend/next alone keeps the default API server command', () => {
     generated({ template: 'frontend/next' }, (out) => {
       expect(existsSync(path.join(out, 'frontend', 'package.json'))).toBe(true)

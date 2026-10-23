@@ -712,7 +712,8 @@ describe('generate: drop after post-generate', () => {
       },
       sleep: (ms) => delays.push(ms),
     })
-    expect(calls).toBeGreaterThanOrEqual(3)
+    // `cache` fails twice and succeeds on the third call; `nothing/here` is one more call.
+    expect(calls).toBe(4)
     expect(delays.slice(0, 2)).toEqual([100, 200])
     expect(existsSync(path.join(out, 'backend', 'cache'))).toBe(false)
   })

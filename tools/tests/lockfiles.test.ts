@@ -9,7 +9,7 @@ import { copyFixture, FIXTURE } from './helpers'
 // The pyproject checks run the real uv; fail with a reason, not a spawn error, when it is absent.
 function requireUv(): void {
   if (Bun.which('uv') === null) {
-    throw new Error('uv is not on PATH; install uv 0.12.x to run the uv lockfile tests')
+    throw new Error('uv is not on PATH; install uv to run the uv lockfile tests')
   }
 }
 
@@ -45,7 +45,10 @@ describe('checkLockfiles', () => {
     requireUv()
     const root = copyFixture('catalog')
     const file = path.join(root, 'server/mini-py/base/pyproject.toml')
-    writeFileSync(file, readFileSync(file, 'utf8').replace('idna>=3.0', 'idna>=3.5'))
+    // Dropping the only dependency makes the lock stale without any package to resolve, so the
+    // check needs no network (a changed range would re-resolve against the index).
+    const dependencyLine = /^ {2}"idna>=3\.0",.*\n/m
+    writeFileSync(file, readFileSync(file, 'utf8').replace(dependencyLine, ''))
     const [problem, ...rest] = checkOnly(root, 'server/mini-py')
     expect(rest).toEqual([])
     expect(problem).toContain('server/mini-py')
