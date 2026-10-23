@@ -6,7 +6,7 @@ version: 1.0.0
 summary: "Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope"
 runtime: { language: python, platform: cpython, minVersion: '3.14' }
 tools:
-  - { name: uv, min: '0.12.23' }
+  - { name: uv, min: '0.12.23', max: '0.14' }
 placeholders: [PROJECT_NAME]
 flags:
   auth:

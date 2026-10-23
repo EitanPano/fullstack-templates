@@ -1,6 +1,6 @@
 # Both stages use the same python tag: the venv's `python` is a symlink into the base image.
 FROM python:3.14-slim AS builder
-COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13 /uv /uvx /bin/
 # The image installs Python packages only: uv never downloads an interpreter, and compiles
 # bytecode once, here, so the non-root user needs to write nothing at runtime.
 ENV UV_PYTHON_DOWNLOADS=never UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1
