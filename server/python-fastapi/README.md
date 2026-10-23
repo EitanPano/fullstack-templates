@@ -89,8 +89,8 @@ dev dependency; the image never uses it.
 
 ## Requirements
 
-uv 0.12 (0.12.23 or newer), which installs Python 3.14. The Docker image is built from
-`python:3.14-slim` with uv copied from `ghcr.io/astral-sh/uv:0.12`.
+uv 0.12.23 or newer and below 0.14 (so 0.12 and 0.13), which installs Python 3.14. The Docker
+image is built from `python:3.14-slim` with uv copied from `ghcr.io/astral-sh/uv:0.13`.
 
 ## Editing `pyproject.toml`
 

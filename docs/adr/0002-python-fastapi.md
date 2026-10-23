@@ -704,7 +704,7 @@ Not in the text above:
   `--with-app` (`7c79ac3`). A new field `withApp` is in the cases schema.
 - **The headings check (M4-17)** ignores headings inside fenced code blocks (`d6fdb7d`).
 - **CI** installs uv with `astral-sh/setup-uv` pinned by commit SHA (v10.3.0), version 0.12.23
-  (`d4875b6`, `4490f7b`).
+  (`d4875b6`, `4490f7b`); the final fix wave moved it to 0.13.1.
 - **Shared files**: `shared/gitignore/python.gitignore` includes `dist/`, since a Python template
   generated alone receives only its own fragment (`ebd7293`); `shared/editorconfig` gains a
   4-space `[*.py]` rule (`82cd110`).

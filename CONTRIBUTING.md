@@ -5,9 +5,9 @@
 - Bun 1.4 or newer.
 - Node 24 or newer.
 - git.
-- uv 0.12 for the Python templates (`server/python-fastapi` declares 0.12.23 as its
-  minimum). uv installs Python 3.14 itself; the generator checks each template's `tools`
-  before it starts.
+- uv 0.12.23 or newer, below 0.14, for the Python templates (`server/python-fastapi` declares
+  that window in its `tools`). uv installs Python 3.14 itself; the generator checks each
+  template's `tools` before it starts.
 - Docker with Compose: provider-backed tests (`--with-services`) and the image smoke
   (`--with-app`) start containers. Every `check` command runs without Docker.
 
@@ -258,16 +258,19 @@ Every `base/` commits its lockfile, checked in CI by `validate --lockfiles`: a f
 (`bun install`, `uv sync`), so a flag that drops packages prunes the lock in the generated
 project.
 
-A `uv.lock` is written by one uv minor, so the versions are tied:
+The template supports uv 0.12 and 0.13. A lock written by 0.12.23 passes `uv lock --check` and
+`uv sync --locked` under 0.13.1 (ADR 0002 M4-1), so the window is wider than one minor:
 
-- CI installs uv 0.12.23 exactly (`astral-sh/setup-uv`, pinned by commit), because the lock
-  is checked by the uv that wrote it;
-- `pyproject.toml` declares `required-version = ">=0.12.23,<0.13"`, so a project generated from
-  the template refuses a uv outside that minor;
-- the generated Dockerfile copies uv from `ghcr.io/astral-sh/uv:0.12`.
+- CI installs uv 0.13.1 exactly (`astral-sh/setup-uv`, pinned by commit), so a run is
+  reproducible;
+- `pyproject.toml` declares `required-version = ">=0.12.23,<0.14"` (and the same range for
+  `uv_build`), so a project generated from the template refuses a uv outside it;
+- `template.yaml` declares `{ name: uv, min: '0.12.23', max: '0.14' }`; `max` is exclusive and
+  the generator refuses a uv at or above it before it stages anything;
+- the generated Dockerfile copies uv from `ghcr.io/astral-sh/uv:0.13`.
 
-Moving to uv 0.13 is a template minor: change those three places and the `tools` minimum,
-run `uv lock`, and commit. To refresh a lock, run `uv lock` in `base/` (add
+Moving the window to include uv 0.14 is a template minor: prove `uv lock --check` and
+`uv sync --locked` under the new uv against the committed lock, change those places, and commit. To refresh a lock, run `uv lock` in `base/` (add
 `--upgrade` to move versions) and commit it with `pyproject.toml`. A dependency bot to refresh
 the lockfiles is still to be configured.
 

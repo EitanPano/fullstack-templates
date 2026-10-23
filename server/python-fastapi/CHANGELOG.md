@@ -2,7 +2,7 @@
 
 ## 1.0.0 — 2026-10-23
 
-- First version: FastAPI on Python 3.14, managed by uv (uv 0.12, which installs Python 3.14), at
+- First version: FastAPI on Python 3.14, managed by uv (0.12.23 up to 0.14, which installs Python 3.14), at
   behavioural parity with `server/bun-express` 2.2.0. Same layer map (`config/`, `api/<module>/`,
   `models/`, `middleware/`, `services/`, `infra/`), same request flow, same endpoints, same error
   envelope and codes, a request id on every response, and health and readiness endpoints.
@@ -41,7 +41,7 @@
   `request_log`, `body_limit`, `head` and a catch-all, which a test pins. HEAD is answered wherever
   GET is. An invalid `TRUST_PROXY` fails at startup. The client IP follows proxy-addr's algorithm,
   with a vector table in the tests.
-- A two-stage Dockerfile on `python:3.14-slim` (uv copied from `ghcr.io/astral-sh/uv:0.12`, a
+- A two-stage Dockerfile on `python:3.14-slim` (uv copied from `ghcr.io/astral-sh/uv:0.13`, a
   non-root user, `python -m app.main` in exec form) and a `compose.yaml` fragment that publishes
   the port on loopback only.
 - One event loop class everywhere: `infra/loop.py` gives the selector loop that uvicorn and the
