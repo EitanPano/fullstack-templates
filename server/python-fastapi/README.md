@@ -7,9 +7,9 @@ and must stay at behavioural parity with `server/bun-express`; the design is
 [ADR 0002](../../docs/adr/0002-python-fastapi.md). Generated alone or as the `server` of the
 `next-python-fastapi` stack.
 
-This is the first slice of the template: the skeleton, the entry and the core middleware. The
-modules, the in-process stores, the bus and the scheduler, authentication, and the Postgres
-overlay follow in later versions of the same 1.0.0 release.
+This is the second slice of the template: the skeleton, the entry and the core middleware, the
+reference module, the in-process store, bus and scheduler, pagination and the rate limiter.
+Authentication and the Postgres overlay follow in later versions of the same 1.0.0 release.
 
 ## Layout
 
