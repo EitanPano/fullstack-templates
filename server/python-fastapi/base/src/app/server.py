@@ -9,6 +9,7 @@ from app.config.routes import register_routes
 from app.middleware.body_limit import BodyLimitMiddleware
 from app.middleware.cors import CorsMiddleware
 from app.middleware.error_handler import CatchAllMiddleware, register_exception_handlers
+from app.middleware.head import HeadMiddleware
 from app.middleware.proxy import ProxyMiddleware, compile_trust
 from app.middleware.request_id import RequestIdMiddleware
 from app.middleware.request_log import RequestLogMiddleware
@@ -39,9 +40,11 @@ def create_app(lifespan: Lifespan[FastAPI] | None = None, *, config: Env = env) 
 
     # `add_middleware` stacks in reverse, so this adds the innermost first; the resulting order,
     # outer to inner, is the one tests/test_server.py pins:
-    # security headers, CORS, request id, proxy, request log, body limit, catch-all.
+    # security headers, CORS, request id, proxy, request log, body limit, head, catch-all.
     # No middleware raises: one that refuses a request sends the error envelope itself.
     app.add_middleware(CatchAllMiddleware)
+    # HEAD is answered wherever GET is: runs the request as GET and drops the body.
+    app.add_middleware(HeadMiddleware)
     app.add_middleware(BodyLimitMiddleware, max_bytes=MAX_BODY_BYTES)
     # One log line per request.
     app.add_middleware(RequestLogMiddleware)

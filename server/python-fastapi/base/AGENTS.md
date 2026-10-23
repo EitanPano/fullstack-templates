@@ -45,7 +45,7 @@ src/app/
   api/<name>/         routes · controller · schema; service only when the module has data
                       (health: the reference for now)
   middleware/         request_id · request_log · security_headers · cors · proxy · body_limit ·
-                      error_handler · not_found · context · asgi
+                      error_handler · not_found · head · context · asgi
   services/           logger.py · utils/ (error · openapi · clock · api_model)
   infra/              dependency.py · loop.py
 tests/                mirrors src/app/ (a package throughout, so two test_x.py cannot clash)
@@ -67,7 +67,8 @@ FastAPI validates, and `middleware/error_handler.py` shapes the failure into the
 
 The middleware are pure ASGI, never `BaseHTTPMiddleware`. `server.py` adds them inner first, so the
 order outer to inner is: security headers, CORS (only when `CORS_ORIGINS` is set), request id,
-proxy (the client IP), request log, body limit, the catch-all. No middleware raises: one that
+proxy (the client IP), request log, body limit, head, the catch-all. `head` runs a HEAD request as
+GET and drops the body, so HEAD is answered wherever GET is. No middleware raises: one that
 refuses a request sends the error envelope itself.
 
 ## Import direction

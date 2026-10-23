@@ -12,6 +12,7 @@ from starlette.types import Scope
 
 _REQUEST_ID_KEY: Final = "request_id"
 _CLIENT_IP_KEY: Final = "client_ip"
+_ORIGINAL_METHOD_KEY: Final = "app.original_method"
 _UNKNOWN: Final = "unknown"
 # Spaces and control characters: nothing a request target may carry, and nothing a log line may.
 _UNPRINTABLE: Final = re.compile(r"[\x00-\x20\x7f]")
@@ -58,3 +59,14 @@ def raw_path_of(scope: Scope) -> str:
         text = raw.decode("ascii", errors="backslashreplace")
         return _UNPRINTABLE.sub(lambda match: f"\\x{ord(match[0]):02x}", text)
     return quote(str(scope.get("path", "")))
+
+
+def set_original_method(scope: Scope, method: str) -> None:
+    """Records the method the client sent when a middleware runs the request as another one."""
+    scope[_ORIGINAL_METHOD_KEY] = method
+
+
+def method_of(scope: Scope) -> str:
+    """The method the client sent (`HEAD` runs as `GET` inside `head.py`)."""
+    original = scope.get(_ORIGINAL_METHOD_KEY)
+    return original if isinstance(original, str) else str(scope["method"])

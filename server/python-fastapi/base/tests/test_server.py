@@ -10,6 +10,7 @@ from app.config.env import load_env
 from app.middleware.body_limit import BodyLimitMiddleware
 from app.middleware.cors import CorsMiddleware
 from app.middleware.error_handler import CatchAllMiddleware
+from app.middleware.head import HeadMiddleware
 from app.middleware.proxy import ProxyMiddleware
 from app.middleware.request_id import RequestIdMiddleware
 from app.middleware.request_log import RequestLogMiddleware
@@ -125,6 +126,7 @@ class TestTheMiddlewareOrder:
             ProxyMiddleware,
             RequestLogMiddleware,
             BodyLimitMiddleware,
+            HeadMiddleware,
             CatchAllMiddleware,
         ]
 
@@ -136,6 +138,7 @@ class TestTheMiddlewareOrder:
             ProxyMiddleware,
             RequestLogMiddleware,
             BodyLimitMiddleware,
+            HeadMiddleware,
             CatchAllMiddleware,
         ]
 

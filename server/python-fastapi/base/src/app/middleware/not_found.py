@@ -1,6 +1,6 @@
 from starlette.types import Scope
 
-from app.middleware.context import raw_path_of
+from app.middleware.context import method_of, raw_path_of
 from app.services.utils.error import AppError
 
 
@@ -11,4 +11,4 @@ def no_route(scope: Scope) -> AppError:
     The path is `raw_path` decoded as ASCII, never the percent-decoded `path`, so `%0A` cannot
     forge a log line.
     """
-    return AppError("not_found", f"no route for {scope['method']} {raw_path_of(scope)}")
+    return AppError("not_found", f"no route for {method_of(scope)} {raw_path_of(scope)}")
