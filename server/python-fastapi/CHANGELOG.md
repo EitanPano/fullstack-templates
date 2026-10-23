@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0 — unreleased
+## 1.0.0 — 2026-10-23
 
 - First version: FastAPI on Python 3.14, managed by uv (uv 0.12, which installs Python 3.14), at
   behavioural parity with `server/bun-express` 2.2.0. Same layer map (`config/`, `api/<module>/`,
@@ -37,6 +37,13 @@
 - `infra/jobs/` and `infra/subscribers/` exist in every variant (empty without `auth`), so the
   import-linter contract that keeps a job or a subscriber to a module's controller applies to a
   first job in a project without accounts.
+- Every middleware is pure ASGI, in the order `security_headers`, `cors`, `request_id`, `proxy`,
+  `request_log`, `body_limit`, `head` and a catch-all, which a test pins. HEAD is answered wherever
+  GET is. An invalid `TRUST_PROXY` fails at startup. The client IP follows proxy-addr's algorithm,
+  with a vector table in the tests.
+- A two-stage Dockerfile on `python:3.14-slim` (uv copied from `ghcr.io/astral-sh/uv:0.12`, a
+  non-root user, `python -m app.main` in exec form) and a `compose.yaml` fragment that publishes
+  the port on loopback only.
 - One event loop class everywhere: `infra/loop.py` gives the selector loop that uvicorn and the
   tests use.
 - `AGENTS.md` carries the agent-facing sections the harness cites: Adding a module, Adding the

@@ -5,8 +5,11 @@
 - Bun 1.4 or newer.
 - Node 24 or newer.
 - git.
-- Docker with Compose: provider-backed tests (`--with-services`) start the provider's
-  service. Every `check` command runs without Docker.
+- uv 0.12 for the Python templates (`server/python-fastapi` declares 0.12.23 as its
+  minimum). uv installs Python 3.14 itself; the generator checks each template's `tools`
+  before it starts.
+- Docker with Compose: provider-backed tests (`--with-services`) and the image smoke
+  (`--with-app`) start containers. Every `check` command runs without Docker.
 
 ## Running the tools
 
@@ -20,16 +23,21 @@ Then, from the repository root:
 
 ```sh
 bun tools/validate.ts [--readme] [--lockfiles]
+bun tools/validate.ts --pin <template>/<kind>/<provider>
 bun tools/generate.ts --stack <id> --out <dir> --name <name> \
   [--flag k=v] [--capability k=v] [--answers <file>] [--template <kind/id>] \
   [--skip-post-generate] [--keep-staging]
-bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] [--with-services] [--keep]
+bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] \
+  [--with-services] [--with-app] [--keep]
 ```
 
-- `validate` checks the catalog (manifests, indexes, schemas, markers, placeholders) and
-  dry-runs every flag combination. `--readme` rewrites the generated matrix in `README.md`.
-  `--lockfiles` also runs `bun install --frozen-lockfile` against each npm template's `base/package.json` and `bun.lock` in a scratch copy, so a manifest edited without refreshing its lock fails.
-  It prints `validate: ok` and exits 0 when everything holds.
+- `validate` checks the catalog (manifests, indexes, schemas, markers, placeholders, the
+  pins of every overlay, the headings a server's `AGENTS.md` must have) and dry-runs every
+  flag combination. `--readme` rewrites the generated matrix in `README.md`. `--lockfiles`
+  also checks each template's lock in a scratch copy, so a manifest edited without
+  refreshing its lock fails: `bun install --frozen-lockfile` for an `npm` template,
+  `uv lock --check` for a `pyproject` one. `--pin` is described under "Keeping an overlay in
+  step with the base". `validate` prints `validate: ok` and exits 0 when everything holds.
 - `generate` builds a project from a stack, or from one template with `--template`.
   `--skip-post-generate` leaves out install, contract and format; `--keep-staging` keeps the
   working directory for inspection.
@@ -38,6 +46,12 @@ bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] 
   `--keep` keeps the output. `--with-services` starts a case's provider services with
   `docker compose up -d --wait`, runs `migrate`, `check`, `testDb` (and e2e), then
   `docker compose down -v`; without it a case with providers runs `check` only.
+  `--with-app` runs the app smoke for a case that sets `withApp: true` in its
+  `tests/cases.yaml` (`stack-postgres`, in both server templates), and skips it otherwise.
+  It exports throwaway production secrets in the child environment only, runs
+  `docker compose --profile app up --build --wait` (which builds the images and runs the
+  migrate service), checks the server's `http.health` and `http.ready` on the host, and always
+  ends with `down -v`. CI passes `--with-services --with-app`.
 
 ## Adding a template
 
@@ -53,6 +67,48 @@ Checklist, under `<kind>/<id>/` (for example `server/bun-express`):
 - [ ] An `index.yaml` entry with the same summary and version as the manifest.
 - [ ] `bun tools/validate.ts --readme`, then `bun tools/validate.ts` green.
 - [ ] Every case green locally: `bun tools/test-generated.ts`.
+
+### A template that is not npm
+
+`server/python-fastapi` is the model. What differs from an npm template:
+
+- **The adapter.** `dependencies: { manifest: pyproject.toml, adapter: pyproject }`. The
+  loader refuses `flags.<f>.dependencies` and a capability's `dependencies` and `scripts` for
+  this adapter, with "use markers in pyproject.toml".
+- **Dependencies are markers.** A dependency or a poe task that belongs to a flag or a provider
+  is a line in `pyproject.toml` that ends in the marker, in TOML's `#` comment syntax:
+
+  ```toml
+  "pyjwt>=2.15",  # @auth
+  "psycopg[binary,pool]>=3.3",  # @database:postgres
+  ```
+
+  The marker pass drops the lines whose name is off, as it does in source files, and the
+  post-generate `install` re-locks the result.
+- **Editing dependencies.** Edit `pyproject.toml` by hand, then run `uv lock` in `base/` and
+  commit both. Do not use `uv add` or `uv remove`: they rewrite the line and can drop a
+  trailing marker.
+- **The superset lock.** `base/uv.lock` is resolved from the whole `pyproject.toml`, where every
+  marked line is present. A generated project that drops a line re-locks, and uv prunes the
+  dropped package and what only it needed without moving any other version.
+- **`dropAfterPostGenerate`.** Paths removed from the staged package after post-generate and
+  before the final move: for Python the `.venv` (a moved one still points at the staging
+  directory) and the tool caches. The first `uv run` in the project creates a new one.
+- **`tools`.** Each entry is `{ name, min }`. Before staging, when post-generate will run, the
+  generator runs `<name> --version` and compares it with `min` (a bare major such as `'24'` is
+  allowed). A missing or old tool fails with its name, the version found and the minimum.
+- **Tree hygiene.** Copying and listing share one ignore set (`tools/lib/files.ts`) that
+  covers `.venv`, `__pycache__` and the tool caches; a `.gitignore` fragment for the language
+  goes in `shared/gitignore/` and is named in the manifest's `gitignore`.
+- **The agents file** must have the headings the harness cites: "Adding a module", "Adding the
+  data layer", "Errors" and "Tests". `validate` fails without them.
+- **Where the gates run.** A raw `base/` that carries capability markers does not pass its own
+  `check`: the marked lines import modules that only an overlay provides, and both variants of a
+  marked line sit in the file until the generator picks one. This holds for `bun-express` and
+  `python-fastapi` alike. The gates run in a generated project:
+  `bun tools/test-generated.ts --case server/python-fastapi/default` generates the case and
+  runs them (add `--with-services` for the database ones; `--list` prints the case ids).
+  `--keep` leaves the project of a passing case and prints its path, to work in it.
 
 A manifest `commands` entry is a program plus whitespace-separated arguments, run without a
 shell: no pipes, redirects, quoting, variables or command substitution (the schema rejects
@@ -84,11 +140,24 @@ An overlay binds one provider to one template, in
 
 - [ ] `capability.yaml`, valid against `schemas/capability.schema.json`: `kind`, `provider`,
       `summary`, and as needed `dependencies`, `scripts` (lines for the package manifest;
-      a name the base already has is refused) and `commands` (`testDb`, `migrate`).
+      a name the base already has is refused), `commands` (`testDb`, `migrate`),
+      `container` and `pins`. In a `pyproject` template the dependencies and tasks are
+      markers in `pyproject.toml` instead, so there is no `dependencies` or `scripts`.
+- [ ] `container.migrate` when the provider needs a schema (a database): the command the
+      image runs once, as a program plus arguments with no shell (for example
+      `python -m app.infra.scripts.migrate`). The generator derives from it a one-shot
+      `<dir>-migrate` service in the root `docker-compose.yml`. It is the package's service with
+      the same `build` and `environment`, that command, no ports, `restart: "no"`, profile
+      `app`, and `depends_on` the provider's service with `service_healthy`. The package's
+      service gains `depends_on: { <dir>-migrate: { condition: service_completed_successfully } }`,
+      so `docker compose --profile app up --build` migrates before the server starts, and
+      the server does not start when the migration fails. Two capabilities with
+      `container.migrate` in one package are an error. The `migrate` command stays for local
+      development.
 - [ ] `overlay/`: the files that replace or join `base/`, at the same relative paths.
 - [ ] The provider is listed in the template's `capabilities.<kind>.providers`.
-- [ ] A change to a base file that an overlay replaces updates the overlay copy in the same
-      pull request (see below).
+- [ ] `pins`: every base file the overlay replaces, pinned (see below); run
+      `bun tools/validate.ts --pin <template>/<kind>/<provider>` to write them.
 - [ ] Shared files carry markers where the two variants differ: `@<kind>` (any provider),
       `@no<kind>` (none) or `@<kind>:<provider>` at the end of a line, or the `-start` and
       `-end` forms around a block. Keep the no-capability variant byte for byte what it was.
@@ -106,26 +175,34 @@ An overlay binds one provider to one template, in
 ### Keeping an overlay in step with the base
 
 An overlay file replaces the base file at the same path, so a fix to the base file does not
-reach a project generated with the capability unless the overlay copy gets it too. A pull
-request that changes a base file an overlay replaces updates that overlay copy in the same
-pull request. For `server/bun-express` with `database/postgres` the shadowed files are:
+reach a project generated with the capability unless the overlay copy gets it too. The
+capability manifest therefore pins every base file its overlay shadows:
 
-- `src/api/module/service.ts`
-- `src/api/user/service.ts`
-- `src/services/db.ts`
-- `src/services/session.ts`
-- `tests/store.ts`
-- `tests/services/session.test.ts`
-
-List them for any overlay as the paths present in both `base/` and `overlay/`:
-
-```sh
-cd server/bun-express
-comm -12 <(cd base && find . -type f -not -path './node_modules/*' | sort)   <(cd capabilities/database/postgres/overlay && find . -type f | sort)
+```yaml
+pins:
+  src/app/services/db.py: 08c5a463d54c1f1150b0ebb0b998e9db025a6208
 ```
 
-Pinning the base file's hash in the capability manifest, so `validate` flags a drift, is a
-follow-up.
+A pin is git's blob id of the base file with CRLF read as LF, so Windows and Linux checkouts
+agree. A file is shadowed when its path is in both `base/` and `overlay/`, unless the capability
+lists it under a flag's `onlyPaths` (then it only adds to the package). `validate` fails when:
+
+- a shadowed file has no pin;
+- a pin names a file the overlay does not shadow;
+- a pinned file's base has changed since the pin was written.
+
+When a pull request changes a shadowed base file, reconcile the overlay copy by hand, then run:
+
+```sh
+bun tools/validate.ts --pin server/python-fastapi/database/postgres
+```
+
+`--pin` rewrites only the `pins` map of that `capability.yaml`. For each file whose pin moved
+it prints `git diff <old pin> <new pin>`, the base change since the overlay was last reconciled,
+so you can check the overlay copy has it. It writes the new blob into git's object database so
+the diff works before you commit, validates nothing else, and cannot be combined with
+`--readme` or `--lockfiles`. The pin only says the base moved: it never merges, so re-pinning
+without reading the diff defeats it. Pins are checked by `validate`, not at generation.
 
 ### Markers and placeholders
 
@@ -176,9 +253,23 @@ When Next is bumped:
 
 ## Lockfile policy
 
-Every `base/` commits its lockfile, frozen in CI (`validate --lockfiles`). `install` is plain `bun install`, so a flag that drops
-packages prunes the lock in the generated project. A dependency bot to refresh the
-lockfiles is still to be configured.
+Every `base/` commits its lockfile, checked in CI by `validate --lockfiles`: a frozen
+`bun install` for an `npm` template, `uv lock --check` for a `pyproject` one. `install` is plain
+(`bun install`, `uv sync`), so a flag that drops packages prunes the lock in the generated
+project.
+
+A `uv.lock` is written by one uv minor, so the versions are tied:
+
+- CI installs uv 0.12.23 exactly (`astral-sh/setup-uv`, pinned by commit), because the lock
+  is checked by the uv that wrote it;
+- `pyproject.toml` declares `required-version = ">=0.12.23,<0.13"`, so a project generated from
+  the template refuses a uv outside that minor;
+- the generated Dockerfile copies uv from `ghcr.io/astral-sh/uv:0.12`.
+
+Moving to uv 0.13 is a template minor: change those three places and the `tools` minimum,
+run `uv lock`, and commit. To refresh a lock, run `uv lock` in `base/` (add
+`--upgrade` to move versions) and commit it with `pyproject.toml`. A dependency bot to refresh
+the lockfiles is still to be configured.
 
 ## Commits and versioning
 
