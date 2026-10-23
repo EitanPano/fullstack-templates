@@ -4,6 +4,7 @@ import {
   ComposeError,
   addProvider,
   assembleCompose,
+  deriveMigrate,
   wireConsumer,
   type ProviderEnvWiring,
 } from '../lib/compose'
@@ -132,5 +133,48 @@ describe('addProvider', () => {
   })
   test('refuses a provider document that lacks its declared service', () => {
     expect(() => addProvider(skeleton, 'cache', providerText, () => undefined)).toThrow(/cache/)
+  })
+})
+
+describe('deriveMigrate', () => {
+  const consumer = wireConsumer(
+    'backend',
+    'build: ./backend\n# keep\nenvironment:\n  PORT: "4000"\nports: ["127.0.0.1:4000:4000"]\nprofiles: [app]\ndepends_on:\n  cache:\n    condition: service_started\n',
+    [wiring],
+  )
+  const command = 'bun run src/infra/scripts/migrate.ts'
+
+  test('derives a one-shot service with the same build and wired environment', () => {
+    const { migrate } = deriveMigrate('backend', consumer, command, 'database')
+    expect(parse(migrate)).toEqual({
+      build: './backend',
+      environment: {
+        PORT: '4000',
+        DATABASE_URL: '${DATABASE_URL}',
+        POOL_SIZE: '${POOL_SIZE:-5}',
+      },
+      command,
+      restart: 'no',
+      profiles: ['app'],
+      depends_on: { database: { condition: 'service_healthy' } },
+    })
+    expect(migrate).toContain('restart: "no"')
+  })
+
+  test('makes the package wait for the completed migration and keeps its other conditions', () => {
+    const out = deriveMigrate('backend', consumer, command, 'database')
+    expect(parse(out.consumer).depends_on).toEqual({
+      cache: { condition: 'service_started' },
+      database: { condition: 'service_healthy' },
+      'backend-migrate': { condition: 'service_completed_successfully' },
+    })
+    expect(out.consumer).toContain('# keep')
+    expect(parse(out.consumer).ports).toEqual(['127.0.0.1:4000:4000'])
+  })
+
+  test('refuses a list-form depends_on', () => {
+    expect(() => deriveMigrate('backend', 'build: .\ndepends_on: [cache]\n', command, 'd')).toThrow(
+      ComposeError,
+    )
   })
 })

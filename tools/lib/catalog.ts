@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import {
   checkCapabilityCases,
@@ -52,6 +52,8 @@ export interface DependencyChange {
   add?: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> }
 }
 
+export type DependencyAdapter = 'npm' | 'pyproject'
+
 export interface FlagSpec {
   summary: string
   default: boolean
@@ -96,6 +98,10 @@ export interface CapabilityManifest {
   scripts?: Record<string, string>
   flags?: Record<string, { onlyPaths: string[] }>
   commands?: Partial<Record<CommandName, string>>
+  // What the generated container runs; read by later tasks, only its shape is checked here.
+  container?: { migrate: string }
+  // Base file the overlay replaces (relative to base/) to the blob id it was reconciled against.
+  pins?: Record<string, string>
 }
 
 export interface TemplateManifest {
@@ -106,17 +112,19 @@ export interface TemplateManifest {
   version: string
   summary: string
   runtime: { language: string; platform: string; minVersion?: string }
-  tools: Array<{ name: string; min?: string }>
+  // `min` is inclusive, `max` exclusive: the first version the tool is NOT supported at.
+  tools: Array<{ name: string; min?: string; max?: string }>
   placeholders: string[]
   commands: Partial<Record<CommandName, string>> & { check: string }
   agents: string
   flags?: Record<string, FlagSpec>
   capabilities?: Partial<Record<CapabilityKind, CapabilitySpec>>
-  dependencies?: { manifest: string; adapter: 'npm' }
+  dependencies?: { manifest: string; adapter: DependencyAdapter }
   contract?: { produces: string } | { consumes: string }
   http?: { port: number; health: string; ready?: string }
   gitignore?: string[]
   postGenerate?: CommandName[]
+  dropAfterPostGenerate?: string[]
   defaultStack?: string
 }
 
@@ -146,6 +154,8 @@ export interface CasesFile {
     stack?: string
     flags?: Record<string, boolean>
     capabilities?: Record<string, string>
+    // The case also runs the Compose smoke under test-generated --with-app.
+    withApp?: boolean
   }>
 }
 
@@ -197,6 +207,37 @@ export class CatalogError extends Error {
 
 const EMPTY_CASES: CasesFile = { schemaVersion: 1, cases: [] }
 
+// The harness's own rules cite these sections of a server package's agents file.
+export const SERVER_AGENTS_HEADINGS = [
+  'Adding a module',
+  'Adding the data layer',
+  'Errors',
+  'Tests',
+] as const
+
+// A fenced block may hold a shell comment that looks like a heading; only a fence of the same
+// character, at least as long, closes it (CommonMark).
+function missingHeadings(agentsFile: string): string[] {
+  const found = new Set<string>()
+  let fence: { char: string; length: number } | null = null
+  for (const line of readFileSync(agentsFile, 'utf8').split(/\r?\n/)) {
+    const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line)?.[1]
+    if (fence === null) {
+      if (marker !== undefined) {
+        fence = { char: marker.charAt(0), length: marker.length }
+        continue
+      }
+    } else {
+      if (marker?.charAt(0) === fence.char && marker.length >= fence.length) fence = null
+      continue
+    }
+    // An ATX heading may close with hashes, as in "## Errors ##".
+    const match = /^#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/.exec(line)
+    if (match?.[1] !== undefined) found.add(match[1])
+  }
+  return SERVER_AGENTS_HEADINGS.filter((heading) => !found.has(heading))
+}
+
 function checkTemplateFiles(
   templatePath: string,
   dir: string,
@@ -211,7 +252,31 @@ function checkTemplateFiles(
   if (!existsSync(path.join(base, manifest.agents))) {
     problems.push(`${templatePath}: agents file base/${manifest.agents} is missing`)
   }
+  const agentsFile = path.join(base, manifest.agents)
+  if (manifest.kind === 'server' && existsSync(agentsFile)) {
+    const missing = missingHeadings(agentsFile)
+    if (missing.length > 0) {
+      const names = missing.map((heading) => `"${heading}"`).join(', ')
+      problems.push(
+        `${templatePath}: agents file base/${manifest.agents} lacks the headings ${names}`,
+      )
+    }
+  }
+  // A "." segment names the package itself or a path that a drop would resolve oddly; refusing it
+  // here names the template before any generation runs.
+  for (const entry of manifest.dropAfterPostGenerate ?? []) {
+    if (entry.split('/').includes('.')) {
+      problems.push(
+        `${templatePath}/template.yaml: dropAfterPostGenerate entry "${entry}" must not have a "." segment`,
+      )
+    }
+  }
   for (const [name, flag] of Object.entries(manifest.flags ?? {})) {
+    if (manifest.dependencies?.adapter === 'pyproject' && flag.dependencies !== undefined) {
+      problems.push(
+        `${templatePath}: flag "${name}" dependencies are not allowed with the pyproject adapter: use markers in pyproject.toml`,
+      )
+    }
     for (const only of flag.onlyPaths ?? []) {
       if (!existsSync(path.join(base, only))) {
         problems.push(`${templatePath}: flag "${name}" onlyPath "${only}" does not exist in base/`)

@@ -5,9 +5,18 @@ summary: Postgres through Bun's built-in SQL client, SQL migrations and a separa
 scripts:
   db:migrate: bun run src/infra/scripts/migrate.ts
   test:db: bun test --preload ./tests/db/setup.ts
+container:
+  migrate: bun run src/infra/scripts/migrate.ts
 commands:
   testDb: bun run test:db
   migrate: bun run db:migrate
 flags:
   auth:
     onlyPaths: [tests/db/user.test.ts]
+pins:
+  src/api/module/service.ts: a1430bdf16fe398f7cf3039969a6aa2ebef6ea29
+  src/api/user/service.ts: eef9db383831644ce6daaca31a18b34829c833c8
+  src/services/db.ts: d0cfb233b926d5658a8e49574b52793699eed9ac
+  src/services/session.ts: 9de729a225440026ca51a0867e83506e9b89375d
+  tests/services/session.test.ts: 5de43e9fca8faa59af62aa21acdb429011053ceb
+  tests/store.ts: 61a48b7bf7d36c6baad539d7404ffe44acc59897

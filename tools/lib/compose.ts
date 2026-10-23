@@ -1,4 +1,4 @@
-import { isMap, parseDocument, type Document } from 'yaml'
+import { Document, Scalar, YAMLMap, isMap, isNode, parseDocument } from 'yaml'
 
 export class ComposeError extends Error {}
 
@@ -80,6 +80,48 @@ export function wireConsumer(
     doc.setIn(['depends_on', provider], { condition: 'service_healthy' })
   }
   return doc.toString()
+}
+
+export function migrateServiceName(service: string): string {
+  return `${service}-migrate`
+}
+
+// A one-shot copy of the package service: same image build and the same wired environment, run
+// with the migrate command once the provider is healthy. The package then waits for it to finish,
+// so the server never starts against a schema that is behind. It publishes no port and has no
+// restart policy, because a migration that fails must stay failed.
+export function deriveMigrate(
+  service: string,
+  text: string,
+  command: string,
+  providerService: string,
+): { consumer: string; migrate: string } {
+  const doc = parseChecked(text, `Compose fragment for service "${service}"`)
+  if (!isMap(doc.contents)) {
+    throw new ComposeError(`Compose fragment for service "${service}" is not a YAML mapping`)
+  }
+  const dependsOn = doc.get('depends_on')
+  if (dependsOn !== undefined && dependsOn !== null && !isMap(dependsOn)) {
+    throw new ComposeError(
+      `Compose fragment for service "${service}": depends_on must be a mapping, not a list`,
+    )
+  }
+  const derived = new Document(new YAMLMap())
+  for (const key of ['build', 'environment']) {
+    const node = doc.get(key, true)
+    if (isNode(node)) derived.set(key, node.clone())
+  }
+  derived.set('command', command)
+  // Quoted, because an unquoted no is a boolean to a YAML 1.1 reader.
+  const restart = new Scalar('no')
+  restart.type = Scalar.QUOTE_DOUBLE
+  derived.set('restart', restart)
+  derived.set('profiles', ['app'])
+  derived.set('depends_on', { [providerService]: { condition: 'service_healthy' } })
+  doc.setIn(['depends_on', migrateServiceName(service)], {
+    condition: 'service_completed_successfully',
+  })
+  return { consumer: doc.toString(), migrate: derived.toString() }
 }
 
 const PROVIDER_KEYS = new Set(['services', 'volumes'])

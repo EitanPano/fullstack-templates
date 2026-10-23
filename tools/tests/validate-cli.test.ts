@@ -65,4 +65,22 @@ describe('validate CLI', () => {
     expect(result.status).toBe(1)
     expect(result.stdout).toContain('validate: frontend/mini-ui: bun.lock is missing')
   })
+  test('--pin <target> pins without printing validate: ok', () => {
+    const result = run(copyFixture('catalog'), '--pin', 'server/mini/database/fake')
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('pinned')
+    expect(result.stdout).not.toContain('validate: ok')
+  })
+  test('the --pin=<target> spelling is not an option of the parser and is refused', () => {
+    const result = run(copyFixture('catalog'), '--pin=server/mini/database/fake')
+    expect(result.status).toBe(2)
+    expect(result.stdout).not.toContain('validate: ok')
+  })
+  test('--pin refuses --readme and --lockfiles', () => {
+    for (const flag of ['--readme', '--lockfiles']) {
+      const result = run(copyFixture('catalog'), '--pin', 'server/mini/database/fake', flag)
+      expect(result.status).toBe(2)
+      expect(result.stdout).toContain(`--pin cannot be combined with ${flag}`)
+    }
+  })
 })

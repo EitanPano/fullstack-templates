@@ -32,6 +32,17 @@ describe('validateAgainst', () => {
   test('accepts a complete template manifest', () => {
     expect(validateAgainst('template', template)).toEqual([])
   })
+  test('accepts an exclusive max and rejects shapes cmd.exe would interpret', () => {
+    const withTools = (tools: unknown[]) => ({ ...template, tools })
+    expect(
+      validateAgainst('template', withTools([{ name: 'uv', min: '0.12.23', max: '0.14' }])),
+    ).toEqual([])
+    expect(validateAgainst('template', withTools([{ name: 'uv & calc' }]))).not.toEqual([])
+    expect(validateAgainst('template', withTools([{ name: '-x' }]))).not.toEqual([])
+    expect(validateAgainst('template', withTools([{ name: 'uv', min: '1.x' }]))).not.toEqual([])
+    expect(validateAgainst('template', withTools([{ name: 'uv', max: '1;2' }]))).not.toEqual([])
+    expect(validateAgainst('template', withTools([{ name: 'uv', min: '1.2.3.4' }]))).not.toEqual([])
+  })
   test('requires commands.check', () => {
     expect(
       validateAgainst('template', { ...template, commands: { install: 'bun install' } }),

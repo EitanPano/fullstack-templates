@@ -11,3 +11,6 @@ commands:
 flags:
   auth:
     onlyPaths: [src/auth-database.ts]
+pins:
+  src/auth.ts: 3acb48b801b18019544405146bdf156c4811ab75
+  src/index.ts: b2ae34a0ae093e17805138c03594c8187968a420

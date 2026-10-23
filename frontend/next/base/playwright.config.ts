@@ -16,7 +16,7 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: [
     {
-      command: 'bun run dev',
+      command: '__SERVER_DEV_COMMAND__',
       cwd: '../__SERVER_DIR__',
       url: 'http://localhost:__SERVER_PORT__/api/health',
       reuseExistingServer: true,

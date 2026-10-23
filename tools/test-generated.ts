@@ -8,13 +8,13 @@ import { removeTree } from './lib/files'
 import { runCase } from './lib/run-case'
 
 const USAGE =
-  'usage: bun tools/test-generated.ts [--catalog <root>] [--list] [--case <id>]... [--e2e [--install-browsers]] [--keep] [--with-services]'
+  'usage: bun tools/test-generated.ts [--catalog <root>] [--list] [--case <id>]... [--e2e [--install-browsers]] [--keep] [--with-services] [--with-app]'
 
-function run(argv: string[]): number {
+async function run(argv: string[]): Promise<number> {
   const args = parseArgs(argv, {
     values: ['catalog'],
     repeatable: ['case'],
-    booleans: ['list', 'e2e', 'keep', 'install-browsers', 'with-services'],
+    booleans: ['list', 'e2e', 'keep', 'install-browsers', 'with-services', 'with-app'],
   })
   const catalog = loadCatalog(
     args.values.catalog ? path.resolve(args.values.catalog) : CATALOG_ROOT,
@@ -35,6 +35,7 @@ function run(argv: string[]): number {
     installBrowsers: args.booleans['install-browsers'] as boolean,
     keep: args.booleans.keep as boolean,
     withServices: args.booleans['with-services'] as boolean,
+    withApp: args.booleans['with-app'] as boolean,
   }
 
   let failed = 0
@@ -42,7 +43,7 @@ function run(argv: string[]): number {
     const out = mkdtempSync(path.join(os.tmpdir(), 'fullstack-case-'))
     let ok = true
     try {
-      runCase(catalog, c, out, options)
+      await runCase(catalog, c, out, options)
     } catch (error) {
       ok = false
       console.log(error instanceof Error ? error.message : String(error))
@@ -60,9 +61,9 @@ function run(argv: string[]): number {
   return failed > 0 ? 1 : 0
 }
 
-function main(): void {
+async function main(): Promise<void> {
   try {
-    process.exit(run(process.argv.slice(2)))
+    process.exit(await run(process.argv.slice(2)))
   } catch (error) {
     if (error instanceof CliError) {
       process.stderr.write(`${USAGE}\n`)
@@ -73,4 +74,4 @@ function main(): void {
   }
 }
 
-main()
+void main()

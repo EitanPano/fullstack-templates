@@ -9,6 +9,7 @@ import {
   type LoadedTemplate,
 } from './catalog'
 import { isKind } from './capability-kinds'
+import { migrateServiceName } from './compose'
 import { toProjectName } from './placeholders'
 
 export interface Answers {
@@ -45,6 +46,8 @@ export interface PackagePlan {
   selections: Record<string, boolean>
   serverDir: string | null
   serverPort: number | null
+  // The server package's dev command, null when the plan has no server (or it declares none).
+  serverDevCommand: string | null
   contractSkipped: boolean
 }
 
@@ -287,9 +290,14 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
       selections: selectionsFor(member.template, flags, server !== undefined, capabilities),
       serverDir: server?.dir ?? null,
       serverPort: server?.template.manifest.http?.port ?? null,
+      serverDevCommand: null,
       contractSkipped: consumer && server === undefined,
     }
   })
+
+  // The server's commands include its capabilities', so they are known only once every package is.
+  const serverDevCommand = packages.find((pkg) => pkg.dir === server?.dir)?.commands.dev ?? null
+  for (const pkg of packages) pkg.serverDevCommand = serverDevCommand
 
   const providers = providersFor(catalog, packages)
   // The provider's service and a package would be one Compose service: the provider would be
@@ -299,6 +307,25 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
     if (clash !== undefined) {
       throw new PlanError(
         `package dir "${clash.dir}" is the Compose service name of provider ${provider.kind}/${provider.id}; choose another dir`,
+      )
+    }
+  }
+
+  // The derived one-shot service is a Compose service of its own; a package or a provider with
+  // the same name would be replaced by it.
+  for (const pkg of packages) {
+    if (!pkg.overlays.some((overlay) => overlay.manifest.container !== undefined)) continue
+    const derived = migrateServiceName(pkg.dir)
+    const packageClash = packages.find((other) => other.dir === derived)
+    if (packageClash !== undefined) {
+      throw new PlanError(
+        `package dir "${derived}" is the Compose service name derived for the migration of "${pkg.dir}"; choose another dir`,
+      )
+    }
+    const providerClash = providers.find((provider) => provider.manifest.service === derived)
+    if (providerClash !== undefined) {
+      throw new PlanError(
+        `derived migrate service "${derived}" is the Compose service name of provider ${providerClash.kind}/${providerClash.id}`,
       )
     }
   }

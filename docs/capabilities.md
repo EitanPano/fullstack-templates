@@ -5,7 +5,8 @@ a cache, a message broker. A **provider** is one implementation, described once 
 language. A **capability overlay** is how one template binds one provider. This is
 section D3 of [ADR 0001](adr/0001-catalog-architecture.md), expanded.
 
-Status: `database/postgres` for `bun-express` shipped in v1.0.0, and the generator selects
+Status: `database/postgres` for `bun-express` shipped in v1.0.0 and for `python-fastapi` in
+v1.1.0, which also added the migrate service and the pins below. The generator selects
 capabilities: `--capability database=postgres` or an answers file. No other provider is
 shipped yet; a template lists the providers it has an overlay for.
 
@@ -24,9 +25,9 @@ compose: compose.yaml               # a partial Compose document: services and v
 env:
   - name: DATABASE_URL
     summary: Postgres connection URL. Required in production; outside production it defaults to the local service.
-    local: postgres://app:app@localhost:5432/app      # outside production
+    local: postgres://app:app@127.0.0.1:5432/app      # outside production
     compose: postgres://app:app@database:5432/app     # inside the compose network
-    test: postgres://app:app@localhost:5432/app_test
+    test: postgres://app:app@127.0.0.1:5432/app_test
     testOverride: TEST_DATABASE_URL                   # optional: the variable that overrides `test`
     secret: true                                      # optional: wired in Compose with no default
 files: [db/init.sql]                # copied to the project root; creates app_test
@@ -53,15 +54,31 @@ scripts:                                                          # lines for th
   db:migrate: bun run src/infra/scripts/migrate.ts
   test:db: bun test --preload ./tests/db/setup.ts
 commands: { testDb: bun run test:db, migrate: bun run db:migrate }   # merged into the template's
+container: { migrate: bun run src/infra/scripts/migrate.ts }      # optional: what the image runs once
 flags:                                                            # optional: overlay files that exist
   auth: { onlyPaths: [tests/db/user.test.ts] }                    # only while the template flag is on
+pins:                                                             # every base file the overlay shadows
+  src/services/db.ts: d0cfb233b926d5658a8e49574b52793699eed9ac
 ```
 
 `scripts` go into the package manifest through the template's dependency adapter (`npm` for
 `bun-express`), appended after the existing scripts. A script name the base already has is
-an error at load time, so an overlay never silently replaces one. `commands` are the
-vocabulary the agents and `test-generated` use; the generated project's
-`.fullstack/catalog.yaml` records them.
+an error at load time, so an overlay never silently replaces one. A `pyproject` template
+(`python-fastapi`) has neither `dependencies` nor `scripts` in a capability manifest, and the
+loader refuses them: its dependencies and poe tasks are `# @database:postgres` markers in
+`pyproject.toml`. `commands` are the vocabulary the agents and `test-generated` use; the
+generated project's `.fullstack/catalog.yaml` records them.
+
+- **`container`** holds `migrate`, the command the generated image runs once to apply the
+  capability's schema. It exists only for the derived migrate service (see Root assembly); the
+  manual `commands.migrate` stays for local development. Python: `python -m
+  app.infra.scripts.migrate`; `bun-express`: `bun run src/infra/scripts/migrate.ts`.
+- **`pins`** maps each base file the overlay replaces (a path in both `base/` and `overlay/`,
+  not one of the capability's flag-only paths) to git's blob id of that base file, with CRLF read
+  as LF. `validate` fails on a shadowed file without a pin, a pin for a file that is not
+  shadowed, and a pin that no longer matches the base: the base changed after the overlay was
+  last reconciled. `bun tools/validate.ts --pin <template>/<kind>/<provider>` rewrites the pins
+  and prints the base diff since each old pin. CONTRIBUTING has the workflow.
 
 ## Selection pipeline
 
@@ -107,6 +124,16 @@ The generator completes the project root from the provider, once per project:
   `NAME=<local value>`.
 - The provider's service and volumes are added to the root `docker-compose.yml`. On a rerun
   the service the file already has is kept and the generator says so.
+- A capability with `container.migrate` adds a one-shot service next to the package's, named
+  `<dir>-migrate` (`backend-migrate`). It is derived from the assembled package service:
+  the same `build` and the same `environment` (the package's env module reads every production
+  secret at import), `command` set to the migrate command, no ports, `restart: "no"`, and
+  profile `app`. It `depends_on` the provider's service with `condition: service_healthy`, and the
+  package service `depends_on` it with `condition: service_completed_successfully`: the
+  server starts only after a migration that succeeded, and `docker compose --profile app up
+  --build --wait` exits 1 when it fails. On a rerun that finds the package service kept, nothing
+  is derived and the generator says the migrate service was not added, because the kept
+  service would not wait for it. The clash check knows the derived name.
 - The provider's `files` are copied to the project root when absent (create-only; an
   existing file is kept and logged).
 - `.fullstack/catalog.yaml` records `providers` (`database: postgres`) and the package's
@@ -118,9 +145,9 @@ applies later. Both paths are kept valid on purpose.
 ## Cases
 
 Every template's `tests/cases.yaml` covers each flag alone, each capability alone, and each
-capability with every flag off. For `bun-express` that is `default`, `auth-off`, `postgres`
-and `auth-off-postgres`, plus the stack cases. `validate` fails a listed provider that lacks the case alone at the default
-flags or the case with every flag off. The README matrix lists only tested combinations.
+capability with every flag off. For `bun-express` and `python-fastapi` that is `default`,
+`auth-off`, `postgres` and `auth-off-postgres`, plus the stack cases. `validate` fails a listed
+provider that lacks the case alone at the default flags or the case with every flag off. The README matrix lists only tested combinations.
 
 `bun tools/test-generated.ts --with-services` runs the provider-backed steps. For a case with
 providers it starts their services (`docker compose up -d --wait`), then runs per package
@@ -128,11 +155,20 @@ providers it starts their services (`docker compose up -d --wait`), then runs pe
 `docker compose down -v`. Without the flag a case with providers runs `check` and prints
 that `migrate` and `testDb` were skipped. CI passes the flag.
 
+A case may set `withApp: true` (`stack-postgres`, in both server templates). `--with-app` then
+runs the app smoke after the gates: it builds the generated project's images, starts the whole
+stack with `docker compose --profile app up --build --wait` under throwaway production secrets
+(set in the child environment, never written to disk), asks the server's `http.health` and
+`http.ready` on the host, and tears the stack down. Without `--with-app` the case prints that the
+smoke was skipped. CI passes it, which is where the images are built.
+
 ## Database
 
 For a server: a `Resource` connected at boot, pinged by readiness and closed on shutdown;
 one data-access file per module; a separate test database; migrations or indexes shipped with the
-change that needs them. For a worker: the same client, no HTTP. These are the harness's
+change that needs them. Migrations are applied by the derived one-shot migrate service on
+`docker compose --profile app up`, before the server starts, and by the package's `migrate`
+command in development; the server never migrates on boot. For a worker: the same client, no HTTP. These are the harness's
 `database` skill rules, made language-neutral; the language specifics live in the overlay
 and the template's `AGENTS.md`.
 

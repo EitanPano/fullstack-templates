@@ -22,7 +22,11 @@ function problems(root: string): string {
 describe('loadCatalog', () => {
   test('loads templates and stacks keyed by path and id', () => {
     const catalog = loadCatalog(FIXTURE)
-    expect([...catalog.templates.keys()].sort()).toEqual(['frontend/mini-ui', 'server/mini'])
+    expect([...catalog.templates.keys()].sort()).toEqual([
+      'frontend/mini-ui',
+      'server/mini',
+      'server/mini-py',
+    ])
     expect(catalog.templates.get('server/mini')?.manifest.flags?.auth?.default).toBe(true)
     expect(catalog.stacks.get('mini')?.manifest.packages.map((p) => p.dir)).toEqual([
       'backend',
@@ -330,6 +334,17 @@ describe('loadCatalog providers and capabilities', () => {
     )
   })
 
+  test('reports a capability flag onlyPath that also exists in base/', () => {
+    // Such a path escapes the pins and, with the flag off, would delete the base file too.
+    const root = copyFixture('catalog')
+    edit(root, `${overlayDir}/capability.yaml`, (t) =>
+      t.replace('onlyPaths: [src/auth-database.ts]', 'onlyPaths: [src/auth.ts]'),
+    )
+    expect(problems(root)).toContain(
+      `${overlayDir}/capability.yaml: flag "auth" onlyPath "src/auth.ts" exists in base/: an onlyPath must be a file the overlay adds`,
+    )
+  })
+
   test('reports a listed provider without a capability directory', () => {
     const root = copyFixture('catalog')
     rmSync(path.join(root, overlayDir), { recursive: true })
@@ -450,5 +465,173 @@ describe('loadCatalog providers and capabilities', () => {
     expect(problems(root)).toContain(
       'server/mini: no case selects database=fake with every flag false',
     )
+  })
+})
+
+describe('loadCatalog with the pyproject adapter', () => {
+  const py = 'server/mini-py'
+  const overlayDir = `${py}/capabilities/database/fake`
+
+  // mini-py plus a database=fake overlay whose manifest carries `extra` (YAML text).
+  function withOverlay(extra: string): string {
+    const root = copyFixture('catalog')
+    edit(
+      root,
+      `${py}/template.yaml`,
+      (t) => `${t}capabilities:\n  database:\n    providers: [fake]\n`,
+    )
+    edit(
+      root,
+      `${py}/tests/cases.yaml`,
+      (t) =>
+        `${t}  - name: fake\n    capabilities:\n      database: fake\n  - name: auth-off-fake\n    flags:\n      auth: false\n    capabilities:\n      database: fake\n`,
+    )
+    mkdirSync(path.join(root, overlayDir, 'overlay', 'src'), { recursive: true })
+    writeFileSync(path.join(root, overlayDir, 'overlay', 'src', 'db.py'), 'x = 1\n')
+    writeFileSync(
+      path.join(root, overlayDir, 'capability.yaml'),
+      `schemaVersion: 1\nkind: database\nprovider: fake\nsummary: Fake\n${extra}`,
+    )
+    return root
+  }
+
+  test('loads a clean pyproject template and overlay', () => {
+    expect(() => loadCatalog(withOverlay(''))).not.toThrow()
+  })
+
+  test('refuses a flag with dependencies, pointing at markers', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${py}/template.yaml`, (t) =>
+      t.replace(
+        '    default: true\n',
+        '    default: true\n    dependencies:\n      remove: [idna]\n',
+      ),
+    )
+    const message = problems(root)
+    expect(message).toContain(`${py}: flag "auth"`)
+    expect(message).toContain('use markers in pyproject.toml')
+  })
+
+  test('refuses a capability with dependencies', () => {
+    const message = problems(withOverlay('dependencies:\n  remove: [idna]\n'))
+    expect(message).toContain(`${overlayDir}/capability.yaml: dependencies`)
+    expect(message).toContain('use markers in pyproject.toml')
+  })
+
+  test('refuses a capability with scripts', () => {
+    const message = problems(withOverlay('scripts:\n  migrate: echo hi\n'))
+    expect(message).toContain(`${overlayDir}/capability.yaml: scripts`)
+    expect(message).toContain('use markers in pyproject.toml')
+  })
+
+  test('does not read pyproject.toml as JSON for a capability with no scripts', () => {
+    const root = withOverlay('commands:\n  migrate: uv run migrate\n')
+    expect(() => loadCatalog(root)).not.toThrow()
+  })
+
+  test.each(['..', '../x', '/abs', 'a/../b', 'C:/x', 'a\\b', '.', 'a/./b', './a', 'a/.'])(
+    'refuses dropAfterPostGenerate entry %s, naming the template',
+    (entry) => {
+      const root = copyFixture('catalog')
+      edit(root, `${py}/template.yaml`, (t) => `${t}dropAfterPostGenerate: ['${entry}']\n`)
+      const message = problems(root)
+      expect(message).toContain(`${py}/template.yaml`)
+      expect(message).toContain('dropAfterPostGenerate')
+    },
+  )
+
+  test('loads dropAfterPostGenerate relative paths', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${py}/template.yaml`, (t) => `${t}dropAfterPostGenerate: [.venv, a/b]\n`)
+    const loaded = loadCatalog(root).templates.get(py)
+    expect(loaded?.manifest.dropAfterPostGenerate).toEqual(['.venv', 'a/b'])
+  })
+
+  test('loads container and pins', () => {
+    const blob = 'a'.repeat(40)
+    const root = withOverlay(
+      `container:\n  migrate: python -m app.migrate\npins:\n  src/db.py: ${blob}\n`,
+    )
+    const overlay = loadCatalog(root).templates.get(py)?.overlays.get('database/fake')
+    expect(overlay?.manifest.container).toEqual({ migrate: 'python -m app.migrate' })
+    expect(overlay?.manifest.pins).toEqual({ 'src/db.py': blob })
+  })
+
+  test.each([
+    ['a container without migrate', 'container: {}\n'],
+    ['a container with a shell pipe', "container:\n  migrate: 'a | b'\n"],
+    ['a container with an extra key', 'container:\n  migrate: a\n  other: b\n'],
+    ['a pin that is not 40 hex', 'pins:\n  src/db.py: abc123\n'],
+    ['an uppercase pin', `pins:\n  src/db.py: ${'A'.repeat(40)}\n`],
+    ['a pin path with ..', `pins:\n  ../db.py: ${'a'.repeat(40)}\n`],
+    ['an absolute pin path', `pins:\n  /db.py: ${'a'.repeat(40)}\n`],
+  ])('refuses %s', (_name, extra) => {
+    expect(problems(withOverlay(extra))).toContain(`${overlayDir}/capability.yaml`)
+  })
+})
+
+describe('loadCatalog: server agents headings', () => {
+  const mini = 'server/mini'
+
+  test('refuses a server template whose agents file lacks a heading, naming both', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${mini}/base/AGENTS.md`, (t) => t.replace('## Errors\n', ''))
+    const message = problems(root)
+    expect(message).toContain(mini)
+    expect(message).toContain('"Errors"')
+    expect(message).not.toContain('"Tests"')
+  })
+
+  test('lists every missing heading', () => {
+    const root = copyFixture('catalog')
+    writeFileSync(path.join(root, `${mini}/base/AGENTS.md`), '# Mini\n\n### Tests\n')
+    const message = problems(root)
+    expect(message).toContain('"Adding a module", "Adding the data layer", "Errors"')
+  })
+
+  test('matches the exact text of a heading line, not a mention or a longer title', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${mini}/base/AGENTS.md`, (t) =>
+      t.replace('## Errors\n', 'See Errors below.\n## Errors and retries\n'),
+    )
+    expect(problems(root)).toContain('"Errors"')
+  })
+
+  test('ignores a heading inside a fenced block, backticks or tildes', () => {
+    for (const fence of ['```', '~~~']) {
+      const root = copyFixture('catalog')
+      edit(root, `${mini}/base/AGENTS.md`, (t) =>
+        t.replace('## Tests\n', `${fence}sh\n# Tests\n${fence}\n`),
+      )
+      expect(problems(root)).toContain('"Tests"')
+    }
+  })
+
+  test('a longer fence is not closed by a shorter one', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${mini}/base/AGENTS.md`, (t) =>
+      t.replace('## Tests\n', '````md\n```\n## Tests\n````\n'),
+    )
+    expect(problems(root)).toContain('"Tests"')
+  })
+
+  test('counts a heading after the fence closes', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${mini}/base/AGENTS.md`, (t) =>
+      t.replace('## Tests\n', '```sh\n# x\n```\n## Tests\n'),
+    )
+    expect(() => loadCatalog(root)).not.toThrow()
+  })
+
+  test('accepts a heading with closing hashes', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${mini}/base/AGENTS.md`, (t) => t.replace('## Errors\n', '## Errors ##\n'))
+    expect(() => loadCatalog(root)).not.toThrow()
+  })
+
+  test('does not check a frontend template', () => {
+    const root = copyFixture('catalog')
+    writeFileSync(path.join(root, 'frontend/mini-ui/base/AGENTS.md'), '# UI\n')
+    expect(() => loadCatalog(root)).not.toThrow()
   })
 })

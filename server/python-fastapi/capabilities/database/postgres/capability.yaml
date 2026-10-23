@@ -1,0 +1,20 @@
+schemaVersion: 1
+kind: database
+provider: postgres
+summary: Postgres through psycopg 3 (an async pool), SQL migrations and a separate test database
+container:
+  migrate: python -m app.infra.scripts.migrate
+commands:
+  testDb: uv run poe test-db
+  migrate: uv run poe migrate
+flags:
+  auth:
+    onlyPaths: [tests/db/test_user.py]
+pins:
+  src/app/api/module/service.py: 731d9c9defa72491e45fd21f7ce09f6c0a5972ab
+  src/app/api/user/service.py: cb7267b0a51e05bc3d3304f4a4f4f14197f0a260
+  src/app/services/db.py: 08c5a463d54c1f1150b0ebb0b998e9db025a6208
+  src/app/services/session.py: d42b7bf52f103344c47f177de5181ded02078f0c
+  tests/services/test_session.py: 3b313e6f05166c6c92d8b21f40ea16bc86e89c78
+  tests/store.py: 8c1952849daa949b7e760517583a69b86107fa17
+  tests/test_store.py: e708048505578bcda9242213f7f7eda41f6c563a
