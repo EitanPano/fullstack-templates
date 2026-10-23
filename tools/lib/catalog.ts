@@ -153,6 +153,8 @@ export interface CasesFile {
     stack?: string
     flags?: Record<string, boolean>
     capabilities?: Record<string, string>
+    // The case also runs the Compose smoke under test-generated --with-app.
+    withApp?: boolean
   }>
 }
 

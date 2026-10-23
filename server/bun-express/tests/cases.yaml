@@ -14,3 +14,4 @@ cases:
   - name: stack-postgres
     stack: next-bun-express
     capabilities: { database: postgres }
+    withApp: true

@@ -117,4 +117,32 @@ describe('test-generated CLI', () => {
     expect(result.status).toBe(2)
     expect(result.stderr).toContain('usage:')
   })
+  test('--with-app is parsed and a case without withApp ignores it', () => {
+    const result = run(FIXTURE, '--case', 'server/mini/default', '--with-app')
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('PASS server/mini/default')
+  })
+  test('--with-app reaches the options: a withApp case no longer logs the skip', () => {
+    const root = copyFixture('catalog')
+    editManifest(
+      root,
+      'server/mini/tests/cases.yaml',
+      '  - name: default\n',
+      '  - name: default\n    withApp: true\n',
+    )
+    const skipped = run(root, '--case', 'server/mini/default')
+    expect(skipped.status).toBe(0)
+    expect(skipped.stdout).toContain('SKIP app smoke: needs --with-app')
+    // Without http the smoke stops before any Docker command, so the test needs no Docker.
+    editManifest(
+      root,
+      'server/mini/template.yaml',
+      'http:\n  port: 4000\n  health: /api/health\n',
+      '',
+    )
+    const smoke = run(root, '--case', 'server/mini/default', '--with-app')
+    expect(smoke.stdout).not.toContain('SKIP app smoke')
+    expect(smoke.stdout).toContain('app smoke: the plan has no server package with http')
+    expect(smoke.status).toBe(1)
+  })
 })
