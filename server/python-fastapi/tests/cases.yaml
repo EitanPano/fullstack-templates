@@ -1,5 +1,10 @@
 schemaVersion: 1
 cases:
   - name: default
+  - name: auth-off
+    flags: { auth: false }
   - name: stack
     stack: next-python-fastapi
+  - name: stack-auth-off
+    stack: next-python-fastapi
+    flags: { auth: false }

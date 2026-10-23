@@ -14,6 +14,17 @@ import name can take); a name never shadows the standard library (`enums.py`, no
 - FastAPI with pydantic v2, served by plain `uvicorn` (with `watchfiles` for reload). Nothing else
   is added without a plan. There is no pydantic-settings and no `.env` loading: secrets never live
   in a file in the working tree.
+<!-- @auth-start -->
+- Security: `argon2-cffi` hashes passwords (argon2id, through `anyio.to_thread.run_sync`, never on
+  the loop), `PyJWT` signs and verifies HS256 tokens, `cryptography` does AES-256-GCM; HMAC,
+  SHA-256 and random tokens are the standard library. Every comparison of a secret-derived value
+  (an OTP digest, a token hash) is `crypto.constant_time_equals`.
+<!-- @auth-end -->
+<!-- @noauth-start -->
+- Security: `argon2-cffi` hashes passwords (argon2id, through `anyio.to_thread.run_sync`, never on
+  the loop), `cryptography` does AES-256-GCM; HMAC, SHA-256 and random tokens are the standard
+  library.
+<!-- @noauth-end -->
 - Types are strict: `mypy` runs in strict mode with the pydantic plugin and `disallow_any_explicit`,
   so there is no `Any`; use `object`, `JsonValue` or a narrower type. A `# type: ignore[code]`
   carries its reason on the same line. `ruff` selects `E F W I B UP A N ASYNC S DTZ RUF SIM PT ANN`
@@ -43,26 +54,37 @@ src/app/
   server.py           `create_app()` and `app`; never listens, attaches no infra
   openapi.py          builds, shapes and caches the contract; `--write` emits openapi.json
   config/             env.py · constants.py · cors.py · routes.py
-  models/<name>/      interface · type · enums · constants: an entity's types (module: the reference)
+  models/<name>/      interface · type · enums · constants: an entity's types
+                      (module: the reference; auth, session, user) <!-- @auth -->
+                      (module: the reference) <!-- @noauth -->
   api/<name>/         routes · controller · schema; service only when the module has data
                       (module: the reference; health owns no data)
   middleware/         request_id · request_log · security_headers · cors · proxy · body_limit ·
-                      error_handler · not_found · head · context · asgi · rate_limit (a gate)
-  services/           logger.py · db.py · cache.py · event.py (the seams) ·
-                      utils/ (error · openapi · clock · api_model · pagination)
+                      error_handler · not_found · head · context · asgi ·
+                      rate_limit · auth · role (the gates) <!-- @auth -->
+                      error_handler · not_found · head · context · asgi · rate_limit (a gate) <!-- @noauth -->
+  services/           logger.py · db.py · cache.py · session.py · event.py (the seams) · <!-- @auth -->
+  services/           logger.py · db.py · cache.py · event.py (the seams) · <!-- @noauth -->
+                      security/ (crypto · jwt · cookies · otp) · communicate/ (index · console · <!-- @auth -->
+                      mail · sms · whatsapp · templates/) · utils/ (error · openapi · clock · <!-- @auth -->
+                      api_model · pagination) <!-- @auth -->
+                      security/ (crypto) · communicate/ (index · console · mail · sms · whatsapp) · <!-- @noauth -->
+                      utils/ (error · openapi · clock · api_model · pagination) <!-- @noauth -->
   infra/              dependency.py · loop.py · memory.py · pubsub.py · scheduler.py
 tests/                mirrors src/app/ (a package throughout, so two test_x.py cannot clash)
 openapi.json          the committed contract, written by the `contract` command
 ```
 
 `infra/jobs/` and `infra/subscribers/` (a job is a crontab pattern and an async function; a
-subscriber reacts to a topic) arrive with the first one; `middleware/` gates for authentication and
-roles arrive with the accounts. This file grows with them.
+subscriber reacts to a topic) arrive with the first one. This file grows with them. <!-- @auth -->
+subscriber reacts to a topic) arrive with the first one; `middleware/` gates for authentication and <!-- @noauth -->
+roles arrive with the accounts. This file grows with them. <!-- @noauth -->
 
 Where does X go: a limit of the data (a length) in `models/<name>/constants.py`, a policy (a window,
 a count) in `config/constants.py`; a query in the module's `service.py`; a rule another module
 needs in the controller (exported, no request or response); a reaction to an event in
-`infra/subscribers/`; a stateful capability the services share in `services/`.
+`infra/subscribers/`; a stateful capability the services share in `services/`; a security primitive in
+`services/security/`.
 
 ## Request flow
 
@@ -103,6 +125,30 @@ type; import-linter cannot tell a type-only import. The rest is a review rule: a
 imported only by its own `services/<vendor>.py`; a `routes.py` holds nothing but the gates and the
 handler per endpoint; another module or a job calls a controller's exported rules, never a handler;
 a cross-module flow is not atomic.
+
+<!-- @auth-start -->
+## Authentication
+
+- Tokens: a short-lived access JWT and a refresh JWT, HS256, signed with separate secrets
+  (`services/security/jwt.py`; `verify_*` returns `None` for anything invalid and judges expiry
+  against `services/utils/clock.py`). The access token is stateless: a revoked session's access
+  token lives until it expires.
+- Sessions: `services/session.py` keeps one record per refresh session and rotates the refresh
+  token on every use. The token just rotated away is answered, inside the grace window, with the
+  token the winning rotation issued; any other hash is a replay and revokes every session of the
+  user. The record has an absolute lifetime.
+- Gates: `middleware/auth.py` (`authenticate` never rejects, `require_auth` answers 401,
+  `require_caller` gives a handler the caller) and `middleware/role.py` (`require_role`) are
+  dependencies in a route's `dependencies=[...]`; they run before the body is validated and read
+  the token only through `services/security/cookies.py`. A rule still checks the forwarded caller.
+- Cookies and headers: only a controller or a gate touches `services/security/cookies.py`; a
+  handler that sets cookies declares a `response: Response` and no `Header` or `Cookie` parameter.
+- One-time codes: `services/security/otp.py` keeps an HMAC digest in the cache and counts attempts
+  with `incr` before it compares; it logs nothing. Delivery is `services/communicate/`, whose
+  templates are pure wording.
+- Secrets: the JWT and OTP secrets are at least 32 characters, the two JWT secrets differ, and
+  production refuses a placeholder (`config/env.py`).
+<!-- @auth-end -->
 
 ## Adding a module
 
@@ -208,6 +254,8 @@ envelope's `code` and `requestId`, not only the status.
   `reset_store()`, `record_exists(collection, id)` and `delete_record(collection, id)`, never
   through the store directly. An event's effect is awaited with `drain()`.
 - Time is moved with `time-machine` (`time_machine.travel(..., tick=False)`).
+- Messages are captured through a provider registered with `register_provider`. <!-- @auth -->
+- A gated endpoint also tests its 401 and, where it checks a role, its 403. <!-- @auth -->
 - A test that spawns a process (the entry test) is synchronous and uses `subprocess.run`: the
   selector loop cannot run asyncio subprocesses on Windows.
 - Each behaviour-table row of the contract with bun-express has a test whose docstring names it

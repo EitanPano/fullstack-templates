@@ -8,6 +8,27 @@ runtime: { language: python, platform: cpython, minVersion: '3.14' }
 tools:
   - { name: uv, min: '0.12.23' }
 placeholders: [PROJECT_NAME]
+flags:
+  auth:
+    summary: Accounts, sessions, JWT, OTP; off means every endpoint is public
+    default: true
+    onlyPaths:
+      - src/app/middleware/auth.py
+      - src/app/middleware/role.py
+      - src/app/models/auth
+      - src/app/models/session
+      - src/app/models/user
+      - src/app/services/communicate/templates
+      - src/app/services/security/cookies.py
+      - src/app/services/security/jwt.py
+      - src/app/services/security/otp.py
+      - src/app/services/session.py
+      - tests/middleware/test_auth.py
+      - tests/middleware/test_role.py
+      - tests/services/test_cookies.py
+      - tests/services/test_jwt.py
+      - tests/services/test_otp.py
+      - tests/services/test_session.py
 capabilities:
   database: { providers: [] }
   cache: { providers: [] }
