@@ -15,3 +15,7 @@ cases:
     stack: next-bun-express
     capabilities: { database: postgres }
     withApp: true
+  - name: stack-auth-off-postgres
+    stack: next-bun-express
+    flags: { auth: false }
+    capabilities: { database: postgres }

@@ -564,16 +564,17 @@ migrations and, when the database cannot be reached, exits 1 with one line sayin
 exits 1 when `describeStore` would skip every store-backed suite, so `test:db` cannot pass on
 zero tests. Never fake the database with `mock.module`: it is process-global in `bun test`.
 
-Production: nothing runs `db:migrate` automatically, neither the image nor the server on boot,
-so on a fresh volume every query fails until someone has run it. Run it before serving traffic
-and after every deploy that ships a migration, from the same image and with the same
-environment as the server (the env module validates all of it). The image carries
-`package.json` and `src/`, and the migrations live under `src/`, so `bun run db:migrate` works
-inside it. Locally with the full stack:
-`docker compose --profile app run --rm backend bun run db:migrate`, with the production
-secrets and `DATABASE_URL` exported, as for `up`. Elsewhere the deploy pipeline runs it. A
-migration the old version must survive is written backwards compatible, since the old image
-keeps serving until the new one starts.
+Production: the server never migrates on boot. In the Compose stack the one-shot
+`backend-migrate` service (app profile) runs `db:migrate` from the backend's image with the same
+environment, and the backend waits for it to finish successfully:
+`docker compose --profile app up --build` applies the migrations before the backend starts, and
+the backend does not start if they fail. To run it alone:
+`docker compose --profile app run --rm backend-migrate`; like the app, it needs the production
+secrets and `DATABASE_URL` exported. `bun run db:migrate` stays for local development.
+Elsewhere the deploy pipeline runs it before serving traffic and after every deploy that ships a
+migration, from the same image and with the same environment as the server (the env module
+validates all of it). A migration the old version must survive is written backwards
+compatible, since the old image keeps serving until the new one starts.
 
 Auth assumes, as built: <!-- @auth -->
 `rotateSession` is one conditional update (`where id = … and token_hash = <presented hash> <!-- @auth -->
