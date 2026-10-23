@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0 — 2026-10-23
+
+- The e2e API web server's command comes from the server package in the stack
+  (`__SERVER_DEV_COMMAND__`), so the frontend runs against a server in any language. Alone it
+  keeps `bun run dev`.
+
 ## 1.0.1 — 2026-10-22
 
 - `AGENTS.md` gains the sections Adding a feature, Styling, Errors and Tests, the conventions an agent follows in this package.
