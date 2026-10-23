@@ -649,4 +649,67 @@ full.
 ## Status of this ADR
 
 Accepted by Eitan at G1 (2026-10-23); T1 and later build against it.
-An As built section is added when the template ships.
+As built, below, records where the shipped v1.1.0 differs from the text above.
+
+## As built (v1.1.0)
+
+The decisions above held. These are the ways the shipped catalog differs from the accepted text,
+each with its commit.
+
+Amended in the text after acceptance (the text above already says it):
+
+- No `listening` line from the lifespan, HEAD answered by a `head` middleware, and
+  `PYTHONUNBUFFERED=1` in the image: `07d6043`. `str | MISSING | None` in M4-7, as ruff RUF036
+  orders it (same commit).
+- String length counted in code points is a listed deviation: `6b5d404`.
+- A lone frontend falls back to `bun run dev` for `__SERVER_DEV_COMMAND__`: `1022d79`.
+
+Not in the text above:
+
+- **Module privacy** uses import-linter's standard `independence` contract. The custom
+  `lint_contracts/` package of M4-10 was not needed and does not exist (`e1d5071`).
+- **`create_app`** is `create_app(lifespan=None, *, config=env)`, not `create_app(lifespan=None)`
+  (M4-6). The `config` argument lets a test build the app from an explicit environment
+  (`46d0ff5`, accepted by ruling in P1).
+- **Module create is not rate limited**, as in bun-express, which defines `createPostPerIp` and
+  never mounts it. The brief that mounted it was wrong (`afbd9db`).
+- **Shutdown semantics (M4-11)**: APScheduler 3.11 cancels a running job coroutine on shutdown
+  whatever `wait` says, so jobs run in shielded tasks that `close()` waits for within a bound
+  (`4fefd87`). `PubSub.close()` also waits for chained reactions (`dc48563`), and the login-code
+  deliveries are detached work the bus tracks and drains at shutdown (`b04e486`).
+- **The list cursor** accepts only an ISO timestamp with a timezone (`3c3080a`).
+- **`get_db()` (M4-12)** is an async context manager, not a synchronous accessor, because a
+  psycopg pool hands out connections asynchronously. Queries still take an optional last `db`
+  (`22d736f`). The pool sets `connect_timeout=2`, libpq's minimum, so two addresses fit inside one
+  `with_retry` attempt.
+- **`infra/jobs/` and `infra/subscribers/`** exist in every variant, empty without `auth`, so the
+  import-linter contract that confines them to a controller applies to a first job in a project
+  without accounts (`29bbb0b`). It matches bun-express's lint zone, which is unconditional.
+- **A bare major** is a valid `tools` minimum (`'24'`): both templates declare `node` that way and
+  the preflight read it as an error (`7b5d2b4`, M4-5).
+- **`validate --pin`** (M4-14) writes the new blob to git's object database so its diff works on an
+  uncommitted base file, validates nothing else, and refuses `--readme` and `--lockfiles`
+  (`d4958d5`, `d6fdb7d`).
+- **The migrate service on a rerun (M4-13)**: when the package service already exists in
+  `docker-compose.yml`, it is kept as it is and the migrate service is not added, with a log line
+  saying so, because the kept service would not wait for it. Two capabilities with
+  `container.migrate` in one package are an error (`378922c`, `d6fdb7d`).
+- **The app smoke (M4-16)** runs for a case that sets `withApp: true` (`stack-postgres` in both
+  servers), reads the server's `http` from the template manifest, and prints a skip without
+  `--with-app` (`7c79ac3`). A new field `withApp` is in the cases schema.
+- **The headings check (M4-17)** ignores headings inside fenced code blocks (`d6fdb7d`).
+- **CI** installs uv with `astral-sh/setup-uv` pinned by commit SHA (v10.3.0), version 0.12.23
+  (`d4875b6`, `4490f7b`).
+- **Shared files**: `shared/gitignore/python.gitignore` includes `dist/`, since a Python template
+  generated alone receives only its own fragment (`ebd7293`); `shared/editorconfig` gains a
+  4-space `[*.py]` rule (`82cd110`).
+- **A raw `base/` does not pass its own `check`** once capability markers import overlay-only
+  modules; this was already true of bun-express. The generated cases are where the gates run
+  (documented in CONTRIBUTING).
+- **bun-express 2.2.0 (M4-18)** also completes the forbidden test forms in `AGENTS.md › Tests`,
+  which the harness's guardrails cite (`3659bc8`).
+- **Cases**: the eight in the sketch exist; `stack-postgres` carries `withApp`.
+
+Not done, as planned: the narrow env reader for `<dir>-migrate` (M4-13 follow-up). Running
+`docker compose --profile app run --rm backend-migrate` still needs the production secrets
+exported.
