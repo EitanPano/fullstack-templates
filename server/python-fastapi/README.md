@@ -2,7 +2,7 @@
 
 FastAPI on Python 3.14, managed by uv: a layered API with pydantic models, an OpenAPI contract
 generated from them (shaped to the document `server/bun-express` writes), authentication (accounts,
-sessions, JWT, OTP), scheduled jobs and an in-process event bus. It is the second server template
+sessions, JWT, OTP), scheduled jobs, an in-process event bus and a Postgres capability. It is the second server template
 and stays at behavioural parity with `server/bun-express`; the design is
 [ADR 0002](../../docs/adr/0002-python-fastapi.md). Generated alone or as the `server` of the
 `next-python-fastapi` stack.
@@ -12,9 +12,11 @@ and stays at behavioural parity with `server/bun-express`; the design is
 - `template.yaml`: the manifest (flags, commands, contract, HTTP surface).
 - `base/`: the files copied into the generated package, including `AGENTS.md`, `pyproject.toml`
   and `uv.lock`.
+- `capabilities/database/postgres/`: the Postgres overlay (manifest and `overlay/` files).
 - `compose.yaml`: the Compose service body, keyed by the package directory at generation.
-- `tests/cases.yaml`: the generated variants the catalog gates (`default`, `auth-off`, `stack`
-  and `stack-auth-off`).
+- `tests/cases.yaml`: the generated variants the catalog gates (`default`, `auth-off`, `stack`,
+  `stack-auth-off`, `postgres`, `auth-off-postgres`, `stack-postgres` and
+  `stack-auth-off-postgres`).
 - `CHANGELOG.md`: version history.
 
 ## Run it
@@ -52,10 +54,38 @@ dev dependency; the image never uses it.
   modules, their middleware, models, jobs, subscribers and tests and the `pyjwt` dependency;
   every endpoint is then public.
 
+## Capabilities
+
+- `database/postgres`: records, users and sessions in Postgres through psycopg 3 and its async
+  connection pool (`psycopg[binary,pool]`). Generate with `--capability database=postgres`. The
+  overlay replaces `services/db.py` and each module's `service.py` (and `services/session.py` with
+  `auth`), adds `infra/postgres.py`, `infra/migrations/` and the migrate script, and the root
+  `docker-compose.yml` gets the `database` service. Two commands are added:
+
+  | Intent | Command |
+  | --- | --- |
+  | migrate | `uv run poe migrate` |
+  | testDb | `uv run poe test-db` |
+
+  `DATABASE_URL` is required in production and has no default in Compose, so export it before
+  `docker compose --profile app up`. The server does not migrate on boot: in Compose the one-shot
+  `backend-migrate` service (app profile) applies the migrations from the backend's image, and the
+  backend waits for it, so `docker compose --profile app up --build` migrates before the backend
+  starts and the backend does not start if the migrations fail. `docker compose --profile app run
+  --rm backend-migrate` runs it alone and needs the same exported secrets. `uv run poe migrate`
+  stays for local development; elsewhere the deploy pipeline runs the migrations.
+  `check` skips the store-backed suites and needs no Docker; `test-db` runs everything against the
+  `app_test` database of the same service (`docker compose up -d --wait database` first). psycopg
+  refuses Windows' default event loop, so the migrate script, the tests and uvicorn all run on
+  `infra/loop.py`'s selector loop. On Windows with Docker Desktop, use `127.0.0.1` rather than
+  `localhost` in `DATABASE_URL` and `TEST_DATABASE_URL`: `localhost` resolves to `::1` first, where
+  nothing answers, and every new connection then waits two seconds.
+
 ## Cases
 
 `tests/cases.yaml` lists the variants the catalog generates and gates: `default`, `auth-off`,
-`stack` (`next-python-fastapi`) and `stack-auth-off`.
+`stack` (`next-python-fastapi`), `stack-auth-off`, `postgres`, `auth-off-postgres`,
+`stack-postgres` (also built and smoke-tested in Compose) and `stack-auth-off-postgres`.
 
 ## Requirements
 

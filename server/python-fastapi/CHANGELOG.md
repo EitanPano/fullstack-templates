@@ -22,6 +22,21 @@
   `pyproject.toml`), the format check, mypy in strict mode and pytest, with `filterwarnings =
   ["error"]`. Tests drive the app in process with an `httpx.AsyncClient`, never Starlette's
   `TestClient`.
+- The `database/postgres` capability. With `--capability database=postgres` the overlay replaces
+  `services/db.py`, the module and user `service.py` files and `services/session.py` (with `auth`)
+  with Postgres queries over psycopg 3 and its async pool; adds `infra/postgres.py` (a `Resource`,
+  in `dependencies` beside `memory`, which stays the cache), `infra/migrations/0001-init.sql` and
+  `infra/scripts/migrate.py` (an advisory lock, one transaction per file, `.sql` files shipped in
+  the wheel), and `services/utils/postgres_error.py`, which the error handler uses to answer 503
+  `upstream_unavailable` for a lost connection (no SQLSTATE) and 409 `conflict` for a unique
+  violation. Session rotation is one conditional update, so one concurrent rotation wins. Adds
+  `uv run poe migrate` and `uv run poe test-db` (a pytest plugin that points the run at
+  `app_test`), a derived one-shot `backend-migrate` Compose service, pins on the base files the
+  overlay shadows, and the cases `postgres`, `auth-off-postgres`, `stack-postgres` (built and
+  smoke-tested in Compose) and `stack-auth-off-postgres`.
+- `infra/jobs/` and `infra/subscribers/` exist in every variant (empty without `auth`), so the
+  import-linter contract that keeps a job or a subscriber to a module's controller applies to a
+  first job in a project without accounts.
 - One event loop class everywhere: `infra/loop.py` gives the selector loop that uvicorn and the
   tests use.
 - `AGENTS.md` carries the agent-facing sections the harness cites: Adding a module, Adding the

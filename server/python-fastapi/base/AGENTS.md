@@ -32,6 +32,11 @@ package with an `__init__.py`.
   check, then tests, stopping at the first failure), `typecheck` (`uv run poe typecheck`), `lint`
   (`uv run poe lint`: ruff, then import-linter), `format` (`uv run poe format`), `test`
   (`uv run poe test`) and `contract` (`uv run poe contract`). `check` never needs Docker.
+<!-- @database:postgres-start -->
+- With the database, two more: `migrate` (`uv run poe migrate`) applies the SQL migrations, and
+  `testDb` (`uv run poe test-db`) runs the whole suite against the test database; `check` skips the
+  store-backed suites that `testDb` runs (see Adding the data layer).
+<!-- @database:postgres-end -->
 - Types are strict: `mypy` runs in strict mode with the pydantic plugin and `disallow_any_explicit`,
   so there is no `Any`; use `object`, `JsonValue` or a narrower type. A `# type: ignore[code]`
   carries its reason on the same line. `ruff` selects `E F W I B UP A N ASYNC S DTZ RUF SIM PT ANN`
@@ -55,10 +60,17 @@ package with an `__init__.py`.
   drop is the driver's job. This template lists `memory`, `pubsub` and `scheduler`, in that order.
   The data-layer task adds the chosen engine beside `memory` (see Adding the data layer).
 <!-- @nodatabase-end -->
-<!-- @database-start -->
-- Persistence: records live in Postgres. The Postgres variant of this section arrives with the
-  Postgres overlay.
-<!-- @database-end -->
+<!-- @database:postgres-start -->
+- Persistence: records live in Postgres, through psycopg 3 (`psycopg[binary,pool]`, async, with its
+  connection pool). `infra/postgres.py` is its `Resource`, beside `infra/memory.py`, which is now
+  the cache (`services/cache.py`) until the cache task moves it to its own store. Every
+  infrastructure dependency is a `Resource` from `infra/dependency.py`, listed in `dependencies`
+  in that file: connected at boot with bounded retry, pinged by `GET /api/health/ready`, closed in
+  reverse on shutdown. This template lists `memory`, `postgres`, `pubsub` and `scheduler`, in that
+  order. Reconnecting after a drop is the pool's job (it replaces a connection that fails its
+  check) and nothing connects at import: the pool is built on first use, behind a lock. The schema
+  is SQL migrations (see Adding the data layer).
+<!-- @database:postgres-end -->
 - One event loop class everywhere: `infra/loop.py` gives `selector_loop_factory`, which uvicorn
   and the tests' `anyio_backend` fixture use. Never run a database driver on Windows' default
   Proactor loop.
@@ -95,11 +107,17 @@ src/app/
 <!-- @noauth-end -->
     communicate/      __init__.py · console · mail · sms · whatsapp · templates/ <!-- @auth -->
     communicate/      __init__.py · console · mail · sms · whatsapp (templates/ arrives with the first message) <!-- @noauth -->
-    utils/            error · openapi · clock · api_model · pagination (pure, no I/O)
-  infra/              dependency.py · loop.py · memory.py · pubsub.py · scheduler.py
+    utils/            error · openapi · clock · api_model · pagination (pure, no I/O) <!-- @nodatabase -->
+    utils/            error · openapi · clock · api_model · pagination · postgres_error (pure, no I/O) <!-- @database:postgres -->
+  infra/              dependency.py · loop.py · memory.py · pubsub.py · scheduler.py <!-- @nodatabase -->
+  infra/              dependency.py · loop.py · memory.py · postgres.py · pubsub.py · scheduler.py <!-- @database:postgres -->
     jobs/             one file per background job: session_cleanup <!-- @auth -->
     subscribers/      one file per event reaction: send_welcome <!-- @auth -->
-                      (jobs/ and subscribers/ arrive with the first one; scripts/ with the data layer) <!-- @noauth -->
+    jobs/             one file per background job (an empty package until the first one) <!-- @noauth -->
+    subscribers/      one file per event reaction (an empty package until the first one) <!-- @noauth -->
+    migrations/       NNNN-<topic>.sql, the schema, applied in name order <!-- @database:postgres -->
+    scripts/          one-off commands: migrate.py (poe migrate); seed is reserved <!-- @database:postgres -->
+                      (scripts/ arrives with the data layer) <!-- @nodatabase -->
 tests/                mirrors src/app/ (a package throughout, so two test_x.py cannot clash)
 openapi.json          the committed contract, written by the `contract` command
 ```
@@ -211,16 +229,29 @@ openapi.json          the committed contract, written by the `contract` command
   providers), and `utils/` (pure, stateless, no I/O).
 <!-- @noauth-end -->
 - `infra/`: live connections and what runs on them. `dependency.py` holds `Resource`, the
+<!-- @nodatabase-start -->
   `dependencies` list in connection order (`memory`, `pubsub`, `scheduler`), `connect_all`,
   `disconnect_all`, `health_check`, `with_retry` and `resource_lifespan`. `loop.py` is the
   selector loop factory. `scheduler.py` (APScheduler) runs the jobs listed in its `_jobs()`;
   `pubsub.py` is the in-process bus and registers the subscribers listed in its `_subscribers()`.
+<!-- @nodatabase-end -->
+<!-- @database:postgres-start -->
+  `dependencies` list in connection order (`memory`, `postgres`, `pubsub`, `scheduler`),
+  `connect_all`, `disconnect_all`, `health_check`, `with_retry` and `resource_lifespan`.
+  `postgres.py` is the Postgres store (a psycopg pool built on first use; `close` forgets it).
+  `memory.py` holds no records now: it is the key-value store behind `services/cache.py` (and the
+  rate limits). `loop.py` is the selector loop factory. `scheduler.py` (APScheduler) runs the jobs
+  listed in its `_jobs()`; `pubsub.py` is the in-process bus and registers the subscribers listed
+  in its `_subscribers()`. `migrations/` holds the SQL files and `scripts/` the one-off commands,
+  `migrate.py` among them.
+<!-- @database:postgres-end -->
 <!-- @auth-start -->
   `jobs/` holds one file per job, `subscribers/` one file per event reaction.
 <!-- @auth-end -->
 <!-- @noauth-start -->
-  `jobs/`, `subscribers/` and `scripts/` are created when the first one is added.
+  `jobs/` and `subscribers/` are empty packages until the first job or reaction is added.
 <!-- @noauth-end -->
+  `scripts/` is created with the data layer. <!-- @nodatabase -->
 
 ## Where does X go
 
@@ -236,7 +267,9 @@ openapi.json          the committed contract, written by the `contract` command
 | A business rule, an event to publish, a call to another service | `api/<name>/controller.py` | in the endpoint's handler; an exported rule once something outside the module needs it; raises `AppError` |
 | A rule composing other modules | `api/<name>/controller.py` | `api/auth/` is the example | <!-- @auth -->
 | A rule composing other modules | `api/<name>/controller.py` | calls each module's `controller.py` | <!-- @noauth -->
-| A query | `api/<name>/service.py` | `get_db()` from `services/db.py`, `services/cache.py`; private to the module |
+| A query | `api/<name>/service.py` | `get_db()` from `services/db.py`, `services/cache.py`; private to the module | <!-- @nodatabase -->
+| A query | `api/<name>/service.py` | SQL through `fetch_one`, `fetch_all` and `execute` from `services/db.py`; an optional last `db` keyword; private to the module | <!-- @database:postgres -->
+| A change to the tables or indexes | `infra/migrations/NNNN-<topic>.sql` | the next number, never an edit to an applied file; then `uv run poe migrate`; update the module's `service.py` and its row mapping | <!-- @database:postgres -->
 | Something another module needs | `api/<name>/controller.py` | an exported rule; the only cross-module import |
 | Shared behaviour with state or I/O | `services/<name>.py` | sessions, cache, events, logging | <!-- @auth -->
 | Shared behaviour with state or I/O | `services/<name>.py` | cache, events, logging | <!-- @noauth -->
@@ -253,13 +286,16 @@ openapi.json          the committed contract, written by the `contract` command
 | A background job | `infra/jobs/<name>.py` | `Job(name, schedule, run)`; listed in `_jobs()` in `infra/scheduler.py` |
 | An event | `services/event.py` | a `Topic` constant with its payload type; `publish` from a controller; handlers run detached, tests await `drain()` |
 | A reaction to an event | `infra/subscribers/<name>.py` | `subscriber(TOPIC, handle)`; listed in `_subscribers()` in `infra/pubsub.py` |
-| A one-off command (migrate, seed) | `infra/scripts/<name>.py` | `uv run python -m app.infra.scripts.<name>`; may call controllers' rules |
+| A one-off command (migrate, seed) | `infra/scripts/<name>.py` | `uv run python -m app.infra.scripts.<name>`; may call controllers' rules | <!-- @nodatabase -->
+| A one-off command (seed) | `infra/scripts/<name>.py` | `uv run python -m app.infra.scripts.<name>`; may call controllers' rules; `migrate.py` is the shipped one | <!-- @database:postgres -->
 | An environment variable | `config/env.py` + `.env.example` | required in production, defaulted elsewhere |
 | An allowed browser origin | `config/cors.py` | set `CORS_ORIGINS`, only when a browser calls the API directly |
 <!-- @noauth-start -->
 
-`infra/jobs/`, `infra/subscribers/`, `infra/scripts/` and `services/communicate/templates/` do not
-exist in this variant yet: create the directory with an `__init__.py` when the first file goes in.
+`services/communicate/templates/` does not exist in this variant yet: create it with an
+`__init__.py` when the first message template goes in. `infra/jobs/` and `infra/subscribers/` are
+empty packages until a job or a reaction is added.
+`infra/scripts/` arrives with the data layer; create it with an `__init__.py`. <!-- @nodatabase -->
 <!-- @noauth-end -->
 
 ## Request flow
@@ -300,7 +336,8 @@ or infra file joins the list.
 | `only server imports the mount table` | nothing but `server.py` imports `config/routes.py` |
 | `config and services utils do not import infra` | `config/` and `services/utils/` never import `infra/` |
 | `services never import middleware, api, server or entry` | `services/` is below the HTTP layer |
-| `services reach infra through dependency, the seams reach their store` | `services/` imports `infra/dependency.py`; `db.py` and `cache.py` import `infra/memory.py` (later the engine), `event.py` imports `infra/pubsub.py`; no other infra file |
+| `services reach infra through dependency, the seams reach their store` | `services/` imports `infra/dependency.py`; `db.py` and `cache.py` import `infra/memory.py` (later the engine), `event.py` imports `infra/pubsub.py`; no other infra file | <!-- @nodatabase -->
+| `services reach infra through dependency, the seams reach their store` | `services/` imports `infra/dependency.py`; `db.py` imports `infra/postgres.py`, `cache.py` imports `infra/memory.py`, `event.py` imports `infra/pubsub.py`; no other infra file | <!-- @database:postgres -->
 | `db and cache seams import their store, logger, utils, config and models only` | the two seams import no bus, scheduler, other service or HTTP layer |
 | `event seam imports the bus, logger, utils, config and models only` | `services/event.py` likewise |
 | `only a module service and services use the db seam` | a module's `routes`, `controller` and `schema`, `middleware/`, `server`, `main` and `openapi` never import `services/db.py` |
@@ -308,10 +345,10 @@ or infra file joins the list.
 | `a routes, service or model never publishes events: a controller does` | none of them imports `services/event.py` |
 | `middleware never imports api, infra, server or entry` | `middleware/` is below the modules |
 | `infra never imports middleware, server or entry` | `infra/` is below the HTTP layer |
-| `infra stores, bus, scheduler, dependency and loop import no api` | those five infra files import no module |
-| `infra files import logger, db, cache, event and utils only` | the same five import no other service | <!-- @noauth -->
-| `infra files import logger, db, cache, event and utils only` | the same five import no other service but `services/session.py` | <!-- @auth -->
-| `jobs and subscribers reach a module through its controller only` | `infra/jobs/` and `infra/subscribers/` import a module's `controller` and `schema`, never its `routes`, `service` or `model` | <!-- @auth -->
+| `infra stores, bus, scheduler, dependency and loop import no api` | `dependency.py`, `loop.py`, the stores, the bus and the scheduler import no module |
+| `infra files import logger, db, cache, event and utils only` | the same files import no other service | <!-- @noauth -->
+| `infra files import logger, db, cache, event and utils only` | the same files import no other service but `services/session.py` | <!-- @auth -->
+| `jobs and subscribers reach a module through its controller only` | `infra/jobs/` and `infra/subscribers/` import a module's `controller` and `schema`, never its `routes`, `service` or `model`; the two packages exist in every variant (empty without `auth`), so a first job is linted from the start |
 | `schema is the leaf of a module` | `schema.py` imports `models/`, `services/utils/` and `config/constants.py`, and a schema of another module |
 | `routes wire gates to handlers` | `routes.py` imports its own `controller` and `schema`, `middleware/`, `models/`, `services/utils/` and `config/constants.py`; never `service`, `model`, any `services/` module but `utils/`, `infra/` or `config/env.py` |
 | `controller holds the rules and the handlers` | `controller.py` never imports a `routes`, a `model`, `infra/` (except `infra/dependency.py`) or `config/routes.py` |
@@ -342,15 +379,8 @@ What import-linter cannot express stays a review rule:
   atomic lives in one module.
 - A controller publishes an event, after its write. Lint refuses a `routes`, `service` or `model`
   that publishes; a gate, a `services/` file or a job that does is a review finding.
-<!-- @noauth-start -->
-- Jobs and subscribers reach a module only through its `controller` and `schema`, never its
-  `routes`, `service` or `model`; no contract checks this in this variant. A script in
-  `infra/scripts/` follows the same rule, and no contract checks it in either variant.
-<!-- @noauth-end -->
-<!-- @auth-start -->
 - A script in `infra/scripts/` reaches a module only through its `controller` and `schema`; no
   contract checks it.
-<!-- @auth-end -->
 
 <!-- @auth-start -->
 ## Authentication
@@ -416,9 +446,20 @@ later is a planned change, not a patch to one module.
 `services/db.py` and `services/cache.py` are file seams, not type seams: each exports the active
 store, and the type changes with the engine. Today:
 
+<!-- @nodatabase-start -->
 - `services/db.py` exports `get_db()`, the record store (`collection(name, RecordType)` with `get`,
   `put` (an upsert), `delete` and `find`), and the `Collection` and `RecordStore` types. Call
   `get_db()` inside the function that queries, never at file scope.
+<!-- @nodatabase-end -->
+<!-- @database:postgres-start -->
+- `services/db.py` exports `get_db(db=None)`, an async context manager that hands out a connection
+  from the pool in `infra/postgres.py` for the block (or gives back the `Executor` it was passed);
+  `Executor`, the psycopg async connection, which is also what a `connection.transaction()` block
+  holds; and three helpers that each run one parameterised statement: `fetch_one(RowType, query,
+  params, db=)`, `fetch_all(...)` and `execute(...)` (rows changed). A row type is a dataclass over
+  the selected columns. Call `get_db()` inside the function that queries, never at file scope: the
+  pool is built on first use and replaced after a close.
+<!-- @database:postgres-end -->
 - `services/cache.py` exports the JSON helpers over the key-value store: `get(key, TypeAdapter)`,
   `set_value(key, value, ttl_ms)`, `delete` and `incr(key, ttl_ms)`. A value that fails its
   `TypeAdapter` is a miss.
@@ -433,9 +474,26 @@ adds `infra/<engine>.py` and `infra/scripts/migrate.py`, and adds the engine res
 own store. The cache task rewrites `cache.py`, adds `infra/redis.py` and gives `infra/pubsub.py`
 its adapter (see Adding the data layer). Until then nothing survives a restart.
 <!-- @nodatabase-end -->
-<!-- @database-start -->
-The Postgres variant of this section arrives with the Postgres overlay.
-<!-- @database-end -->
+<!-- @database:postgres-start -->
+Only a module's `service.py` (and `model.py`) and the files of `services/` and `infra/` import
+`services/db.py`; import-linter refuses it in `routes.py`, `controller.py` and `schema.py`. Every
+query function in a module's `service.py` takes an optional last keyword, `db: Executor | None =
+None`. Without it the query takes its own connection from the pool and commits when it is done;
+with it the query runs on the connection given, in whatever transaction that connection is in. A
+controller cannot import `services/db.py`, so a module that must write two things together exports
+`with_transaction(work)` from its `service.py` (`api/module/service.py` is the example): the
+controller opens it and passes the connection it receives to each query as `db=`. A service
+function never opens a transaction, and a transaction never spans modules.
+
+A statement is a literal with `%s` placeholders and its values travel as parameters, never inside
+the text; a table or column name that is not fixed is built with `psycopg.sql.Identifier`, never
+formatted in. A database driver runs on the selector loop (`infra/loop.py`): psycopg refuses
+Windows' default Proactor loop, and the pool belongs to the loop that opened it.
+
+`services/cache.py` is still on `infra/memory.py`. The cache task rewrites `cache.py`, adds
+`infra/redis.py` and gives `infra/pubsub.py` its adapter (see Adding the data layer). Until then
+the cache, the rate limits and the bus do not survive a restart or span replicas; the records do.
+<!-- @database:postgres-end -->
 
 The layer map is language-neutral on purpose: the bun-express template mirrors the same
 directories and rules.
@@ -450,9 +508,17 @@ Work in this order, test first.
    `QueryModel`, a response from `ResponseModel`. A list's page is a concrete subclass of
    `Page[T]` (`class ModulePage(Page[Module])`) and its query is `PageQuery`.
 3. `tests/test_<name>.py` (see Tests), red.
+<!-- @nodatabase-start -->
 4. `service.py`, only when the module has data: queries through `get_db()`, one collection per
    entity (`find_module_by_id`, `list_modules`), and a cursor model for `decode_cursor` when the
    list pages.
+<!-- @nodatabase-end -->
+<!-- @database:postgres-start -->
+4. `service.py`, only when the module has data: SQL through the helpers of `services/db.py`, one
+   row dataclass and one `_to_record` mapping per entity, an optional last `db` keyword on every
+   query (`find_module_by_id`, `list_modules`), and a cursor model for `decode_cursor` when the
+   list pages. The table and its indexes ship in a migration (see Adding the data layer).
+<!-- @database:postgres-end -->
 5. `controller.py`: one handler per endpoint (it maps the stored record to the wire and raises
    `AppError`), publishes the event after the write, then the exported rules other modules need.
 6. `routes.py`: `router: APIRouter` and one `router.add_api_route(...)` per endpoint, with its
@@ -488,6 +554,11 @@ command.
   fetches `limit + 1` rows and `to_page` slices; the cursor is opaque to clients and read back
   with `decode_cursor`.
 - Another module is reached only through its exported controller rules, never its `service.py`.
+<!-- @database:postgres-start -->
+- A module with data ships its table in a migration (see Adding the data layer), and its
+  `service.py` is written like `api/module/service.py`: a row dataclass, one `_to_record` mapping,
+  an optional last `db` keyword on every query.
+<!-- @database:postgres-end -->
 - The wire is camelCase and Python is snake_case; the alias generator says so once. A request
   accepts camelCase only, and a body is strict: `"5"` is not a number. A field that should convert
   a string opts out with `Field(strict=False)`; a query model is lax.
@@ -564,10 +635,117 @@ and `reset_store()` refuses to truncate any other. Then `check` skips the store-
   same helpers; keys prefixed, always with a TTL; `incr` sets the TTL on the first increment only;
   `infra/pubsub.py` gets its adapter.
 <!-- @nodatabase-end -->
-<!-- @database-start -->
-The data layer is in place: this project was generated with `database/postgres`. The Postgres
-variant of this section arrives with the Postgres overlay.
-<!-- @database-end -->
+<!-- @database:postgres-start -->
+The data layer is in place: this project was generated with `database/postgres`. It holds:
+
+- `infra/postgres.py`: the `Resource` over a psycopg 3 async pool (nothing connects at import: the
+  pool is built on first use behind an `asyncio.Lock`, and `close()` forgets it, because a pool
+  cannot be reopened), in `dependencies` beside `memory`, which stays as the cache until the cache
+  task.
+- `services/db.py`: the seam (`get_db()`, `Executor`, `fetch_one`, `fetch_all`, `execute`; see The
+  engine seam).
+- Every module's `service.py` in SQL. `api/module/service.py` is the reference: a row dataclass,
+  one `_to_record` mapping from snake_case columns to the record, `with_transaction`, and cursor
+  pagination over `(created_at, id)`. `model.py` stays unused. <!-- @noauth -->
+  pagination over `(created_at, id)`. `api/user/service.py` and `services/session.py` are in SQL <!-- @auth -->
+  too. `model.py` stays unused. <!-- @auth -->
+- `infra/migrations/` (shipped inside the `app` package), `infra/scripts/migrate.py` and the
+  `migrate` task in `[tool.poe.tasks]`.
+- `services/utils/postgres_error.py`, applied by `middleware/error_handler.py` (see Errors).
+- `DATABASE_URL` in `config/env.py` and `.env.example`, the `database` service in the project's
+  `docker-compose.yml` with its `db/init.sql`, and the test seam and `test-db` (below).
+
+Every record has a `text` `id` the application generates, and `created_at` and `updated_at` set on
+every write. A transaction belongs to one module's controller and never spans modules. Dropping or
+resetting a database is a human's job.
+
+Changing the data model, in this order:
+
+1. Write the failing test first, in a suite marked `store_backed` (see Tests).
+2. Add `src/app/infra/migrations/NNNN-<topic>.sql`: the next four-digit number, a kebab-case topic,
+   plain SQL. Files apply in name order. Each file runs once, in one transaction together with its
+   row in `schema_migration`, so it holds no statement that cannot run in a transaction (`create
+   index concurrently`). Never edit or rename an applied migration: a change is a new file.
+   `0001-init.sql` is the reference.
+3. Tables and columns are singular snake_case (a reserved word such as `"user"` is quoted),
+   timestamps are `timestamptz`.
+4. An index ships with the migration that needs it: every column a query filters or sorts on,
+   including the `(created_at, id)` pair behind cursor pagination.
+5. Update the module's `service.py`, its row dataclass and `_to_record`, and
+   `models/<name>/interface.py`.
+6. `uv run poe migrate`, then `uv run poe test-db`, then `uv run poe check`.
+
+The `module` table in `0001-init.sql` belongs to the reference module. Drop it with a new migration
+once the module is removed, unless no database has applied `0001-init.sql` yet.
+
+Commands:
+
+- `uv run poe migrate` applies the files `schema_migration` does not list, in name order, and logs
+  each one. It takes a Postgres advisory lock, so two runs started together take turns. A file that
+  fails leaves itself unapplied (its transaction rolls back) and the command exits 1. The server
+  never migrates on its own. It runs on the selector loop (`asyncio.run(main(), loop_factory=
+  selector_loop_factory)`).
+- `uv run poe test-db` runs the whole suite against `app_test`.
+
+Local service: `docker compose up -d --wait database` at the project root starts Postgres 17 on
+`127.0.0.1:5432` and returns when it is healthy (`migrate` has no connect retry, and on a fresh
+volume the image is not ready right away). `DATABASE_URL` is a secret, since it carries the
+password: required in production, defaulted outside it to `postgres://app:app@localhost:5432/app`
+(the entry warns once, like any defaulted secret), and it must be a `postgres://` or
+`postgresql://` URL. On Windows with Docker Desktop, `localhost` can resolve to `::1` first, where
+nothing answers, so every new connection waits out its 2 s `connect_timeout`: use `127.0.0.1` in
+`DATABASE_URL` and `TEST_DATABASE_URL` there. In `docker-compose.yml` it is wired as a plain
+`${DATABASE_URL}` with no default, like the other production secrets: the backend runs with
+`APP_ENV: production`, so an unset variable (Compose passes an empty string) stops it at startup
+with a message naming `DATABASE_URL`. To run the full stack locally, export a `DATABASE_URL`, e.g.
+`postgres://app:app@database:5432/app` to use the bundled service. Production does not refuse
+those bundled credentials themselves: exporting them is a conscious choice. The bundled `database`
+service and the backend's `depends_on` on it stay, because the compose file is the local stack.
+
+Test database: `app_test` on the same service, created by `db/init.sql` when the volume is first
+created; a volume that already existed needs `create database app_test owner app;` run once by
+hand. `tests/db/plugin.py`, loaded by `test-db` (`pytest -p tests.db.plugin`, never by `check`):
+
+- points `DATABASE_URL` at `TEST_DATABASE_URL` (default
+  `postgres://app:app@localhost:5432/app_test`) in `pytest_load_initial_conftests`, before
+  `config/env.py` loads (`pytest_configure` is too late: `tests/conftest.py` imports the app
+  first), and refuses a database whose name does not end in `_test`;
+- applies the migrations once and, when the database cannot be reached, exits 1 with one line
+  saying so;
+- fails the session when every `store_backed` test was skipped, so `test-db` cannot pass on zero
+  tests;
+- owns the pool in an async session fixture, which keeps one event loop for the whole run (anyio
+  would otherwise start a loop per test), because a pool is never reused across loops.
+
+Never fake the database: a test that needs a result from Postgres runs against `app_test`.
+
+Production: the server never migrates on boot. In the Compose stack the one-shot `backend-migrate`
+service (app profile) runs `python -m app.infra.scripts.migrate` from the backend's image with the
+same environment, and the backend waits for it to finish successfully: `docker compose --profile
+app up --build` applies the migrations before the backend starts, and the backend does not start
+if they fail. The `.sql` files ship inside the wheel, so the image needs no source tree. To run it
+alone: `docker compose --profile app run --rm backend-migrate`; like the app, it needs the
+production secrets and `DATABASE_URL` exported. `uv run poe migrate` stays for local development.
+Elsewhere the deploy pipeline runs the migrations before serving traffic and after every deploy
+that ships one, from the same image and with the same environment as the server (the env module
+validates all of it). A migration the old version must survive is written backwards compatible,
+since the old image keeps serving until the new one starts.
+
+Auth assumes, as built: <!-- @auth -->
+`rotate_session` is one conditional update (`where id = … and token_hash = <presented hash> and <!-- @auth -->
+revoked_at is null`), so one rotation wins; the loser re-reads and answers from the grace window <!-- @auth -->
+or is refused as a replay. There is no per-session lock. `revoke_session` and <!-- @auth -->
+`revoke_all_sessions` are single filtered updates that also clear `grace_token`, and <!-- @auth -->
+`purge_expired(now)` is one delete of the revoked and expired rows that returns their count. <!-- @auth -->
+Time comes from the caller, never from `now()` in SQL. `user.email` has a unique index (the <!-- @auth -->
+controller lower-cases it); `user.phone` is unique only among verified phones (a partial unique <!-- @auth -->
+index where `phone_verified_at is not null`). `session` is indexed on `user_id` and `expires_at` <!-- @auth -->
+and has no foreign key to `"user"`: modules stay independent. <!-- @auth -->
+
+The cache is its own task: `services/cache.py` over `infra/redis.py` (a `Resource`), same helpers;
+keys prefixed, always with a TTL; `incr` sets the TTL on the first increment only;
+`infra/pubsub.py` gets its adapter.
+<!-- @database:postgres-end -->
 
 ## Errors
 
@@ -601,10 +779,18 @@ middleware, so the 500 still carries the request id and the security headers; it
 once with the request id and never sent, nor is query text or a secret. Log through
 `services/logger.py`: one line per request, every unexpected error with its stack, ids and never
 payloads, secret-looking keys redacted.
-<!-- @database-start -->
+<!-- @database:postgres-start -->
 
-The Postgres error mapping arrives with the Postgres overlay.
-<!-- @database-end -->
+Postgres errors are mapped in one place, `classify_postgres_error` in
+`services/utils/postgres_error.py`, which the catch-all in `middleware/error_handler.py` calls
+before its `internal` fallback. A connection that is refused, lost or timed out (a
+`psycopg.OperationalError` with no SQLSTATE, `PoolTimeout` and `PoolClosed` among them), and a
+server that is starting, shutting down or out of connections, answer 503 `upstream_unavailable`
+with the fixed message "the database is unavailable". A unique violation (SQLSTATE 23505) answers
+409 `conflict` with "the record already exists", so a request that loses a race on a unique index
+needs no `try` in the controller. Any other database error is `internal`. The driver's text, the
+query, the detail and the constraint name stay in the server log.
+<!-- @database:postgres-end -->
 
 Every endpoint's test covers its validation failure and its not-found path, asserting the
 envelope's `code` and `requestId`, not only the status.
@@ -644,9 +830,18 @@ A gated endpoint also tests its 401 and, where it checks a role, its 403. <!-- @
   `store_backed` is always live here; the data-layer task rewrites the seam for the engine (see
   Adding the data layer).
 <!-- @nodatabase-end -->
-<!-- @database-start -->
-  The Postgres variant of the seam arrives with the Postgres overlay.
-<!-- @database-end -->
+<!-- @database:postgres-start -->
+  `store_backed` skips unless `DATABASE_URL` names a database ending in `_test`, so `check` skips
+  the store-backed suites and `testDb` runs the whole suite against `app_test`. `reset_store()`
+  truncates every table except `schema_migration`, clears the cache, and raises on a database whose
+  name does not end in `_test`. This seam holds the one `skipif` of the suite: nothing else skips.
+  A test that only Postgres can answer (a unique index, a transaction) lives in `tests/db/` under
+  `store_backed`. The error classifier test is `tests/services/test_postgres_error.py`: a plain
+  test that runs in `check`. A test of the cache or the rate limits empties `memory` directly
+  (`await memory.close()`), because `reset_store()` needs a database. A store reset fixture
+  belongs to a store-backed file or class, never to a plain one: it would break `check` there.
+  Never fake the database.
+<!-- @database:postgres-end -->
 - A test that spawns a process (the entry test) is synchronous and uses `subprocess.run`: the
   selector loop cannot run asyncio subprocesses on Windows.
 - A test that pins a behaviour carried over from the TypeScript template names it in its docstring
