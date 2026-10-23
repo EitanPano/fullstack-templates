@@ -1,0 +1,365 @@
+[project]
+name = "app"
+version = "0.1.0"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+  "fastapi>=0.161",
+  "pydantic>=2.14",
+  "uvicorn>=0.54",
+  "watchfiles>=1.1",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=9",
+  "httpx>=0.28",
+  "time-machine>=3",
+  "mypy>=2",
+  "ruff>=0.17",
+  "import-linter>=2.11",
+  "poethepoet>=0.40",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv]
+required-version = ">=0.12.23,<0.13"
+
+[tool.poe.tasks]
+dev = "python -m app.main --reload"
+format = [{ cmd = "ruff check --select I --fix" }, { cmd = "ruff format" }]
+format-check = "ruff format --check"
+typecheck = "mypy src tests"
+test = "pytest"
+contract = "python -m app.openapi --write"
+# PYTHONUTF8: without it, rich's legacy Windows renderer crashes on a NUL stdout.
+lint = [{ cmd = "ruff check" }, { cmd = "lint-imports", env = { PYTHONUTF8 = "1" } }]
+check = ["lint", "format-check", "typecheck", "test"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "A", "N", "ASYNC", "S", "DTZ", "RUF", "SIM", "PT", "ANN"]
+
+[tool.ruff.lint.per-file-ignores]
+# An assertion is how a test says what it expects.
+"tests/**" = ["S101"]
+# The environment must be set before the first `app` import, so the imports follow the assignment.
+"tests/conftest.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+disallow_any_explicit = true
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_typed = true
+init_forbid_extra = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+anyio_mode = "auto"
+filterwarnings = ["error"]
+markers = ["store_backed: needs the record store; always live in this variant"]
+
+[tool.importlinter]
+root_package = "app"
+
+# Layer enforcement, mirroring bun-express's eslint.config.mjs zones for the paths that exist.
+# Where ESLint's zones are direct imports so are these (`allow_indirect_imports`); one layers
+# contract covers the overall direction. Module privacy (a module's `service` imported only from
+# inside its own module, an `independence` contract over `app.api.*`) arrives with the second
+# module. Imports inside a function count too: openapi.py imports the server only to write the
+# contract from the command line.
+
+# The overall direction: the entry on top, then the app, the mount table, the modules, middleware,
+# the shared services and the config leaves. `app.infra` is not listed: its jobs and subscribers
+# will sit above the modules while `infra.dependency` sits below them.
+[[tool.importlinter.contracts]]
+name = "layers: entry, server, routes, modules, middleware, services, config"
+type = "layers"
+layers = [
+  "app.main",
+  "app.server",
+  "app.config.routes",
+  "app.api",
+  "app.middleware",
+  "app.services",
+  "app.config.cors",
+  "app.config.constants | app.config.env",
+]
+
+# Leaves: config/constants.py and config/env.py import nothing from the app, nor each other.
+[[tool.importlinter.contracts]]
+name = "config constants and env import nothing from the app"
+type = "forbidden"
+source_modules = ["app.config.constants", "app.config.env"]
+forbidden_modules = [
+  "app.api",
+  "app.middleware",
+  "app.infra",
+  "app.services",
+  "app.server",
+  "app.main",
+  "app.openapi",
+  "app.config.cors",
+  "app.config.routes",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "config constants does not import env"
+type = "forbidden"
+source_modules = ["app.config.constants"]
+forbidden_modules = ["app.config.env"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "config env does not import constants"
+type = "forbidden"
+source_modules = ["app.config.env"]
+forbidden_modules = ["app.config.constants"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "config cors imports config env only"
+type = "forbidden"
+source_modules = ["app.config.cors"]
+forbidden_modules = [
+  "app.api",
+  "app.middleware",
+  "app.infra",
+  "app.services",
+  "app.server",
+  "app.main",
+  "app.openapi",
+  "app.config.constants",
+  "app.config.routes",
+]
+allow_indirect_imports = true
+
+# services/utils is pure: models, config constants and env, and itself.
+[[tool.importlinter.contracts]]
+name = "services utils is pure"
+type = "forbidden"
+source_modules = ["app.services.utils"]
+forbidden_modules = [
+  "app.api",
+  "app.middleware",
+  "app.infra",
+  "app.services.logger",
+  "app.server",
+  "app.main",
+  "app.openapi",
+  "app.config.cors",
+  "app.config.routes",
+]
+allow_indirect_imports = true
+
+# config/routes.py imports every module's routes.py and nothing else of a module; only it does.
+[[tool.importlinter.contracts]]
+name = "config routes imports module routes only"
+type = "forbidden"
+source_modules = ["app.config.routes"]
+forbidden_modules = [
+  "app.infra",
+  "app.services",
+  "app.server",
+  "app.main",
+  "app.openapi",
+  "app.config.env",
+  "app.config.constants",
+  "app.config.cors",
+  "app.api.*.controller",
+  "app.api.*.schema",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "only config routes imports a module routes"
+type = "forbidden"
+source_modules = [
+  "app.api.*.controller",
+  "app.api.*.schema",
+  "app.middleware",
+  "app.infra",
+  "app.services",
+  "app.server",
+  "app.main",
+  "app.openapi",
+  "app.config.env",
+  "app.config.constants",
+  "app.config.cors",
+]
+forbidden_modules = ["app.api.*.routes"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "only server imports the mount table"
+type = "forbidden"
+source_modules = [
+  "app.api",
+  "app.middleware",
+  "app.infra",
+  "app.services",
+  "app.main",
+  "app.openapi",
+  "app.config.env",
+  "app.config.constants",
+  "app.config.cors",
+]
+forbidden_modules = ["app.config.routes"]
+allow_indirect_imports = true
+
+# Config and services/utils do not import infra (config routes reaches it only through a routes.py,
+# which the contract above does not count as a direct import).
+[[tool.importlinter.contracts]]
+name = "config and services utils do not import infra"
+type = "forbidden"
+source_modules = ["app.config", "app.services.utils"]
+forbidden_modules = ["app.infra"]
+allow_indirect_imports = true
+
+# services/ never imports middleware, api, the server or the entry.
+[[tool.importlinter.contracts]]
+name = "services never import middleware, api, server or entry"
+type = "forbidden"
+source_modules = ["app.services"]
+forbidden_modules = ["app.middleware", "app.api", "app.server", "app.main", "app.openapi"]
+allow_indirect_imports = true
+
+# services/ outside the db, cache and event seams reaches infra through infra/dependency.py only.
+[[tool.importlinter.contracts]]
+name = "services reach infra through dependency only"
+type = "forbidden"
+source_modules = ["app.services"]
+forbidden_modules = ["app.infra.loop"]
+allow_indirect_imports = true
+
+# middleware/ never imports api, infra, the server or the entry.
+[[tool.importlinter.contracts]]
+name = "middleware never imports api, infra, server or entry"
+type = "forbidden"
+source_modules = ["app.middleware"]
+forbidden_modules = ["app.api", "app.infra", "app.server", "app.main", "app.openapi"]
+allow_indirect_imports = true
+
+# infra/ never imports middleware, the server or the entry, and its dependency and loop modules
+# import no api (jobs, subscribers and scripts, which may import controllers, come with the modules).
+[[tool.importlinter.contracts]]
+name = "infra never imports middleware, server or entry"
+type = "forbidden"
+source_modules = ["app.infra"]
+forbidden_modules = ["app.middleware", "app.server", "app.main", "app.openapi"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "infra dependency and loop import no api"
+type = "forbidden"
+source_modules = ["app.infra.dependency", "app.infra.loop"]
+forbidden_modules = ["app.api"]
+allow_indirect_imports = true
+
+# What each file of a module may import.
+[[tool.importlinter.contracts]]
+name = "schema is the leaf of a module"
+type = "forbidden"
+source_modules = ["app.api.*.schema"]
+forbidden_modules = [
+  "app.api.*.routes",
+  "app.api.*.controller",
+  "app.api.*.service",
+  "app.middleware",
+  "app.infra",
+  "app.services.logger",
+  "app.config.env",
+  "app.config.cors",
+  "app.config.routes",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "routes wire gates to handlers"
+type = "forbidden"
+source_modules = ["app.api.*.routes"]
+forbidden_modules = [
+  "app.api.*.service",
+  "app.services.logger",
+  "app.infra",
+  "app.config.env",
+  "app.config.cors",
+  "app.config.routes",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "controller holds the rules and the handlers"
+type = "forbidden"
+source_modules = ["app.api.*.controller"]
+forbidden_modules = ["app.api.*.routes", "app.infra.loop", "app.config.routes"]
+allow_indirect_imports = true
+
+# The entry files.
+[[tool.importlinter.contracts]]
+name = "server mounts config routes and imports no api or infra"
+type = "forbidden"
+source_modules = ["app.server"]
+forbidden_modules = ["app.api", "app.infra", "app.services.utils", "app.main"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "openapi imports no module behaviour, infra or middleware"
+type = "forbidden"
+source_modules = ["app.openapi"]
+forbidden_modules = [
+  "app.api.*.routes",
+  "app.api.*.controller",
+  "app.api.*.service",
+  "app.infra",
+  "app.middleware",
+  "app.main",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "main imports config env, infra dependency, logger and server only"
+type = "forbidden"
+source_modules = ["app.main"]
+forbidden_modules = [
+  "app.api",
+  "app.middleware",
+  "app.openapi",
+  "app.services.utils",
+  "app.config.constants",
+  "app.config.cors",
+  "app.config.routes",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "nothing imports the entry"
+type = "forbidden"
+source_modules = [
+  "app.api",
+  "app.middleware",
+  "app.infra",
+  "app.services",
+  "app.config",
+  "app.server",
+  "app.openapi",
+]
+forbidden_modules = ["app.main"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "only the entry imports the server (openapi does, to write the contract)"
+type = "forbidden"
+source_modules = ["app.api", "app.middleware", "app.infra", "app.services", "app.config"]
+forbidden_modules = ["app.server"]
+allow_indirect_imports = true

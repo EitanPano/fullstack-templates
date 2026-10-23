@@ -1,0 +1,5 @@
+schemaVersion: 1
+cases:
+  - name: default
+  - name: stack
+    stack: next-python-fastapi

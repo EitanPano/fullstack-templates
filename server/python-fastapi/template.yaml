@@ -1,0 +1,39 @@
+schemaVersion: 1
+id: python-fastapi
+kind: server
+name: FastAPI on Python 3.14
+version: 1.0.0
+summary: "Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope"
+runtime: { language: python, platform: cpython, minVersion: '3.14' }
+tools:
+  - { name: uv, min: '0.12.23' }
+placeholders: [PROJECT_NAME]
+capabilities:
+  database: { providers: [] }
+  cache: { providers: [] }
+  messaging: { providers: [], mode: push }
+dependencies: { manifest: pyproject.toml, adapter: pyproject }
+commands:
+  install: uv sync
+  dev: uv run poe dev
+  check: uv run poe check
+  typecheck: uv run poe typecheck
+  lint: uv run poe lint
+  format: uv run poe format
+  test: uv run poe test
+  contract: uv run poe contract
+contract: { produces: openapi.json }
+http: { port: 8000, health: /api/health, ready: /api/health/ready }
+gitignore: [python]
+agents: AGENTS.md
+defaultStack: next-python-fastapi
+postGenerate:
+  - install
+  - contract
+  - format
+dropAfterPostGenerate:
+  - .venv
+  - .mypy_cache
+  - .ruff_cache
+  - .pytest_cache
+  - .import_linter_cache
