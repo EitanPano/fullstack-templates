@@ -53,8 +53,7 @@ Generated alone or as the `server` of the `next-bun-express` stack.
   backend does not start if the migrations fail. `docker compose --profile app run --rm
   backend-migrate` runs it alone and needs the same exported secrets. `bun run db:migrate`
   stays for local development; elsewhere the deploy pipeline runs it.
-  `check` skips the store-backed suites and needs
-  no Docker; `test:db` runs everything against the `app_test` database of the same service
+  `check` skips the store-backed suites and needs no Docker; `test:db` runs everything against the `app_test` database of the same service
   (`docker compose up -d --wait database` first).
 
 The layer map and conventions of the generated package are in `base/AGENTS.md`.

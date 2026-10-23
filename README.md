@@ -38,9 +38,11 @@ variable to the backend's `.env.example`, and the migration and test-database sc
 
 To run the full stack (`docker compose --profile app up --build`), export `DATABASE_URL` first:
 it is a secret with no default in Compose, and the backend runs with `NODE_ENV: production`.
-Nothing runs the migrations on boot. Before the backend serves traffic, and after every deploy
-that ships a migration, run them: `docker compose --profile app run --rm backend bun run db:migrate`
-(with the production secrets and `DATABASE_URL` exported, as for `up`). The bundled `database`
+The server does not migrate on boot: the one-shot `backend-migrate` service runs first and the
+backend starts only after it succeeds, so `up --build` applies the migrations before the backend
+serves. `docker compose --profile app run --rm backend-migrate` runs it alone, with the
+production secrets and `DATABASE_URL` exported, as the app needs; `bun run db:migrate` stays for
+local development. The bundled `database`
 service is the local stack; production does not refuse its credentials if you export them.
 
 ## Templates
