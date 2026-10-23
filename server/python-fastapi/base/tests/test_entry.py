@@ -203,8 +203,10 @@ class TestLoadEnv:
     def test_treats_the_empty_string_compose_passes_for_an_unset_secret_as_missing(self) -> None:
         with pytest.raises(EnvError, match="ENCRYPTION_KEY"):
             load_env({**PRODUCTION, "ENCRYPTION_KEY": ""})
-        loaded = load_env({"APP_ENV": "development", "ENCRYPTION_KEY": ""})
-        assert "ENCRYPTION_KEY" in loaded.defaulted_secrets
+        secrets = load_env({"APP_ENV": "development", "ENCRYPTION_KEY": ""}).defaulted_secrets
+        expected = ["ENCRYPTION_KEY"]
+        expected[:0] = ["JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET", "OTP_SECRET"]  # @auth
+        assert secrets == expected
 
     def test_reads_the_port_and_refuses_one_that_is_not_a_port(self) -> None:
         assert load_env({"PORT": "9000"}).env.port == 9000

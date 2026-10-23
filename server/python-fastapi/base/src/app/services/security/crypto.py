@@ -1,6 +1,11 @@
-"""crypto.py belongs: the stateless cryptographic primitives the auth flow composes (password
-hashing, HMAC, SHA-256, random tokens, constant-time comparison, authenticated encryption). It does
-not belong: token signing (`jwt.py`), cookies (`cookies.py`) or anything that stores or reads state.
+"""
+crypto.py belongs: the stateless primitives the auth flow composes (password hashing, # @auth
+HMAC, SHA-256, random tokens, constant-time comparison, authenticated encryption). It does # @auth
+not belong: token signing (`jwt.py`), cookies (`cookies.py`) or anything that stores or # @auth
+reads state. # @auth
+crypto.py belongs: the stateless cryptographic primitives (password hashing, HMAC, # @noauth
+SHA-256, random tokens, constant-time comparison, authenticated encryption). It does # @noauth
+not belong: anything that stores or reads state. # @noauth
 
 Argon2id comes from argon2-cffi with its default profile (RFC 9106, low memory: 64 MiB, 3 passes, 4
 lanes). Hashing and verifying take tens of milliseconds by design, so they run through
