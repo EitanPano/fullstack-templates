@@ -14,7 +14,7 @@ import asyncio
 import contextlib
 import copy
 import re
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Final, Protocol, cast
@@ -24,6 +24,9 @@ from app.services.logger import Logger, log
 from app.services.utils import clock
 
 SWEEP_INTERVAL_MS: Final = 60_000
+
+# What the sweep timer waits with; a test passes its own so no real time elapses.
+type Sleep = Callable[[float], Awaitable[None]]
 
 _INTEGER: Final = re.compile(r"-?[0-9]+")
 
@@ -90,7 +93,9 @@ class MemoryStore:
         production: bool,
         logger: Logger = log,
         sweep_interval_ms: int = SWEEP_INTERVAL_MS,
+        sleep: Sleep = asyncio.sleep,
     ) -> None:
+        self._sleep = sleep
         self._production = production
         self._logger = logger
         self._sweep_interval = sweep_interval_ms / 1000
@@ -127,7 +132,7 @@ class MemoryStore:
 
     async def _sweep_forever(self) -> None:
         while True:
-            await asyncio.sleep(self._sweep_interval)
+            await self._sleep(self._sweep_interval)
             self.sweep()
 
     def sweep(self) -> int:
@@ -190,8 +195,11 @@ def create_memory_store(
     production: bool,
     logger: Logger = log,
     sweep_interval_ms: int = SWEEP_INTERVAL_MS,
+    sleep: Sleep = asyncio.sleep,
 ) -> MemoryStore:
-    return MemoryStore(production=production, logger=logger, sweep_interval_ms=sweep_interval_ms)
+    return MemoryStore(
+        production=production, logger=logger, sweep_interval_ms=sweep_interval_ms, sleep=sleep
+    )
 
 
 memory: Final = create_memory_store(production=env.app_env == "production")

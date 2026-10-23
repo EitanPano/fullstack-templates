@@ -218,16 +218,28 @@ class TestSweep:
             assert await store.get("d") == "1"
 
     async def test_runs_on_a_timer_after_connect_and_stops_after_close(self) -> None:
+        # The timer's sleep is the test's: it waits for a tick the test sends and says when it
+        # has gone back to sleep, which is after a sweep. No real time passes.
+        ticks = asyncio.Queue[None]()
+        asleep = asyncio.Event()
+
+        async def sleep(_: float) -> None:
+            asleep.set()
+            await ticks.get()
+
         logger, _ = recording_logger()
-        store = create_memory_store(production=False, logger=logger, sweep_interval_ms=5)
+        store = create_memory_store(production=False, logger=logger, sleep=sleep)
         assert store.sweeping is False
         with time_machine.travel(START, tick=False) as clock:
             await store.connect()
             assert store.sweeping is True
             await store.set("k", "v", 1000)
             clock.move_to(at(seconds=2))
-
-            await asyncio.sleep(0.08)
+            async with asyncio.timeout(5):
+                await asleep.wait()
+                asleep.clear()
+                ticks.put_nowait(None)
+                await asleep.wait()
             # The timer already removed it, so a sweep now finds nothing.
             assert store.sweep() == 0
 
