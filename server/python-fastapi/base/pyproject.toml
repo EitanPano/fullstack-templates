@@ -449,7 +449,6 @@ ignore_imports = [
   "app.infra.* -> app.services.logger",
   "app.infra.* -> app.services.db",
   "app.infra.* -> app.services.cache",
-  "app.infra.* -> app.services.session",  # @auth
   "app.infra.* -> app.services.event",
   "app.infra.* -> app.services.utils.**",
   "app.infra.* -> app.services.utils",
@@ -522,7 +521,6 @@ forbidden_modules = [
 ]
 allow_indirect_imports = true
 ignore_imports = ["app.api.*.controller -> app.infra.dependency"]
-unmatched_ignore_imports_alerting = "none"
 
 # service.py (and model.py, which the Postgres overlay adds) is the data layer at the bottom of a
 # module: it imports services/db.py, services/cache.py, services/logger.py, services/utils/,

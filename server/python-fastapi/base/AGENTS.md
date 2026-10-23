@@ -346,8 +346,7 @@ or infra file joins the list.
 | `middleware never imports api, infra, server or entry` | `middleware/` is below the modules |
 | `infra never imports middleware, server or entry` | `infra/` is below the HTTP layer |
 | `infra stores, bus, scheduler, dependency and loop import no api` | `dependency.py`, `loop.py`, the stores, the bus and the scheduler import no module |
-| `infra files import logger, db, cache, event and utils only` | the same files import no other service | <!-- @noauth -->
-| `infra files import logger, db, cache, event and utils only` | the same files import no other service but `services/session.py` | <!-- @auth -->
+| `infra files import logger, db, cache, event and utils only` | the same files import no other service |
 | `jobs and subscribers reach a module through its controller only` | `infra/jobs/` and `infra/subscribers/` import a module's `controller` and `schema`, never its `routes`, `service` or `model`; the two packages exist in every variant (empty without `auth`), so a first job is linted from the start |
 | `schema is the leaf of a module` | `schema.py` imports `models/`, `services/utils/` and `config/constants.py`, and a schema of another module |
 | `routes wire gates to handlers` | `routes.py` imports its own `controller` and `schema`, `middleware/`, `models/`, `services/utils/` and `config/constants.py`; never `service`, `model`, any `services/` module but `utils/`, `infra/` or `config/env.py` |
@@ -425,10 +424,11 @@ changes only by plan.
 - Secrets: the JWT and OTP secrets are at least 32 characters, the two JWT secrets differ, and
   production refuses a placeholder (`config/env.py`).
 - Endpoints (`api/auth/`, `api/user/`): `POST /api/auth/{register,login,refresh,logout,otp,otp/verification}`
-  and `GET|PATCH /api/user/me`, `GET /api/user` and `GET /api/user/{id}` (admin). Register and
-  login set the cookies and `Cache-Control: no-store`; every credential failure is the same 401
-  and costs one password verification (`DUMMY_HASH` for an unknown email); a login code is
-  delivered detached from its request, so the 202 is the same for every target.
+  and `GET|PATCH /api/user/me`, `GET /api/user` and `GET /api/user/{id}` (admin). Register, login,
+  refresh and the login-purpose OTP verification set the cookies and `Cache-Control: no-store`;
+  every credential failure is the same 401 and costs one password verification (`DUMMY_HASH` for
+  an unknown email); a login code is delivered detached from its request, so the 202 is the same
+  for every target.
 - Background: `infra/jobs/session_cleanup.py` purges dead sessions hourly;
   `infra/subscribers/send_welcome.py` mails a new account on `user.registered`, published by the
   user controller's `create_user`.

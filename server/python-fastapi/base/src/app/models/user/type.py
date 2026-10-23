@@ -1,12 +1,10 @@
 """type.py belongs: the public user shape (ISO-string timestamps, `T | None` for absent values),
-the create and update inputs, and the contact target other layers share.
+the create input, and the contact target other layers share.
 It does not belong: the stored record (`interface.py`), value sets (`enums.py`) or limits
 (`constants.py`).
 """
 
 from dataclasses import dataclass
-from enum import Enum
-from typing import Final
 
 from app.models.user.enums import ContactType, UserRole, UserStatus
 
@@ -38,23 +36,6 @@ class UserCredentials:
 class CreateUserInput:
     email: str
     password: str
-
-
-class Unset(Enum):
-    """The one member that says "the caller did not send this", as `None` already says "clear".
-    `models/` imports no pydantic, so the wire's `MISSING` is converted to this at the edge."""
-
-    unset = "unset"
-
-
-UNSET: Final = Unset.unset
-
-
-@dataclass(frozen=True)
-class UpdateUserInput:
-    """`UNSET` means leave the field unchanged, `None` means clear it."""
-
-    phone: str | Unset | None = UNSET
 
 
 @dataclass(frozen=True)

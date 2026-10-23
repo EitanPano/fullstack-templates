@@ -7,7 +7,6 @@ types. It does not belong: stored records (auth has none; see `models/user` and
 from dataclasses import dataclass
 
 from app.models.user.enums import UserRole
-from app.models.user.type import PublicUser
 
 
 @dataclass(frozen=True)
@@ -27,17 +26,3 @@ class AuthTokens:
     access_expires_at: str
     refresh_token: str
     refresh_expires_at: str
-
-
-@dataclass(frozen=True)
-class AuthSession:
-    user: PublicUser
-    tokens: AuthTokens
-
-
-@dataclass(frozen=True)
-class OtpVerified:
-    """Tokens only on the login purpose: verifying a contact does not start a session."""
-
-    user: PublicUser
-    tokens: AuthTokens | None = None

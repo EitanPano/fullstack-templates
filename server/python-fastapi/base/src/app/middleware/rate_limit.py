@@ -31,8 +31,9 @@ _KEY_PREFIX: Final = "rl"
 def rate_limit(
     *, name: str, limit: int, window: str, key: KeyOf
 ) -> Callable[[Request], Awaitable[None]]:
-    """The dependency for one limit. `window` is a duration string, e.g.
-    `RATE_LIMITS.create_post_per_ip.window`."""
+    """The dependency for one limit. `window` is a duration string, e.g. # @auth
+    `RATE_LIMITS.login_per_ip.window`.""" # @auth
+    """The dependency for one limit. `window` is a duration string, such as `"15m"`.""" # @noauth
     window_ms = int(clock.parse_duration(window).total_seconds() * 1000)
 
     async def enforce(request: Request) -> None:
