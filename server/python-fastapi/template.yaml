@@ -45,7 +45,9 @@ capabilities:
 dependencies: { manifest: pyproject.toml, adapter: pyproject }
 commands:
   install: uv sync
-  dev: uv run poe dev
+  # Not `uv run poe dev`: poe starts every task in a new session on POSIX, so a supervisor's
+  # process-group stop (Playwright's web server) would leave the dev server running.
+  dev: uv run python -m app.main --reload
   check: uv run poe check
   typecheck: uv run poe typecheck
   lint: uv run poe lint

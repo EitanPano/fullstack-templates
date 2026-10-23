@@ -28,8 +28,10 @@ package with an `__init__.py`.
   library.
 <!-- @noauth-end -->
 - Commands are the harness's vocabulary, each with its poe task in this package: `install`
-  (`uv sync`), `dev` (`uv run poe dev`), `check` (`uv run poe check`: lint, format check, type
-  check, then tests, stopping at the first failure), `typecheck` (`uv run poe typecheck`), `lint`
+  (`uv sync`), `dev` (`uv run python -m app.main --reload`, run directly and not through poe,
+  which starts tasks in a new session so a supervisor's process-group stop would not reach the
+  server; `uv run poe dev` is the same for people), `check` (`uv run poe check`: lint, format
+  check, type check, then tests, stopping at the first failure), `typecheck` (`uv run poe typecheck`), `lint`
   (`uv run poe lint`: ruff, then import-linter), `format` (`uv run poe format`), `test`
   (`uv run poe test`) and `contract` (`uv run poe contract`). `check` never needs Docker.
 <!-- @database:postgres-start -->

@@ -36,7 +36,7 @@ on port 8000 with reload, `check` runs every gate, and `contract` writes `openap
 | Intent | Command |
 | --- | --- |
 | install | `uv sync` |
-| dev | `uv run poe dev` |
+| dev | `uv run python -m app.main --reload` (`uv run poe dev` is the same) |
 | check | `uv run poe check` |
 | typecheck | `uv run poe typecheck` |
 | lint | `uv run poe lint` |

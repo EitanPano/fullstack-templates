@@ -2,6 +2,8 @@
 
 ## 1.0.0 — 2026-10-23
 
+- The `dev` command is `uv run python -m app.main --reload`, not `uv run poe dev`: poe starts its task in
+  a new session on POSIX, so Playwright's process-group kill left the dev server running.
 - The development and test database URLs default to `127.0.0.1`, not `localhost`: the Compose service
   publishes on IPv4 loopback only and Windows resolves `localhost` to `::1` first, which cost about
   2 s per connection.

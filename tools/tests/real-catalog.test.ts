@@ -60,7 +60,7 @@ describe('generation from the real catalog', () => {
 
   test('next-python-fastapi with Postgres wires the uv command, port 8000 and the migrate service', () => {
     generated({ stack: 'next-python-fastapi', capabilities: ['database=postgres'] }, (out) => {
-      expect(playwright(out)).toContain("command: 'uv run poe dev'")
+      expect(playwright(out)).toContain("command: 'uv run python -m app.main --reload'")
       const recorded = parse(readFileSync(path.join(out, '.fullstack', 'catalog.yaml'), 'utf8'))
       expect(recorded.packages.backend.http.port).toBe(8000)
       expect(playwright(out)).toContain('http://localhost:8000/api/health')
