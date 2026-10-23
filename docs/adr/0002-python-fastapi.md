@@ -258,8 +258,8 @@ resulting order. No pure middleware raises: one that refuses a request sends the
 | Validation failure | 400 `validation_failed`, message `invalid <part>` for the first failing part (body, then query, then params); `details: [{path, message}]` with a dotted path | `RequestValidationError` mapped the same way: the first part with errors in that order (`path` reported as `params`), its errors only, `loc` minus the part as the dotted path; pydantic's message text (Deviations) |
 | Malformed JSON | 400 `validation_failed` "malformed JSON body" | the `json_invalid` error mapped to the same envelope |
 | Non-JSON body on a JSON route | the body is ignored, so the body schema fails: 400 `invalid body` | 400 `invalid body`, never 415 or 422 |
-| Body over 1 MB | 413 `payload_too_large` "request body is too large" | `body_limit` refuses a declared `Content-Length` over the limit with the envelope before reading. A streamed overflow raises a 413 subclass of Starlette's `HTTPException`, which FastAPI re-raises and the handler maps. FastAPI turns any other exception raised while reading the body into a plain 400. If the response has already started, the error is re-raised, not sent |
-| Unsupported charset | 415 `unsupported_media_type` "unsupported body charset" (a JSON charset not starting with `utf-`) | the same check in `body_limit` |
+| Body over 1 MB | 413 `payload_too_large` "request body is too large" | `body_limit` refuses a declared `Content-Length` over the limit with the envelope before reading, for every request body whatever its media type (not only JSON; Deviations). A streamed overflow raises a 413 subclass of Starlette's `HTTPException`, which FastAPI re-raises and the handler maps. FastAPI turns any other exception raised while reading the body into a plain 400. If the response has already started, the error is re-raised, not sent |
+| Unsupported charset | 415 `unsupported_media_type` "unsupported body charset" (a JSON charset not starting with `utf-`) | the same check in `body_limit`, only for a request that carries a body: a `Content-Length` above 0 or a chunked transfer |
 | Unknown path | 404 `not_found` "no route for METHOD path" | the same, from Starlette's 404. The path is `raw_path` decoded as ASCII, never the percent-decoded `path`, so `%0A` cannot forge a log line |
 | Wrong method on a known path | 404, as an unknown path (Express has no 405) | Starlette's 405 mapped to the same 404 envelope |
 | HEAD on a GET route | answered: the GET handler runs and the body is dropped (RFC 9110 requires HEAD wherever GET is supported) | a pure-ASGI `head` middleware, inside `body_limit`, runs the request as GET and sends the headers without the body; OpenAPI is unaffected |
@@ -526,7 +526,8 @@ full.
     - `loop="app.infra.loop:selector_loop_factory"`;
     - `server_header=False`, `proxy_headers=False`, `access_log=False`;
     - `log_config=None`;
-    - `timeout_graceful_shutdown=10`.
+    - `timeout_graceful_shutdown=5`, which with `disconnect_all`'s 4 s budget stays below the 10 s
+      Compose waits after SIGTERM.
 
     uvicorn's access log would log the query string, which bun-express deliberately never does.
 - **Dockerfile.** Two stages on `python:3.14-slim`, uv copied from `ghcr.io/astral-sh/uv:0.13`.
@@ -610,13 +611,15 @@ full.
 | Top-level scalar JSON (`"x"`, `5`) is 400 `invalid body`; body-parser's strict mode says "malformed JSON body" | same status and code |
 | An optional body sent as non-JSON (`RefreshBody` as `text/plain`) is 400 `invalid body`; Express ignores it | a client sending the wrong content type is told so |
 | `OPTIONS` with CORS off is a 404; Express answers 200 with `Allow` | nothing calls it; CORS-on preflights match exactly |
-| A compressed request body (`Content-Encoding` gzip, deflate or br) is 415 "unsupported body encoding"; Express inflates it | no client in the stack compresses request bodies; refusing removes a decompression-bomb surface |
+| A compressed request body (`Content-Encoding` gzip, deflate or br) is 415 "unsupported body encoding"; Express inflates it. The check applies only to a request that carries a body (a `Content-Length` above 0 or a chunked transfer), so a GET with a stray header is served | no client in the stack compresses request bodies; refusing removes a decompression-bomb surface |
+| The 1 MB size limit applies to every request body, whatever its media type, not only JSON: a declared length over it is refused before reading and a streamed overflow while reading; body-parser's `json()` limits JSON only | the limit is protective, and no route in the stack takes a large non-JSON body |
 | No `ETag` on JSON responses; Express adds a weak one | no client relies on it |
 | JSON responses are `application/json` without `; charset=utf-8` | JSON is UTF-8 by definition (RFC 8259); no test asserts the parameter |
 | A trailing slash is a 404; Express's non-strict routing serves `/api/health/` as `/api/health` | the generated client never sends one; rewriting paths before routing is hidden behaviour, and a redirect would break `POST` |
 | Cookie attributes come out as `expires=` and `SameSite=lax` (Python's `http.cookies`); Express writes `Expires=` and `SameSite=Lax` | attribute names and these values are case-insensitive (RFC 6265); tests compare them case-insensitively |
 | A failed bind or a failed startup exits with code 3 and uvicorn's message (`[Errno 98] … address already in use`); bun-express exits 1 with `listen failed port=N` | uvicorn owns the process; the entry test asserts non-zero, a message naming the port, and no `listening` line |
-| A signal during startup is held until startup ends: uvicorn's handler only sets a flag, and the lifespan's `connect_all` (up to about 35 s of retries) runs to completion or failure, so `docker stop` may reach its SIGKILL; bun-express exits at once | the lifespan still disconnects in reverse order on every normal shutdown; making boot cancellable would mean replacing uvicorn's signal handling |
+| A signal during startup is held until startup ends: uvicorn's handler only sets a flag, and the lifespan's `connect_all` runs to completion or failure. For one resource that keeps failing that is `attempts=10` with the 0.5 s backoff doubling to a 5 s cap, which is 9 sleeps of 0.5 + 1 + 2 + 4 + 5 + 5 + 5 + 5 + 5 = 32.5 s plus the attempts themselves: about 33 s when each attempt fails at once, and up to 77.5 s with Postgres, whose pool waits its 4.5 s `open` timeout in every one of the 10 attempts (82.5 s for a resource that hangs to the generic 5 s attempt timeout). `docker stop` can reach its SIGKILL during that window; bun-express exits at once | making boot cancellable would mean replacing uvicorn's signal handling |
+| A normal shutdown has one budget below Compose's default 10 s grace period: uvicorn drains requests for up to 5 s (`timeout_graceful_shutdown=5`), then `disconnect_all` closes the resources in reverse order under one 4 s deadline, 9 s in all. Each close is bounded by the time left, not by its own timeout: a close still running when the time is spent is cancelled with a warning, and a resource reached after the deadline is reported as skipped. The scheduler and the bus cancel the runs and reactions they were waiting for when their close is cancelled. | the default grace period of `docker stop` and `docker compose down` is respected without a `stop_grace_period` in the Compose file; a hung job or handler cannot turn a stop into a SIGKILL halfway through closing the pool |
 | Environment mode is `APP_ENV`, not `NODE_ENV` | the same values and semantics; `NODE_ENV` means nothing to Python tooling |
 | Port 8000 | FastAPI's convention; it proves that the server port flows into the frontend |
 
@@ -681,7 +684,8 @@ Not in the text above:
 - **Shutdown semantics (M4-11)**: APScheduler 3.11 cancels a running job coroutine on shutdown
   whatever `wait` says, so jobs run in shielded tasks that `close()` waits for within a bound
   (`4fefd87`). `PubSub.close()` also waits for chained reactions (`dc48563`), and the login-code
-  deliveries are detached work the bus tracks and drains at shutdown (`b04e486`).
+  deliveries are detached work the bus tracks and drains at shutdown (`b04e486`). The final fix wave
+  bounded all of it under one 4 s `disconnect_all` deadline (Deviations).
 - **The list cursor** accepts only an ISO timestamp with a timezone (`3c3080a`).
 - **`get_db()` (M4-12)** is an async context manager, not a synchronous accessor, because a
   psycopg pool hands out connections asynchronously. Queries still take an optional last `db`
