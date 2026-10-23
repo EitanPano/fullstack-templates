@@ -1,0 +1,169 @@
+"""The only module that reads `os.environ`.
+
+Parsed once at import; a missing or malformed variable stops the process with a message naming it.
+A fresh clone runs with no environment at all: every variable has a development default or is
+optional, except the secrets in production, which must be supplied (outside production they fall
+back to a plainly fake default and `defaulted_secrets` names them so the entry can warn). A
+variable the product adds (a provider key) is declared here and in the example env file.
+
+No `.env` loading and no pydantic-settings: secrets never live in a file in the working tree, and
+`BaseSettings` would merge `os.environ` into an explicit mapping, JSON-decode list fields and match
+names case-insensitively.
+"""
+
+import base64
+import binascii
+import os
+from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import Annotated, Final, Literal
+
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    ValidationError,
+)
+
+type TrustProxy = bool | int | str
+
+
+class EnvError(ValueError):
+    """The environment is unusable; the message names each variable and what is wrong."""
+
+
+_SECRET_NAMES: Final = ("ENCRYPTION_KEY",)
+
+_DEVELOPMENT_DEFAULTS: Final = {
+    # 32 bytes, base64.
+    "ENCRYPTION_KEY": "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+}
+
+# Docker Compose passes an unset `${VAR}` as an empty string; blank means unset.
+_BLANK_IS_UNSET: Final = ("CORS_ORIGINS", "MAIL_FROM", "TRUST_PROXY")
+
+_DEFAULT_MAIL_FROM: Final = "no-reply@example.com"
+
+
+def _check_encryption_key(value: str) -> str:
+    try:
+        decoded = base64.b64decode(value, validate=True)
+    except binascii.Error:
+        decoded = b""
+    if len(decoded) != 32:
+        raise ValueError("must be base64 that decodes to 32 bytes")
+    return value
+
+
+def _parse_trust_proxy(value: object) -> object:
+    # A boolean, a hop count or an address list, the three forms a proxy setting takes. The
+    # digits are ASCII only: `str.isdigit` accepts Unicode digits.
+    if value == "true":
+        return True
+    if value == "false":
+        return False
+    if isinstance(value, str) and value.isascii() and value.isdigit():
+        return int(value)
+    return value
+
+
+def _split_origins(value: object) -> object:
+    if isinstance(value, str):
+        return tuple(origin.strip() for origin in value.split(",") if origin.strip() != "")
+    return value
+
+
+def _parse_boolean_text(value: object) -> object:
+    if value == "true":
+        return True
+    if value == "false":
+        return False
+    raise ValueError("must be true or false")
+
+
+class Env(BaseModel):
+    """The parsed environment. Field `port` reads variable `PORT`, and so on."""
+
+    model_config = ConfigDict(
+        alias_generator=str.upper,
+        validate_by_alias=True,
+        validate_by_name=False,
+        extra="ignore",
+        frozen=True,
+    )
+
+    app_env: Literal["development", "test", "production"] = "development"
+    port: Annotated[int, Field(gt=0, le=65535)] = 8000
+    trust_proxy: Annotated[TrustProxy, BeforeValidator(_parse_trust_proxy)] = False
+    cors_origins: Annotated[tuple[str, ...] | None, BeforeValidator(_split_origins)] = None
+    encryption_key: Annotated[str, AfterValidator(_check_encryption_key)]
+    mail_provider: Annotated[str, Field(min_length=1)] = "console"
+    sms_provider: Annotated[str, Field(min_length=1)] = "console"
+    whatsapp_provider: Annotated[str, Field(min_length=1)] = "console"
+    mail_from: Annotated[str, Field(min_length=1)] = _DEFAULT_MAIL_FROM
+    jobs_enabled: Annotated[bool, BeforeValidator(_parse_boolean_text)] = True
+
+
+@dataclass(frozen=True)
+class LoadedEnv:
+    env: Env
+    defaulted_secrets: list[str]
+
+
+def _placeholder_problems(source: Mapping[str, str]) -> list[str]:
+    """A copied example file or the development default must not reach production: the secrets
+    would be public. Only the name is reported, never the value."""
+    problems: list[str] = []
+    for name in _SECRET_NAMES:
+        value = source.get(name, "")
+        if value == "":
+            continue
+        if value.startswith(("change-me", "dev-only-")) or value == _DEVELOPMENT_DEFAULTS[name]:
+            problems.append(f"{name}: is a placeholder, set a real secret")
+    return problems
+
+
+def _issue_messages(error: ValidationError) -> list[str]:
+    messages: list[str] = []
+    for issue in error.errors(include_url=False, include_input=False, include_context=False):
+        name = ".".join(str(part) for part in issue["loc"])
+        messages.append(f"{name}: {issue['msg'].removeprefix('Value error, ')}")
+    return messages
+
+
+def load_env(source: Mapping[str, str]) -> LoadedEnv:
+    """Parse `source`; an explicit mapping, so tests never read the real environment."""
+    production = source.get("APP_ENV") == "production"
+    defaulted: list[str] = []
+    values = {
+        name: value
+        for name, value in source.items()
+        if not (name in _BLANK_IS_UNSET and value.strip() == "")
+    }
+    if not production:
+        for name in _SECRET_NAMES:
+            if source.get(name, "") == "":
+                values[name] = _DEVELOPMENT_DEFAULTS[name]
+                defaulted.append(name)
+
+    if production:
+        problems = _placeholder_problems(source)
+        if problems:
+            raise EnvError(f"invalid environment: {'; '.join(problems)}")
+
+    try:
+        parsed = Env.model_validate(values)
+    except ValidationError as error:
+        raise EnvError(f"invalid environment: {'; '.join(_issue_messages(error))}") from None
+    if parsed.mail_provider != "console" and "MAIL_FROM" not in values:
+        raise EnvError(
+            "invalid environment: MAIL_FROM: is required when MAIL_PROVIDER is not console"
+        )
+    return LoadedEnv(env=parsed, defaulted_secrets=defaulted)
+
+
+_loaded: Final = load_env(os.environ)
+env: Final = _loaded.env
+defaulted_secrets: Final = _loaded.defaulted_secrets
