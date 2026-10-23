@@ -30,7 +30,7 @@ cd ../frontend && bun run check
 The generator copies each package's base, applies the flags, assembles the root
 `docker-compose.yml`, installs dependencies, generates the contract and the client types,
 and writes `.fullstack/catalog.yaml` recording what was generated and which commands to run.
-Needs Bun 1.4+, Node 24+ and git, plus uv 0.12.23 up to 0.14 (which installs Python 3.14) for a Python
+Needs Bun 1.4+, Node 24+ and git, plus uv 0.12.23 or later, below 0.14 (which installs Python 3.14) for a Python
 package. The generator checks the tools a template declares before it starts.
 
 With a database (needs Docker):
