@@ -185,7 +185,9 @@ pins:
 
 A pin is git's blob id of the base file with CRLF read as LF, so Windows and Linux checkouts
 agree. A file is shadowed when its path is in both `base/` and `overlay/`, unless the capability
-lists it under a flag's `onlyPaths` (then it only adds to the package). `validate` fails when:
+lists it under a flag's `onlyPaths`. An `onlyPaths` entry must be a file only the overlay adds, so
+the loader refuses one that also exists in `base/` (a flag that is off would delete the base file
+too, and pins would not see it). `validate` fails when:
 
 - a shadowed file has no pin;
 - a pin names a file the overlay does not shadow;

@@ -334,6 +334,17 @@ describe('loadCatalog providers and capabilities', () => {
     )
   })
 
+  test('reports a capability flag onlyPath that also exists in base/', () => {
+    // Such a path escapes the pins and, with the flag off, would delete the base file too.
+    const root = copyFixture('catalog')
+    edit(root, `${overlayDir}/capability.yaml`, (t) =>
+      t.replace('onlyPaths: [src/auth-database.ts]', 'onlyPaths: [src/auth.ts]'),
+    )
+    expect(problems(root)).toContain(
+      `${overlayDir}/capability.yaml: flag "auth" onlyPath "src/auth.ts" exists in base/: an onlyPath must be a file the overlay adds`,
+    )
+  })
+
   test('reports a listed provider without a capability directory', () => {
     const root = copyFixture('catalog')
     rmSync(path.join(root, overlayDir), { recursive: true })

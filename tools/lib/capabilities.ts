@@ -94,6 +94,11 @@ function checkOverlayManifest(
           `${label}/capability.yaml: flag "${flag}" onlyPath "${only}" does not exist in overlay/`,
         )
       }
+      if (existsSync(path.join(template.dir, 'base', only))) {
+        problems.push(
+          `${label}/capability.yaml: flag "${flag}" onlyPath "${only}" exists in base/: an onlyPath must be a file the overlay adds`,
+        )
+      }
     }
   }
   const scriptNames = Object.keys(manifest.scripts ?? {})
