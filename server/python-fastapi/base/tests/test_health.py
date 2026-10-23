@@ -4,6 +4,7 @@ import httpx
 import time_machine
 from fastapi import FastAPI
 
+from app.api.health import controller as health_controller
 from app.api.health.controller import get_readiness
 from app.api.health.schema import Readiness
 from app.infra.dependency import Resource
@@ -93,7 +94,11 @@ class TestLiveness:
         with time_machine.travel(later, tick=False):
             body = (await client.get("/api/health")).json()
 
-        assert 89 <= body["uptimeSeconds"] <= 100
+        # Measured from the process start, which is when the module was imported: a long suite
+        # must not push the answer past a fixed window.
+        started = health_controller._started_at
+        assert body["uptimeSeconds"] == int((later - started).total_seconds())
+        assert body["uptimeSeconds"] >= 90
 
 
 class TestAnUnknownRoute:
