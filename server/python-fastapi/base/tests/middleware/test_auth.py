@@ -79,6 +79,20 @@ class TestAuthenticateAndRequireAuth:
 
         assert response.json()["caller"] == {"id": "u2", "role": "user", "sessionId": "sid-u2"}
 
+    async def test_the_first_access_cookie_wins_as_in_express(self) -> None:
+        good, bad = _token("u3"), "garbage"
+        async with http_client(_probe()) as client:
+            first = await client.get(
+                "/me", headers={"Cookie": f"access_token={good}; access_token={bad}"}
+            )
+            reversed_ = await client.get(
+                "/me", headers={"Cookie": f"access_token={bad}; access_token={good}"}
+            )
+
+        assert first.status_code == 200
+        assert first.json()["caller"]["id"] == "u3"
+        assert reversed_.status_code == 401
+
     async def test_prefers_the_header_over_the_cookie(self) -> None:
         async with http_client(_probe()) as client:
             response = await client.get(

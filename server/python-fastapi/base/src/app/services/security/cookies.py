@@ -14,6 +14,7 @@ Python's `http.cookies` writes `expires=` and `SameSite=lax` where Express write
 import math
 from datetime import UTC, datetime
 from typing import Final, Literal, TypedDict
+from urllib.parse import unquote
 
 from starlette.requests import HTTPConnection
 from starlette.responses import Response
@@ -78,8 +79,18 @@ def clear_auth_cookies(response: Response) -> None:
 
 
 def _cookie_of(connection: HTTPConnection, name: str) -> str | None:
-    value = connection.cookies.get(name)
-    return value if value else None
+    """The first occurrence of `name` across the `Cookie` lines, in order, as Express's cookie
+    parser keeps it. Starlette's `connection.cookies` keeps the last, and merges several lines
+    with `dict.update`, so a duplicate planted behind the real cookie would win there."""
+    for line in connection.headers.getlist("cookie"):
+        for pair in line.split(";"):
+            key, separator, raw = pair.partition("=")
+            if separator and key.strip() == name:
+                value = raw.strip()
+                if len(value) >= 2 and value.startswith('"') and value.endswith('"'):
+                    value = value[1:-1]
+                return unquote(value) or None
+    return None
 
 
 def read_access_token(connection: HTTPConnection) -> str | None:

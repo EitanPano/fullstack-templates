@@ -52,6 +52,10 @@ def _request(headers: dict[str, str]) -> Request:
     return Request(scope)
 
 
+def _request_lines(lines: list[str]) -> Request:
+    return Request({"type": "http", "headers": [(b"cookie", line.encode()) for line in lines]})
+
+
 def _issued() -> Response:
     response = Response()
     with time_machine.travel(START, tick=False):
@@ -205,6 +209,37 @@ class TestReadAccessToken:
 
     def test_an_empty_cookie_is_none(self) -> None:
         assert read_access_token(_request({"cookie": "access_token="})) is None
+
+
+class TestFirstOccurrenceWins:
+    """As Express's cookie parser: a repeated name keeps its first value, within a line and across
+    several `Cookie` lines. Starlette keeps the last, which would let a cookie planted on a
+    sibling subdomain outrank the real one."""
+
+    def test_within_one_line(self) -> None:
+        request = _request({"cookie": "access_token=first; access_token=second"})
+
+        assert read_access_token(request) == "first"
+
+    def test_across_lines_in_header_order(self) -> None:
+        request = _request_lines(["access_token=first", "access_token=second"])
+
+        assert read_access_token(request) == "first"
+
+    def test_an_empty_first_value_wins_and_reads_as_none(self) -> None:
+        assert read_access_token(_request({"cookie": "access_token=; access_token=x"})) is None
+
+    def test_other_names_and_spacing_are_read(self) -> None:
+        request = _request({"cookie": "a=1;  refresh_token = r ;access_token=t"})
+
+        assert read_refresh_token(request) == "r"
+        assert read_access_token(request) == "t"
+
+    def test_a_quoted_and_percent_encoded_value_is_decoded(self) -> None:
+        assert read_access_token(_request({"cookie": 'access_token="a%20b"'})) == "a b"
+
+    def test_a_pair_without_equals_is_ignored(self) -> None:
+        assert read_access_token(_request({"cookie": "junk; access_token=t"})) == "t"
 
 
 class TestReadRefreshToken:
