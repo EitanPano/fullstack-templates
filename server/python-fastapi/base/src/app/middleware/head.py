@@ -2,9 +2,10 @@
 
 FastAPI's routes declare GET only, so a HEAD would be the router's 405. This middleware runs the
 request as GET and sends the response start (status and headers, `content-length` included)
-without the body. A HEAD on a path with no GET route gets the not_found envelope's headers and
-no body. It sits inside `body_limit` and outside the catch-all, so an unexpected error is still
-the 500 envelope's headers. OpenAPI is unaffected: no HEAD operation is declared.
+without the body: one empty final body message, however many the GET handler streams. A HEAD on a
+path with no GET route gets the not_found envelope's headers and no body. It sits inside
+`body_limit` and outside the catch-all, so an unexpected error is still the 500 envelope's
+headers. OpenAPI is unaffected: no HEAD operation is declared.
 """
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -25,10 +26,18 @@ class HeadMiddleware:
         as_get: Scope = {**scope, "method": "GET"}
         set_original_method(as_get, "HEAD")
 
+        ended = False
+
         async def send_without_body(message: Message) -> None:
-            if message["type"] == "http.response.body":
-                await send({"type": "http.response.body", "body": b"", "more_body": False})
-            else:
+            nonlocal ended
+            if message["type"] != "http.response.body":
                 await send(message)
+                return
+            # One empty final body when the first body message arrives, and the rest dropped: a
+            # streamed GET sends several, and a second final message after the response completed
+            # makes uvicorn raise.
+            if not ended:
+                ended = True
+                await send({"type": "http.response.body", "body": b"", "more_body": False})
 
         await self.app(as_get, receive, send_without_body)

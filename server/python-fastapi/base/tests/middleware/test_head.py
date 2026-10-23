@@ -69,3 +69,60 @@ class TestHead:
         res = await client.get("/openapi.json")
 
         assert all("head" not in item for item in res.json()["paths"].values())
+
+
+class TestAStreamedHead:
+    async def test_sends_exactly_one_final_body_message_for_a_streaming_route(self) -> None:
+        """Row: HEAD on a GET route. uvicorn raises when a response completes twice, so a GET
+        route that streams several body messages must still end the HEAD response once."""
+        sent: list[Message] = []
+        scope: Scope = {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "HEAD",
+            "scheme": "https",
+            "path": "/stream",
+            "raw_path": b"/stream",
+            "query_string": b"",
+            "root_path": "",
+            "headers": [],
+            "client": ("127.0.0.1", 123),
+            "server": ("testserver", 443),
+        }
+
+        async def receive() -> Message:
+            return {"type": "http.disconnect"}
+
+        async def send(message: Message) -> None:
+            sent.append(message)
+
+        await probe_app()(scope, receive, send)
+
+        assert sent[0]["type"] == "http.response.start"
+        assert sent[0]["status"] == 200
+        bodies = [message for message in sent if message["type"] == "http.response.body"]
+        assert bodies == [{"type": "http.response.body", "body": b"", "more_body": False}]
+
+    async def test_ends_the_response_once_for_several_body_messages_of_the_inner_app(self) -> None:
+        sent: list[Message] = []
+
+        async def inner(scope: Scope, receive: Receive, send: Send) -> None:
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b"a", "more_body": True})
+            await send({"type": "http.response.body", "body": b"b", "more_body": True})
+            await send({"type": "http.response.body", "body": b"", "more_body": False})
+
+        async def receive() -> Message:
+            return {"type": "http.disconnect"}
+
+        async def send(message: Message) -> None:
+            sent.append(message)
+
+        await HeadMiddleware(inner)({"type": "http", "method": "HEAD"}, receive, send)
+
+        assert [message["type"] for message in sent] == [
+            "http.response.start",
+            "http.response.body",
+        ]
+        assert sent[1]["more_body"] is False

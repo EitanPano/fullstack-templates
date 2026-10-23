@@ -62,6 +62,14 @@ def probe_app(app: FastAPI | None = None) -> FastAPI:
     async def boom() -> None:
         raise RuntimeError("connection string leaked here")
 
+    @probe.get("/stream")
+    async def stream() -> StreamingResponse:
+        async def chunks() -> AsyncIterator[bytes]:
+            for part in (b"one", b"two", b"three"):
+                yield part
+
+        return StreamingResponse(chunks())
+
     @probe.get("/boom-after-start")
     async def boom_after_start() -> StreamingResponse:
         async def chunks() -> AsyncIterator[bytes]:
