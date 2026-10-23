@@ -31,7 +31,17 @@ from pydantic import JsonValue, TypeAdapter
 type Json = dict[str, JsonValue]
 
 # The models that are contract components, by name. A module adds the names of its own here.
-COMPONENTS: Final = frozenset({"HealthResponse", "Readiness", "ErrorBody"})
+COMPONENTS: Final = frozenset(
+    {
+        "HealthResponse",
+        "Readiness",
+        "ErrorBody",
+        "Module",
+        "ModulePage",
+        "CreateModuleBody",
+        "UpdateModuleBody",
+    }
+)
 
 _REF_PREFIX: Final = "#/components/schemas/"
 _HTTP_METHODS: Final = ("get", "put", "post", "delete", "options", "head", "patch", "trace")

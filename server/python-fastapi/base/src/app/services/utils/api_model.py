@@ -17,8 +17,13 @@ by `clock.to_iso`. A schema pattern spells its classes out (`[0-9]`, `[A-Za-z0-9
 or `\\w`: pydantic's regex engine is Unicode.
 """
 
-from pydantic import BaseModel, ConfigDict
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
+
+# A timestamp on the wire: a string written by `clock.to_iso`, documented as `format: date-time`.
+type Timestamp = Annotated[str, Field(json_schema_extra={"format": "date-time"})]
 
 
 class RequestModel(BaseModel):

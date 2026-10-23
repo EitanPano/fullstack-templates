@@ -89,6 +89,48 @@ class TestTheDocument:
         assert "503" in responses
         assert "Readiness" in as_object(as_object(doc["components"])["schemas"])
 
+    def test_documents_the_module_endpoints_at_their_singular_paths(self) -> None:
+        doc = build_openapi_document(app)
+
+        paths = as_object(doc["paths"])
+        assert set(paths) >= {"/api/module", "/api/module/{id}"}
+        assert set(as_object(paths["/api/module"])) == {"get", "post"}
+        assert set(as_object(paths["/api/module/{id}"])) == {"get", "patch", "delete"}
+
+    def test_documents_the_module_list_query_and_its_page_component(self) -> None:
+        doc = build_openapi_document(app)
+
+        list_ = as_object(as_object(as_object(doc["paths"])["/api/module"])["get"])
+        assert isinstance(list_["parameters"], list)
+        parameters = [as_object(p) for p in list_["parameters"]]
+        assert {p["name"]: p["in"] for p in parameters} == {"cursor": "query", "limit": "query"}
+        limit = as_object(next(p for p in parameters if p["name"] == "limit")["schema"])
+        assert (limit["minimum"], limit["maximum"], limit["default"]) == (1, 100, 20)
+        page = as_object(as_object(as_object(doc["components"])["schemas"])["ModulePage"])
+        assert names(page["required"]) == {"items", "nextCursor"}
+        assert "Page" not in as_object(as_object(doc["components"])["schemas"])
+
+    def test_documents_the_module_status_as_an_inline_enum_and_timestamps_as_date_time(
+        self,
+    ) -> None:
+        doc = build_openapi_document(app)
+
+        module = as_object(as_object(as_object(doc["components"])["schemas"])["Module"])
+        properties = as_object(module["properties"])
+        assert as_object(properties["status"])["enum"] == ["active", "archived"]
+        assert as_object(properties["createdAt"])["format"] == "date-time"
+        assert as_object(properties["updatedAt"])["format"] == "date-time"
+        assert names(module["required"]) == {"id", "name", "status", "createdAt", "updatedAt"}
+
+    def test_documents_a_delete_with_no_body_and_a_create_with_its_limit(self) -> None:
+        doc = build_openapi_document(app)
+
+        paths = as_object(doc["paths"])
+        delete = as_object(as_object(paths["/api/module/{id}"])["delete"])
+        assert as_object(as_object(delete["responses"])["204"]) == {"description": "Deleted"}
+        create = as_object(as_object(paths["/api/module"])["post"])
+        assert set(as_object(create["responses"])) == {"201", "400", "429", "500"}
+
     def test_sets_the_document_metadata(self) -> None:
         doc = build_openapi_document(app)
 
@@ -129,7 +171,19 @@ class TestTheShaping:
     def test_makes_a_component_of_exactly_the_listed_names(self, document: Json) -> None:
         schemas = as_object(as_object(document["components"])["schemas"])
 
-        assert set(schemas) == COMPONENTS == {"HealthResponse", "Readiness", "ErrorBody"}
+        assert (
+            set(schemas)
+            == COMPONENTS
+            == {
+                "HealthResponse",
+                "Readiness",
+                "ErrorBody",
+                "Module",
+                "ModulePage",
+                "CreateModuleBody",
+                "UpdateModuleBody",
+            }
+        )
 
     def test_inlines_every_other_model_so_each_ref_names_a_component(self, document: Json) -> None:
         refs = [
