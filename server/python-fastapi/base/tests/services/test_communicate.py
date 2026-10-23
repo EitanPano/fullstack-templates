@@ -31,6 +31,9 @@ from tests.support import LineSink, recording_logger
 
 PACKAGE_ROOT = Path(__file__).resolve().parent.parent.parent
 SAMPLE = Rendered(name="sample", subject="Sample", text="Your code is 123456.")
+# @database:postgres-start
+DATABASE_URL = "postgres://app:a-real-password@db.internal:5432/app"
+# @database:postgres-end
 
 
 class _Printed:
@@ -352,6 +355,7 @@ class TestProviderResolutionAtBoot:
                 "JWT_REFRESH_SECRET": "b" * 40,  # @auth
                 "OTP_SECRET": "c" * 40,  # @auth
                 "ENCRYPTION_KEY": base64.b64encode(bytes([7]) * 32).decode(),
+                "DATABASE_URL": DATABASE_URL,  # @database:postgres
             }
         )
 

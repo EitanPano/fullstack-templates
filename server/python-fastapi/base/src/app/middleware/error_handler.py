@@ -5,6 +5,8 @@
   then query, then params) and that part's errors, with dotted paths.
 - A Starlette `HTTPException` is a router miss (404, or 405 for a known path: Express has no 405),
   a body past the limit (413), or an error FastAPI raised while reading the body.
+- A database error the Postgres classifier knows (a lost connection, a unique # @database:postgres
+  violation) becomes its own `AppError`, in the catch-all. # @database:postgres
 - Anything else is an unexpected error. It is logged once, with its stack, and leaves as a bare
   `internal` envelope. The catch-all is the innermost *middleware*, not an `Exception` handler:
   such a handler sits on Starlette's outermost `ServerErrorMiddleware`, so its 500 would skip the
@@ -29,6 +31,7 @@ from app.middleware.context import request_id_of
 from app.middleware.not_found import no_route
 from app.services.logger import log
 from app.services.utils.error import STATUS_BY_CODE, AppError, ErrorCode
+from app.services.utils.postgres_error import classify_postgres_error  # @database:postgres
 
 # FastAPI's own part names, in the order the first failing one is reported. A route declares no
 # Header or Cookie parameter (tokens are read through services/security/cookies.py), so these are
@@ -136,6 +139,12 @@ class CatchAllMiddleware:
         except Exception as error:
             if started:
                 raise
-            request_id = request_id_of(scope)
-            log.error("unexpected error", {"requestId": request_id}, error)
-            await send_error(scope, receive, send, AppError("internal", "unexpected error"))
+            answer = AppError("internal", "unexpected error")
+            # @database:postgres-start
+            stored = classify_postgres_error(error)
+            if stored is not None:
+                answer = stored
+            # @database:postgres-end
+            if answer.status >= 500:
+                log.error(answer.message, {"requestId": request_id_of(scope)}, error)
+            await send_error(scope, receive, send, answer)

@@ -14,7 +14,6 @@ from app.models.user.enums import ContactType
 from app.models.user.type import ContactTarget
 from app.services.security.otp import issue_otp, verify_otp
 from app.services.utils.clock import parse_duration
-from tests.store import reset_store
 
 START = datetime(2026, 1, 1, tzinfo=UTC)
 TARGET = ContactTarget(type=ContactType.email, value="a@example.com")
@@ -24,9 +23,9 @@ LOGIN = OtpPurpose.login
 
 @pytest.fixture(autouse=True)
 async def _clean_store() -> AsyncIterator[None]:
-    await reset_store()
+    await memory.close()
     yield
-    await reset_store()
+    await memory.close()
 
 
 def _wrong(code: str) -> str:

@@ -1,6 +1,12 @@
-"""The template's only store: a record store and a key-value store held in process memory,
-exposed as one Resource. The data-layer task adds `infra/<engine>.py` and the cache task
-`infra/redis.py`, each a Resource, and rebinds `services/db.py` / `services/cache.py`.
+"""
+The template's only store: a record store and a key-value store held in process # @nodatabase
+memory, exposed as one Resource. The data-layer task adds `infra/<engine>.py` and the # @nodatabase
+cache task `infra/redis.py`, each a Resource, and rebinds `services/db.py` and # @nodatabase
+`services/cache.py`. # @nodatabase
+The cache: a key-value store held in process memory, exposed as one Resource. # @database:postgres
+The records live in `infra/postgres.py`; the record store below is the base # @database:postgres
+template's and nothing in this variant reads it. The cache task adds # @database:postgres
+`infra/redis.py`, a Resource, and rebinds `services/cache.py`. # @database:postgres
 
 Records are copied on the way in and out so a caller cannot change the store through a reference,
 which a real engine would not allow either. `copy.deepcopy` suits plain data (the dataclasses in

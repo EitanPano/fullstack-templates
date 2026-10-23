@@ -8,6 +8,7 @@ dependencies = [
   "argon2-cffi>=25.1",
   "cryptography>=50",
   "fastapi>=0.161",
+  "psycopg[binary,pool]>=3.3",  # @database:postgres
   "pydantic>=2.14",
   "pyjwt>=2.15",  # @auth
   "uvicorn>=0.54",
@@ -39,6 +40,8 @@ format-check = "ruff format --check"
 typecheck = "mypy src tests"
 test = "pytest"
 contract = "python -m app.openapi --write"
+test-db = "pytest -p tests.db.plugin"  # @database:postgres
+migrate = "python -m app.infra.scripts.migrate"  # @database:postgres
 # PYTHONUTF8: without it, rich's legacy Windows renderer crashes on a NUL stdout.
 lint = [{ cmd = "ruff check" }, { cmd = "lint-imports", env = { PYTHONUTF8 = "1" } }]
 check = ["lint", "format-check", "typecheck", "test"]
@@ -77,7 +80,9 @@ testpaths = ["tests"]
 pythonpath = ["."]
 anyio_mode = "auto"
 filterwarnings = ["error"]
-markers = ["store_backed: needs the record store; always live in this variant"]
+markers = [
+  "store_backed: needs the record store; always live in this variant",  # @nodatabase
+]
 
 [tool.importlinter]
 root_package = "app"
@@ -290,6 +295,7 @@ allow_indirect_imports = true
 ignore_imports = [
   "app.services.** -> app.infra.dependency",
   "app.services.db -> app.infra.memory",
+  "app.services.db -> app.infra.postgres",  # @database:postgres
   "app.services.cache -> app.infra.memory",
   "app.services.event -> app.infra.pubsub",
 ]
@@ -419,6 +425,7 @@ source_modules = [
   "app.infra.dependency",
   "app.infra.loop",
   "app.infra.memory",
+  "app.infra.postgres",  # @database:postgres
   "app.infra.pubsub",
   "app.infra.scheduler",
 ]
@@ -432,6 +439,7 @@ source_modules = [
   "app.infra.dependency",
   "app.infra.loop",
   "app.infra.memory",
+  "app.infra.postgres",  # @database:postgres
   "app.infra.pubsub",
   "app.infra.scheduler",
 ]

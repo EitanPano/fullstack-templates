@@ -19,6 +19,7 @@ from typing import Final, Literal, Protocol
 from fastapi import FastAPI
 
 from app.infra.memory import memory
+from app.infra.postgres import postgres  # @database:postgres
 from app.infra.pubsub import pubsub
 from app.infra.scheduler import scheduler
 from app.services.logger import Logger, log
@@ -41,9 +42,15 @@ type Status = dict[str, ResourceState]
 type Sleep = Callable[[float], Awaitable[None]]
 
 # In connection order; shutdown reverses it, so the scheduler stops first (no job starts against
-# a closing store) and the stores close last. The data-layer and cache tasks add their Resources
-# here.
+# a closing store) and the stores close last.
+# @nodatabase-start
+# The data-layer and cache tasks add their Resources here.
 dependencies: Final[tuple[Resource, ...]] = (memory, pubsub, scheduler)
+# @nodatabase-end
+# @database:postgres-start
+# `postgres` holds the records; `memory` stays as the cache until the cache task.
+dependencies: Final[tuple[Resource, ...]] = (memory, postgres, pubsub, scheduler)
+# @database:postgres-end
 
 
 async def _wait(seconds: float) -> None:

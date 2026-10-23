@@ -9,12 +9,16 @@ import pytest
 
 from app.config.env import EnvError, load_env
 from app.main import uvicorn_options
+from tests.store import store_backed
 
 PACKAGE_ROOT = Path(__file__).resolve().parent.parent
 LONG_VALUE = "a-production-value-of-at-least-32-characters"
 KEY = base64.b64encode(bytes([7]) * 32).decode()
 DEFAULT_KEY = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
 PRODUCTION = {"APP_ENV": "production", "ENCRYPTION_KEY": KEY}
+# @database:postgres-start
+PRODUCTION |= {"DATABASE_URL": "postgres://app:a-real-password@db.internal:5432/app"}
+# @database:postgres-end
 # @auth-start
 PRODUCTION |= {
     "JWT_ACCESS_SECRET": f"{LONG_VALUE}-1",
@@ -24,6 +28,7 @@ PRODUCTION |= {
 # @auth-end
 
 
+@store_backed
 class TestTheEntryUnderABindFailure:
     """The process entry in a child process: it must not report success, and it must leave
     with a non-zero code instead of lingering. The blocker is a plain wildcard listening socket,
@@ -183,6 +188,7 @@ class TestLoadEnv:
             "JWT_REFRESH_SECRET",  # @auth
             "OTP_SECRET",  # @auth
             "ENCRYPTION_KEY",
+            "DATABASE_URL",  # @database:postgres
         ]
         assert loaded.env.app_env == "development"
         assert loaded.env.port == 8000
@@ -197,15 +203,52 @@ class TestLoadEnv:
             "JWT_ACCESS_SECRET",
             "JWT_REFRESH_SECRET",
             "ENCRYPTION_KEY",
+            "DATABASE_URL",  # @database:postgres
         ]
 
     # @auth-end
+    # @database:postgres-start
+    def test_requires_the_database_url_in_production_and_names_it(self) -> None:
+        source = {name: value for name, value in PRODUCTION.items() if name != "DATABASE_URL"}
+
+        with pytest.raises(EnvError, match="DATABASE_URL"):
+            load_env(source)
+
+    def test_treats_the_empty_string_compose_passes_for_an_unset_database_url_as_missing(
+        self,
+    ) -> None:
+        with pytest.raises(EnvError, match="DATABASE_URL"):
+            load_env({**PRODUCTION, "DATABASE_URL": ""})
+        loaded = load_env({"APP_ENV": "development", "DATABASE_URL": ""})
+
+        assert "DATABASE_URL" in loaded.defaulted_secrets
+
+    def test_rejects_a_url_that_is_not_a_postgres_one_without_echoing_it(self) -> None:
+        with pytest.raises(EnvError, match="DATABASE_URL: must be a postgres") as raised:
+            load_env({**PRODUCTION, "DATABASE_URL": "mysql://app:hunter2@db.internal/app"})
+
+        assert "hunter2" not in str(raised.value)
+
+    def test_accepts_the_postgresql_scheme_and_refuses_the_local_default_in_production(
+        self,
+    ) -> None:
+        url = "postgresql://app:a-real-password@db.internal:5432/app"
+
+        assert load_env({**PRODUCTION, "DATABASE_URL": url}).env.database_url == url
+        with pytest.raises(EnvError, match="DATABASE_URL: is a placeholder"):
+            load_env({**PRODUCTION, "DATABASE_URL": "postgres://app:app@localhost:5432/app"})
+
+    def test_defaults_the_database_url_to_the_local_service_outside_production(self) -> None:
+        assert load_env({}).env.database_url == "postgres://app:app@localhost:5432/app"
+
+    # @database:postgres-end
     def test_treats_the_empty_string_compose_passes_for_an_unset_secret_as_missing(self) -> None:
         with pytest.raises(EnvError, match="ENCRYPTION_KEY"):
             load_env({**PRODUCTION, "ENCRYPTION_KEY": ""})
         secrets = load_env({"APP_ENV": "development", "ENCRYPTION_KEY": ""}).defaulted_secrets
         expected = ["ENCRYPTION_KEY"]
         expected[:0] = ["JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET", "OTP_SECRET"]  # @auth
+        expected.append("DATABASE_URL")  # @database:postgres
         assert secrets == expected
 
     def test_reads_the_port_and_refuses_one_that_is_not_a_port(self) -> None:

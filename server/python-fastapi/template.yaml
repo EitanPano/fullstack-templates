@@ -39,7 +39,7 @@ flags:
       - tests/test_auth.py
       - tests/test_user.py
 capabilities:
-  database: { providers: [] }
+  database: { providers: [postgres] }
   cache: { providers: [] }
   messaging: { providers: [], mode: push }
 dependencies: { manifest: pyproject.toml, adapter: pyproject }

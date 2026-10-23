@@ -284,6 +284,7 @@ class TestDependencies:
     def test_lists_the_stores_the_bus_and_the_scheduler_in_connection_order(self) -> None:
         assert [dependency.name for dependency in dependencies] == [
             "memory",
+            "postgres",  # @database:postgres
             "pubsub",
             "scheduler",
         ]

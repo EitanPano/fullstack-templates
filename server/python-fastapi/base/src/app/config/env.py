@@ -4,7 +4,9 @@ Parsed once at import; a missing or malformed variable stops the process with a 
 A fresh clone runs with no environment at all: every variable has a development default or is
 optional, except the secrets in production, which must be supplied (outside production they fall
 back to a plainly fake default and `defaulted_secrets` names them so the entry can warn). A
-variable the product adds (a provider key) is declared here and in the example env file.
+variable the product adds (a database URL, a provider key) is declared here and in the # @nodatabase
+example env file. # @nodatabase
+variable the product adds (a provider key) is declared here and in the example env file. # @database
 
 No `.env` loading and no pydantic-settings: secrets never live in a file in the working tree, and
 `BaseSettings` would merge `os.environ` into an explicit mapping, JSON-decode list fields and match
@@ -48,6 +50,7 @@ _SECRET_NAMES: Final = (
     "JWT_REFRESH_SECRET",  # @auth
     "OTP_SECRET",  # @auth
     "ENCRYPTION_KEY",
+    "DATABASE_URL",  # @database
 )
 
 _DEVELOPMENT_DEFAULTS: Final = {
@@ -56,6 +59,8 @@ _DEVELOPMENT_DEFAULTS: Final = {
     "OTP_SECRET": "dev-only-otp-secret-change-me-0123456789abc",  # @auth
     # 32 bytes, base64.
     "ENCRYPTION_KEY": "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+    # The provider's local service. The URL carries the password, so it is a secret.
+    "DATABASE_URL": "postgres://app:app@localhost:5432/app",  # @database:postgres
 }
 
 # Docker Compose passes an unset `${VAR}` as an empty string; blank means unset.
@@ -112,6 +117,15 @@ def _check_encryption_key(value: str) -> str:
     return value
 
 
+# @database:postgres-start
+def _check_database_url(value: str) -> str:
+    # The message never carries the value: the URL holds the password.
+    if not value.startswith(("postgres://", "postgresql://")):
+        raise ValueError("must be a postgres:// or postgresql:// URL")
+    return value
+
+
+# @database:postgres-end
 def _parse_trust_proxy(value: object) -> object:
     # A boolean, a hop count or an address list, the three forms a proxy setting takes. The
     # digits are ASCII only: `str.isdigit` accepts Unicode digits.
@@ -159,6 +173,7 @@ class Env(BaseModel):
     jwt_refresh_secret: Secret  # @auth
     otp_secret: Secret  # @auth
     encryption_key: Annotated[str, AfterValidator(_check_encryption_key)]
+    database_url: Annotated[str, AfterValidator(_check_database_url)]  # @database:postgres
     cookie_domain: CookieDomain | None = None  # @auth
     mail_provider: Annotated[str, Field(min_length=1)] = "console"
     sms_provider: Annotated[str, Field(min_length=1)] = "console"

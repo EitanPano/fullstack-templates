@@ -5,22 +5,22 @@ import pytest
 from fastapi import Depends, FastAPI
 from pydantic import Field
 
+from app.infra.memory import memory
 from app.middleware.rate_limit import by_ip, rate_limit
 from app.middleware.role import require_role
 from app.models.user.enums import UserRole
 from app.server import create_app
 from app.services.security.jwt import AccessClaims, sign_access
 from app.services.utils.api_model import RequestModel
-from tests.store import reset_store
 from tests.support import error_of, http_client
 
 
 @pytest.fixture(autouse=True)
 async def empty_store() -> AsyncIterator[None]:
-    """The rate-limit counters live in the shared store."""
-    await reset_store()
+    """The rate-limit counters live in the cache, which is the in-memory store."""
+    await memory.close()
     yield
-    await reset_store()
+    await memory.close()
 
 
 class Named(RequestModel):

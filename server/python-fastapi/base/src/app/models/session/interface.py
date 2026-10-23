@@ -8,7 +8,8 @@ refresh with the token just rotated away is not treated as a stolen token. `grac
 winning rotation's refresh token sealed with `encrypt()` (never a plain token). It exists so a
 concurrent retry can be answered with that same token, and the next rotation or a revocation drops
 it.
-The data-layer task stores it like any other column.
+The data-layer task stores it like any other column. # @nodatabase
+It is stored as the `grace_token` column. # @database:postgres
 """
 
 from dataclasses import dataclass

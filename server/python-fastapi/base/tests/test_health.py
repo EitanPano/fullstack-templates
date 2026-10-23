@@ -8,6 +8,7 @@ from app.api.health import controller as health_controller
 from app.api.health.controller import get_readiness
 from app.api.health.schema import Readiness
 from app.infra.dependency import Resource
+from tests.store import store_backed
 from tests.support import http_client
 
 
@@ -32,6 +33,7 @@ def readiness_probe(resources: list[Resource]) -> FastAPI:
     return probe
 
 
+@store_backed
 class TestReadinessThroughTheApp:
     async def test_lists_the_dependencies_the_app_attaches(self, client: httpx.AsyncClient) -> None:
         """Through `app` the answer is the real dependency list: the store, the bus and the
@@ -41,7 +43,12 @@ class TestReadinessThroughTheApp:
         assert res.status_code == 200
         assert res.json() == {
             "status": "ok",
-            "dependencies": {"memory": "ok", "pubsub": "ok", "scheduler": "ok"},
+            "dependencies": {
+                "memory": "ok",
+                "postgres": "ok",  # @database:postgres
+                "pubsub": "ok",
+                "scheduler": "ok",
+            },
         }
 
 
