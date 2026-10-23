@@ -3,6 +3,7 @@ name = "app"
 version = "0.1.0"
 requires-python = ">=3.14,<3.15"
 dependencies = [
+  "apscheduler>=3.11,<4",
   "fastapi>=0.161",
   "pydantic>=2.14",
   "uvicorn>=0.54",
@@ -56,6 +57,12 @@ python_version = "3.14"
 strict = true
 disallow_any_explicit = true
 plugins = ["pydantic.mypy"]
+
+# APScheduler 3 ships no `py.typed`: its types arrive as `Any`, so `infra/scheduler.py` converts
+# what it reads into plain types at the boundary.
+[[tool.mypy.overrides]]
+module = ["apscheduler.*"]
+ignore_missing_imports = true
 
 [tool.pydantic-mypy]
 init_typed = true

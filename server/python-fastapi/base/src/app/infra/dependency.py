@@ -18,6 +18,9 @@ from typing import Final, Literal, Protocol
 
 from fastapi import FastAPI
 
+from app.infra.memory import memory
+from app.infra.pubsub import pubsub
+from app.infra.scheduler import scheduler
 from app.services.logger import Logger, log
 from app.services.utils import clock
 
@@ -38,8 +41,9 @@ type Status = dict[str, ResourceState]
 type Sleep = Callable[[float], Awaitable[None]]
 
 # In connection order; shutdown reverses it, so the scheduler stops first (no job starts against
-# a closing store) and the stores close last. The tasks that add infrastructure list it here.
-dependencies: Final[tuple[Resource, ...]] = ()
+# a closing store) and the stores close last. The data-layer and cache tasks add their Resources
+# here.
+dependencies: Final[tuple[Resource, ...]] = (memory, pubsub, scheduler)
 
 
 async def _wait(seconds: float) -> None:

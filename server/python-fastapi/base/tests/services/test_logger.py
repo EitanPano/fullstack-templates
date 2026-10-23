@@ -162,3 +162,23 @@ class TestConfigureLogging:
 
         assert captured.out == "Started server process\n"
         assert captured.err == "careful\n"
+
+    def test_keeps_apscheduler_to_warnings_so_its_job_chatter_stays_out_of_the_log(
+        self, capfd: pytest.CaptureFixture[str]
+    ) -> None:
+        root = logging.getLogger()
+        before = list(root.handlers)
+        level = root.level
+        configure_logging()
+        try:
+            logging.getLogger("apscheduler.scheduler").info("Added job to job store")
+            logging.getLogger("apscheduler.executors.default").warning("Run time was missed")
+            sys.stdout.flush()
+            sys.stderr.flush()
+            captured = capfd.readouterr()
+        finally:
+            root.handlers[:] = before
+            root.setLevel(level)
+
+        assert captured.out == ""
+        assert captured.err == "Run time was missed\n"

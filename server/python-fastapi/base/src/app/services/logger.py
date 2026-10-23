@@ -102,6 +102,9 @@ def configure_logging() -> None:
         handler.setFormatter(formatter)
         root.addHandler(handler)
     root.setLevel(logging.INFO)
+    # APScheduler logs every scheduling step at INFO; the scheduler resource logs the lines that
+    # matter (`job started`, `job finished`), so only its warnings and errors come through.
+    logging.getLogger("apscheduler").setLevel(logging.WARNING)
 
 
 log: Final = create_logger(quiet=env.app_env == "test")

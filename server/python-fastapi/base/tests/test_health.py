@@ -33,13 +33,15 @@ def readiness_probe(resources: list[Resource]) -> FastAPI:
 
 class TestReadinessThroughTheApp:
     async def test_lists_the_dependencies_the_app_attaches(self, client: httpx.AsyncClient) -> None:
-        """Through `app` the answer is the real dependency list. This variant attaches none, so
-        the map is empty and the status ok; the probe apps below pin the other states. The task
-        that adds the stores, the bus and the scheduler extends this to list them."""
+        """Through `app` the answer is the real dependency list: the store, the bus and the
+        scheduler, each answering its ping; the probe apps below pin the other states."""
         res = await client.get("/api/health/ready")
 
         assert res.status_code == 200
-        assert res.json() == {"status": "ok", "dependencies": {}}
+        assert res.json() == {
+            "status": "ok",
+            "dependencies": {"memory": "ok", "pubsub": "ok", "scheduler": "ok"},
+        }
 
 
 class TestReadiness:
