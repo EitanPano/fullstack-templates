@@ -599,6 +599,7 @@ full.
 | Deviation | Why |
 | --- | --- |
 | Validation messages are pydantic's text ("String should have at least 1 character"), not zod's | codes, statuses, part names and paths match; message text is not contract |
+| A string length limit counts code points (`len`), where zod counts UTF-16 code units: a password of 8 emoji is 8 long in Python and 16 in bun-express | pydantic's `min_length`/`max_length` measure code points; the limits stay the same numbers, and only text outside the Basic Multilingual Plane counts differently |
 | A discriminated union's error path includes the tag (`target.phone.value`; zod reports `target.value`) | pydantic puts the tag in `loc`; no client or test reads that path, and stripping it would need a schema walk in the mapper |
 | Malformed JSON is a 400 only on routes that take a body; Express parses every JSON request, including unknown paths | FastAPI reads the body only for routes with a body parameter; a route without one ignores it |
 | Top-level scalar JSON (`"x"`, `5`) is 400 `invalid body`; body-parser's strict mode says "malformed JSON body" | same status and code |
