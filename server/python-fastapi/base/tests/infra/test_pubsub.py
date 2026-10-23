@@ -1,4 +1,6 @@
 import asyncio
+import gc
+import warnings
 
 import pytest
 
@@ -247,8 +249,9 @@ class TestDetachedHandlers:
 
         assert "warning bus drain timed out pending=1" in sink.lines
 
-    def test_bounds_the_wait_at_five_seconds_by_default(self) -> None:
-        assert DRAIN_TIMEOUT_MS == 5_000
+    def test_bounds_the_wait_at_one_second_by_default(self) -> None:
+        """Sized with the scheduler's and the pool's bound to fit one shutdown budget."""
+        assert DRAIN_TIMEOUT_MS == 1_000
 
 
 class TestShutdownAndCancellation:
@@ -382,6 +385,24 @@ class TestDetachedWork:
 
         assert cancelled
         assert "warning bus drain cancelled pending=1" in sink.lines
+
+    async def test_cancelling_detached_work_before_its_first_step_warns_of_nothing(self) -> None:
+        bus = create_pubsub(logger=recording_logger()[0])
+
+        async def never_started() -> None:
+            await asyncio.sleep(1)
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            bus.detach(never_started())
+            # What `close()` does to a task past the deadline, before the task has taken a step.
+            for task in bus._running():
+                task.cancel()
+            await asyncio.gather(*bus._running(), return_exceptions=True)
+            await asyncio.sleep(0)
+            gc.collect()
+
+        assert [str(w.message) for w in caught] == []
 
     async def test_close_cancels_detached_work_past_the_deadline_with_a_warning(self) -> None:
         logger, sink = recording_logger()

@@ -25,7 +25,8 @@ from app.services.logger import Logger, log
 type Handler = Callable[[object], Awaitable[None] | None]
 type Unsubscribe = Callable[[], None]
 
-DRAIN_TIMEOUT_MS: Final = 5_000
+# Sized with the scheduler's and the pool's bound to fit one shutdown budget (`dependency.py`).
+DRAIN_TIMEOUT_MS: Final = 1_000
 
 
 @dataclass(frozen=True)
@@ -81,12 +82,17 @@ class PubSub:
         """Runs `work` beside the request that asked for it. The bus keeps it alive and `drain`
         and `close` wait for it like for a reaction, so a shutdown does not lose it. A failure is
         logged here, never raised: nothing reads the task's result."""
-        self._track(asyncio.create_task(self._guard(work)))
+        # The coroutine itself is the task, not a wrapper around it: a task cancelled before its
+        # first step then closes `work` quietly instead of leaving it "never awaited".
+        task = asyncio.create_task(work)
+        task.add_done_callback(self._log_detached_failure)
+        self._track(task)
 
-    async def _guard(self, work: Coroutine[object, object, None]) -> None:
-        try:
-            await work
-        except Exception as error:
+    def _log_detached_failure(self, task: asyncio.Task[None]) -> None:
+        if task.cancelled():
+            return
+        error = task.exception()
+        if error is not None:
             self._logger.error("detached work failed", {"reason": str(error)}, error)
 
     async def _deliver(self, topic: str, handler: Handler, payload: object) -> None:
