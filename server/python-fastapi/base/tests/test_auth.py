@@ -696,6 +696,14 @@ class TestOtpRequest:
 
         assert out.status_code == 401
 
+    async def test_sets_cache_control_no_store_on_token_issuing_responses(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        res = await register(client, "ada@example.com")
+
+        assert res.headers["cache-control"] == "no-store"
+        assert (await login(client, "ada@example.com")).headers["cache-control"] == "no-store"
+
     async def test_answers_401_for_verify_without_a_caller(self, client: httpx.AsyncClient) -> None:
         res = await client.post(
             "/api/auth/otp",
