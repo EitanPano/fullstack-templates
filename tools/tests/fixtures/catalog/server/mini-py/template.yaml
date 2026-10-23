@@ -11,6 +11,7 @@ runtime:
 tools:
   - name: uv
     min: '0.12.23'
+    max: '0.14'
 placeholders: [PROJECT_NAME]
 flags:
   auth:

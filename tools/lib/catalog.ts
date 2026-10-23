@@ -112,7 +112,8 @@ export interface TemplateManifest {
   version: string
   summary: string
   runtime: { language: string; platform: string; minVersion?: string }
-  tools: Array<{ name: string; min?: string }>
+  // `min` is inclusive, `max` exclusive: the first version the tool is NOT supported at.
+  tools: Array<{ name: string; min?: string; max?: string }>
   placeholders: string[]
   commands: Partial<Record<CommandName, string>> & { check: string }
   agents: string

@@ -36,31 +36,40 @@ export function findToolProblem(
   plan: GenerationPlan,
   run: VersionRunner = runVersion,
 ): string | undefined {
-  const minimums = new Map<string, Array<{ min: string; template: string }>>()
+  const minimums = new Map<string, Array<{ min?: string; max?: string; template: string }>>()
   for (const { template } of plan.packages) {
     for (const tool of template.manifest.tools) {
       const list = minimums.get(tool.name) ?? []
-      if (tool.min !== undefined) list.push({ min: tool.min, template: template.path })
+      if (tool.min !== undefined || tool.max !== undefined) {
+        list.push({ min: tool.min, max: tool.max, template: template.path })
+      }
       minimums.set(tool.name, list)
     }
   }
   for (const [name, requirements] of minimums) {
     const output = run(name)
     if (output === undefined) {
-      const needed = requirements.map((r) => r.min).join(', ')
+      const needed = requirements.flatMap((r) => (r.min === undefined ? [] : [r.min])).join(', ')
       return `tool ${name}: not found${needed === '' ? '' : `; minimum is ${needed}`}`
     }
     const found = parseVersion(output)
-    for (const { min, template } of requirements) {
-      const wanted = parseVersion(min)
-      if (wanted === undefined) {
+    for (const { min, max, template } of requirements) {
+      const wanted = min === undefined ? undefined : parseVersion(min)
+      const ceiling = max === undefined ? undefined : parseVersion(max)
+      if (min !== undefined && wanted === undefined) {
         return `tool ${name}: ${template} declares an unreadable minimum "${min}"`
       }
-      if (found === undefined) {
-        return `tool ${name}: found no version in "${output.trim()}"; minimum is ${min}`
+      if (max !== undefined && ceiling === undefined) {
+        return `tool ${name}: ${template} declares an unreadable maximum "${max}"`
       }
-      if (compare(found, wanted) < 0) {
+      if (found === undefined) {
+        return `tool ${name}: found no version in "${output.trim()}"${min === undefined ? '' : `; minimum is ${min}`}`
+      }
+      if (wanted !== undefined && compare(found, wanted) < 0) {
         return `tool ${name}: found ${found.join('.')}, minimum is ${min}`
+      }
+      if (ceiling !== undefined && compare(found, ceiling) >= 0) {
+        return `tool ${name}: found ${found.join('.')}, must be below ${max}`
       }
     }
   }

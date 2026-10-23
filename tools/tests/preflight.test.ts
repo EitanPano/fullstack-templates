@@ -69,6 +69,15 @@ describe('tools preflight', () => {
     expect(findToolProblem(plan, () => 'uv 0.12.100')).toBeUndefined()
   })
 
+  test('an exclusive max fails at the bound and passes below it', () => {
+    const plan = resolveRequest(catalog, request(tempDir()))
+    expect(findToolProblem(plan, () => 'uv 0.14.0 (x)')).toBe(
+      'tool uv: found 0.14.0, must be below 0.14',
+    )
+    expect(findToolProblem(plan, () => 'uv 0.13.9 (x)')).toBeUndefined()
+    expect(findToolProblem(plan, () => 'uv 0.12.23 (x)')).toBeUndefined()
+  })
+
   test('a new-enough version passes and the package is generated', () => {
     const out = tempDir()
     const asked: string[] = []

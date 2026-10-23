@@ -68,11 +68,15 @@
         "properties": {
           "name": {
             "type": "string",
-            "minLength": 1
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
           },
           "min": {
             "type": "string",
-            "minLength": 1
+            "pattern": "^\\d+(\\.\\d+){0,2}$"
+          },
+          "max": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+){0,2}$"
           }
         }
       }
