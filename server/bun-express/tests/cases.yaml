@@ -6,3 +6,11 @@ cases:
   - name: stack-auth-off
     stack: next-bun-express
     flags: { auth: false }
+  - name: postgres
+    capabilities: { database: postgres }
+  - name: auth-off-postgres
+    flags: { auth: false }
+    capabilities: { database: postgres }
+  - name: stack-postgres
+    stack: next-bun-express
+    capabilities: { database: postgres }

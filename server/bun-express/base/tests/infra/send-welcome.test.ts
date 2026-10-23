@@ -3,11 +3,11 @@ import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 
 import * as user from '../../src/api/user/controller'
-import { memory } from '../../src/infra/memory'
 import { pubsub } from '../../src/infra/pubsub'
 import { drain } from '../../src/services/event'
 import { sendWelcome } from '../../src/infra/subscribers/send-welcome'
 import { registerProvider, resetProviders, type Message } from '../../src/services/communicate'
+import { describeStore, resetStore } from '../store'
 
 const PASSWORD = 'correct horse battery'
 
@@ -21,22 +21,22 @@ afterAll(async () => {
   await pubsub.close()
 })
 
-beforeEach(async () => {
-  await memory.close()
-  sent = []
-  registerProvider('mail', {
-    send: (message) => {
-      sent.push(message)
-      return Promise.resolve()
-    },
-  })
-})
-
 afterEach(() => {
   resetProviders()
 })
 
-describe('sendWelcome', () => {
+describeStore('sendWelcome', () => {
+  beforeEach(async () => {
+    await resetStore()
+    sent = []
+    registerProvider('mail', {
+      send: (message) => {
+        sent.push(message)
+        return Promise.resolve()
+      },
+    })
+  })
+
   it('mails the new user when user.registered is published', async () => {
     await user.createUser({ email: 'new@example.com', password: PASSWORD })
     await drain()
@@ -57,6 +57,17 @@ describe('sendWelcome', () => {
     expect(sent).toHaveLength(0)
   })
 
+  it('rejects for an unknown user so the bus has something to log', async () => {
+    const failure = await sendWelcome.handle({ userId: 'missing' }).then(
+      () => undefined,
+      (error: unknown) => error,
+    )
+    expect(failure).toBeInstanceOf(Error)
+    expect(sent).toHaveLength(0)
+  })
+})
+
+describe('send-welcome module', () => {
   it('loads cleanly as the first module of a fresh process', () => {
     const backendRoot = join(import.meta.dir, '..', '..')
     const result = Bun.spawnSync(
@@ -66,14 +77,5 @@ describe('sendWelcome', () => {
 
     expect(result.stderr.toString()).toBe('')
     expect(result.exitCode).toBe(0)
-  })
-
-  it('rejects for an unknown user so the bus has something to log', async () => {
-    const failure = await sendWelcome.handle({ userId: 'missing' }).then(
-      () => undefined,
-      (error: unknown) => error,
-    )
-    expect(failure).toBeInstanceOf(Error)
-    expect(sent).toHaveLength(0)
   })
 })

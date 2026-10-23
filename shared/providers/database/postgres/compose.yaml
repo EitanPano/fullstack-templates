@@ -1,0 +1,26 @@
+services:
+  database:
+    # The credentials are for local development only; production supplies its own DATABASE_URL.
+    # The backend gets DATABASE_URL with no default, so the bundled credentials reach it only
+    # when a developer exports a URL that points at this service. Production does not refuse
+    # that choice. This service and the backend's depends_on on it stay: the compose file is
+    # the local stack.
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    # Loopback only: the database is for local work, never reachable from the network.
+    ports: ["127.0.0.1:5432:5432"]
+    volumes:
+      - database-data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    # Over TCP: the image's init phase listens on the socket only, so a socket check would
+    # report healthy before init.sql ran.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U app -d app"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  database-data: {}

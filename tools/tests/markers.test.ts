@@ -64,12 +64,50 @@ describe('applyMarkers', () => {
   test('does not resolve inherited object keys as names', () => {
     expect(() => applyMarkers('a // @constructor\n', ts, 'f.ts', on)).toThrow(MarkerError)
   })
+  test('takes -- markers in .sql lines and blocks', () => {
+    const sql = commentSyntaxFor('db/init.sql')
+    expect(sql).toEqual(['--', ''])
+    const src = 'a -- @auth\n-- @auth-start\nx\n-- @auth-end\ny\n'
+    expect(applyMarkers(src, sql ?? ts, 'init.sql', on)).toBe('a\nx\ny\n')
+    expect(applyMarkers(src, sql ?? ts, 'init.sql', off)).toBe('y\n')
+  })
+})
+
+describe('capability selections', () => {
+  const chosen = { database: true, 'database:fake': true, 'database:other': false }
+  const none = { database: false, 'database:fake': false, 'database:other': false }
+  test('a provider line and block follow database:<provider>', () => {
+    const src = 'a // @database:fake\n// @database:fake-start\nx\n// @database:fake-end\n'
+    expect(applyMarkers(src, ts, 'f.ts', chosen)).toBe('a\nx\n')
+    expect(applyMarkers(src, ts, 'f.ts', none)).toBe('')
+    expect(applyMarkers(src, ts, 'f.ts', { ...chosen, 'database:fake': false })).toBe('')
+  })
+  test('@nodatabase and @nodatabase:fake negate the kind and the provider', () => {
+    const src = 'a // @nodatabase\nb // @nodatabase:fake\n'
+    expect(applyMarkers(src, ts, 'f.ts', none)).toBe('a\nb\n')
+    expect(applyMarkers(src, ts, 'f.ts', chosen)).toBe('')
+    expect(applyMarkers(src, ts, 'f.ts', { ...chosen, 'database:fake': false })).toBe('b\n')
+  })
+  test('a negated provider block is kept only without that provider', () => {
+    const src = '// @nodatabase:fake-start\nx\n// @nodatabase:fake-end\n'
+    expect(applyMarkers(src, ts, 'f.ts', none)).toBe('x\n')
+    expect(applyMarkers(src, ts, 'f.ts', chosen)).toBe('')
+  })
+  test('an unlisted provider is an unknown marker name', () => {
+    expect(() => applyMarkers('a // @database:nope\n', ts, 'f.ts', chosen)).toThrow(MarkerError)
+  })
 })
 
 describe('findLeftoverMarker', () => {
   test('finds a marker in any comment syntax and ignores plain text', () => {
     expect(findLeftoverMarker('import x from "@auth/core"')).toBeNull()
     expect(findLeftoverMarker('x # @auth')).toBe('# @auth')
+  })
+  test('a -- marker is a leftover in a .sql file only', () => {
+    expect(findLeftoverMarker('select 1 -- @x', commentSyntaxFor('a.sql'))).toBe('-- @x')
+    expect(findLeftoverMarker('const a = 1 -- @x', commentSyntaxFor('a.ts'))).toBeNull()
+    expect(findLeftoverMarker('select 1 -- @x')).toBeNull()
+    expect(findLeftoverMarker('x // @x', commentSyntaxFor('a.sql'))).toBe('// @x')
   })
 })
 

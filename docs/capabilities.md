@@ -5,9 +5,9 @@ a cache, a message broker. A **provider** is one implementation, described once 
 language. A **capability overlay** is how one template binds one provider. This is
 section D3 of [ADR 0001](adr/0001-catalog-architecture.md), expanded.
 
-Status: none shipped yet; `database/postgres` for `bun-express` is milestone 3. Until the
-first overlay lands, the generator refuses `--capability` with "no provider overlays exist
-in this catalog yet", and the shapes below are the design the overlay will be built to.
+Status: `database/postgres` for `bun-express` shipped in v1.0.0, and the generator selects
+capabilities: `--capability database=postgres` or an answers file. No other provider is
+shipped yet; a template lists the providers it has an overlay for.
 
 ## Provider manifest
 
@@ -19,49 +19,114 @@ schemaVersion: 1
 kind: database
 id: postgres
 name: PostgreSQL 17
-compose: compose.yaml               # service `database`, healthcheck, volume
+service: database                   # the Compose service the fragment defines
+compose: compose.yaml               # a partial Compose document: services and volumes
 env:
   - name: DATABASE_URL
+    summary: Postgres connection URL. Required in production; outside production it defaults to the local service.
     local: postgres://app:app@localhost:5432/app      # outside production
     compose: postgres://app:app@database:5432/app     # inside the compose network
     test: postgres://app:app@localhost:5432/app_test
+    testOverride: TEST_DATABASE_URL                   # optional: the variable that overrides `test`
+    secret: true                                      # optional: wired in Compose with no default
 files: [db/init.sql]                # copied to the project root; creates app_test
 ```
 
+`compose.yaml` is a partial Compose document with a `services` map that defines `service`
+(the healthcheck included) and a top-level `volumes` map for what the service needs. The
+generator reads nothing else from it.
+
 ## Capability overlay
 
-`<template>/capabilities/<kind>/<provider>/` holds the files that replace or join `base/`
-(the engine's infra file, the rewritten db seam and repositories, the migration script,
-the test-database helpers), the dependencies to add, and the marker name it turns on. Its
-manifest has this shape:
+`<template>/capabilities/<kind>/<provider>/` holds a manifest and an `overlay/` tree. The
+tree mirrors the package: its files replace the same path in `base/` or join it (the
+engine's infra file, the rewritten db seam and services, the migration script, the
+test-database helpers). The manifest has this shape:
 
 ```yaml
 schemaVersion: 1
 kind: database
 provider: postgres
-dependencies: { add: { … } }
-commands: { testDb: bun run test:db, migrate: bun run db:migrate }   # merged into the manifest's
+summary: Postgres through Bun's built-in SQL client, SQL migrations and a separate test database
+dependencies: { add: { dependencies: { … } } }                    # optional
+scripts:                                                          # lines for the package manifest
+  db:migrate: bun run src/infra/scripts/migrate.ts
+  test:db: bun test --preload ./tests/db/setup.ts
+commands: { testDb: bun run test:db, migrate: bun run db:migrate }   # merged into the template's
+flags:                                                            # optional: overlay files that exist
+  auth: { onlyPaths: [tests/db/user.test.ts] }                    # only while the template flag is on
 ```
 
-Selecting `database: postgres` for `server/bun-express` copies the overlay over `base/`,
-applies `@database` and `@database:postgres` markers, adds the dependencies, appends the
-provider's env entries to the package's `.env.example` and to its Compose service, adds the
-provider's service to the root Compose file, copies `db/init.sql`, and adds `testDb` and
-`migrate` to the recorded commands. Selecting no database leaves the in-memory store, so
-the harness's data-layer task still applies later. Both paths are kept valid on purpose.
+`scripts` go into the package manifest through the template's dependency adapter (`npm` for
+`bun-express`), appended after the existing scripts. A script name the base already has is
+an error at load time, so an overlay never silently replaces one. `commands` are the
+vocabulary the agents and `test-generated` use; the generated project's
+`.fullstack/catalog.yaml` records them.
 
 ## Selection pipeline
+
+A template lists the providers it supports under `capabilities.<kind>.providers`. A
+selection is `kind=provider`, given as `--capability database=postgres` or in the answers
+file. `--capability` finds the kind by name among the templates of the stack; when two
+declare it, the answers file says which. A kind or provider the template does not list is
+refused with the list it has.
+
+Selections reach the marker pass as two names per kind: `<kind>` (true when any provider is
+selected) and `<kind>:<provider>` (true for the chosen one). A line ending in `@database`
+or `@database:postgres`, or a block between `@database:postgres-start` and `-end`, is kept
+when the name is true; `@nodatabase` keeps it when the kind is not selected. Flags use the
+same syntax. In `.sql` files the comment is `--`.
 
 Overlays and flags compose in a fixed order:
 
 1. Copy `base/`.
 2. Copy every selected overlay over it.
-3. Apply flags: remove `onlyPaths`, run the marker pass, apply dependency changes.
+3. Apply flags: remove `onlyPaths` (the template's, then each selected overlay's
+   `flags.<name>.onlyPaths`), run the marker pass, apply dependency changes.
+4. Add the overlay's dependencies and scripts, then substitute placeholders.
 
 A flag's `onlyPaths` therefore also removes overlay files at those paths: the postgres
-overlay ships its `user` service and `session` rewrite, and `auth=false` drops them.
-Every template's `tests/cases.yaml` covers each flag alone, each capability alone, and
-each capability with every flag off. The README matrix lists only tested combinations.
+overlay ships its `user` service and `session` rewrite, and `auth=false` drops them. An
+overlay file that only makes sense with a flag on belongs under one of that flag's
+`onlyPaths`, or is listed in the capability's own `flags.<name>.onlyPaths`; `validate` fails
+on a flag the template does not declare and on a path the overlay does not contain.
+
+## Root assembly
+
+The generator completes the project root from the provider, once per project:
+
+- The consuming package's Compose service gets each env entry as
+  `NAME: ${NAME:-<compose value>}`, or as plain `NAME: ${NAME}` when the entry is a `secret`
+  (an unset secret reaches the package as an empty string, which the package's env module
+  rejects in production), and `depends_on` the provider's service with
+  `condition: service_healthy`. The bundled provider service and the `depends_on` stay because
+  the compose file is the local stack: a developer who exports `DATABASE_URL` pointing at the
+  bundled service made a conscious choice, and production does not refuse it.
+- The package's `.env.example` gets a block per env entry: its `summary`, the test URL (and
+  the variable that overrides it, when the entry has a `testOverride`), and
+  `NAME=<local value>`.
+- The provider's service and volumes are added to the root `docker-compose.yml`. On a rerun
+  the service the file already has is kept and the generator says so.
+- The provider's `files` are copied to the project root when absent (create-only; an
+  existing file is kept and logged).
+- `.fullstack/catalog.yaml` records `providers` (`database: postgres`) and the package's
+  capabilities and merged commands (`testDb`, `migrate`).
+
+Selecting no database leaves the in-memory store, so the harness's data-layer task still
+applies later. Both paths are kept valid on purpose.
+
+## Cases
+
+Every template's `tests/cases.yaml` covers each flag alone, each capability alone, and each
+capability with every flag off. For `bun-express` that is `default`, `auth-off`, `postgres`
+and `auth-off-postgres`, plus the stack cases. `validate` fails a listed provider that lacks the case alone at the default
+flags or the case with every flag off. The README matrix lists only tested combinations.
+
+`bun tools/test-generated.ts --with-services` runs the provider-backed steps. For a case with
+providers it starts their services (`docker compose up -d --wait`), then runs per package
+`migrate`, `check`, `testDb` and, with `--e2e`, the e2e suite, and always ends with
+`docker compose down -v`. Without the flag a case with providers runs `check` and prints
+that `migrate` and `testDb` were skipped. CI passes the flag.
 
 ## Database
 

@@ -4,3 +4,11 @@ cases:
   - name: auth-off
     flags:
       auth: false
+  - name: fake
+    capabilities:
+      database: fake
+  - name: auth-off-fake
+    flags:
+      auth: false
+    capabilities:
+      database: fake

@@ -1,47 +1,20 @@
 import { mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { CatalogError, loadCatalog, type Catalog } from './lib/catalog'
-import { listCases, requestFor, type GenerationCase } from './lib/cases'
-import { browserInstallCommand } from './lib/browsers'
+import { CatalogError, loadCatalog } from './lib/catalog'
+import { listCases } from './lib/cases'
 import { CATALOG_ROOT, CliError, fail, parseArgs } from './lib/cli'
-import { runCommand } from './lib/commands'
 import { removeTree } from './lib/files'
-import { generate } from './lib/generate'
-import { resolveRequest } from './lib/plan'
+import { runCase } from './lib/run-case'
 
 const USAGE =
-  'usage: bun tools/test-generated.ts [--catalog <root>] [--list] [--case <id>]... [--e2e [--install-browsers]] [--keep]'
-
-interface Options {
-  e2e: boolean
-  installBrowsers: boolean
-  keep: boolean
-}
-
-// Any throw for one case, expected or not, is that case's FAIL and never aborts the run.
-function runCase(catalog: Catalog, c: GenerationCase, out: string, options: Options): void {
-  const plan = resolveRequest(catalog, requestFor(c, out))
-  generate(catalog, plan, { log: () => undefined })
-  for (const pkg of plan.packages) {
-    const { commands } = pkg.template.manifest
-    const cwd = path.join(out, pkg.dir)
-    runCommand(commands.check, cwd)
-    if (options.e2e && commands.testE2e) {
-      if (pkg.contractSkipped) console.log(`SKIP e2e ${pkg.dir}: no server in the plan`)
-      else {
-        if (options.installBrowsers) runCommand(browserInstallCommand(process.platform), cwd)
-        runCommand(commands.testE2e, cwd)
-      }
-    }
-  }
-}
+  'usage: bun tools/test-generated.ts [--catalog <root>] [--list] [--case <id>]... [--e2e [--install-browsers]] [--keep] [--with-services]'
 
 function run(argv: string[]): number {
   const args = parseArgs(argv, {
     values: ['catalog'],
     repeatable: ['case'],
-    booleans: ['list', 'e2e', 'keep', 'install-browsers'],
+    booleans: ['list', 'e2e', 'keep', 'install-browsers', 'with-services'],
   })
   const catalog = loadCatalog(
     args.values.catalog ? path.resolve(args.values.catalog) : CATALOG_ROOT,
@@ -61,6 +34,7 @@ function run(argv: string[]): number {
     e2e: args.booleans.e2e as boolean,
     installBrowsers: args.booleans['install-browsers'] as boolean,
     keep: args.booleans.keep as boolean,
+    withServices: args.booleans['with-services'] as boolean,
   }
 
   let failed = 0

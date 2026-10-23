@@ -27,6 +27,37 @@ describe('generate CLI', () => {
     expect(result.stdout).toContain('cd backend && bun ./ok.ts')
   })
 
+  test('--capability runs end to end and prints the database steps', () => {
+    const out = tempDir()
+    const result = run([
+      '--stack',
+      'mini',
+      '--out',
+      out,
+      '--name',
+      'Demo',
+      '--catalog',
+      FIXTURE,
+      '--capability',
+      'database=fake',
+      '--skip-post-generate',
+    ])
+    expect(result.status).toBe(0)
+    expect(existsSync(path.join(out, 'db', 'init.sql'))).toBe(true)
+    const next = result.stdout.slice(result.stdout.indexOf('Done. Next:')).split('\n')
+    expect(next).toContain('  cd backend && bun ./ok.ts')
+    expect(next).toContain('  docker compose up -d --wait database')
+    expect(next).toContain('  cd backend && bun run db:migrate')
+    expect(next).toContain('  cd backend && bun run test:db')
+  })
+
+  test('prints no database steps without a capability', () => {
+    const out = tempDir()
+    const result = run(['--stack', 'mini', '--out', out, '--name', 'D', '--catalog', FIXTURE])
+    expect(result.status).toBe(0)
+    expect(result.stdout).not.toContain('docker compose')
+  })
+
   test('resolves a relative --out against the working directory', () => {
     const cwd = tempDir()
     const result = run(

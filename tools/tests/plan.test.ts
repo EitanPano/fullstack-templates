@@ -33,7 +33,12 @@ describe('resolveRequest', () => {
     expect(plan.projectName).toBe('demo-app')
     expect(plan.packages.map((p) => p.dir)).toEqual(['backend', 'frontend'])
     expect(plan.packages[0]?.flags).toEqual({ auth: true })
-    expect(plan.packages[0]?.selections).toEqual({ auth: true, server: true })
+    expect(plan.packages[0]?.selections).toEqual({
+      auth: true,
+      database: false,
+      'database:fake': false,
+      server: true,
+    })
     expect(plan.packages[1]?.serverDir).toBe('backend')
     expect(plan.packages[1]?.serverPort).toBe(4000)
     expect(plan.packages[1]?.contractSkipped).toBe(false)
@@ -41,7 +46,12 @@ describe('resolveRequest', () => {
   test('routes a flag shorthand to the one package that declares it', () => {
     const plan = resolveRequest(catalog, { ...base, stack: 'mini', flags: ['auth=false'] })
     expect(plan.packages[0]?.flags).toEqual({ auth: false })
-    expect(plan.packages[0]?.selections).toEqual({ auth: false, server: true })
+    expect(plan.packages[0]?.selections).toEqual({
+      auth: false,
+      database: false,
+      'database:fake': false,
+      server: true,
+    })
   })
   test('rejects an ambiguous shorthand naming both packages', () => {
     const copy = copyFixture('catalog')
@@ -81,10 +91,123 @@ describe('resolveRequest', () => {
       resolveRequest(catalog, { ...base, stack: 'mini', answers: { packages: { api: {} } } }),
     ).toThrow('api')
   })
-  test('rejects any capability selection in this milestone', () => {
+  test('routes a capability shorthand to the package that declares it', () => {
+    const plan = resolveRequest(catalog, {
+      ...base,
+      stack: 'mini',
+      capabilities: ['database=fake'],
+    })
+    const backend = plan.packages[0]
+    expect(backend?.dir).toBe('backend')
+    expect(backend?.capabilities).toEqual({ database: 'fake' })
+    expect(backend?.overlays.map((o) => `${o.kind}/${o.provider}`)).toEqual(['database/fake'])
+    expect(backend?.commands.testDb).toBe('bun run test:db')
+    expect(backend?.commands.migrate).toBe('bun run db:migrate')
+    expect(backend?.commands.check).toBe('bun ./ok.ts')
+    expect(backend?.selections).toEqual({
+      auth: true,
+      server: true,
+      database: true,
+      'database:fake': true,
+    })
+    expect(plan.providers.map((p) => `${p.kind}/${p.id}`)).toEqual(['database/fake'])
+    expect(plan.packages[1]?.capabilities).toEqual({})
+  })
+  test('takes capabilities from answers and lets a shorthand override them', () => {
+    const answers = { packages: { backend: { capabilities: { database: 'fake' } } } }
+    const plan = resolveRequest(catalog, { ...base, stack: 'mini', answers })
+    expect(plan.packages[0]?.capabilities).toEqual({ database: 'fake' })
+    expect(plan.packages[0]?.selections['database:fake']).toBe(true)
+    const copy = loadCatalog(FIXTURE)
+    const listed = copy.templates.get('server/mini')
+    if (listed?.manifest.capabilities?.database === undefined) throw new Error('no capability')
+    listed.manifest.capabilities.database.providers = ['fake', 'other']
+    const fake = listed.overlays.get('database/fake')
+    const fakeProvider = copy.providers.get('database/fake')
+    if (fake === undefined || fakeProvider === undefined) throw new Error('no fake')
+    listed.overlays.set('database/other', { ...fake, provider: 'other' })
+    copy.providers.set('database/other', { ...fakeProvider, id: 'other' })
+    const overridden = resolveRequest(copy, {
+      ...base,
+      stack: 'mini',
+      answers,
+      capabilities: ['database=other'],
+    })
+    expect(overridden.packages[0]?.capabilities).toEqual({ database: 'other' })
+    expect(overridden.packages[0]?.selections['database:fake']).toBe(false)
+    expect(overridden.providers.map((p) => p.id)).toEqual(['other'])
+  })
+  test('keeps the last value of a repeated capability shorthand', () => {
+    const plan = resolveRequest(catalog, {
+      ...base,
+      stack: 'mini',
+      capabilities: ['database=fake', 'database=fake'],
+    })
+    expect(plan.packages[0]?.capabilities).toEqual({ database: 'fake' })
+  })
+  test('selects no capability by default', () => {
+    const plan = resolveRequest(catalog, { ...base, stack: 'mini' })
+    expect(plan.packages[0]?.capabilities).toEqual({})
+    expect(plan.packages[0]?.overlays).toEqual([])
+    expect(plan.packages[0]?.commands.testDb).toBeUndefined()
+    expect(plan.packages[0]?.selections).toEqual({
+      auth: true,
+      server: true,
+      database: false,
+      'database:fake': false,
+    })
+    expect(plan.providers).toEqual([])
+  })
+  test('rejects an unknown capability kind', () => {
+    expect(() =>
+      resolveRequest(catalog, { ...base, stack: 'mini', capabilities: ['cache=redis'] }),
+    ).toThrow('unknown capability: cache')
+  })
+  test('rejects a capability declared by two packages and names both', () => {
+    const copy = loadCatalog(FIXTURE)
+    const front = copy.templates.get('frontend/mini-ui')
+    if (front === undefined) throw new Error('no frontend')
+    front.manifest.capabilities = { database: { providers: ['fake'] } }
+    let message = ''
+    try {
+      resolveRequest(copy, { ...base, stack: 'mini', capabilities: ['database=fake'] })
+    } catch (error) {
+      expect(error).toBeInstanceOf(PlanError)
+      message = (error as Error).message
+    }
+    expect(message).toContain('capability database is ambiguous')
+    expect(message).toContain('backend and frontend')
+    expect(message).toContain('answers file')
+  })
+  test('rejects a provider the package does not list, naming the package and the list', () => {
     expect(() =>
       resolveRequest(catalog, { ...base, stack: 'mini', capabilities: ['database=postgres'] }),
-    ).toThrow('no provider overlays')
+    ).toThrow('backend has no provider "postgres" for capability database: it lists fake')
+    const copy = loadCatalog(FIXTURE)
+    const server = copy.templates.get('server/mini')
+    if (server?.manifest.capabilities?.database === undefined) throw new Error('no capability')
+    server.manifest.capabilities.database.providers = []
+    expect(() =>
+      resolveRequest(copy, { ...base, stack: 'mini', capabilities: ['database=fake'] }),
+    ).toThrow('it lists none')
+  })
+  test('rejects answers naming an undeclared kind or an unlisted provider', () => {
+    const answer = (capabilities: Record<string, string>) => ({
+      packages: { backend: { capabilities } },
+    })
+    expect(() =>
+      resolveRequest(catalog, { ...base, stack: 'mini', answers: answer({ cache: 'redis' }) }),
+    ).toThrow('unknown capability for backend: cache')
+    expect(() =>
+      resolveRequest(catalog, { ...base, stack: 'mini', answers: answer({ database: 'nope' }) }),
+    ).toThrow('backend has no provider "nope" for capability database')
+    expect(() =>
+      resolveRequest(catalog, {
+        ...base,
+        stack: 'mini',
+        answers: { packages: { frontend: { capabilities: { database: 'fake' } } } },
+      }),
+    ).toThrow('unknown capability for frontend: database')
   })
   test('generates a lone server into backend/ and a lone frontend with the contract skipped', () => {
     const server = resolveRequest(catalog, { ...base, template: 'server/mini' })
@@ -113,6 +236,19 @@ describe('resolveRequest', () => {
     expect(() => resolveRequest(loadCatalog(copy), { ...base, stack: 'mini' })).toThrow(
       'backend and api',
     )
+  })
+  test('refuses a package dir equal to a selected provider service name', () => {
+    expect(() =>
+      resolveRequest(catalog, {
+        ...base,
+        template: 'server/mini',
+        dir: 'database',
+        capabilities: ['database=fake'],
+      }),
+    ).toThrow(/package dir "database".*database\/fake/)
+    expect(
+      resolveRequest(catalog, { ...base, template: 'server/mini', dir: 'database' }).packages,
+    ).toHaveLength(1)
   })
   test('rejects malformed shorthand entries', () => {
     expect(() => resolveRequest(catalog, { ...base, stack: 'mini', flags: ['auth'] })).toThrow(

@@ -9,10 +9,16 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import { parse, stringify } from 'yaml'
-import type { Catalog } from './catalog'
+import type { Catalog, LoadedProvider } from './catalog'
 import { CommandError, runCommand } from './commands'
-import { assembleCompose, composeServices } from './compose'
-import { applyDependencyChange } from './dependencies'
+import {
+  addProvider,
+  assembleCompose,
+  composeServices,
+  wireConsumer,
+  type ProviderEnvWiring,
+} from './compose'
+import { applyDependencyChange, applyScripts } from './dependencies'
 import { copyTree, listFiles, pruneEmptyParents, removeTree } from './files'
 import { mergeGitignore } from './gitignore'
 import { applyMarkers, commentSyntaxFor, findLeftoverMarker } from './markers'
@@ -103,20 +109,30 @@ export function assertInside(root: string, target: string, what: string): void {
   }
 }
 
+function removeOnlyPath(pkg: PackagePlan, pkgStaging: string, only: string, owner: string): void {
+  const target = path.join(pkgStaging, only)
+  assertInside(pkgStaging, target, `${pkg.dir}: ${owner} onlyPath`)
+  if (!existsSync(target)) {
+    throw new GenerateError(`${pkg.dir}: ${owner} lists onlyPaths ${only}, which is missing`)
+  }
+  removeTree(target)
+  pruneEmptyParents(path.dirname(target), pkgStaging)
+}
+
+// A flag that is off removes the template's onlyPaths and each selected overlay's own, after the
+// overlay copy, so a capability can add a file that exists only while the flag is on.
 function removeOnlyPaths(pkg: PackagePlan, pkgStaging: string): void {
   const specs = pkg.template.manifest.flags ?? {}
   for (const [name, on] of Object.entries(pkg.flags)) {
     if (on) continue
     for (const only of specs[name]?.onlyPaths ?? []) {
-      const target = path.join(pkgStaging, only)
-      assertInside(pkgStaging, target, `${pkg.dir}: flag ${name} onlyPath`)
-      if (!existsSync(target)) {
-        throw new GenerateError(
-          `${pkg.dir}: flag ${name} lists onlyPaths ${only}, which is missing`,
-        )
+      removeOnlyPath(pkg, pkgStaging, only, `flag ${name}`)
+    }
+    for (const overlay of pkg.overlays) {
+      for (const only of overlay.manifest.flags?.[name]?.onlyPaths ?? []) {
+        const owner = `flag ${name} (capability ${overlay.kind}/${overlay.provider})`
+        removeOnlyPath(pkg, pkgStaging, only, owner)
       }
-      removeTree(target)
-      pruneEmptyParents(path.dirname(target), pkgStaging)
     }
   }
 }
@@ -134,8 +150,9 @@ function applyMarkerPass(pkg: PackagePlan, staging: string, pkgStaging: string):
 function sweepMarkers(staging: string, pkgStaging: string): void {
   for (const file of textFiles(pkgStaging)) {
     const lines = readFileSync(file, 'utf8').split('\n')
+    const syntax = commentSyntaxFor(file)
     for (const [index, line] of lines.entries()) {
-      const found = findLeftoverMarker(line)
+      const found = findLeftoverMarker(line, syntax)
       if (found !== null) {
         throw new GenerateError(
           `${toWhere(staging, file)}:${String(index + 1)}: undeclared marker ${found}`,
@@ -162,25 +179,96 @@ function removeDependencies(pkg: PackagePlan, pkgStaging: string): void {
   }
 }
 
+// Overlays are copied before the flags run, so a flag's onlyPaths and markers also reach the
+// files a capability adds or replaces.
+function copyOverlays(pkg: PackagePlan, pkgStaging: string): void {
+  for (const overlay of pkg.overlays) copyTree(overlay.overlayDir, pkgStaging)
+}
+
+function applyCapabilities(pkg: PackagePlan, pkgStaging: string): void {
+  const { dependencies } = pkg.template.manifest
+  for (const overlay of pkg.overlays) {
+    const { dependencies: change, scripts } = overlay.manifest
+    if (change === undefined && scripts === undefined) continue
+    const where = `${pkg.dir} (capability ${overlay.kind}/${overlay.provider})`
+    if (dependencies === undefined) {
+      throw new GenerateError(`${where}: the template declares no dependencies manifest`)
+    }
+    const manifestFile = path.join(pkgStaging, dependencies.manifest)
+    assertInside(pkgStaging, manifestFile, `${pkg.dir}: dependencies.manifest`)
+    if (change !== undefined) {
+      applyDependencyChange(manifestFile, dependencies.adapter, change, where)
+    }
+    if (scripts !== undefined) applyScripts(manifestFile, dependencies.adapter, scripts, where)
+  }
+}
+
+function providerOf(
+  providers: readonly LoadedProvider[],
+  kind: string,
+  id: string,
+): LoadedProvider {
+  const found = providers.find((p) => p.kind === kind && p.id === id)
+  if (found === undefined) throw new GenerateError(`provider ${kind}/${id} is not in the plan`)
+  return found
+}
+
+// One group per entry: what it is, what the tests use, and the local value.
+function appendEnvExample(
+  pkg: PackagePlan,
+  pkgStaging: string,
+  providers: readonly LoadedProvider[],
+): void {
+  const groups: string[][] = []
+  for (const overlay of pkg.overlays) {
+    const provider = providerOf(providers, overlay.kind, overlay.provider)
+    for (const entry of provider.manifest.env) {
+      groups.push([
+        `# ${provider.kind}/${provider.id} provider`,
+        `# ${entry.summary}`,
+        entry.testOverride === undefined
+          ? `# Tests (testDb) use ${entry.test}.`
+          : `# Tests (testDb) use ${entry.test}; override with ${entry.testOverride}.`,
+        `${entry.name}=${entry.local}`,
+      ])
+    }
+  }
+  if (groups.length === 0) return
+  const file = path.join(pkgStaging, '.env.example')
+  const existing = existsSync(file) ? readFileSync(file, 'utf8') : ''
+  const eol = existing.includes('\r\n') ? '\r\n' : '\n'
+  const terminated = existing === '' || existing.endsWith('\n') ? existing : existing + eol
+  // A new file starts with the first group; after existing content a blank line separates them.
+  const body = groups
+    .map((lines, index) => (terminated === '' && index === 0 ? '' : eol) + lines.join(eol) + eol)
+    .join('')
+  writeFileSync(file, terminated + body)
+}
+
 function buildPackage(
   pkg: PackagePlan,
   values: Readonly<Record<string, string>>,
+  providers: readonly LoadedProvider[],
   staging: string,
 ): void {
   const pkgStaging = path.join(staging, pkg.dir)
   copyTree(path.join(pkg.template.dir, 'base'), pkgStaging)
+  copyOverlays(pkg, pkgStaging)
   removeOnlyPaths(pkg, pkgStaging)
   applyMarkerPass(pkg, staging, pkgStaging)
   sweepMarkers(staging, pkgStaging)
   removeDependencies(pkg, pkgStaging)
+  applyCapabilities(pkg, pkgStaging)
   for (const file of textFiles(pkgStaging)) {
     rewrite(file, (content) => substitutePlaceholders(content, values))
   }
+  appendEnvExample(pkg, pkgStaging, providers)
 }
 
 function composeFragment(
   pkg: PackagePlan,
   values: Readonly<Record<string, string>>,
+  providers: readonly LoadedProvider[],
 ): string | undefined {
   const file = path.join(pkg.template.dir, 'compose.yaml')
   if (!existsSync(file)) return undefined
@@ -190,7 +278,16 @@ function composeFragment(
     syntax === undefined
       ? content
       : applyMarkers(content, syntax, `${pkg.template.path}/compose.yaml`, pkg.selections)
-  return substitutePlaceholders(marked, values)
+  const text = substitutePlaceholders(marked, values)
+  if (pkg.overlays.length === 0) return text
+  const wirings: ProviderEnvWiring[] = pkg.overlays.map((overlay) => {
+    const { manifest } = providerOf(providers, overlay.kind, overlay.provider)
+    return {
+      service: manifest.service,
+      env: manifest.env.map(({ name, compose, secret }) => ({ name, compose, secret })),
+    }
+  })
+  return wireConsumer(pkg.dir, text, wirings)
 }
 
 // A rerun adds packages to a project: the existing docker-compose.yml is the skeleton and only
@@ -212,11 +309,27 @@ function writeCompose(
       log(`docker-compose.yml already has service ${pkg.dir}; kept`)
       return []
     }
-    const text = composeFragment(pkg, values.get(pkg.dir) ?? {})
+    const text = composeFragment(pkg, values.get(pkg.dir) ?? {}, plan.providers)
     return text === undefined ? [] : [{ service: pkg.dir, text }]
   })
-  if (existing !== undefined && fragments.length === 0) return false
-  writeFileSync(path.join(staging, 'docker-compose.yml'), assembleCompose(skeleton, fragments))
+  const missing = plan.providers.filter((p) => !present.has(p.manifest.service))
+  if (existing !== undefined && fragments.length === 0 && missing.length === 0) {
+    for (const provider of plan.providers) {
+      log(`docker-compose.yml already has service ${provider.manifest.service}; kept`)
+    }
+    return false
+  }
+  const text = plan.providers.reduce(
+    (current, provider) =>
+      addProvider(
+        current,
+        provider.manifest.service,
+        readFileSync(path.join(provider.dir, provider.manifest.compose), 'utf8'),
+        log,
+      ),
+    assembleCompose(skeleton, fragments),
+  )
+  writeFileSync(path.join(staging, 'docker-compose.yml'), text)
   return true
 }
 
@@ -239,6 +352,7 @@ function writeRootFiles(
   log: Log,
 ): void {
   const composeWritten = writeCompose(catalog, plan, perPackage, staging, log)
+  writeProviderFiles(plan, staging)
   copyTree(
     path.join(catalog.root, 'shared', 'editorconfig', '.editorconfig'),
     path.join(staging, '.editorconfig'),
@@ -250,6 +364,28 @@ function writeRootFiles(
   )
   for (const name of written) {
     rewrite(path.join(staging, name), (content) => substitutePlaceholders(content, values))
+  }
+}
+
+// Files a provider ships for the project root (database init scripts). They are staged like the
+// other root files; moveIntoPlace never overwrites one the project already has.
+function providerFiles(plan: GenerationPlan): string[] {
+  return [...new Set(plan.providers.flatMap((p) => p.manifest.files ?? []))]
+}
+
+function writeProviderFiles(plan: GenerationPlan, staging: string): void {
+  const values = placeholderValues(plan.projectName)
+  for (const provider of plan.providers) {
+    for (const file of provider.manifest.files ?? []) {
+      const from = path.join(provider.dir, file)
+      const to = path.join(staging, file)
+      const what = `provider ${provider.kind}/${provider.id} file`
+      assertInside(provider.dir, from, what)
+      assertInside(staging, to, what)
+      mkdirSync(path.dirname(to), { recursive: true })
+      copyTree(from, to)
+      if (isTextFile(to)) rewrite(to, (content) => substitutePlaceholders(content, values))
+    }
   }
 }
 
@@ -275,6 +411,7 @@ function writeProvenance(
   if (existsSync(earlier)) {
     const previous = parse(readFileSync(earlier, 'utf8')) as Partial<Provenance> | null
     provenance.packages = { ...previous?.packages, ...provenance.packages }
+    provenance.providers = { ...previous?.providers, ...provenance.providers }
   }
   const errors = validateAgainst('provenance', provenance)
   if (errors.length > 0) throw new GenerateError(`provenance is invalid: ${errors.join('; ')}`)
@@ -287,7 +424,8 @@ function writeProvenance(
 function runPostGenerate(plan: GenerationPlan, staging: string, log: Log): void {
   if (plan.skipPostGenerate) return
   for (const pkg of plan.packages) {
-    const { commands, postGenerate = [] } = pkg.template.manifest
+    const { postGenerate = [] } = pkg.template.manifest
+    const { commands } = pkg
     for (const name of postGenerate) {
       const line = commands[name]
       if (line === undefined) {
@@ -395,6 +533,25 @@ function moveIntoPlace(plan: GenerationPlan, staging: string, mover: Mover, log:
     mover.move(path.join(staging, '.editorconfig'), path.join(plan.out, '.editorconfig'))
   }
   mover.move(path.join(staging, '.gitignore'), path.join(plan.out, '.gitignore'))
+  for (const file of providerFiles(plan)) {
+    const target = path.join(plan.out, file)
+    if (existsSync(target)) {
+      log(`${file} already exists in ${plan.out}; kept`)
+      continue
+    }
+    ensureParents(mover, plan.out, file)
+    mover.move(path.join(staging, file), target)
+  }
+}
+
+// Each missing ancestor is recorded, so a rollback removes exactly what this run created.
+function ensureParents(mover: Mover, root: string, file: string): void {
+  let current = root
+  for (const part of path.dirname(file).split(/[\\/]/)) {
+    if (part === '' || part === '.') continue
+    current = path.join(current, part)
+    mover.ensureDir(current)
+  }
 }
 
 export function generate(
@@ -416,7 +573,7 @@ export function generate(
     const values = new Map(plan.packages.map((p) => [p.dir, packagePlaceholders(plan, p, log)]))
     for (const pkg of plan.packages) {
       log(`==> Preparing ${pkg.dir} from ${pkg.template.path}`)
-      buildPackage(pkg, values.get(pkg.dir) ?? {}, staging)
+      buildPackage(pkg, values.get(pkg.dir) ?? {}, plan.providers, staging)
     }
     log('==> Assembling root files')
     writeRootFiles(catalog, plan, values, staging, log)

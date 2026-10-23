@@ -4,11 +4,20 @@ import type { ValidateFunction } from 'ajv'
 import Ajv2020 from 'ajv/dist/2020'
 import addFormats from 'ajv-formats'
 
-export type SchemaName = 'index' | 'template' | 'stack' | 'cases' | 'provenance'
+export type SchemaName =
+  'index' | 'template' | 'stack' | 'cases' | 'provenance' | 'provider' | 'capability'
 
 export const SCHEMAS_DIR = path.resolve(import.meta.dir, '..', '..', 'schemas')
 
-const NAMES: readonly SchemaName[] = ['index', 'template', 'stack', 'cases', 'provenance']
+const NAMES: readonly SchemaName[] = [
+  'index',
+  'template',
+  'stack',
+  'cases',
+  'provenance',
+  'provider',
+  'capability',
+]
 
 let validators: Map<SchemaName, ValidateFunction> | undefined
 

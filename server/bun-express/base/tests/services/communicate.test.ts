@@ -300,6 +300,7 @@ describe('provider resolution at boot', () => {
       JWT_REFRESH_SECRET: 'b'.repeat(40), // @auth
       OTP_SECRET: 'c'.repeat(40), // @auth
       ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
+      DATABASE_URL: 'postgres://app:a-real-password@db.internal:5432/app', // @database:postgres
     })
 
     expect(result.exitCode).toBe(0)

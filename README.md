@@ -24,12 +24,31 @@ The generator copies each package's base, applies the flags, assembles the root
 and writes `.fullstack/catalog.yaml` recording what was generated and which commands to run.
 Needs Bun 1.4+ and Node 24+.
 
+With a database (needs Docker):
+
+```sh
+bun tools/generate.ts --stack next-bun-express --capability database=postgres \
+  --out ../my-app --name my-app
+cd ../my-app && docker compose up -d --wait database
+cd backend && bun run db:migrate && bun run test:db
+```
+
+The generator adds the Postgres service to the root `docker-compose.yml`, the `DATABASE_URL`
+variable to the backend's `.env.example`, and the migration and test-database scripts.
+
+To run the full stack (`docker compose --profile app up --build`), export `DATABASE_URL` first:
+it is a secret with no default in Compose, and the backend runs with `NODE_ENV: production`.
+Nothing runs the migrations on boot. Before the backend serves traffic, and after every deploy
+that ships a migration, run them: `docker compose --profile app run --rm backend bun run db:migrate`
+(with the production secrets and `DATABASE_URL` exported, as for `up`). The bundled `database`
+service is the local stack; production does not refuse its credentials if you export them.
+
 ## Templates
 
 <!-- matrix:start -->
 | Template | Kind | Version | Flags | Capabilities | Summary |
 | --- | --- | --- | --- | --- | --- |
-| `bun-express` | server | 2.0.0 | auth | — | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
+| `bun-express` | server | 2.1.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
 | `next` | frontend | 1.0.1 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
 
 | Stack | Packages | Summary |
@@ -51,8 +70,10 @@ Each template lives in `<kind>/<id>/` and is described by a `template.yaml` mani
 `base/` is a complete, runnable package with its lockfile committed. Markers such as
 `@auth` and `@noauth` keep or drop lines and blocks in the file's own comment syntax;
 `__PROJECT_NAME__`-style placeholders are substituted in text files. Capabilities
-(database, cache, messaging) are provider overlays copied over the base; none are shipped
-yet. See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/capabilities.md](docs/capabilities.md).
+(database, cache, messaging) are provider overlays: a template's `capabilities/<kind>/<provider>/`
+holds the files copied over the base and the scripts and commands they add, and the provider's
+Compose service and env contract in `shared/providers/` are wired into the project root.
+`bun-express` ships `database/postgres`. See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/capabilities.md](docs/capabilities.md).
 
 ## Architecture contract
 
@@ -66,8 +87,10 @@ template finds the same shape.
 
 - v0.1.0: the `server/bun-express` and `frontend/next` templates, the `next-bun-express`
   stack, the `validate`, `generate` and `test-generated` tools, and CI.
-- Next: the `database/postgres` provider and its `bun-express` overlay, then
-  `server/python-fastapi` and `frontend/react`, then mongodb, redis, and a worker with
+- v1.0.0: the first capability, `database/postgres` for `bun-express` 2.1.0, with the
+  mechanism proven end to end: provider and overlay manifests, capability selection, root
+  assembly of the Compose service and env, and `test-generated --with-services`.
+- Next: `server/python-fastapi` and `frontend/react`, then mongodb, redis, and a worker with
   rabbitmq.
 
 The design is in [ADR 0001](docs/adr/0001-catalog-architecture.md).

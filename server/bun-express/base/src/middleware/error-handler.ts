@@ -3,10 +3,18 @@ import { ZodError } from 'zod'
 
 import { log } from '../services/logger'
 import { AppError, toErrorBody } from '../services/utils/error'
+import { classifyPostgresError } from '../services/utils/postgres-error' // @database:postgres
 
 // The only place an error becomes an HTTP response. An AppError carries its status; a
 // ZodError that escaped a route adapter is a 400; body-parser failures map to 400, 413 or 415;
+// @nodatabase-start
 // anything else is logged with its stack and leaves as a bare `internal` envelope.
+// @nodatabase-end
+// @database:postgres-start
+// a database failure the Postgres classifier recognises (a lost connection, a unique violation)
+// becomes its own AppError; anything else is logged with its stack and leaves as a bare
+// `internal` envelope.
+// @database:postgres-end
 export const errorHandler: ErrorRequestHandler = (error: unknown, _req, res, _next) => {
   const requestId = res.locals.requestId
   const appError = toAppError(error)
@@ -44,5 +52,9 @@ function toAppError(error: unknown): AppError {
     const mapped = BODY_PARSER_CODES[error.type]
     if (mapped !== undefined) return mapped
   }
+  // @database:postgres-start
+  const stored = classifyPostgresError(error)
+  if (stored !== undefined) return stored
+  // @database:postgres-end
   return new AppError('internal', 'unexpected error')
 }

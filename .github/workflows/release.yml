@@ -63,7 +63,7 @@ jobs:
         working-directory: tools
         run: bun install --frozen-lockfile
       - name: Generate and test ${{ matrix.case }}
-        run: bun tools/test-generated.ts --case ${{ matrix.case }} --e2e --install-browsers
+        run: bun tools/test-generated.ts --case ${{ matrix.case }} --e2e --install-browsers --with-services
 
   publish:
     needs: [validate, case]

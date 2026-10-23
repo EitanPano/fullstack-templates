@@ -9,7 +9,9 @@ describe('cases', () => {
       'frontend/mini-ui/alone',
       'frontend/mini-ui/default',
       'server/mini/auth-off',
+      'server/mini/auth-off-fake',
       'server/mini/default',
+      'server/mini/fake',
     ])
   })
   test('builds a stack request with package-qualified flags and a template request with shorthands', () => {
