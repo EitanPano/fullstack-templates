@@ -30,13 +30,20 @@ function checkReadme(root: string, matrix: string, write: boolean): string[] {
   }
 }
 
-function run(argv: string[]): string[] {
+// Null means the run already printed its own result (--pin) and has nothing to validate.
+function run(argv: string[]): string[] | null {
   const args = parseArgs(argv, { values: ['catalog', 'pin'], booleans: ['readme', 'lockfiles'] })
   const root = args.values.catalog ? path.resolve(args.values.catalog) : CATALOG_ROOT
   const catalog = loadCatalog(root)
   if (args.values.pin !== undefined) {
+    // --pin rewrites the pins and does not validate, so a flag that asks for a check would be
+    // silently ignored.
+    for (const flag of ['readme', 'lockfiles']) {
+      if (args.booleans[flag] === true)
+        throw new CliError(`--pin cannot be combined with --${flag}`)
+    }
     pinCapability(catalog, args.values.pin, (line) => console.log(line))
-    return []
+    return null
   }
   const problems = [...catalog.templates.values()].flatMap((template) => dryRunMarkers(template))
   problems.push(...checkPins(catalog))
@@ -46,7 +53,7 @@ function run(argv: string[]): string[] {
 }
 
 function main(): void {
-  let problems: string[]
+  let problems: string[] | null
   try {
     problems = run(process.argv.slice(2))
   } catch (error) {
@@ -59,9 +66,9 @@ function main(): void {
       process.exit(2)
     } else throw error
   }
+  if (problems === null) return
   if (problems.length === 0) {
-    // --pin only rewrites the pins; it does not validate the catalog.
-    if (!process.argv.includes('--pin')) console.log('validate: ok')
+    console.log('validate: ok')
     return
   }
   for (const problem of problems) console.log(`validate: ${problem}`)

@@ -333,10 +333,15 @@ function writeCompose(
   const fragments = plan.packages.flatMap((pkg) => {
     if (present.has(pkg.dir)) {
       log(`docker-compose.yml already has service ${pkg.dir}; kept`)
-      return []
-    }
-    if (present.has(pkg.dir)) {
-      log(`docker-compose.yml already has service ${pkg.dir}; kept`)
+      const migrate = migrateServiceName(pkg.dir)
+      const derives = pkg.overlays.some((overlay) => overlay.manifest.container !== undefined)
+      // A kept service is never edited, and the migrate service is only useful with the
+      // depends_on entry that makes the package wait for it, so adding it alone would mislead.
+      if (derives && !present.has(migrate)) {
+        log(
+          `docker-compose.yml has service ${pkg.dir} but not ${migrate}; ${migrate} was not added because ${pkg.dir} is kept as it is and would not wait for it`,
+        )
+      }
       return []
     }
     return composeFragment(pkg, values.get(pkg.dir) ?? {}, plan.providers).filter(({ service }) => {

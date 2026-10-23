@@ -214,10 +214,24 @@ export const SERVER_AGENTS_HEADINGS = [
   'Tests',
 ] as const
 
+// A fenced block may hold a shell comment that looks like a heading; only a fence of the same
+// character, at least as long, closes it (CommonMark).
 function missingHeadings(agentsFile: string): string[] {
   const found = new Set<string>()
+  let fence: { char: string; length: number } | null = null
   for (const line of readFileSync(agentsFile, 'utf8').split(/\r?\n/)) {
-    const match = /^#{1,6}[ \t]+(.+?)[ \t]*$/.exec(line)
+    const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line)?.[1]
+    if (fence === null) {
+      if (marker !== undefined) {
+        fence = { char: marker.charAt(0), length: marker.length }
+        continue
+      }
+    } else {
+      if (marker?.charAt(0) === fence.char && marker.length >= fence.length) fence = null
+      continue
+    }
+    // An ATX heading may close with hashes, as in "## Errors ##".
+    const match = /^#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/.exec(line)
     if (match?.[1] !== undefined) found.add(match[1])
   }
   return SERVER_AGENTS_HEADINGS.filter((heading) => !found.has(heading))

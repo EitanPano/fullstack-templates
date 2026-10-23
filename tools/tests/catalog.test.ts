@@ -586,6 +586,38 @@ describe('loadCatalog: server agents headings', () => {
     expect(problems(root)).toContain('"Errors"')
   })
 
+  test('ignores a heading inside a fenced block, backticks or tildes', () => {
+    for (const fence of ['```', '~~~']) {
+      const root = copyFixture('catalog')
+      edit(root, `${mini}/base/AGENTS.md`, (t) =>
+        t.replace('## Tests\n', `${fence}sh\n# Tests\n${fence}\n`),
+      )
+      expect(problems(root)).toContain('"Tests"')
+    }
+  })
+
+  test('a longer fence is not closed by a shorter one', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${mini}/base/AGENTS.md`, (t) =>
+      t.replace('## Tests\n', '````md\n```\n## Tests\n````\n'),
+    )
+    expect(problems(root)).toContain('"Tests"')
+  })
+
+  test('counts a heading after the fence closes', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${mini}/base/AGENTS.md`, (t) =>
+      t.replace('## Tests\n', '```sh\n# x\n```\n## Tests\n'),
+    )
+    expect(() => loadCatalog(root)).not.toThrow()
+  })
+
+  test('accepts a heading with closing hashes', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${mini}/base/AGENTS.md`, (t) => t.replace('## Errors\n', '## Errors ##\n'))
+    expect(() => loadCatalog(root)).not.toThrow()
+  })
+
   test('does not check a frontend template', () => {
     const root = copyFixture('catalog')
     writeFileSync(path.join(root, 'frontend/mini-ui/base/AGENTS.md'), '# UI\n')

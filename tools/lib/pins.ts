@@ -91,9 +91,17 @@ export function checkPins(catalog: Catalog): string[] {
   return problems
 }
 
-function git(cwd: string, args: string[], input?: string): { status: number | null; out: string } {
+interface GitResult {
+  // Null when git could not be started at all.
+  status: number | null
+  out: string
+  err: string
+}
+export type GitRunner = (cwd: string, args: string[], input?: string) => GitResult
+
+const git: GitRunner = (cwd, args, input) => {
   const result = spawnSync('git', args, { cwd, encoding: 'utf8', input })
-  return { status: result.status, out: result.stdout }
+  return { status: result.status, out: result.stdout ?? '', err: result.stderr ?? '' }
 }
 
 function findOverlay(
@@ -119,20 +127,49 @@ function printDiff(
   file: string,
   before: string,
   log: (line: string) => void,
+  runGit: GitRunner,
 ): void {
-  if (git(root, ['cat-file', '-e', before]).status !== 0) {
+  const lookup = runGit(root, ['cat-file', '-e', before])
+  if (lookup.status === null) {
+    log(`${file}: git is not available; no diff to show`)
+    return
+  }
+  if (lookup.status !== 0) {
     log(`${file}: the old blob ${before} is not in history; no diff to show`)
     return
   }
   const content = readFileSync(path.join(template.dir, 'base', file), 'utf8')
-  const after = git(root, ['hash-object', '-w', '--stdin'], content.replaceAll('\r\n', '\n')).out
-  log(`${file}: git diff ${before} ${after.trim()}`)
-  log(git(root, ['diff', before, after.trim()]).out.trimEnd())
+  const lf = content.replaceAll('\r\n', '\n')
+  const hashed = runGit(root, ['hash-object', '-w', '--stdin'], lf)
+  if (hashed.status !== 0) {
+    log(`${file}: git hash-object failed (${explain(hashed)}); no diff to show`)
+    return
+  }
+  const after = hashed.out.trim()
+  log(`${file}: git diff ${before} ${after}`)
+  const diff = runGit(root, ['diff', before, after])
+  if (diff.status !== 0) {
+    log(`${file}: git diff failed (${explain(diff)})`)
+    return
+  }
+  log(diff.out.trimEnd())
+}
+
+function explain(result: GitResult): string {
+  const reason = result.err.trim()
+  return result.status === null
+    ? 'git did not run'
+    : `exit ${String(result.status)}${reason === '' ? '' : `: ${reason}`}`
 }
 
 // Rewrites only the pins map of the capability's capability.yaml; the rest of the document,
 // comments included, stays as it was.
-export function pinCapability(catalog: Catalog, target: string, log: (line: string) => void): void {
+export function pinCapability(
+  catalog: Catalog,
+  target: string,
+  log: (line: string) => void,
+  runGit: GitRunner = git,
+): void {
   const { template, overlay } = findOverlay(catalog, target)
   const file = path.join(overlay.dir, 'capability.yaml')
   const doc = parseDocument(readFileSync(file, 'utf8'))
@@ -149,7 +186,7 @@ export function pinCapability(catalog: Catalog, target: string, log: (line: stri
   for (const [shadowed, id] of Object.entries(pins)) {
     const before = old[shadowed]
     if (before === undefined || before === id) continue
-    printDiff(catalog.root, template, shadowed, before, log)
+    printDiff(catalog.root, template, shadowed, before, log, runGit)
   }
   log(`pinned ${String(Object.keys(pins).length)} file(s) for ${target}`)
 }

@@ -3,7 +3,14 @@ import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { loadCatalog } from '../lib/catalog'
-import { PinError, blobId, checkPins, pinCapability, shadowedPaths } from '../lib/pins'
+import {
+  PinError,
+  blobId,
+  checkPins,
+  pinCapability,
+  shadowedPaths,
+  type GitRunner,
+} from '../lib/pins'
 import { copyFixture, tempDir } from './helpers'
 
 const TARGET = 'server/mini/database/fake'
@@ -130,6 +137,40 @@ describe('pinCapability', () => {
     const lines: string[] = []
     pinCapability(loadCatalog(root), TARGET, (line) => lines.push(line))
     expect(lines.join('\n')).toMatch(/src\/auth\.ts.*not in (the repository's )?history/)
+  })
+
+  describe('when git misbehaves', () => {
+    const stale = () => {
+      const root = pinnedFixture()
+      editCapability(root, (text) =>
+        text.replace(/(src\/auth\.ts: )[0-9a-f]{40}/, `$1${'b'.repeat(40)}`),
+      )
+      return root
+    }
+    const run = (runGit: GitRunner) => {
+      const lines: string[] = []
+      pinCapability(loadCatalog(stale()), TARGET, (line) => lines.push(line), runGit)
+      return lines.join('\n')
+    }
+    const ok = { status: 0, out: '', err: '' }
+
+    test('a missing git binary is reported as such, not as a missing blob', () => {
+      const output = run(() => ({ status: null, out: '', err: '' }))
+      expect(output).toContain('src/auth.ts: git is not available')
+      expect(output).not.toContain('not in history')
+    })
+    test('a failed hash-object is reported with git stderr', () => {
+      const output = run((_cwd, args) =>
+        args[0] === 'hash-object' ? { status: 128, out: '', err: 'fatal: read-only\n' } : ok,
+      )
+      expect(output).toContain('git hash-object failed (exit 128: fatal: read-only)')
+    })
+    test('a failed diff is reported', () => {
+      const output = run((_cwd, args) =>
+        args[0] === 'diff' ? { status: 129, out: '', err: 'usage\n' } : { ...ok, out: 'abc\n' },
+      )
+      expect(output).toContain('git diff failed (exit 129: usage)')
+    })
   })
 
   test('refuses an unknown capability with the known ones', () => {

@@ -826,4 +826,32 @@ describe('generate with a capability that declares container.migrate', () => {
     expect(parse(text).services['backend-migrate'].command).toBe('edited by hand')
     expect(lines).toContain('docker-compose.yml already has service backend-migrate; kept')
   })
+
+  test('a rerun that keeps a service with no migrate service next to it says so', () => {
+    const cat = migrateCatalog()
+    const out = tempDir()
+    generate(cat, fakeRequest(cat, out))
+    const file = path.join(out, 'docker-compose.yml')
+    const doc = parseDocument(compose(out))
+    doc.deleteIn(['services', 'backend-migrate'])
+    writeFileSync(file, doc.toString())
+    removeTree(path.join(out, 'backend'))
+    const lines: string[] = []
+    generate(
+      cat,
+      resolveRequest(
+        cat,
+        request(out, {
+          stack: undefined,
+          template: 'server/mini',
+          capabilities: ['database=fake'],
+        }),
+      ),
+      { log: (l) => lines.push(l) },
+    )
+    expect(compose(out)).not.toMatch(/^ {2}backend-migrate:/m)
+    expect(lines).toContain(
+      'docker-compose.yml has service backend but not backend-migrate; backend-migrate was not added because backend is kept as it is and would not wait for it',
+    )
+  })
 })
