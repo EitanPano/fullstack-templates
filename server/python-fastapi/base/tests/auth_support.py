@@ -3,7 +3,6 @@ reads, a minted access token, a provider that captures messages, and the wait fo
 runs detached from its request.
 """
 
-import asyncio
 import re
 import uuid
 from collections.abc import Iterator
@@ -11,6 +10,7 @@ from contextlib import contextmanager
 
 import httpx
 
+from app.api.auth.controller import drain_deliveries
 from app.models.user.enums import UserRole
 from app.models.user.type import PublicUser
 from app.services.communicate import Message, register_provider, reset_providers
@@ -92,10 +92,8 @@ def capturing() -> Iterator[Outbox]:
 
 
 async def flush() -> None:
-    """Lets a delivery detached from its request finish. The capturing provider never waits on
-    real I/O, so a few turns of the loop are enough and nothing sleeps."""
-    for _ in range(10):
-        await asyncio.sleep(0)
+    """Waits for every delivery detached from its request, however long its provider takes."""
+    await drain_deliveries()
 
 
 def cookie_lines(response: httpx.Response) -> list[str]:

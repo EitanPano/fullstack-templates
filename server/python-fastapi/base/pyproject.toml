@@ -115,7 +115,6 @@ layers = [
 # publishes through the bus), so import-linter sees a path from services up to api through the
 # lists. The bus never imports a subscriber at load: the import runs when it connects.
 ignore_imports = ["app.infra.pubsub -> app.infra.subscribers.send_welcome"]
-unmatched_ignore_imports_alerting = "none"
 # @auth-end
 
 # Leaves: models/ imports models/ only (not even pydantic: the wire shape is in a module's schema).

@@ -12,9 +12,6 @@ OTP login is no way round it, since otp_per_target (5/h) and the overwrite of a 
 new request let the same attacker starve it too.
 """
 
-import asyncio
-from typing import Final
-
 from fastapi import Request, Response
 from pydantic import MISSING
 
@@ -40,6 +37,7 @@ from app.models.user.enums import ContactType, UserStatus
 from app.models.user.type import ContactTarget, CreateUserInput, PublicUser
 from app.services.communicate import Message, send
 from app.services.communicate.templates.otp import otp_template
+from app.services.event import detach, drain
 from app.services.logger import log
 from app.services.security.cookies import clear_auth_cookies, read_refresh_token, set_auth_cookies
 from app.services.security.crypto import DUMMY_HASH, sha256, verify_password
@@ -55,10 +53,6 @@ from app.services.session import (
 )
 from app.services.utils import clock
 from app.services.utils.error import AppError
-
-# A task nothing references can be collected before it finishes: the set keeps each delivery alive
-# until it is done.
-_deliveries: Final[set[asyncio.Task[None]]] = set()
 
 
 async def _tokens_for(account: PublicUser, issued: IssuedSession) -> TokensShape:
@@ -161,6 +155,12 @@ async def _deliver_detached(target: ContactTarget, purpose: OtpPurpose, code: st
         )
 
 
+async def drain_deliveries() -> None:
+    """Resolves once every login code detached from its request has been handed to its provider.
+    The deliveries run on the bus, which waits for them at shutdown; a test awaits this."""
+    await drain()
+
+
 # HTTP handlers: `routes.py` mounts each one behind its rate limiters and gates.
 
 
@@ -252,9 +252,7 @@ async def request_otp(request: Request, body: OtpRequestBody) -> AcceptedBody:
     account = await user.find_user_by_target(target)
     if account is not None and account.status is UserStatus.active:
         code = await issue_otp(purpose=purpose, target=target, user_id=account.id)
-        task = asyncio.create_task(_deliver_detached(target, purpose, code))
-        _deliveries.add(task)
-        task.add_done_callback(_deliveries.discard)
+        detach(_deliver_detached(target, purpose, code))
     else:
         log.info("otp skipped", {"reason": "unknown target" if account is None else "not active"})
     return AcceptedBody()

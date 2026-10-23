@@ -1088,6 +1088,46 @@ class TestDeliveryFailures:
         assert "RuntimeError" in caplog.text
 
 
+class _Slow:
+    """A provider that waits on something, as a vendor's HTTP call does."""
+
+    def __init__(self, outbox: Outbox) -> None:
+        self._outbox = outbox
+
+    async def send(self, message: Message) -> None:
+        await asyncio.sleep(0.05)
+        await self._outbox.send(message)
+
+
+class TestDetachedDelivery:
+    async def test_flush_waits_for_a_provider_that_yields(
+        self, client: httpx.AsyncClient, outbox: Outbox
+    ) -> None:
+        await register(client, "ada@example.com")
+        await settle(outbox)
+        register_provider("mail", _Slow(outbox))
+
+        res = await client.post("/api/auth/otp", json={"target": EMAIL_TARGET, "purpose": "login"})
+        assert outbox.sent == []
+        await flush()
+
+        assert res.status_code == 202
+        assert len(outbox.sent) == 1
+
+    async def test_a_login_code_in_flight_at_shutdown_is_delivered_before_the_bus_closes(
+        self, client: httpx.AsyncClient, outbox: Outbox
+    ) -> None:
+        await register(client, "ada@example.com")
+        await settle(outbox)
+        register_provider("mail", _Slow(outbox))
+        await client.post("/api/auth/otp", json={"target": EMAIL_TARGET, "purpose": "login"})
+
+        await pubsub.close()
+
+        assert len(outbox.sent) == 1
+        assert outbox.code()
+
+
 class TestTokensNeverInLogs:
     async def test_no_flow_writes_a_token_a_password_or_a_code_to_the_log(
         self,

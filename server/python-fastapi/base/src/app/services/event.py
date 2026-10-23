@@ -6,7 +6,7 @@ or slow one never reaches it. A test (or shutdown) that needs the reaction's eff
 `drain()`.
 """
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Coroutine
 from dataclasses import dataclass
 from typing import Final, TypedDict, cast
 
@@ -19,6 +19,7 @@ __all__ = [
     "Topic",
     "Unsubscribe",
     "UserRegistered",  # @auth
+    "detach",
     "drain",
     "publish",
     "subscribe",
@@ -73,6 +74,12 @@ def _untyped[P](
         return handler(cast(P, payload))
 
     return handle
+
+
+def detach(work: Coroutine[object, object, None]) -> None:
+    """Runs `work` beside the request, tracked by the bus: `drain()` waits for it and a shutdown
+    gives it the bus's deadline before cancelling it."""
+    pubsub.detach(work)
 
 
 async def drain() -> None:

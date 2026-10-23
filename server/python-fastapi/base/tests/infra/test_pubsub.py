@@ -314,3 +314,50 @@ class TestShutdownAndCancellation:
         await bus.drain()
 
         assert finished is True
+
+
+class TestDetachedWork:
+    async def test_drain_waits_for_work_detached_from_a_request(self) -> None:
+        bus = create_pubsub(logger=recording_logger()[0])
+        done: list[str] = []
+
+        async def work() -> None:
+            await asyncio.sleep(0.01)
+            done.append("done")
+
+        bus.detach(work())
+        await bus.drain()
+
+        assert done == ["done"]
+
+    async def test_close_waits_for_detached_work_in_flight(self) -> None:
+        bus = create_pubsub(logger=recording_logger()[0])
+        done: list[str] = []
+
+        async def work() -> None:
+            await asyncio.sleep(0.02)
+            done.append("done")
+
+        bus.detach(work())
+        await bus.close()
+
+        assert done == ["done"]
+
+    async def test_close_cancels_detached_work_past_the_deadline_with_a_warning(self) -> None:
+        logger, sink = recording_logger()
+        bus = create_pubsub(logger=logger, drain_timeout_ms=20)
+        cancelled = False
+
+        async def hangs() -> None:
+            nonlocal cancelled
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                cancelled = True
+                raise
+
+        bus.detach(hangs())
+        await bus.close()
+
+        assert "warning bus drain timed out pending=1" in sink.lines
+        assert cancelled

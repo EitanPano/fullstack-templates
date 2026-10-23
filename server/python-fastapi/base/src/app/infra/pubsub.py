@@ -12,7 +12,7 @@ not forever.
 
 import asyncio
 import inspect
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Coroutine, Sequence
 from dataclasses import dataclass
 from typing import Final
 
@@ -67,9 +67,17 @@ class PubSub:
             self._run(topic, handler, payload)
 
     def _run(self, topic: str, handler: Handler, payload: object) -> None:
-        task = asyncio.create_task(self._deliver(topic, handler, payload))
+        self._track(asyncio.create_task(self._deliver(topic, handler, payload)))
+
+    def _track(self, task: asyncio.Task[None]) -> None:
         self._in_flight.add(task)
         task.add_done_callback(self._in_flight.discard)
+
+    def detach(self, work: Coroutine[object, object, None]) -> None:
+        """Runs `work` beside the request that asked for it. The bus keeps it alive and `drain`
+        and `close` wait for it like for a reaction, so a shutdown does not lose it. `work`
+        handles its own failures: nothing reads its result."""
+        self._track(asyncio.create_task(work))
 
     async def _deliver(self, topic: str, handler: Handler, payload: object) -> None:
         """Runs one handler detached from the publisher; a failure is logged, never raised."""
