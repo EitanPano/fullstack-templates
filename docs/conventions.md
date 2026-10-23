@@ -50,7 +50,7 @@ The per-language equivalents (the table every new server template is written aga
 | Concern | bun-express | python-fastapi | dotnet-minimal-api | java-spring-boot | php-laravel |
 | --- | --- | --- | --- | --- | --- |
 | Validation + contract | zod, zod-to-openapi | pydantic, FastAPI's OpenAPI (shaped) | FluentValidation, Swashbuckle | Bean Validation, springdoc | Form requests, Scramble |
-| Layer enforcement | ESLint import zones | import-linter, with a custom contract | NetArchTest | ArchUnit | deptrac |
+| Layer enforcement | ESLint import zones | import-linter | NetArchTest | ArchUnit | deptrac |
 | Gates (`check`) | tsc, eslint, prettier, bun test | mypy, ruff, import-linter, pytest | dotnet build, format, test | mvn verify, spotless | phpstan, pint, pest |
 | Env | zod-parsed `env.ts` | a pydantic model over `os.environ` (`env.py`) | `IOptions` + validation | `@ConfigurationProperties` | `config/` + env |
 | Jobs / bus | croner, in-process bus | APScheduler 3, in-process bus | hosted services | `@Scheduled`, events | scheduler, events |
