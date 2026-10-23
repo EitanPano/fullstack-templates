@@ -662,6 +662,7 @@ A gated endpoint also tests its 401 and, where it checks a role, its 403. <!-- @
 <!-- @database:postgres-end -->
 - `tests/openapi.test.ts` fails on a stale `openapi.json`: run `bun run openapi`.
 - Every new behaviour gets a happy-path test and at least one failure or empty-path test.
-  No `.skip`, `.only`, `.todo`, `.skipIf` or `.if` used to skip, and no test-name filter
-  (`-t`, `--test-name-pattern`) in a gate command; a removed test is named and justified in
-  the stage report. `bun run check` never needs Docker.
+  No `.skip`, `.only`, `.todo`, `.todoIf`, `.skipIf`, `.failing`, `.failingIf` or `.if` used to
+  skip, no `xit`, `xtest` or `xdescribe`, and no test-name filter (`-t`, `--test-name-pattern`)
+  or `--path-ignore-patterns` in a gate command; a removed test is named and justified in the
+  stage report. `bun run check` never needs Docker.

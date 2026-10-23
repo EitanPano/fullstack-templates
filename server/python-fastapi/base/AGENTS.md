@@ -41,8 +41,9 @@ package with an `__init__.py`.
   logger, so uvicorn's records come out in the same format. One line per request comes from
   `middleware/request_log.py` (method, raw path without the query string, status, duration, request
   id), and every unexpected error is logged once with its stack by `middleware/error_handler.py`.
-  Nothing else calls `print` or `logging`. No logging library until the product needs one; the
-  logger is the seam where it would go.
+  Nothing else calls `print` or `logging`, except the development console provider
+  (`services/communicate/console.py`), which prints a message on purpose to bypass the logger. No
+  logging library until the product needs one; the logger is the seam where it would go.
 - Time: every expiry and window reads wall time through `services/utils/clock.py` (`now()`), never
   `time.monotonic()`, which `time-machine` does not move. Durations are `'15m'` strings parsed by
   `parse_duration`; a timestamp on the wire is `to_iso`.
@@ -76,7 +77,8 @@ src/app/
                       (health, auth, user, module: the commented reference)
   models/<name>/      interface · type · enums · constants (auth, session, user, module)
   middleware/         request_id · request_log · security_headers · cors · proxy · body_limit ·
-                      error_handler · not_found · head · context · asgi (ASGI middleware)
+                      error_handler · not_found · head · context
+                      asgi (helpers the ASGI middleware share)
                       rate_limit · auth · role (the gates)
   services/           logger.py · db.py · cache.py · session.py · event.py
     security/         crypto · jwt · cookies · otp
@@ -85,7 +87,8 @@ src/app/
                       (health, module: the commented reference)
   models/<name>/      interface · type · enums · constants (module)
   middleware/         request_id · request_log · security_headers · cors · proxy · body_limit ·
-                      error_handler · not_found · head · context · asgi (ASGI middleware)
+                      error_handler · not_found · head · context
+                      asgi (helpers the ASGI middleware share)
                       rate_limit (the gate)
   services/           logger.py · db.py · cache.py · event.py
     security/         crypto
@@ -306,7 +309,8 @@ or infra file joins the list.
 | `middleware never imports api, infra, server or entry` | `middleware/` is below the modules |
 | `infra never imports middleware, server or entry` | `infra/` is below the HTTP layer |
 | `infra stores, bus, scheduler, dependency and loop import no api` | those five infra files import no module |
-| `infra files import logger, db, cache, event and utils only` | the same five import no other service |
+| `infra files import logger, db, cache, event and utils only` | the same five import no other service | <!-- @noauth -->
+| `infra files import logger, db, cache, event and utils only` | the same five import no other service but `services/session.py` | <!-- @auth -->
 | `jobs and subscribers reach a module through its controller only` | `infra/jobs/` and `infra/subscribers/` import a module's `controller` and `schema`, never its `routes`, `service` or `model` | <!-- @auth -->
 | `schema is the leaf of a module` | `schema.py` imports `models/`, `services/utils/` and `config/constants.py`, and a schema of another module |
 | `routes wire gates to handlers` | `routes.py` imports its own `controller` and `schema`, `middleware/`, `models/`, `services/utils/` and `config/constants.py`; never `service`, `model`, any `services/` module but `utils/`, `infra/` or `config/env.py` |
@@ -337,7 +341,16 @@ What import-linter cannot express stays a review rule:
 - A cross-module flow is not atomic: each rule call is its own unit of work; a flow that must be
   atomic lives in one module.
 - A controller publishes an event, after its write. Lint refuses a `routes`, `service` or `model`
-  that publishes; a gate, a service or a job that does is a review finding.
+  that publishes; a gate, a `services/` file or a job that does is a review finding.
+<!-- @noauth-start -->
+- Jobs and subscribers reach a module only through its `controller` and `schema`, never its
+  `routes`, `service` or `model`; no contract checks this in this variant. A script in
+  `infra/scripts/` follows the same rule, and no contract checks it in either variant.
+<!-- @noauth-end -->
+<!-- @auth-start -->
+- A script in `infra/scripts/` reaches a module only through its `controller` and `schema`; no
+  contract checks it.
+<!-- @auth-end -->
 
 <!-- @auth-start -->
 ## Authentication
@@ -424,8 +437,8 @@ its adapter (see Adding the data layer). Until then nothing survives a restart.
 The Postgres variant of this section arrives with the Postgres overlay.
 <!-- @database-end -->
 
-The layer map is language-neutral on purpose: the TypeScript and .NET server templates mirror the
-same directories and rules.
+The layer map is language-neutral on purpose: the bun-express template mirrors the same
+directories and rules.
 
 ## Adding a module
 
@@ -454,8 +467,10 @@ Work in this order, test first.
 Start by copying `api/module/` and `models/module/`, renaming in directories, files, identifiers,
 comments and constants: `module` to `<name>`, `Module` to `<Name>`, `MODULE` to `<NAME>`. The
 docstring of each file says what belongs there and what does not. Drop the reference module (both
-directories, its line in `config/routes.py`, its names in `COMPONENTS`, `tests/test_module.py`)
-once a real one exists.
+directories, its line in `config/routes.py`, its names in `COMPONENTS`, `MODULE_CREATED` and
+`ModuleCreated` in `services/event.py`, `RATE_LIMITS.create_post_per_ip` in `config/constants.py`,
+`tests/test_module.py`) once a real one exists, then regenerate `openapi.json` with the `contract`
+command.
 
 - One declaration, one validator: the handler's parameters are typed from `schema.py`, so FastAPI
   validates the request and the contract documents the same types.
@@ -482,6 +497,8 @@ once a real one exists.
 - A wire enum is a `Literal[...]` alias, never an `Enum`. A timestamp on the wire is a `str` from
   `clock.to_iso`. A schema pattern spells its classes out (`[0-9]`, `[A-Za-z0-9_]`), never `\d` or
   `\w`: pydantic's regex engine is Unicode. A test sends Arabic-Indic digits.
+- A string length limit counts code points (`len`), not UTF-16 units: a limit of 8 accepts 8 emoji,
+  where the TypeScript template counts 16. Test a limit with the same number of characters.
 - A model is a contract component only when its name is in `COMPONENTS`; every other model is
   inlined. Each route lists its error responses with `error_responses(...)`.
 - A handler that sets cookies or `Cache-Control` declares a `response: Response` parameter.
@@ -608,8 +625,14 @@ A gated endpoint also tests its 401 and, where it checks a role, its 403. <!-- @
   `tests/probe.py` builds a throwaway app with extra routes for a test that pins what every module
   relies on.
 - Time is moved with `time-machine` (`time_machine.travel(..., tick=False)`). An event's effect is
-  asserted after `await drain()` from `services/event.py`. An autouse fixture calls
-  `await reset_store()`.
+  asserted after `await drain()` from `services/event.py`. Each store-backed test file empties the
+  store itself, for example with an autouse fixture that awaits `reset_store()`.
+<!-- @auth-start -->
+- Cookie attributes come out as `expires=` and `SameSite=lax` (Python's `http.cookies`), so a
+  cookie test compares attribute names and these values case-insensitively.
+<!-- @auth-end -->
+- The other intentional differences from the TypeScript template are listed in the Deviations
+  section of ADR 0002 in the template catalog.
 <!-- @auth-start -->
 - Messages are captured through a provider registered with `register_provider`: `capturing()` in
   `tests/auth_support.py` does it and resets the providers afterwards.
@@ -632,7 +655,10 @@ A gated endpoint also tests its 401 and, where it checks a role, its 403. <!-- @
 - `filterwarnings = ["error"]`: a warning fails the suite. A targeted ignore names the warning and
   carries its reason on the line.
 - Every new behaviour gets a happy-path test and at least one failure or empty-path test. No
-  `pytest.mark.skip`, `pytest.mark.skipif`, `pytest.mark.xfail`, `pytest.skip(`, `pytest.xfail(` or
-  `pytest.importorskip(`, and no `-k` or `--deselect` in a gate command (pytest has no `.only`;
-  those two narrow the run the same way); a removed test is named and justified in the stage
-  report. `check` never needs Docker.
+  `pytest.mark.skip`, `pytest.mark.skipif`, `pytest.mark.xfail`, `pytest.skip(`, `pytest.xfail(`,
+  `pytest.importorskip(`, `unittest.skip`, `unittest.skipIf`, `unittest.skipUnless` or
+  `self.skipTest(`; no `-k`, `-m "not ..."`, `--deselect`, `--ignore` or `--ignore-glob` in a gate
+  command (pytest has no `.only`; these narrow the run the same way); no `collect_ignore` or
+  `collect_ignore_glob` in a `conftest.py`; and none of those options in `addopts` in
+  `pyproject.toml`. A removed test is named and justified in the stage report. `check` never needs
+  Docker.
