@@ -19,36 +19,33 @@ PRODUCTION = {"APP_ENV": "production", "ENCRYPTION_KEY": KEY}
 
 class TestTheEntryUnderABindFailure:
     """The process entry in a child process: it must not report success, and it must leave
-    with a non-zero code instead of lingering. The blocker is a plain listening socket, so
-    the second bind fails the same way on every OS.
+    with a non-zero code instead of lingering. The blocker is a plain wildcard listening socket,
+    so the entry's bind fails the same way on every OS.
 
     A synchronous test: Windows' selector loop cannot run asyncio subprocesses (M4-19).
     """
 
     def test_exits_non_zero_names_the_port_and_never_says_listening(self) -> None:
+        # One wildcard listener on a free port blocks the entry's 0.0.0.0 bind on Linux and on
+        # Windows alike; a second, loopback listener on the same port would fail on Linux.
         with socket.socket() as blocker:
-            blocker.bind(("127.0.0.1", 0))
+            blocker.bind(("0.0.0.0", 0))  # noqa: S104 the entry binds the wildcard
             blocker.listen()
             port = int(blocker.getsockname()[1])
-            # The entry binds every interface; a listener on loopback blocks the same port on
-            # every OS only when it is bound there too, so block the wildcard address as well.
-            with socket.socket() as wildcard:
-                wildcard.bind(("0.0.0.0", port))  # noqa: S104 the entry binds the wildcard
-                wildcard.listen()
-                result = subprocess.run(
-                    [sys.executable, "-m", "app.main"],
-                    cwd=PACKAGE_ROOT,
-                    env={
-                        **os.environ,
-                        "APP_ENV": "development",
-                        "PORT": str(port),
-                        "PYTHONDONTWRITEBYTECODE": "1",
-                    },
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                    check=False,
-                )
+            result = subprocess.run(
+                [sys.executable, "-m", "app.main"],
+                cwd=PACKAGE_ROOT,
+                env={
+                    **os.environ,
+                    "APP_ENV": "development",
+                    "PORT": str(port),
+                    "PYTHONDONTWRITEBYTECODE": "1",
+                },
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
 
         assert result.returncode != 0
         assert str(port) in result.stderr
