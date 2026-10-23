@@ -5,8 +5,9 @@ reverse on shutdown; the readiness endpoint pings them. Reconnecting after a dro
 job (pools and drivers do it themselves); this module owns boot, readiness and shutdown only.
 
 Signals and the drain belong to uvicorn: it stops accepting requests, waits up to
-`timeout_graceful_shutdown`, and only then ends the lifespan, so what is left to do here is
-`disconnect_all`.
+`timeout_graceful_shutdown` (5 s), and only then ends the lifespan, so what is left to do here is
+`disconnect_all`, under one budget of `DISCONNECT_BUDGET_SECONDS` (4 s). The two together stay
+below the 10 s Compose waits after SIGTERM before it sends SIGKILL.
 """
 
 import asyncio
@@ -40,6 +41,10 @@ class Resource(Protocol):
 type ResourceState = Literal["ok", "down"]
 type Status = dict[str, ResourceState]
 type Sleep = Callable[[float], Awaitable[None]]
+
+# One deadline for every close together: the scheduler's wait for running jobs, the bus drain and
+# the pool close all fit in it, and each is bounded by the time left, not by its own timeout.
+DISCONNECT_BUDGET_SECONDS: Final = 4.0
 
 # In connection order; shutdown reverses it, so the scheduler stops first (no job starts against
 # a closing store) and the stores close last.
@@ -129,11 +134,31 @@ async def disconnect_all(
     resources: Sequence[Resource] | None = None,
     *,
     logger: Logger = log,
+    budget: float = DISCONNECT_BUDGET_SECONDS,
 ) -> None:
+    """Closes in reverse order under one deadline. A close that outlasts the time left is
+    cancelled (a resource cancels what it was waiting for, with its own warning) and reported; a
+    resource reached after the deadline is reported as skipped, not closed. The process is going
+    down either way: what matters is that shutdown ends before the orchestrator's SIGKILL."""
     target = dependencies if resources is None else resources
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + budget
     for resource in reversed(target):
+        remaining = deadline - loop.time()
+        if remaining <= 0:
+            logger.error(
+                "close skipped",
+                {"resource": resource.name, "reason": "shutdown budget spent"},
+            )
+            continue
         try:
-            await resource.close()
+            async with asyncio.timeout(remaining) as scope:
+                await resource.close()
+        except TimeoutError as error:
+            if scope.expired():
+                logger.warning("close timed out", {"resource": resource.name})
+            else:
+                logger.error("close failed", {"resource": resource.name, "reason": str(error)})
         except Exception as error:
             logger.error("close failed", {"resource": resource.name, "reason": str(error)})
         else:
@@ -148,6 +173,7 @@ def resource_lifespan(
     attempts: int = 10,
     base_delay: float = 0.5,
     max_delay: float = 5.0,
+    budget: float = DISCONNECT_BUDGET_SECONDS,
 ) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
     """The lifespan the entry composes: connect every resource, serve, disconnect in reverse.
 
@@ -172,7 +198,7 @@ def resource_lifespan(
         try:
             yield
         finally:
-            await disconnect_all(resources, logger=logger)
+            await disconnect_all(resources, logger=logger, budget=budget)
 
     return lifespan
 

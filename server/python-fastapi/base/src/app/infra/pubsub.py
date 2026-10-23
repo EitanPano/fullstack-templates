@@ -8,6 +8,10 @@ Delivery is at-least-once in the sense a reaction needs: every handler subscribe
 runs is scheduled, each as its own task, so one handler's failure never reaches the publisher or
 another handler. There is no persistence: a reaction still running at shutdown is waited for, but
 not forever.
+
+The bus also runs detached work (`detach`): a coroutine a request starts and does not wait for,
+such as sending a code. It is tracked, drained and cancelled at close exactly like a reaction, and
+a failure is logged by the bus, so no task ends with an exception nobody retrieved.
 """
 
 import asyncio
@@ -75,9 +79,15 @@ class PubSub:
 
     def detach(self, work: Coroutine[object, object, None]) -> None:
         """Runs `work` beside the request that asked for it. The bus keeps it alive and `drain`
-        and `close` wait for it like for a reaction, so a shutdown does not lose it. `work`
-        handles its own failures: nothing reads its result."""
-        self._track(asyncio.create_task(work))
+        and `close` wait for it like for a reaction, so a shutdown does not lose it. A failure is
+        logged here, never raised: nothing reads the task's result."""
+        self._track(asyncio.create_task(self._guard(work)))
+
+    async def _guard(self, work: Coroutine[object, object, None]) -> None:
+        try:
+            await work
+        except Exception as error:
+            self._logger.error("detached work failed", {"reason": str(error)}, error)
 
     async def _deliver(self, topic: str, handler: Handler, payload: object) -> None:
         """Runs one handler detached from the publisher; a failure is logged, never raised."""
@@ -116,6 +126,13 @@ class PubSub:
             # One deadline for the whole drain, chained reactions included.
             async with asyncio.timeout(self._drain_timeout):
                 await self.drain()
+        except asyncio.CancelledError:
+            # The shutdown budget (`disconnect_all`) ended first: nothing may outlive the close.
+            pending = self._running()
+            self._logger.warning("bus drain cancelled", {"pending": len(pending)})
+            for task in pending:
+                task.cancel()
+            raise
         except TimeoutError:
             pending = self._running()
             self._logger.warning("bus drain timed out", {"pending": len(pending)})

@@ -7,6 +7,7 @@ import time_machine
 from fastapi import FastAPI
 
 from app.infra.dependency import (
+    DISCONNECT_BUDGET_SECONDS,
     Resource,
     connect_all,
     dependencies,
@@ -29,6 +30,8 @@ class FakeResource:
     ping_hangs: bool = False
     ping_delay: float = 0
     close_fails: bool = False
+    close_hangs: bool = False
+    close_takes: float = 0
     pings: int = field(default=0, init=False)
 
     async def connect(self) -> None:
@@ -49,6 +52,14 @@ class FakeResource:
     async def close(self) -> None:
         if self.close_fails:
             raise ConnectionError(f"{self.name} close failed")
+        if self.close_takes > 0:
+            await asyncio.sleep(self.close_takes)
+        if self.close_hangs:
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                self.events.append(f"cancel {self.name}")
+                raise
         self.events.append(f"close {self.name}")
 
 
@@ -167,6 +178,64 @@ class TestDisconnectAll:
             "info closed resource=cache",
             'error close failed resource=db reason="db close failed"',
         ]
+
+
+class TestDisconnectBudget:
+    """One budget for the whole shutdown, below Docker's 10 s grace period (ADR 0002, Deviations):
+    a hung resource is cancelled when the time left runs out and cannot hold the process."""
+
+    async def test_a_hung_close_is_cancelled_at_the_budget_and_the_shutdown_returns(self) -> None:
+        logger, sink = recording_logger()
+        events: list[str] = []
+        hung = FakeResource("hung", events, close_hangs=True)
+        loop = asyncio.get_running_loop()
+        started = loop.time()
+
+        async with asyncio.timeout(2):
+            await disconnect_all([hung], logger=logger, budget=0.1)
+
+        assert loop.time() - started < 1
+        assert events == ["cancel hung"]
+        assert sink.lines == ["warning close timed out resource=hung"]
+
+    async def test_a_later_resource_is_reported_when_an_earlier_one_spent_the_budget(self) -> None:
+        logger, sink = recording_logger()
+        events: list[str] = []
+        late = FakeResource("late", events)
+        hung = FakeResource("hung", events, close_hangs=True)
+
+        # Closing goes in reverse list order: `hung` first, and it takes the whole budget.
+        await disconnect_all([late, hung], logger=logger, budget=0.05)
+
+        assert events == ["cancel hung"]
+        assert sink.lines == [
+            "warning close timed out resource=hung",
+            'error close skipped resource=late reason="shutdown budget spent"',
+        ]
+
+    async def test_the_time_a_resource_takes_is_taken_from_the_one_budget(self) -> None:
+        logger, _ = recording_logger()
+        events: list[str] = []
+        first = FakeResource("first", events, close_takes=0.05)
+        second = FakeResource("second", events)
+
+        await disconnect_all([second, first], logger=logger, budget=2)
+
+        assert events == ["close first", "close second"]
+
+    async def test_a_timeout_error_raised_by_a_resource_is_its_own_failure(self) -> None:
+        logger, sink = recording_logger()
+
+        class Raises(FakeResource):
+            async def close(self) -> None:
+                raise TimeoutError("driver gave up")
+
+        await disconnect_all([Raises("db", [])], logger=logger, budget=5)
+
+        assert sink.lines == ['error close failed resource=db reason="driver gave up"']
+
+    async def test_the_default_budget_is_below_dockers_ten_second_grace_period(self) -> None:
+        assert DISCONNECT_BUDGET_SECONDS < 10
 
 
 class TestTheLifespan:

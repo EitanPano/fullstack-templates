@@ -65,6 +65,7 @@ class Scheduler:
         self._stop_timeout = stop_timeout_ms / 1000
         self._firings: set[asyncio.Task[None]] = set()
         self._scheduler: AsyncIOScheduler | None = None
+        self._closing = False
 
     def _jobs(self) -> Sequence[Job]:
         source = self._source
@@ -95,7 +96,17 @@ class Scheduler:
         task = asyncio.create_task(self._run_job(job))
         self._firings.add(task)
         task.add_done_callback(self._firings.discard)
-        await asyncio.shield(task)
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            if not self._closing:
+                raise
+            # The executor cancels this wrapper at shutdown, and APScheduler logs a cancelled job
+            # at ERROR with a traceback although the shielded run goes on and `close()` waits for
+            # it. A wrapper that returns instead is recorded as a success, so the misleading ERROR
+            # goes; one info line says what happened. Only while closing: a cancellation from
+            # anywhere else still propagates.
+            self._logger.info("job firing cancelled by shutdown", {"job": job.name})
 
     async def connect(self) -> None:
         jobs = self._jobs()
@@ -125,17 +136,33 @@ class Scheduler:
         scheduler, self._scheduler = self._scheduler, None
         if scheduler is None:
             return
-        scheduler.shutdown()
-        # APScheduler's asyncio shutdown is queued on the loop: let it run before returning.
-        await asyncio.sleep(0)
+        self._closing = True
+        try:
+            scheduler.shutdown()
+            # APScheduler's asyncio shutdown is queued on the loop: let it run before returning.
+            await asyncio.sleep(0)
+            await self._wait_for_firings()
+        finally:
+            self._closing = False
+
+    async def _wait_for_firings(self) -> None:
         running = [task for task in self._firings if not task.done()]
-        if running:
+        if not running:
+            return
+        try:
             _, pending = await asyncio.wait(running, timeout=self._stop_timeout)
-            if pending:
-                self._logger.warning("scheduler stop timed out", {"pending": len(pending)})
-                for task in pending:
-                    task.cancel()
-                await asyncio.gather(*pending, return_exceptions=True)
+        except asyncio.CancelledError:
+            # The shutdown budget (`disconnect_all`) ended first: a run must not outlive it.
+            pending_now = {task for task in running if not task.done()}
+            self._logger.warning("scheduler stop cancelled", {"pending": len(pending_now)})
+            for task in pending_now:
+                task.cancel()
+            raise
+        if pending:
+            self._logger.warning("scheduler stop timed out", {"pending": len(pending)})
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
 
     def running(self) -> list[str]:
         """The names of the jobs the cron is scheduling; empty when disabled or closed."""

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import re
 
 import pytest
@@ -226,3 +227,90 @@ class TestAJobRunningAtClose:
         await asyncio.gather(firing, return_exceptions=True)
 
         assert "warning scheduler stop timed out pending=1" in sink.lines
+
+
+class TestAShutdownThatCancelsTheFiring:
+    async def test_a_job_that_finishes_during_close_leaves_no_apscheduler_error(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """The executor cancels the `fire` wrapper on shutdown and APScheduler would log that as
+        `Job ... raised an exception` at ERROR, although the shielded job still finishes."""
+        logger, sink = recording_logger()
+        started = asyncio.Event()
+        release = asyncio.Event()
+        finished = False
+
+        async def slow() -> None:
+            nonlocal finished
+            started.set()
+            await release.wait()
+            finished = True
+
+        job = Job(name="slow", schedule=NEVER, run=slow)
+        scheduler = create_scheduler(jobs=[job], enabled=True, logger=logger)
+        await scheduler.connect()
+        # The one way to run `fire` through APScheduler's executor, as a cron tick does.
+        engine = scheduler._scheduler
+        assert engine is not None
+        engine.add_job(scheduler.fire, args=[job], id="now")
+        await started.wait()
+
+        with caplog.at_level(logging.DEBUG):
+            closing = asyncio.create_task(scheduler.close())
+            await asyncio.sleep(0.05)
+            release.set()
+            await closing
+            await asyncio.sleep(0.05)
+
+        assert finished is True
+        assert [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR] == []
+        assert "info job firing cancelled by shutdown job=slow" in sink.lines
+
+    async def test_a_cancellation_that_is_not_a_shutdown_still_propagates(self) -> None:
+        started = asyncio.Event()
+
+        async def slow() -> None:
+            started.set()
+            await asyncio.Event().wait()
+
+        job = Job(name="slow", schedule=NEVER, run=slow)
+        scheduler = create_scheduler(
+            jobs=[job], enabled=True, logger=recording_logger()[0], stop_timeout_ms=10
+        )
+        await scheduler.connect()
+        firing = asyncio.create_task(scheduler.fire(job))
+        await started.wait()
+
+        firing.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await firing
+
+        await scheduler.close()
+
+    async def test_close_cancelled_from_outside_cancels_the_firings_with_a_warning(self) -> None:
+        logger, sink = recording_logger()
+        started = asyncio.Event()
+        cancelled = False
+
+        async def hangs() -> None:
+            nonlocal cancelled
+            started.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                cancelled = True
+                raise
+
+        job = Job(name="hangs", schedule=NEVER, run=hangs)
+        scheduler = create_scheduler(jobs=[job], enabled=True, logger=logger)
+        await scheduler.connect()
+        firing = asyncio.create_task(scheduler.fire(job))
+        await started.wait()
+
+        with pytest.raises(TimeoutError):
+            async with asyncio.timeout(0.05):
+                await scheduler.close()
+        await asyncio.gather(firing, return_exceptions=True)
+
+        assert cancelled
+        assert "warning scheduler stop cancelled pending=1" in sink.lines

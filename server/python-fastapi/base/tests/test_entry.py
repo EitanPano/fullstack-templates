@@ -83,7 +83,8 @@ class TestUvicornOptions:
         assert options["proxy_headers"] is False
         assert options["access_log"] is False
         assert options["log_config"] is None
-        assert options["timeout_graceful_shutdown"] == 10
+        # Below Docker's 10 s grace period, with the 4 s resource budget after it.
+        assert options["timeout_graceful_shutdown"] == 5
 
     def test_reloads_the_source_directory_only_when_asked(self) -> None:
         assert "reload" not in uvicorn_options(reload=False)

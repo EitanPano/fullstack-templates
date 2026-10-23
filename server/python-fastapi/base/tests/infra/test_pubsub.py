@@ -1,5 +1,7 @@
 import asyncio
 
+import pytest
+
 from app.infra.pubsub import DRAIN_TIMEOUT_MS, SubscriberEntry, create_pubsub
 from tests.support import recording_logger
 
@@ -330,6 +332,20 @@ class TestDetachedWork:
 
         assert done == ["done"]
 
+    async def test_a_raising_detached_work_is_logged_by_the_bus_not_left_unretrieved(self) -> None:
+        logger, sink = recording_logger()
+        bus = create_pubsub(logger=logger)
+
+        async def raises() -> None:
+            raise RuntimeError("boom")
+
+        bus.detach(raises())
+        await bus.drain()
+
+        failures = [line for line in sink.lines if line.startswith("error detached work failed")]
+        assert len(failures) == 1
+        assert "reason=boom" in failures[0]
+
     async def test_close_waits_for_detached_work_in_flight(self) -> None:
         bus = create_pubsub(logger=recording_logger()[0])
         done: list[str] = []
@@ -342,6 +358,30 @@ class TestDetachedWork:
         await bus.close()
 
         assert done == ["done"]
+
+    async def test_close_cancelled_from_outside_cancels_the_work_it_was_waiting_for(self) -> None:
+        """The shutdown budget cancels `close()` itself; the reactions must not outlive it."""
+        logger, sink = recording_logger()
+        bus = create_pubsub(logger=logger)
+        cancelled = False
+
+        async def hangs() -> None:
+            nonlocal cancelled
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                cancelled = True
+                raise
+
+        bus.detach(hangs())
+        await asyncio.sleep(0)
+        with pytest.raises(TimeoutError):
+            async with asyncio.timeout(0.02):
+                await bus.close()
+        await asyncio.sleep(0)
+
+        assert cancelled
+        assert "warning bus drain cancelled pending=1" in sink.lines
 
     async def test_close_cancels_detached_work_past_the_deadline_with_a_warning(self) -> None:
         logger, sink = recording_logger()

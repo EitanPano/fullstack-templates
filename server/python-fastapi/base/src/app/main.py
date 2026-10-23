@@ -5,8 +5,8 @@ composes the infra lifespan into it and runs uvicorn. Nothing imports this modul
 
 On startup the lifespan logs the defaulted-secret warnings once and connects every resource
 (`infra/dependency.py`); on shutdown it disconnects in reverse order. uvicorn owns the process: it
-handles SIGTERM and SIGINT, drains requests for up to `timeout_graceful_shutdown`, then ends the
-lifespan.
+handles SIGTERM and SIGINT, drains requests for up to `timeout_graceful_shutdown` (5 s), then
+ends the lifespan, whose disconnect has one 4 s budget (`infra/dependency.py`).
 
 There is no `listening` line of our own. uvicorn runs the lifespan *before* it binds the port, so a
 line logged there would claim a listener that a failed bind then disproves; uvicorn's own
@@ -77,7 +77,9 @@ def uvicorn_options(*, reload: bool) -> UvicornOptions:
         "proxy_headers": False,
         "access_log": False,
         "log_config": None,
-        "timeout_graceful_shutdown": 10,
+        # Requests get 5 s, then `disconnect_all` gets its 4 s: below the 10 s Compose waits after
+        # SIGTERM, so the process exits by itself instead of being killed mid-close.
+        "timeout_graceful_shutdown": 5,
     }
     if reload:
         options["reload"] = True
