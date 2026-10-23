@@ -452,8 +452,9 @@ amendments, v1.0.0); only the mechanism changes.
 ### M4-15. The frontend's API dev command
 
 `__SERVER_DEV_COMMAND__` resolves to the server package's `commands.dev` in the stack. It replaces
-the hard-coded `bun run dev` in `frontend/next/base/playwright.config.ts`. A lone frontend drops
-the line through the existing `server` selection.
+the hard-coded `bun run dev` in `frontend/next/base/playwright.config.ts`. A lone frontend falls
+back to `bun run dev`, the command of its default paired server, as `__SERVER_DIR__` and
+`__SERVER_PORT__` already fall back to that server's directory and port.
 
 ### M4-16. Compose smoke
 
