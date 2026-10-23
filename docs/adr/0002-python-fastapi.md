@@ -69,13 +69,17 @@ language-neutral rules) and live in the plan; M4-19 and M4-23 were added here.
 
 ### M4-2. Commands
 
-Every command is one program, `uv run poe <task>`, except `install`. poethepoet is a dev
-dependency; the image never uses it.
+Every command is one program, `uv run poe <task>`, except `install` and `dev`. poethepoet is a dev
+dependency; the image never uses it. `dev` is `uv run python -m app.main --reload` (amended
+2026-10-23, found by CI): poethepoet starts each task with `start_new_session=True` on POSIX, so
+when Playwright stops its web server by killing the process group, the dev server, in poe's new
+session, survives and holds port 8000 and the step's stdout open. `uv run` keeps its child in the
+caller's group. The poe `dev` task stays as a convenience for people.
 
 | Command | Value | Task |
 | --- | --- | --- |
 | `install` | `uv sync` | re-locks after flags and capabilities drop lines, prunes, installs |
-| `dev` | `uv run poe dev` | `python -m app.main --reload` |
+| `dev` | `uv run python -m app.main --reload` | direct, not through poe (see above); the poe task `dev` runs the same |
 | `check` | `uv run poe check` | sequence `lint`, `format-check`, `typecheck`, `test`, fail-fast |
 | `typecheck` | `uv run poe typecheck` | `mypy src tests` (plus `lint_contracts` if M4-10 needs it) |
 | `lint` | `uv run poe lint` | sequence `ruff check`, then `lint-imports` with `PYTHONUTF8=1` |
@@ -587,7 +591,7 @@ full.
      cache: { providers: [] }
      messaging: { providers: [], mode: push }
    dependencies: { manifest: pyproject.toml, adapter: pyproject }
-   commands: { install: uv sync, dev: uv run poe dev, check: uv run poe check, … }   # M4-2
+   commands: { install: uv sync, dev: uv run python -m app.main --reload, check: uv run poe check, … }   # M4-2
    contract: { produces: openapi.json }
    http: { port: 8000, health: /api/health, ready: /api/health/ready }
    gitignore: [python]
