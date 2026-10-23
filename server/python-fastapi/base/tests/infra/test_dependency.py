@@ -16,6 +16,9 @@ from app.infra.dependency import (
     resource_lifespan,
     with_retry,
 )
+from app.infra.pubsub import create_pubsub
+from app.infra.scheduler import Job, create_scheduler
+from app.main import uvicorn_options
 from tests.support import Sleeps, recording_logger
 
 
@@ -234,8 +237,40 @@ class TestDisconnectBudget:
 
         assert sink.lines == ['error close failed resource=db reason="driver gave up"']
 
-    async def test_the_default_budget_is_below_dockers_ten_second_grace_period(self) -> None:
-        assert DISCONNECT_BUDGET_SECONDS < 10
+    async def test_the_default_budget_and_the_request_drain_fit_dockers_grace_period(self) -> None:
+        assert DISCONNECT_BUDGET_SECONDS + uvicorn_options(reload=False)[
+            "timeout_graceful_shutdown"
+        ] < 10
+
+    async def test_a_hung_job_leaves_the_bus_and_the_pool_time_to_close(self) -> None:
+        """The per-resource bounds fit the one budget together: the scheduler gives up on its
+        job at its own timeout and the later closes are still reached."""
+        logger, sink = recording_logger()
+        events: list[str] = []
+        started = asyncio.Event()
+
+        async def hangs() -> None:
+            started.set()
+            await asyncio.Event().wait()
+
+        job = Job(name="hangs", schedule="0 0 31 2 *", run=hangs)
+        scheduler = create_scheduler(jobs=[job], enabled=True, logger=logger)
+        bus = create_pubsub(logger=logger)
+        pool = FakeResource("pool", events)
+        await scheduler.connect()
+        firing = asyncio.create_task(scheduler.fire(job))
+        await started.wait()
+        loop = asyncio.get_running_loop()
+        began = loop.time()
+
+        await disconnect_all([pool, bus, scheduler], logger=logger)
+        await asyncio.gather(firing, return_exceptions=True)
+
+        assert "warning scheduler stop timed out pending=1" in sink.lines
+        assert "info closed resource=pubsub" in sink.lines
+        assert events == ["close pool"]
+        assert not any("close skipped" in line for line in sink.lines)
+        assert 1.5 < loop.time() - began < DISCONNECT_BUDGET_SECONDS
 
 
 class TestTheLifespan:

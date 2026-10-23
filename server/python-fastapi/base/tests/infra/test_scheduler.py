@@ -4,7 +4,7 @@ import re
 
 import pytest
 
-from app.infra.scheduler import Job, create_scheduler
+from app.infra.scheduler import STOP_TIMEOUT_MS, Job, create_scheduler
 from tests.support import recording_logger
 
 # 31 February never occurs, so no cron fires during a test.
@@ -314,3 +314,8 @@ class TestAShutdownThatCancelsTheFiring:
 
         assert cancelled
         assert "warning scheduler stop cancelled pending=1" in sink.lines
+
+
+def test_the_stop_wait_is_two_seconds_by_default() -> None:
+    """Sized with the bus's and the pool's bound to fit one shutdown budget."""
+    assert STOP_TIMEOUT_MS == 2_000

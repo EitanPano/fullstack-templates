@@ -34,7 +34,8 @@ OPEN_TIMEOUT_SECONDS: Final = 4.5
 # How long a query waits for a free connection before the pool gives up (`PoolTimeout`, which the
 # error handler answers as `upstream_unavailable`).
 ACQUIRE_TIMEOUT_SECONDS: Final = 5.0
-CLOSE_TIMEOUT_SECONDS: Final = 5.0
+# With the scheduler's 2 s and the bus's 1 s this fits `disconnect_all`'s 4 s budget.
+CLOSE_TIMEOUT_SECONDS: Final = 0.75
 POOL_SIZE: Final = 10
 
 

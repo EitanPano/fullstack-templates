@@ -5,7 +5,11 @@ import pytest
 
 from app.api.module import service
 from app.config.env import env
+from app.infra.dependency import DISCONNECT_BUDGET_SECONDS
 from app.infra.memory import memory
+from app.infra.postgres import CLOSE_TIMEOUT_SECONDS
+from app.infra.pubsub import DRAIN_TIMEOUT_MS
+from app.infra.scheduler import STOP_TIMEOUT_MS
 from app.models.module.enums import ModuleStatus
 from app.models.module.interface import ModuleRecord
 from app.services.db import fetch_one
@@ -51,6 +55,15 @@ class TestDatabaseName:
 
     def test_enables_the_store_only_when_the_configured_database_ends_in_test(self) -> None:
         assert database_name(env.database_url).endswith("_test") is STORE_ENABLED
+
+
+class TestTheCloseBound:
+    def test_the_stop_waits_and_the_pool_close_fit_one_shutdown_budget(self) -> None:
+        assert CLOSE_TIMEOUT_SECONDS == 0.75
+        assert (
+            STOP_TIMEOUT_MS / 1000 + DRAIN_TIMEOUT_MS / 1000 + CLOSE_TIMEOUT_SECONDS
+            < DISCONNECT_BUDGET_SECONDS
+        )
 
 
 class TestTheStoreBackedMarker:

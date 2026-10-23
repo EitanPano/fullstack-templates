@@ -12,7 +12,8 @@ did. APScheduler 3 reads weekday numbers with 0 as Monday, not Sunday as crontab
 A job running at `close()` finishes, as croner's `stop()` lets it: APScheduler's asyncio executor
 cancels the coroutines of running jobs on shutdown whatever `wait` says, so each firing runs the job
 in a task of its own (`fire`) that this cancellation does not reach, and `close()` waits for those
-tasks for `STOP_TIMEOUT_MS` before cancelling what is left.
+tasks for `STOP_TIMEOUT_MS` (2 s: the scheduler, the bus and the pool close inside one shutdown
+budget, `dependency.py`) before cancelling what is left.
 """
 
 import asyncio
@@ -27,7 +28,7 @@ from apscheduler.triggers.cron import CronTrigger
 from app.config.env import env
 from app.services.logger import Logger, log
 
-STOP_TIMEOUT_MS: Final = 5_000
+STOP_TIMEOUT_MS: Final = 2_000
 
 
 @dataclass(frozen=True)
