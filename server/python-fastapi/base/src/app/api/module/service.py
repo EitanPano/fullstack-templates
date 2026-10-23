@@ -6,9 +6,11 @@ keeps the signatures.
 It does not belong: business rules, error mapping or events (`controller.py`).
 """
 
+import re
 from datetime import datetime
+from typing import Annotated, Final
 
-from pydantic import AwareDatetime, BaseModel
+from pydantic import AwareDatetime, BaseModel, BeforeValidator, ConfigDict
 
 from app.models.module.interface import ModuleRecord
 from app.services.db import Collection, get_db
@@ -20,11 +22,27 @@ def _modules() -> Collection[ModuleRecord]:
     return get_db().collection("module", ModuleRecord)
 
 
+# `2026-01-01T00:00:00+00:00` and the like: the date, a `T`, a time. Pydantic would also read a
+# numeric string as Unix time.
+_ISO: Final = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T.+")
+
+
+def _iso_text(value: object) -> object:
+    if isinstance(value, str) and _ISO.fullmatch(value):
+        # Parsed here: strict mode would not read the text after a before-validator.
+        return datetime.fromisoformat(value)
+    raise ValueError("must be an ISO 8601 timestamp")
+
+
 class Cursor(BaseModel):
     """The cursor encodes the sort key (created_at, id); the id breaks ties between equal
-    timestamps. A timestamp without a timezone would not compare with the stored ones."""
+    timestamps. A timestamp without a timezone would not compare with the stored ones, and
+    strict: a number is not a timestamp (lax mode would read it as Unix time), as bun-express's
+    `z.iso.datetime()` requires an ISO string."""
 
-    created_at: AwareDatetime
+    model_config = ConfigDict(strict=True)
+
+    created_at: Annotated[AwareDatetime, BeforeValidator(_iso_text)]
     id: str
 
 

@@ -1,3 +1,5 @@
+import base64
+import json
 import uuid
 from collections.abc import Iterator
 from datetime import datetime
@@ -323,3 +325,34 @@ class TestHead:
         assert head.status_code == 200
         assert head.content == b""
         assert head.headers["content-length"] == got.headers["content-length"]
+
+
+def forged_cursor(payload: JsonValue) -> str:
+    raw = json.dumps(payload).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+
+class TestCursorIsStrict:
+    @pytest.mark.parametrize(
+        "created_at", [0, 1767225600, True, "2026-01-01", "1767225600", None, 1.5]
+    )
+    async def test_rejects_a_created_at_that_is_not_an_iso_string_with_a_timezone(
+        self, client: httpx.AsyncClient, created_at: JsonValue
+    ) -> None:
+        """bun-express requires an ISO string: a Unix timestamp is not a cursor."""
+        cursor = forged_cursor({"created_at": created_at, "id": "a"})
+
+        res = await client.get("/api/module", params={"cursor": cursor})
+
+        assert res.status_code == 400
+        assert res.json()["error"]["message"] == "invalid cursor"
+
+    async def test_still_accepts_the_cursor_the_list_wrote(self, client: httpx.AsyncClient) -> None:
+        for name in ("a", "b"):
+            await create(client, name)
+        first = PageBody.model_validate((await client.get("/api/module?limit=1")).json())
+
+        res = await client.get("/api/module", params={"cursor": first.next_cursor})
+
+        assert res.status_code == 200
+        assert [item.name for item in PageBody.model_validate(res.json()).items] == ["b"]
