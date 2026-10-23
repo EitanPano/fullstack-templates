@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import {
   checkCapabilityCases,
@@ -204,6 +204,23 @@ export class CatalogError extends Error {
 
 const EMPTY_CASES: CasesFile = { schemaVersion: 1, cases: [] }
 
+// The harness's own rules cite these sections of a server package's agents file.
+export const SERVER_AGENTS_HEADINGS = [
+  'Adding a module',
+  'Adding the data layer',
+  'Errors',
+  'Tests',
+] as const
+
+function missingHeadings(agentsFile: string): string[] {
+  const found = new Set<string>()
+  for (const line of readFileSync(agentsFile, 'utf8').split(/\r?\n/)) {
+    const match = /^#{1,6}[ \t]+(.+?)[ \t]*$/.exec(line)
+    if (match?.[1] !== undefined) found.add(match[1])
+  }
+  return SERVER_AGENTS_HEADINGS.filter((heading) => !found.has(heading))
+}
+
 function checkTemplateFiles(
   templatePath: string,
   dir: string,
@@ -217,6 +234,25 @@ function checkTemplateFiles(
   }
   if (!existsSync(path.join(base, manifest.agents))) {
     problems.push(`${templatePath}: agents file base/${manifest.agents} is missing`)
+  }
+  const agentsFile = path.join(base, manifest.agents)
+  if (manifest.kind === 'server' && existsSync(agentsFile)) {
+    const missing = missingHeadings(agentsFile)
+    if (missing.length > 0) {
+      const names = missing.map((heading) => `"${heading}"`).join(', ')
+      problems.push(
+        `${templatePath}: agents file base/${manifest.agents} lacks the headings ${names}`,
+      )
+    }
+  }
+  // A "." segment names the package itself or a path that a drop would resolve oddly; refusing it
+  // here names the template before any generation runs.
+  for (const entry of manifest.dropAfterPostGenerate ?? []) {
+    if (entry.split('/').includes('.')) {
+      problems.push(
+        `${templatePath}/template.yaml: dropAfterPostGenerate entry "${entry}" must not have a "." segment`,
+      )
+    }
   }
   for (const [name, flag] of Object.entries(manifest.flags ?? {})) {
     if (manifest.dependencies?.adapter === 'pyproject' && flag.dependencies !== undefined) {

@@ -518,7 +518,7 @@ describe('loadCatalog with the pyproject adapter', () => {
     expect(() => loadCatalog(root)).not.toThrow()
   })
 
-  test.each(['..', '../x', '/abs', 'a/../b', 'C:/x', 'a\b'])(
+  test.each(['..', '../x', '/abs', 'a/../b', 'C:/x', 'a\\b', '.', 'a/./b', './a', 'a/.'])(
     'refuses dropAfterPostGenerate entry %s, naming the template',
     (entry) => {
       const root = copyFixture('catalog')
@@ -556,5 +556,39 @@ describe('loadCatalog with the pyproject adapter', () => {
     ['an absolute pin path', `pins:\n  /db.py: ${'a'.repeat(40)}\n`],
   ])('refuses %s', (_name, extra) => {
     expect(problems(withOverlay(extra))).toContain(`${overlayDir}/capability.yaml`)
+  })
+})
+
+describe('loadCatalog: server agents headings', () => {
+  const mini = 'server/mini'
+
+  test('refuses a server template whose agents file lacks a heading, naming both', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${mini}/base/AGENTS.md`, (t) => t.replace('## Errors\n', ''))
+    const message = problems(root)
+    expect(message).toContain(mini)
+    expect(message).toContain('"Errors"')
+    expect(message).not.toContain('"Tests"')
+  })
+
+  test('lists every missing heading', () => {
+    const root = copyFixture('catalog')
+    writeFileSync(path.join(root, `${mini}/base/AGENTS.md`), '# Mini\n\n### Tests\n')
+    const message = problems(root)
+    expect(message).toContain('"Adding a module", "Adding the data layer", "Errors"')
+  })
+
+  test('matches the exact text of a heading line, not a mention or a longer title', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${mini}/base/AGENTS.md`, (t) =>
+      t.replace('## Errors\n', 'See Errors below.\n## Errors and retries\n'),
+    )
+    expect(problems(root)).toContain('"Errors"')
+  })
+
+  test('does not check a frontend template', () => {
+    const root = copyFixture('catalog')
+    writeFileSync(path.join(root, 'frontend/mini-ui/base/AGENTS.md'), '# UI\n')
+    expect(() => loadCatalog(root)).not.toThrow()
   })
 })
