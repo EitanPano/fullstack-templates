@@ -2,12 +2,16 @@ import base64
 import hashlib
 import hmac
 import re
+import threading
+import time
 from collections.abc import Callable
 
+import anyio
 import pytest
-from anyio import to_thread
+from anyio import CapacityLimiter, to_thread
 from argon2 import extract_parameters  # @auth
 
+from app.services.security import crypto
 from app.services.security.crypto import (
     DUMMY_HASH,  # @auth
     constant_time_equals,
@@ -56,9 +60,12 @@ class TestPasswordHashing:
         """ADR 0002, M4-11: tens of milliseconds by design, so never on the loop."""
         calls: list[str] = []
 
-        async def spy[**P, T](func: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T:
+        async def spy[*Ts, T](
+            func: Callable[[*Ts], T], *args: *Ts, limiter: CapacityLimiter | None = None
+        ) -> T:
+            assert limiter is crypto.HASH_LIMITER
             calls.append(getattr(func, "__name__", "?"))
-            return func(*args, **kwargs)
+            return func(*args)
 
         monkeypatch.setattr(to_thread, "run_sync", spy)
 
@@ -66,6 +73,39 @@ class TestPasswordHashing:
         await verify_password("p", hashed)
 
         assert calls == ["hash", "verify"]
+
+    async def test_no_more_hashes_run_at_once_than_the_limiter_allows(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A login burst must queue behind the limiter, not start one 64 MiB hash per request."""
+        lock = threading.Lock()
+        running = 0
+        peak = 0
+
+        class SlowHasher:
+            def hash(self, password: str) -> str:
+                nonlocal running, peak
+                with lock:
+                    running += 1
+                    peak = max(peak, running)
+                time.sleep(0.05)
+                with lock:
+                    running -= 1
+                return password
+
+            def verify(self, password_hash: str, password: str) -> bool:
+                self.hash(password)
+                return True
+
+        monkeypatch.setattr(crypto, "_HASHER", SlowHasher())
+        monkeypatch.setattr(crypto, "HASH_LIMITER", CapacityLimiter(2))
+
+        async with anyio.create_task_group() as group:
+            for _ in range(3):
+                group.start_soon(hash_password, "p")
+                group.start_soon(verify_password, "p", "h")
+
+        assert peak == 2
 
     # @auth-start
     async def test_dummy_hash_is_a_string_no_unrelated_password_matches(self) -> None:

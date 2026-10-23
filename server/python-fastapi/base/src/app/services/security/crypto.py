@@ -16,10 +16,11 @@ import base64
 import binascii
 import hashlib
 import hmac
+import os
 import secrets
 from typing import Final
 
-from anyio import to_thread
+from anyio import CapacityLimiter, to_thread
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from cryptography.exceptions import InvalidTag
@@ -29,16 +30,25 @@ from app.config.env import env
 
 _HASHER: Final = PasswordHasher()
 
+# One argon2 run holds 64 MiB and a core for tens of milliseconds, and AnyIO's default thread
+# limit is 40, so a login burst could hold 40 x 64 MiB at once. This bounds hashing and verifying
+# (the dummy-hash path included) to one run per core. The tradeoff is queueing: past that
+# many concurrent logins a request waits for a slot instead of starting, which is the intent, but a
+# flood of logins delays every other hash. Rate limits upstream keep the queue short.
+HASH_LIMITER: Final = CapacityLimiter(os.cpu_count() or 2)
+
 
 async def hash_password(password: str) -> str:
-    return await to_thread.run_sync(_HASHER.hash, password)
+    return await to_thread.run_sync(_HASHER.hash, password, limiter=HASH_LIMITER)
 
 
 async def verify_password(password: str, password_hash: str) -> bool:
     """Whether `password` is the one `password_hash` was made from. A mismatch and a stored value
     that is not an argon2 hash are both a plain `False`: the caller answers one 401 either way."""
     try:
-        return await to_thread.run_sync(_HASHER.verify, password_hash, password)
+        return await to_thread.run_sync(
+            _HASHER.verify, password_hash, password, limiter=HASH_LIMITER
+        )
     except VerificationError, InvalidHashError:
         return False
 
@@ -92,8 +102,10 @@ def _b64url_decode(text: str) -> bytes:
         raise ValueError("invalid ciphertext") from None
 
 
-# Nothing in the template calls encrypt/decrypt yet; they are the home for encrypting a secret
-# at rest (for example a third-party token stored on a record).
+# The session service seals its rotation grace token with encrypt/decrypt; they are also the # @auth
+# home for encrypting any secret at rest (for example a third-party token stored on a record). # @auth
+# Nothing in the template calls encrypt/decrypt yet; they are the home for encrypting a secret # @noauth
+# at rest (for example a third-party token stored on a record). # @noauth
 def encrypt(plain: str) -> str:
     """AES-256-GCM, sealed as `iv.tag.data`, each part base64url."""
     iv = secrets.token_bytes(_IV_BYTES)
