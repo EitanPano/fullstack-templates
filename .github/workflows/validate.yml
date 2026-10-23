@@ -20,9 +20,9 @@ jobs:
         with:
           bun-version: 1.4.x
       # The version is exact because the lock in base/ must be checked by the uv that wrote it
-      # (ADR 0002 M4-1). The action itself is pinned to a full tag: setup-uv publishes no moving
-      # major tag after v7.
-      - uses: astral-sh/setup-uv@v10.3.2
+      # (ADR 0002 M4-1). The action itself is pinned to a commit SHA: a tag can move, and
+      # setup-uv publishes no moving major tag after v7.
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           version: "0.12.23"
           enable-cache: true
