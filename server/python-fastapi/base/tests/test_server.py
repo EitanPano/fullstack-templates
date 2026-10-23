@@ -6,7 +6,7 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
-from app.config.env import env, load_env
+from app.config.env import load_env
 from app.middleware.body_limit import BodyLimitMiddleware
 from app.middleware.cors import CorsMiddleware
 from app.middleware.error_handler import CatchAllMiddleware
@@ -48,16 +48,6 @@ def stack(app: FastAPI) -> list[object]:
     """The user middleware classes, outer to inner."""
     classes: list[object] = [entry.cls for entry in app.user_middleware]
     return classes
-
-
-def proxy_options(app: FastAPI) -> list[dict[str, object]]:
-    """The options each proxy middleware in the stack was built with."""
-    options: list[dict[str, object]] = [
-        dict(entry.kwargs)
-        for entry, cls in zip(app.user_middleware, stack(app), strict=True)
-        if cls is ProxyMiddleware
-    ]
-    return options
 
 
 class TestServerAssembly:
@@ -103,13 +93,23 @@ class TestServerAssembly:
         assert "access-control-allow-origin" not in res.headers
         assert "vary" not in res.headers
 
-    def test_applies_the_configured_trust_proxy_setting(self) -> None:
+    async def test_applies_the_configured_trust_proxy_setting(self) -> None:
         """Row: Client IP. The proxy middleware is built with TRUST_PROXY."""
-        configured = load_env({"TRUST_PROXY": "2"}).env
-        app = create_app(config=configured)
+        headers = {"x-forwarded-for": "6.6.6.6, 1.2.3.4"}
+        trusting = probe_app(create_app(config=load_env({"TRUST_PROXY": "1"}).env))
+        ignoring = probe_app(create_app(config=load_env({"TRUST_PROXY": "false"}).env))
 
-        assert proxy_options(app) == [{"trust": 2}]
-        assert proxy_options(create_app()) == [{"trust": env.trust_proxy}]
+        async with http_client(trusting, peer=("10.0.0.1", 5)) as http:
+            assert (await http.get("/ip", headers=headers)).text == "1.2.3.4"
+        async with http_client(ignoring, peer=("10.0.0.1", 5)) as http:
+            assert (await http.get("/ip", headers=headers)).text == "10.0.0.1"
+
+    def test_fails_at_startup_on_a_trust_proxy_entry_that_is_not_an_address(self) -> None:
+        """Row: Client IP. bun-express crashes at boot here; a lazily built stack would not."""
+        bad = load_env({}).env.model_copy(update={"trust_proxy": "banana"})
+
+        with pytest.raises(ValueError, match="banana"):
+            create_app(config=bad)
 
 
 class TestTheMiddlewareOrder:

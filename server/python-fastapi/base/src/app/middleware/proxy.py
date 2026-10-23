@@ -22,34 +22,14 @@ from typing import Final
 
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from app.config.env import TrustProxy
+from app.config.env import TrustProxy, trusted_networks
 from app.middleware.asgi import header_values
 from app.middleware.context import set_client_ip
 
 type Trust = Callable[[str, int], bool]
-type Network = ipaddress.IPv4Network | ipaddress.IPv6Network
 type Address = ipaddress.IPv4Address | ipaddress.IPv6Address
 
 _UNKNOWN: Final = "unknown"
-_PRESETS: Final = {
-    "loopback": ("127.0.0.0/8", "::1/128"),
-    "linklocal": ("169.254.0.0/16", "fe80::/10"),
-    "uniquelocal": ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"),
-}
-
-
-def _networks(entry: str) -> tuple[Network, ...]:
-    text = entry.strip()
-    try:
-        # A bare address is a one-address network; a netmask (`10.0.0.0/255.0.0.0`) works too.
-        return tuple(
-            ipaddress.ip_network(part, strict=False) for part in _PRESETS.get(text, (text,))
-        )
-    except ValueError:
-        raise ValueError(
-            f"invalid TRUST_PROXY entry {entry!r}: expected an address, a subnet, "
-            f"or one of {', '.join(_PRESETS)}"
-        ) from None
 
 
 def _parse(address: str) -> Address | None:
@@ -80,7 +60,10 @@ def compile_trust(setting: TrustProxy) -> Trust:
         return lambda _address, _index: setting
     if isinstance(setting, int):
         return lambda _address, index: index < setting
-    networks = tuple(network for entry in setting.split(",") for network in _networks(entry))
+    try:
+        networks = trusted_networks(setting)
+    except ValueError as error:
+        raise ValueError(f"invalid TRUST_PROXY: {error}") from None
 
     def trust(address: str, _index: int) -> bool:
         parsed = _parse(address)
@@ -109,9 +92,9 @@ def client_ip(peer: str | None, forwarded_for: Sequence[str], trust: Trust) -> s
 class ProxyMiddleware:
     """Stores the client IP for the handlers (`context.client_ip_of`)."""
 
-    def __init__(self, app: ASGIApp, *, trust: TrustProxy) -> None:
+    def __init__(self, app: ASGIApp, *, trust: Trust) -> None:
         self.app = app
-        self._trust = compile_trust(trust)
+        self._trust = trust
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "http":

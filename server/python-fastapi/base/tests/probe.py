@@ -11,6 +11,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import Field
 
+from app.middleware.context import client_ip_of
 from app.server import create_app
 from app.services.utils.api_model import RequestModel, ResponseModel
 from app.services.utils.error import AppError
@@ -48,6 +49,10 @@ def probe_app(app: FastAPI | None = None) -> FastAPI:
     @probe.get("/detailed")
     async def detailed() -> None:
         raise AppError("conflict", "already there", [{"field": "name"}])
+
+    @probe.get("/ip")
+    async def ip(request: Request) -> Response:
+        return Response(content=client_ip_of(request.scope))
 
     @probe.get("/vary")
     async def vary() -> Response:

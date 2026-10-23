@@ -237,7 +237,7 @@ async def echo_client_ip(scope: Scope, receive: Receive, send: Send) -> None:
 class TestTheMiddleware:
     async def test_stores_the_client_ip_for_the_handlers(self) -> None:
         """Row: Client IP. The peer is the socket address; the header only counts when trusted."""
-        app = ProxyMiddleware(echo_client_ip, trust=1)
+        app = ProxyMiddleware(echo_client_ip, trust=compile_trust(1))
         async with http_client(app, peer=("10.0.0.1", 5000)) as http:
             res = await http.get("/", headers={"x-forwarded-for": "6.6.6.6, 1.2.3.4"})
 
@@ -245,7 +245,7 @@ class TestTheMiddleware:
 
     async def test_joins_every_forwarded_for_line(self) -> None:
         """Row: Client IP. Two lines, as a proxy that appends its own line sends them."""
-        app = ProxyMiddleware(echo_client_ip, trust=2)
+        app = ProxyMiddleware(echo_client_ip, trust=compile_trust(2))
         async with http_client(app, peer=("10.0.0.2", 5000)) as http:
             res = await http.get(
                 "/",
@@ -256,7 +256,7 @@ class TestTheMiddleware:
 
     async def test_uses_the_peer_when_nothing_is_trusted(self) -> None:
         """Row: Client IP."""
-        app = ProxyMiddleware(echo_client_ip, trust=False)
+        app = ProxyMiddleware(echo_client_ip, trust=compile_trust(False))
         async with http_client(app, peer=("203.0.113.9", 5000)) as http:
             res = await http.get("/", headers={"x-forwarded-for": "6.6.6.6"})
 

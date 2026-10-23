@@ -9,7 +9,7 @@ from app.config.routes import register_routes
 from app.middleware.body_limit import BodyLimitMiddleware
 from app.middleware.cors import CorsMiddleware
 from app.middleware.error_handler import CatchAllMiddleware, register_exception_handlers
-from app.middleware.proxy import ProxyMiddleware
+from app.middleware.proxy import ProxyMiddleware, compile_trust
 from app.middleware.request_id import RequestIdMiddleware
 from app.middleware.request_log import RequestLogMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
@@ -46,7 +46,8 @@ def create_app(lifespan: Lifespan[FastAPI] | None = None, *, config: Env = env) 
     # One log line per request.
     app.add_middleware(RequestLogMiddleware)
     # Behind a proxy, the client IP needs the configured hop count.
-    app.add_middleware(ProxyMiddleware, trust=config.trust_proxy)
+    # Compiled here, not when Starlette first builds the stack, so a bad setting fails at startup.
+    app.add_middleware(ProxyMiddleware, trust=compile_trust(config.trust_proxy))
     # The request id must exist before anything logs or fails.
     app.add_middleware(RequestIdMiddleware)
     # CORS only when origins are configured; the default API client is the Next.js server.

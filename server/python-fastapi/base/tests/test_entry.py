@@ -168,7 +168,8 @@ class TestLoadEnv:
 
     def test_does_not_read_unicode_digits_as_a_hop_count(self) -> None:
         arabic_one = chr(0x0661)  # `str.isdigit` accepts it; a hop count must not
-        assert load_env({"TRUST_PROXY": arabic_one}).env.trust_proxy == arabic_one
+        with pytest.raises(EnvError, match="TRUST_PROXY"):
+            load_env({"TRUST_PROXY": arabic_one})
 
     def test_splits_cors_origins_trimmed_and_leaves_it_none_when_unset(self) -> None:
         assert load_env({"CORS_ORIGINS": "a, b,,"}).env.cors_origins == ("a", "b")
@@ -177,6 +178,16 @@ class TestLoadEnv:
     def test_treats_a_blank_cors_origins_as_unset(self) -> None:
         assert load_env({"CORS_ORIGINS": ""}).env.cors_origins is None
         assert load_env({"CORS_ORIGINS": "   "}).env.cors_origins is None
+
+    def test_refuses_a_trust_proxy_entry_that_is_not_an_address_a_range_or_a_preset(self) -> None:
+        """Fail fast, as bun-express does at boot: the message names the variable and the entry."""
+        for bad in ("banana", "10.0.0.0/33", "loopback, banana"):
+            with pytest.raises(EnvError, match="TRUST_PROXY: entry"):
+                load_env({"TRUST_PROXY": bad})
+
+    def test_accepts_every_trust_proxy_form_the_proxy_middleware_does(self) -> None:
+        for good in ("loopback, 10.0.0.0/8", "linklocal", "uniquelocal", "2001:db8::/32"):
+            assert load_env({"TRUST_PROXY": good}).env.trust_proxy == good
 
     def test_parses_jobs_enabled_as_a_boolean_true_by_default(self) -> None:
         assert load_env({}).env.jobs_enabled is True

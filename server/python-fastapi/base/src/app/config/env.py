@@ -13,6 +13,7 @@ names case-insensitively.
 
 import base64
 import binascii
+import ipaddress
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -28,6 +29,13 @@ from pydantic import (
 )
 
 type TrustProxy = bool | int | str
+type Network = ipaddress.IPv4Network | ipaddress.IPv6Network
+
+_TRUST_PRESETS: Final = {
+    "loopback": ("127.0.0.0/8", "::1/128"),
+    "linklocal": ("169.254.0.0/16", "fe80::/10"),
+    "uniquelocal": ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"),
+}
 
 
 class EnvError(ValueError):
@@ -45,6 +53,33 @@ _DEVELOPMENT_DEFAULTS: Final = {
 _BLANK_IS_UNSET: Final = ("CORS_ORIGINS", "MAIL_FROM", "TRUST_PROXY")
 
 _DEFAULT_MAIL_FROM: Final = "no-reply@example.com"
+
+
+def trusted_networks(entries: str) -> tuple[Network, ...]:
+    """The networks a comma list of addresses, subnets and presets names (`loopback`, `linklocal`,
+    `uniquelocal`). Pure, so the environment can refuse a bad list at import and the proxy
+    middleware can compile the same list; a bad entry is a ValueError naming it.
+    """
+    networks: list[Network] = []
+    for entry in entries.split(","):
+        text = entry.strip()
+        try:
+            # A bare address is a one-address network; a netmask (`10.0.0.0/255.0.0.0`) works too.
+            networks.extend(
+                ipaddress.ip_network(part, strict=False)
+                for part in _TRUST_PRESETS.get(text, (text,))
+            )
+        except ValueError:
+            raise ValueError(
+                f"entry {entry!r} is not an address, a subnet or one of {', '.join(_TRUST_PRESETS)}"
+            ) from None
+    return tuple(networks)
+
+
+def _check_trust_proxy(value: TrustProxy) -> TrustProxy:
+    if isinstance(value, str):
+        trusted_networks(value)
+    return value
 
 
 def _check_encryption_key(value: str) -> str:
@@ -96,7 +131,9 @@ class Env(BaseModel):
 
     app_env: Literal["development", "test", "production"] = "development"
     port: Annotated[int, Field(gt=0, le=65535)] = 8000
-    trust_proxy: Annotated[TrustProxy, BeforeValidator(_parse_trust_proxy)] = False
+    trust_proxy: Annotated[
+        TrustProxy, BeforeValidator(_parse_trust_proxy), AfterValidator(_check_trust_proxy)
+    ] = False
     cors_origins: Annotated[tuple[str, ...] | None, BeforeValidator(_split_origins)] = None
     encryption_key: Annotated[str, AfterValidator(_check_encryption_key)]
     mail_provider: Annotated[str, Field(min_length=1)] = "console"
