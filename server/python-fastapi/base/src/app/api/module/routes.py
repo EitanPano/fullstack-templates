@@ -12,7 +12,7 @@ per endpoint and the handler resolves the caller; a scaffold generated with the 
 shows the pattern.
 """
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Response
 
 from app.api.module.controller import (
     create_module,
@@ -22,20 +22,11 @@ from app.api.module.controller import (
     update_module,
 )
 from app.api.module.schema import Module, ModulePage
-from app.config.constants import RATE_LIMITS
-from app.middleware.rate_limit import by_ip, rate_limit
 from app.services.utils.openapi import error_responses
 
 # A collection endpoint's path is "", not "/": with redirect_slashes off, "/" under the
 # /api/<module> prefix would serve and document /api/<module>/.
 router = APIRouter()
-
-limit_create = rate_limit(
-    name="create_post_per_ip",
-    limit=RATE_LIMITS.create_post_per_ip.limit,
-    window=RATE_LIMITS.create_post_per_ip.window,
-    key=by_ip,
-)
 
 router.add_api_route(
     "",
@@ -66,10 +57,9 @@ router.add_api_route(
     status_code=201,
     response_model=Module,
     response_description="The created module",
-    responses={**error_responses(400, 429, 500)},
+    responses={**error_responses(400, 500)},
     summary="Create a module",
     tags=["module"],
-    dependencies=[Depends(limit_create)],
 )
 router.add_api_route(
     "/{id}",

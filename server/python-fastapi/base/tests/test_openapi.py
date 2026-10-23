@@ -122,14 +122,14 @@ class TestTheDocument:
         assert as_object(properties["updatedAt"])["format"] == "date-time"
         assert names(module["required"]) == {"id", "name", "status", "createdAt", "updatedAt"}
 
-    def test_documents_a_delete_with_no_body_and_a_create_with_its_limit(self) -> None:
+    def test_documents_a_delete_with_no_body_and_a_create_without_a_rate_limit(self) -> None:
         doc = build_openapi_document(app)
 
         paths = as_object(doc["paths"])
         delete = as_object(as_object(paths["/api/module/{id}"])["delete"])
         assert as_object(as_object(delete["responses"])["204"]) == {"description": "Deleted"}
         create = as_object(as_object(paths["/api/module"])["post"])
-        assert set(as_object(create["responses"])) == {"201", "400", "429", "500"}
+        assert set(as_object(create["responses"])) == {"201", "400", "500"}
 
     def test_sets_the_document_metadata(self) -> None:
         doc = build_openapi_document(app)

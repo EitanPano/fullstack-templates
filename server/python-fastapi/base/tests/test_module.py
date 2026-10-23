@@ -209,28 +209,6 @@ class TestCreate:
         assert res.json()["status"] == "active"
         assert res.json()["id"] != "mine"
 
-    async def test_limits_creation_per_ip_and_says_when_to_retry(
-        self, client: httpx.AsyncClient
-    ) -> None:
-        """Row: Rate limit. 30 creations per 15 minutes; the 31st is a 429 with Retry-After."""
-        for _ in range(30):
-            assert (await client.post("/api/module", json={"name": "n"})).status_code == 201
-
-        res = await client.post("/api/module", json={"name": "n"})
-
-        assert res.status_code == 429
-        assert code_of(res) == "rate_limited"
-        assert res.headers["retry-after"] == "900"
-
-    async def test_counts_a_create_whose_body_fails_validation(
-        self, client: httpx.AsyncClient
-    ) -> None:
-        """Row: Gate order. The limit runs before the body is validated."""
-        for _ in range(30):
-            assert (await client.post("/api/module", json={"name": ""})).status_code == 400
-
-        assert (await client.post("/api/module", json={"name": "n"})).status_code == 429
-
 
 class TestGet:
     async def test_returns_the_module(self, client: httpx.AsyncClient) -> None:
