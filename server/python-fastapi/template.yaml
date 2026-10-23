@@ -13,6 +13,10 @@ flags:
     summary: Accounts, sessions, JWT, OTP; off means every endpoint is public
     default: true
     onlyPaths:
+      - src/app/api/auth
+      - src/app/api/user
+      - src/app/infra/jobs
+      - src/app/infra/subscribers
       - src/app/middleware/auth.py
       - src/app/middleware/role.py
       - src/app/models/auth
@@ -23,12 +27,17 @@ flags:
       - src/app/services/security/jwt.py
       - src/app/services/security/otp.py
       - src/app/services/session.py
+      - tests/auth_support.py
+      - tests/infra/test_send_welcome.py
+      - tests/infra/test_session_cleanup.py
       - tests/middleware/test_auth.py
       - tests/middleware/test_role.py
       - tests/services/test_cookies.py
       - tests/services/test_jwt.py
       - tests/services/test_otp.py
       - tests/services/test_session.py
+      - tests/test_auth.py
+      - tests/test_user.py
 capabilities:
   database: { providers: [] }
   cache: { providers: [] }

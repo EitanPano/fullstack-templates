@@ -58,7 +58,8 @@ src/app/
                       (module: the reference; auth, session, user) <!-- @auth -->
                       (module: the reference) <!-- @noauth -->
   api/<name>/         routes · controller · schema; service only when the module has data
-                      (module: the reference; health owns no data)
+                      (modules: the reference, user; auth owns no data; health owns no data) <!-- @auth -->
+                      (module: the reference; health owns no data) <!-- @noauth -->
   middleware/         request_id · request_log · security_headers · cors · proxy · body_limit ·
                       error_handler · not_found · head · context · asgi ·
                       rate_limit · auth · role (the gates) <!-- @auth -->
@@ -70,13 +71,17 @@ src/app/
                       api_model · pagination) <!-- @auth -->
                       security/ (crypto) · communicate/ (index · console · mail · sms · whatsapp) · <!-- @noauth -->
                       utils/ (error · openapi · clock · api_model · pagination) <!-- @noauth -->
-  infra/              dependency.py · loop.py · memory.py · pubsub.py · scheduler.py
+  infra/              dependency.py · loop.py · memory.py · pubsub.py · scheduler.py · <!-- @auth -->
+                      jobs/ (session_cleanup) · subscribers/ (send_welcome) <!-- @auth -->
+  infra/              dependency.py · loop.py · memory.py · pubsub.py · scheduler.py <!-- @noauth -->
 tests/                mirrors src/app/ (a package throughout, so two test_x.py cannot clash)
 openapi.json          the committed contract, written by the `contract` command
 ```
 
-`infra/jobs/` and `infra/subscribers/` (a job is a crontab pattern and an async function; a
-subscriber reacts to a topic) arrive with the first one. This file grows with them. <!-- @auth -->
+`infra/jobs/` holds a job (a crontab pattern and an async function, listed in `infra/scheduler.py`)
+and `infra/subscribers/` a reaction to a topic (listed in `infra/pubsub.py`); each calls a module's <!-- @auth -->
+controller (its exported rules, never a handler) and `services/`, never a routes, service or model. <!-- @auth -->
+The full file is written with the package's last task. <!-- @auth -->
 subscriber reacts to a topic) arrive with the first one; `middleware/` gates for authentication and <!-- @noauth -->
 roles arrive with the accounts. This file grows with them. <!-- @noauth -->
 
@@ -148,6 +153,16 @@ a cross-module flow is not atomic.
   templates are pure wording.
 - Secrets: the JWT and OTP secrets are at least 32 characters, the two JWT secrets differ, and
   production refuses a placeholder (`config/env.py`).
+- Endpoints (`api/auth/`, `api/user/`): `POST /api/auth/{register,login,refresh,logout,otp,otp/verification}`
+  and `GET|PATCH /api/user/me`, `GET /api/user` and `GET /api/user/{id}` (admin). Auth owns no data:
+  its handlers call the user controller's rules (`create_user`, `find_user_by_email`,
+  `find_user_by_target`, `get_active_user`, `mark_verified`) and `services/session.py`. Register
+  and login set the cookies and `Cache-Control: no-store`; every credential failure is the same 401
+  and costs one password verification (`DUMMY_HASH` for an unknown email); a login code is delivered
+  detached from its request, so the 202 is the same for every target.
+- Background: `infra/jobs/session_cleanup.py` purges dead sessions hourly;
+  `infra/subscribers/send_welcome.py` mails a new account on `user.registered`, published by the
+  user controller's `create_user`.
 <!-- @auth-end -->
 
 ## Adding a module
