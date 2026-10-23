@@ -567,11 +567,11 @@ exits 1 when `describeStore` would skip every store-backed suite, so `test:db` c
 zero tests. Never fake the database with `mock.module`: it is process-global in `bun test`.
 
 Production: the server never migrates on boot. In the Compose stack the one-shot
-`backend-migrate` service (app profile) runs `db:migrate` from the backend's image with the same
+`__PACKAGE_DIR__-migrate` service (app profile) runs `db:migrate` from the backend's image with the same
 environment, and the backend waits for it to finish successfully:
 `docker compose --profile app up --build` applies the migrations before the backend starts, and
 the backend does not start if they fail. To run it alone:
-`docker compose --profile app run --rm backend-migrate`; like the app, it needs the production
+`docker compose --profile app run --rm __PACKAGE_DIR__-migrate`; like the app, it needs the production
 secrets and `DATABASE_URL` exported. `bun run db:migrate` stays for local development.
 Elsewhere the deploy pipeline runs it before serving traffic and after every deploy that ships a
 migration, from the same image and with the same environment as the server (the env module

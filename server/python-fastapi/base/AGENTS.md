@@ -720,12 +720,12 @@ hand. `tests/db/plugin.py`, loaded by `test-db` (`pytest -p tests.db.plugin`, ne
 
 Never fake the database: a test that needs a result from Postgres runs against `app_test`.
 
-Production: the server never migrates on boot. In the Compose stack the one-shot `backend-migrate`
+Production: the server never migrates on boot. In the Compose stack the one-shot `__PACKAGE_DIR__-migrate`
 service (app profile) runs `python -m app.infra.scripts.migrate` from the backend's image with the
 same environment, and the backend waits for it to finish successfully: `docker compose --profile
 app up --build` applies the migrations before the backend starts, and the backend does not start
 if they fail. The `.sql` files ship inside the wheel, so the image needs no source tree. To run it
-alone: `docker compose --profile app run --rm backend-migrate`; like the app, it needs the
+alone: `docker compose --profile app run --rm __PACKAGE_DIR__-migrate`; like the app, it needs the
 production secrets and `DATABASE_URL` exported. `uv run poe migrate` stays for local development.
 Elsewhere the deploy pipeline runs the migrations before serving traffic and after every deploy
 that ships one, from the same image and with the same environment as the server (the env module
