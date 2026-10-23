@@ -217,7 +217,7 @@
           "$ref": "#/$defs/relativePath"
         },
         "adapter": {
-          "enum": ["npm"]
+          "enum": ["npm", "pyproject"]
         }
       }
     },
@@ -288,6 +288,13 @@
           "contract",
           "migrate"
         ]
+      }
+    },
+    "dropAfterPostGenerate": {
+      "type": "array",
+      "description": "Paths removed from the staged package after post-generate and before the final move.",
+      "items": {
+        "$ref": "#/$defs/relativePath"
       }
     },
     "defaultStack": {

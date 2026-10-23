@@ -52,6 +52,8 @@ export interface DependencyChange {
   add?: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> }
 }
 
+export type DependencyAdapter = 'npm' | 'pyproject'
+
 export interface FlagSpec {
   summary: string
   default: boolean
@@ -96,6 +98,10 @@ export interface CapabilityManifest {
   scripts?: Record<string, string>
   flags?: Record<string, { onlyPaths: string[] }>
   commands?: Partial<Record<CommandName, string>>
+  // What the generated container runs; read by later tasks, only its shape is checked here.
+  container?: { migrate: string }
+  // Base file the overlay replaces (relative to base/) to the blob id it was reconciled against.
+  pins?: Record<string, string>
 }
 
 export interface TemplateManifest {
@@ -112,11 +118,12 @@ export interface TemplateManifest {
   agents: string
   flags?: Record<string, FlagSpec>
   capabilities?: Partial<Record<CapabilityKind, CapabilitySpec>>
-  dependencies?: { manifest: string; adapter: 'npm' }
+  dependencies?: { manifest: string; adapter: DependencyAdapter }
   contract?: { produces: string } | { consumes: string }
   http?: { port: number; health: string; ready?: string }
   gitignore?: string[]
   postGenerate?: CommandName[]
+  dropAfterPostGenerate?: string[]
   defaultStack?: string
 }
 
@@ -212,6 +219,11 @@ function checkTemplateFiles(
     problems.push(`${templatePath}: agents file base/${manifest.agents} is missing`)
   }
   for (const [name, flag] of Object.entries(manifest.flags ?? {})) {
+    if (manifest.dependencies?.adapter === 'pyproject' && flag.dependencies !== undefined) {
+      problems.push(
+        `${templatePath}: flag "${name}" dependencies are not allowed with the pyproject adapter: use markers in pyproject.toml`,
+      )
+    }
     for (const only of flag.onlyPaths ?? []) {
       if (!existsSync(path.join(base, only))) {
         problems.push(`${templatePath}: flag "${name}" onlyPath "${only}" does not exist in base/`)

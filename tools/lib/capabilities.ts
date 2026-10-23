@@ -53,7 +53,8 @@ export function loadProviders(root: string, problems: string[]): Map<string, Loa
 // The scripts the template's own dependency manifest defines; an unreadable manifest is a problem.
 function templateScripts(template: LoadedTemplate, problems: string[]): Set<string> {
   const spec = template.manifest.dependencies
-  if (!spec) return new Set()
+  // A pyproject template has no script names: capabilities cannot add scripts to it.
+  if (!spec || spec.adapter !== 'npm') return new Set()
   const file = path.join(template.dir, 'base', spec.manifest)
   try {
     const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'))
@@ -101,6 +102,19 @@ function checkOverlayManifest(
     if (scriptNames.length > 0 || manifest.dependencies) {
       problems.push(
         `${label}/capability.yaml: scripts or dependencies need a template with a dependencies adapter`,
+      )
+    }
+    return
+  }
+  if (adapter.adapter === 'pyproject') {
+    if (manifest.dependencies !== undefined) {
+      problems.push(
+        `${label}/capability.yaml: dependencies are not allowed with the pyproject adapter: use markers in pyproject.toml`,
+      )
+    }
+    if (manifest.scripts !== undefined) {
+      problems.push(
+        `${label}/capability.yaml: scripts are not allowed with the pyproject adapter: use markers in pyproject.toml`,
       )
     }
     return

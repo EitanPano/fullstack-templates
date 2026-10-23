@@ -19,7 +19,7 @@ import {
   type ProviderEnvWiring,
 } from './compose'
 import { applyDependencyChange, applyScripts } from './dependencies'
-import { copyTree, listFiles, pruneEmptyParents, removeTree } from './files'
+import { copyTree, listFiles, pruneEmptyParents, removeTree, retryTransient } from './files'
 import { mergeGitignore } from './gitignore'
 import { applyMarkers, commentSyntaxFor, findLeftoverMarker } from './markers'
 import {
@@ -29,6 +29,7 @@ import {
   substitutePlaceholders,
 } from './placeholders'
 import type { GenerationPlan, PackagePlan } from './plan'
+import { findToolProblem, runVersion, type VersionRunner } from './preflight'
 import { PROVENANCE_PATH, buildProvenance, catalogIdentity, type Provenance } from './provenance'
 import { validateAgainst } from './schema'
 
@@ -40,6 +41,10 @@ export interface GenerateOptions {
   keepStaging?: boolean
   now?: () => Date
   log?: (line: string) => void
+  // Seams for tests: what `<tool> --version` printed, the remover and the sleeper used on drops.
+  toolVersion?: VersionRunner
+  remove?: (target: string) => void
+  sleep?: (ms: number) => void
 }
 
 export interface GenerateResult {
@@ -421,6 +426,14 @@ function writeProvenance(
   return PROVENANCE_PATH
 }
 
+// Fails before anything is staged: a missing or old tool would otherwise surface as a failed
+// postGenerate command after the whole package was built.
+function checkTools(plan: GenerationPlan, run: VersionRunner): void {
+  if (plan.skipPostGenerate) return
+  const problem = findToolProblem(plan, run)
+  if (problem !== undefined) throw new GenerateError(problem)
+}
+
 function runPostGenerate(plan: GenerationPlan, staging: string, log: Log): void {
   if (plan.skipPostGenerate) return
   for (const pkg of plan.packages) {
@@ -436,7 +449,9 @@ function runPostGenerate(plan: GenerationPlan, staging: string, log: Log): void 
         continue
       }
       log(`==> ${pkg.dir}: ${line}`)
-      const env = pkg.serverDir === null ? undefined : { FULLSTACK_SERVER_DIR: pkg.serverDir }
+      // No __pycache__ may land in the source tree: the same inputs must give the same tree (D6).
+      const env: NodeJS.ProcessEnv = { PYTHONDONTWRITEBYTECODE: '1' }
+      if (pkg.serverDir !== null) env.FULLSTACK_SERVER_DIR = pkg.serverDir
       try {
         runCommand(line, path.join(staging, pkg.dir), env)
       } catch (error) {
@@ -449,9 +464,24 @@ function runPostGenerate(plan: GenerationPlan, staging: string, log: Log): void 
   }
 }
 
-const RENAME_ATTEMPTS = 5
-const RENAME_DELAY_MS = 100
-const TRANSIENT_RENAME_CODES = new Set(['EPERM', 'EBUSY', 'EACCES'])
+// What a post-generate command built in staging (a .venv records the staging path) must not travel
+// to the final location. A missing path is fine: the command may not have created it.
+function dropAfterPostGenerate(
+  plan: GenerationPlan,
+  staging: string,
+  remove: (target: string) => void,
+  sleep: (ms: number) => void,
+): void {
+  if (plan.skipPostGenerate) return
+  for (const pkg of plan.packages) {
+    const pkgStaging = path.join(staging, pkg.dir)
+    for (const entry of pkg.template.manifest.dropAfterPostGenerate ?? []) {
+      const target = path.join(pkgStaging, entry)
+      assertInside(pkgStaging, target, `${pkg.dir}: dropAfterPostGenerate`)
+      retryTransient(() => remove(target), sleep)
+    }
+  }
+}
 
 // Every rename is recorded with its inverse, so a failure part-way puts `out` back as it was.
 export class Mover {
@@ -464,25 +494,9 @@ export class Mover {
     private readonly sleep: (ms: number) => void = Bun.sleepSync,
   ) {}
 
-  // On Windows the final move can fail with EPERM right after the post-generate commands ran in
-  // staging (a lingering file handle or an antivirus scan); the same rename succeeds shortly
-  // after. Only `move` retries: a rollback step that fails must be reported, not repeated.
+  // Only `move` retries: a rollback step that fails must be reported, not repeated.
   private renameWithRetry(from: string, to: string): void {
-    for (let attempt = 1; ; attempt += 1) {
-      try {
-        this.rename(from, to)
-        return
-      } catch (error) {
-        const code = (error as { code?: unknown } | null)?.code
-        if (
-          attempt >= RENAME_ATTEMPTS ||
-          typeof code !== 'string' ||
-          !TRANSIENT_RENAME_CODES.has(code)
-        )
-          throw error
-        this.sleep(RENAME_DELAY_MS * attempt)
-      }
-    }
+    retryTransient(() => this.rename(from, to), this.sleep)
   }
 
   move(from: string, to: string): void {
@@ -562,10 +576,12 @@ export function generate(
   const log = options.log ?? (() => undefined)
   const now = options.now ?? (() => new Date())
   const staging = path.join(plan.out, STAGING_DIR)
-  const mover = new Mover(staging)
+  const sleep = options.sleep ?? Bun.sleepSync
+  const mover = new Mover(staging, undefined, sleep)
   let failed = true
   let keepForRecovery = false
   try {
+    checkTools(plan, options.toolVersion ?? runVersion)
     mkdirSync(plan.out, { recursive: true })
     if (!statSync(plan.out).isDirectory()) throw new GenerateError(`${plan.out} is not a directory`)
     checkPreconditions(plan, staging)
@@ -581,6 +597,7 @@ export function generate(
     log(`==> Writing ${PROVENANCE_PATH}`)
     const provenancePath = writeProvenance(catalog, plan, staging, now())
     runPostGenerate(plan, staging, log)
+    dropAfterPostGenerate(plan, staging, options.remove ?? removeTree, sleep)
     log(`==> Moving into ${plan.out}`)
     moveIntoPlace(plan, staging, mover, log)
     failed = false
