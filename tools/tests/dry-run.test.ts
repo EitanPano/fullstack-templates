@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { loadCatalog } from '../lib/catalog'
 import { dryRunMarkers } from '../lib/dry-run'
@@ -106,5 +106,17 @@ describe('dryRunMarkers with capabilities', () => {
     expect(dryRunMarkers(template)).toEqual([])
     const bad = setup({ [`${OVERLAY}/init.sql`]: 'select 1 -- @bogus\n' }, 'server/mini')
     expect(dryRunMarkers(bad)).toContain(`${OVERLAY_PATH}/init.sql:1: unknown marker name "bogus"`)
+  })
+})
+
+describe('dryRunMarkers ignores local state', () => {
+  test('does not scan a .venv under base', () => {
+    const root = copyFixture('catalog')
+    const venv = path.join(root, 'server/mini-py/base/.venv/lib')
+    mkdirSync(venv, { recursive: true })
+    writeFileSync(path.join(venv, 'leak.py'), 'x = 1  # @bogus\n')
+    const template = loadCatalog(root).templates.get('server/mini-py')
+    if (template === undefined) throw new Error('no template')
+    expect(dryRunMarkers(template)).toEqual([])
   })
 })

@@ -4,7 +4,7 @@
 // Makes this file a module, which top-level await needs.
 export {}
 
-const DEFAULT_TEST_URL = 'postgres://app:app@localhost:5432/app_test'
+const DEFAULT_TEST_URL = 'postgres://app:app@127.0.0.1:5432/app_test'
 
 const url = process.env.TEST_DATABASE_URL ?? DEFAULT_TEST_URL
 

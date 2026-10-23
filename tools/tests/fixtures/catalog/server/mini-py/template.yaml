@@ -1,0 +1,25 @@
+schemaVersion: 1
+id: mini-py
+kind: server
+name: Mini Python server
+version: 1.0.0
+summary: A minimal pyproject fixture
+runtime:
+  language: python
+  platform: cpython
+  minVersion: '3.14'
+tools:
+  - name: uv
+    min: '0.12.23'
+    max: '0.14'
+placeholders: [PROJECT_NAME]
+flags:
+  auth:
+    summary: Accounts
+    default: true
+dependencies:
+  manifest: pyproject.toml
+  adapter: pyproject
+commands:
+  check: uv --version
+agents: AGENTS.md

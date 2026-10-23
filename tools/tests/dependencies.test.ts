@@ -108,3 +108,21 @@ describe('applyScripts', () => {
     )
   })
 })
+
+describe('pyproject adapter', () => {
+  test('a dependency change is an internal error that names the markers', () => {
+    const file = pkg({})
+    expect(() => applyDependencyChange(file, 'pyproject', { remove: ['x'] }, 'auth')).toThrow(
+      /internal error.*use markers in pyproject\.toml/,
+    )
+    expect(() => applyDependencyChange(file, 'pyproject', { remove: ['x'] }, 'auth')).toThrow(
+      DependencyError,
+    )
+  })
+  test('a script change is an internal error and writes nothing', () => {
+    const file = pkg({ name: 'a' })
+    const before = readFileSync(file, 'utf8')
+    expect(() => applyScripts(file, 'pyproject', { a: 'b' }, 'database')).toThrow(/internal error/)
+    expect(readFileSync(file, 'utf8')).toBe(before)
+  })
+})

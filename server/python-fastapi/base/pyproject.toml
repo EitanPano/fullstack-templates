@@ -1,0 +1,641 @@
+[project]
+name = "app"
+version = "0.1.0"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+  "anyio>=4.15",
+  "apscheduler>=3.11,<4",
+  "argon2-cffi>=25.1",
+  "cryptography>=50",
+  "fastapi>=0.161",
+  "psycopg[binary,pool]>=3.3",  # @database:postgres
+  "pydantic>=2.14",
+  "pyjwt>=2.15",  # @auth
+  "uvicorn>=0.54",
+  "watchfiles>=1.1",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=9",
+  "httpx>=0.28",
+  "time-machine>=3",
+  "mypy>=2",
+  "ruff>=0.17",
+  "import-linter>=2.11",
+  "poethepoet>=0.40",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv]
+required-version = ">=0.12.23,<0.14"
+
+[tool.poe.tasks]
+dev = "python -m app.main --reload"
+format = [{ cmd = "ruff check --select I --fix" }, { cmd = "ruff format" }]
+format-check = "ruff format --check"
+typecheck = "mypy src tests"
+test = "pytest"
+contract = "python -m app.openapi --write"
+test-db = "pytest -p tests.db.plugin"  # @database:postgres
+migrate = "python -m app.infra.scripts.migrate"  # @database:postgres
+# PYTHONUTF8: without it, rich's legacy Windows renderer crashes on a NUL stdout.
+lint = [{ cmd = "ruff check" }, { cmd = "lint-imports", env = { PYTHONUTF8 = "1" } }]
+check = ["lint", "format-check", "typecheck", "test"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "A", "N", "ASYNC", "S", "DTZ", "RUF", "SIM", "PT", "ANN"]
+
+[tool.ruff.lint.per-file-ignores]
+# An assertion is how a test says what it expects; the tokens and passwords in a test are made up.
+"tests/**" = ["S101", "S105", "S106"]
+# The environment must be set before the first `app` import, so the imports follow the assignment.
+"tests/conftest.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+disallow_any_explicit = true
+plugins = ["pydantic.mypy"]
+
+# APScheduler 3 ships no `py.typed`: its types arrive as `Any`, so `infra/scheduler.py` converts
+# what it reads into plain types at the boundary.
+[[tool.mypy.overrides]]
+module = ["apscheduler.*"]
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_typed = true
+init_forbid_extra = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+anyio_mode = "auto"
+filterwarnings = ["error"]
+markers = [
+  "store_backed: needs the record store; always live in this variant",  # @nodatabase
+]
+
+[tool.importlinter]
+root_package = "app"
+# So a contract can name `fastapi` and `starlette` (the data layer never sees HTTP).
+include_external_packages = true
+
+# Layer enforcement, mirroring bun-express's eslint.config.mjs zones. Where ESLint's zones are
+# direct imports so are these (`allow_indirect_imports`); one layers contract covers the overall
+# direction. ESLint's "everything except" zones are `app.services.*` or `app.infra.*` with the
+# allowed imports in `ignore_imports`, so a new service or store is closed by default; a contract
+# that names allowed imports ahead of the file that makes them sets
+# `unmatched_ignore_imports_alerting = "none"`. Module privacy (a module's `service` imported only
+# from inside its own module) is the `independence` contract over `app.api.*` at the end. Imports
+# inside a function count too: openapi.py imports the server only to write the contract from the
+# command line.
+
+# The overall direction: the entry on top, then the app, the mount table, the modules, middleware,
+# the shared services and the config leaves. `app.infra` is not listed: its jobs and subscribers
+# will sit above the modules while `infra.dependency` sits below them.
+[[tool.importlinter.contracts]]
+name = "layers: entry, server, routes, modules, middleware, services, config"
+type = "layers"
+layers = [
+  "app.main",
+  "app.server",
+  "app.config.routes",
+  "app.api",
+  "app.middleware",
+  "app.services",
+  "app.config.cors",
+  "app.config.constants | app.config.env",
+]
+# @auth-start
+# The bus lists its subscribers inside a function, and a subscriber calls a controller (which
+# publishes through the bus), so import-linter sees a path from services up to api through the
+# lists. The bus never imports a subscriber at load: the import runs when it connects.
+ignore_imports = ["app.infra.pubsub -> app.infra.subscribers.send_welcome"]
+# @auth-end
+
+# Leaves: models/ imports models/ only (not even pydantic: the wire shape is in a module's schema).
+[[tool.importlinter.contracts]]
+name = "models import models only"
+type = "forbidden"
+source_modules = ["app.models"]
+forbidden_modules = [
+  "app.api",
+  "app.config",
+  "app.infra",
+  "app.middleware",
+  "app.services",
+  "app.server",
+  "app.main",
+  "app.openapi",
+]
+allow_indirect_imports = true
+
+# Leaves: config/constants.py and config/env.py import nothing from the app, nor each other.
+[[tool.importlinter.contracts]]
+name = "config constants and env import nothing from the app"
+type = "forbidden"
+source_modules = ["app.config.constants", "app.config.env"]
+forbidden_modules = [
+  "app.models",
+  "app.api",
+  "app.middleware",
+  "app.infra",
+  "app.services",
+  "app.server",
+  "app.main",
+  "app.openapi",
+  "app.config.cors",
+  "app.config.routes",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "config constants does not import env"
+type = "forbidden"
+source_modules = ["app.config.constants"]
+forbidden_modules = ["app.config.env"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "config env does not import constants"
+type = "forbidden"
+source_modules = ["app.config.env"]
+forbidden_modules = ["app.config.constants"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "config cors imports config env only"
+type = "forbidden"
+source_modules = ["app.config.cors"]
+forbidden_modules = [
+  "app.models",
+  "app.api",
+  "app.middleware",
+  "app.infra",
+  "app.services",
+  "app.server",
+  "app.main",
+  "app.openapi",
+  "app.config.constants",
+  "app.config.routes",
+]
+allow_indirect_imports = true
+
+# services/utils is pure: models, config constants and env, and itself.
+[[tool.importlinter.contracts]]
+name = "services utils is pure"
+type = "forbidden"
+source_modules = ["app.services.utils"]
+forbidden_modules = [
+  "app.api",
+  "app.middleware",
+  "app.infra",
+  "app.services.logger",
+  "app.server",
+  "app.main",
+  "app.openapi",
+  "app.config.cors",
+  "app.config.routes",
+]
+allow_indirect_imports = true
+
+# config/routes.py imports every module's routes.py and nothing else of a module; only it does.
+[[tool.importlinter.contracts]]
+name = "config routes imports module routes only"
+type = "forbidden"
+source_modules = ["app.config.routes"]
+forbidden_modules = [
+  "app.models",
+  "app.infra",
+  "app.services",
+  "app.server",
+  "app.main",
+  "app.openapi",
+  "app.config.env",
+  "app.config.constants",
+  "app.config.cors",
+  "app.api.*.controller",
+  "app.api.*.schema",
+  "app.api.*.service",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "only config routes imports a module routes"
+type = "forbidden"
+source_modules = [
+  "app.api.*.controller",
+  "app.api.*.schema",
+  "app.api.*.service",
+  "app.middleware",
+  "app.infra",
+  "app.services",
+  "app.server",
+  "app.main",
+  "app.openapi",
+  "app.config.env",
+  "app.config.constants",
+  "app.config.cors",
+]
+forbidden_modules = ["app.api.*.routes"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "only server imports the mount table"
+type = "forbidden"
+source_modules = [
+  "app.api",
+  "app.middleware",
+  "app.infra",
+  "app.services",
+  "app.main",
+  "app.openapi",
+  "app.config.env",
+  "app.config.constants",
+  "app.config.cors",
+]
+forbidden_modules = ["app.config.routes"]
+allow_indirect_imports = true
+
+# Config and services/utils do not import infra (config routes reaches it only through a routes.py,
+# which the contract above does not count as a direct import).
+[[tool.importlinter.contracts]]
+name = "config and services utils do not import infra"
+type = "forbidden"
+source_modules = ["app.config", "app.services.utils"]
+forbidden_modules = ["app.infra"]
+allow_indirect_imports = true
+
+# services/ never imports middleware, api, the server or the entry.
+[[tool.importlinter.contracts]]
+name = "services never import middleware, api, server or entry"
+type = "forbidden"
+source_modules = ["app.services"]
+forbidden_modules = ["app.middleware", "app.api", "app.server", "app.main", "app.openapi"]
+allow_indirect_imports = true
+
+# services/ outside the db, cache and event seams reaches infra through infra/dependency.py only;
+# db and cache import the store, event the bus, and nothing else of infra (the next contracts say
+# what else each seam may import). Any other infra module, a new store included, is closed.
+[[tool.importlinter.contracts]]
+name = "services reach infra through dependency, the seams reach their store"
+type = "forbidden"
+source_modules = ["app.services"]
+forbidden_modules = ["app.infra.*"]
+allow_indirect_imports = true
+ignore_imports = [
+  "app.services.** -> app.infra.dependency",
+  "app.services.db -> app.infra.memory",
+  "app.services.db -> app.infra.postgres",  # @database:postgres
+  "app.services.cache -> app.infra.memory",
+  "app.services.event -> app.infra.pubsub",
+]
+unmatched_ignore_imports_alerting = "none"
+
+# The db and cache seams import the store, services/logger.py, services/utils/, config/ and models/
+# only: no bus, no scheduler, no other service, no HTTP layer.
+[[tool.importlinter.contracts]]
+name = "db and cache seams import their store, logger, utils, config and models only"
+type = "forbidden"
+source_modules = ["app.services.db", "app.services.cache"]
+forbidden_modules = [
+  "app.api",
+  "app.middleware",
+  "app.services.*",
+  "app.infra.dependency",
+  "app.infra.pubsub",
+  "app.infra.scheduler",
+  "app.infra.loop",
+  "app.server",
+  "app.main",
+  "app.openapi",
+  "app.config.routes",
+]
+allow_indirect_imports = true
+ignore_imports = [
+  "app.services.db -> app.services.logger",
+  "app.services.cache -> app.services.logger",
+  "app.services.db -> app.services.utils.**",
+  "app.services.cache -> app.services.utils.**",
+  "app.services.db -> app.services.utils",
+  "app.services.cache -> app.services.utils",
+]
+unmatched_ignore_imports_alerting = "none"
+
+# The event seam imports the bus, services/logger.py, services/utils/, config/ and models/ only.
+[[tool.importlinter.contracts]]
+name = "event seam imports the bus, logger, utils, config and models only"
+type = "forbidden"
+source_modules = ["app.services.event"]
+forbidden_modules = [
+  "app.api",
+  "app.middleware",
+  "app.services.*",
+  "app.infra.dependency",
+  "app.infra.memory",
+  "app.infra.scheduler",
+  "app.infra.loop",
+  "app.server",
+  "app.main",
+  "app.openapi",
+  "app.config.routes",
+]
+allow_indirect_imports = true
+ignore_imports = [
+  "app.services.event -> app.services.logger",
+  "app.services.event -> app.services.utils.**",
+  "app.services.event -> app.services.utils",
+]
+unmatched_ignore_imports_alerting = "none"
+
+# The store seams. A module's routes, controller and schema never touch a store: only its service
+# does (db, cache), and only a controller publishes (event). Middleware reaches the cache through
+# rate_limit.py alone.
+[[tool.importlinter.contracts]]
+name = "only a module service and services use the db seam"
+type = "forbidden"
+source_modules = [
+  "app.api.*.routes",
+  "app.api.*.controller",
+  "app.api.*.schema",
+  "app.middleware",
+  "app.server",
+  "app.main",
+  "app.openapi",
+]
+forbidden_modules = ["app.services.db"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "only a module service, services and middleware rate_limit use the cache seam"
+type = "forbidden"
+source_modules = [
+  "app.api.*.routes",
+  "app.api.*.controller",
+  "app.api.*.schema",
+  "app.middleware",
+  "app.server",
+  "app.main",
+  "app.openapi",
+]
+forbidden_modules = ["app.services.cache"]
+allow_indirect_imports = true
+ignore_imports = ["app.middleware.rate_limit -> app.services.cache"]
+
+[[tool.importlinter.contracts]]
+name = "a routes, service or model never publishes events: a controller does"
+type = "forbidden"
+source_modules = ["app.api.*.routes", "app.api.*.service", "app.api.*.model"]
+forbidden_modules = ["app.services.event"]
+allow_indirect_imports = true
+
+# middleware/ never imports api, infra, the server or the entry.
+[[tool.importlinter.contracts]]
+name = "middleware never imports api, infra, server or entry"
+type = "forbidden"
+source_modules = ["app.middleware"]
+forbidden_modules = ["app.api", "app.infra", "app.server", "app.main", "app.openapi"]
+allow_indirect_imports = true
+
+# infra/ never imports middleware, the server or the entry, and its dependency and loop modules
+# import no api (jobs, subscribers and scripts, which may import controllers, come with the modules).
+[[tool.importlinter.contracts]]
+name = "infra never imports middleware, server or entry"
+type = "forbidden"
+source_modules = ["app.infra"]
+forbidden_modules = ["app.middleware", "app.server", "app.main", "app.openapi"]
+allow_indirect_imports = true
+
+# The infra files outside jobs/, subscribers/ and scripts/ (those directories come with the modules
+# that need them, and add their own contracts) import no api, and from services/ only the logger,
+# the db, cache and event seams and utils. The sources are listed: a new infra file joins the list.
+[[tool.importlinter.contracts]]
+name = "infra stores, bus, scheduler, dependency and loop import no api"
+type = "forbidden"
+source_modules = [
+  "app.infra.dependency",
+  "app.infra.loop",
+  "app.infra.memory",
+  "app.infra.postgres",  # @database:postgres
+  "app.infra.pubsub",
+  "app.infra.scheduler",
+]
+forbidden_modules = ["app.api"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "infra files import logger, db, cache, event and utils only"
+type = "forbidden"
+source_modules = [
+  "app.infra.dependency",
+  "app.infra.loop",
+  "app.infra.memory",
+  "app.infra.postgres",  # @database:postgres
+  "app.infra.pubsub",
+  "app.infra.scheduler",
+]
+forbidden_modules = ["app.services.*"]
+allow_indirect_imports = true
+ignore_imports = [
+  "app.infra.* -> app.services.logger",
+  "app.infra.* -> app.services.db",
+  "app.infra.* -> app.services.cache",
+  "app.infra.* -> app.services.event",
+  "app.infra.* -> app.services.utils.**",
+  "app.infra.* -> app.services.utils",
+]
+unmatched_ignore_imports_alerting = "none"
+
+# Jobs and subscribers reach a module through its controller and schema only: never a routes,
+# service or model. Which of those a job or a subscriber may call stays a review rule. The two
+# packages exist in every variant (empty without `auth`), so a first job is linted from the start.
+[[tool.importlinter.contracts]]
+name = "jobs and subscribers reach a module through its controller only"
+type = "forbidden"
+source_modules = ["app.infra.jobs", "app.infra.subscribers"]
+forbidden_modules = ["app.api.*.routes", "app.api.*.service", "app.api.*.model"]
+allow_indirect_imports = true
+
+# What each file of a module may import.
+[[tool.importlinter.contracts]]
+name = "schema is the leaf of a module"
+type = "forbidden"
+source_modules = ["app.api.*.schema"]
+forbidden_modules = [
+  "app.api.*.routes",
+  "app.api.*.controller",
+  "app.api.*.service",
+  "app.api.*.model",
+  "app.middleware",
+  "app.infra",
+  "app.services.*",
+  "app.config.env",
+  "app.config.cors",
+  "app.config.routes",
+]
+allow_indirect_imports = true
+ignore_imports = [
+  "app.api.*.schema -> app.services.utils.**",
+  "app.api.*.schema -> app.services.utils",
+]
+unmatched_ignore_imports_alerting = "none"
+
+[[tool.importlinter.contracts]]
+name = "routes wire gates to handlers"
+type = "forbidden"
+source_modules = ["app.api.*.routes"]
+forbidden_modules = [
+  "app.api.*.service",
+  "app.api.*.model",
+  "app.services.*",
+  "app.infra",
+  "app.config.env",
+  "app.config.cors",
+  "app.config.routes",
+]
+allow_indirect_imports = true
+ignore_imports = [
+  "app.api.*.routes -> app.services.utils.**",
+  "app.api.*.routes -> app.services.utils",
+]
+unmatched_ignore_imports_alerting = "none"
+
+[[tool.importlinter.contracts]]
+name = "controller holds the rules and the handlers"
+type = "forbidden"
+source_modules = ["app.api.*.controller"]
+forbidden_modules = [
+  "app.api.*.routes",
+  "app.api.*.model",
+  "app.infra.*",
+  "app.config.routes",
+]
+allow_indirect_imports = true
+ignore_imports = ["app.api.*.controller -> app.infra.dependency"]
+
+# service.py (and model.py, which the Postgres overlay adds) is the data layer at the bottom of a
+# module: it imports services/db.py, services/cache.py, services/logger.py, services/utils/,
+# models/ and config/constants.py only, and never sees HTTP.
+[[tool.importlinter.contracts]]
+name = "service is the data layer at the bottom of a module"
+type = "forbidden"
+source_modules = ["app.api.*.service", "app.api.*.model"]
+forbidden_modules = [
+  "app.api.*.routes",
+  "app.api.*.controller",
+  "app.api.*.schema",
+  "app.middleware",
+  "app.infra",
+  "app.services.*",
+  "app.config.env",
+  "app.config.cors",
+  "app.config.routes",
+]
+allow_indirect_imports = true
+ignore_imports = [
+  "app.api.*.service -> app.services.db",
+  "app.api.*.service -> app.services.cache",
+  "app.api.*.service -> app.services.logger",
+  "app.api.*.service -> app.services.utils.**",
+  "app.api.*.service -> app.services.utils",
+  "app.api.*.model -> app.services.db",
+  "app.api.*.model -> app.services.cache",
+  "app.api.*.model -> app.services.logger",
+  "app.api.*.model -> app.services.utils.**",
+  "app.api.*.model -> app.services.utils",
+]
+unmatched_ignore_imports_alerting = "none"
+
+[[tool.importlinter.contracts]]
+name = "the data layer never sees HTTP"
+type = "forbidden"
+source_modules = ["app.api.*.service", "app.api.*.model"]
+forbidden_modules = ["fastapi", "starlette"]
+allow_indirect_imports = true
+
+# Module privacy (ADR 0002, M4-10): a module's service is imported only from inside its own module.
+# The modules are independent of each other, except that a controller imports another module's
+# controller and schema (the rules it exports) and a schema another module's schema (to embed its
+# entity). Anything else crossing the boundary, a service above all, breaks this contract. The
+# standard `independence` contract expresses it, so there is no custom contract type. The one
+# stricter point than ESLint: a routes, service or model may not import another module's schema
+# even as a type, since an import-linter contract cannot tell a type-only import.
+[[tool.importlinter.contracts]]
+name = "modules are independent: a controller and a schema are a module's only doors"
+type = "independence"
+modules = ["app.api.*"]
+ignore_imports = [
+  "app.infra.pubsub -> app.infra.subscribers.send_welcome",  # @auth
+  "app.api.*.controller -> app.api.*.controller",
+  "app.api.*.controller -> app.api.*.schema",
+  "app.api.*.schema -> app.api.*.schema",
+]
+unmatched_ignore_imports_alerting = "none"
+
+# The entry files.
+[[tool.importlinter.contracts]]
+name = "server mounts config routes and imports no api or infra"
+type = "forbidden"
+source_modules = ["app.server"]
+forbidden_modules = ["app.models", "app.api", "app.infra", "app.services.utils", "app.main"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "openapi imports no module behaviour, infra or middleware"
+type = "forbidden"
+source_modules = ["app.openapi"]
+forbidden_modules = [
+  "app.api.*.routes",
+  "app.api.*.controller",
+  "app.api.*.service",
+  "app.infra",
+  "app.middleware",
+  "app.main",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "main imports config env, infra dependency, logger and server only"
+type = "forbidden"
+source_modules = ["app.main"]
+forbidden_modules = [
+  "app.api",
+  "app.middleware",
+  "app.openapi",
+  "app.services.utils",
+  "app.config.constants",
+  "app.config.cors",
+  "app.config.routes",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "nothing imports the entry"
+type = "forbidden"
+source_modules = [
+  "app.api",
+  "app.middleware",
+  "app.infra",
+  "app.services",
+  "app.config",
+  "app.server",
+  "app.openapi",
+]
+forbidden_modules = ["app.main"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "only the entry imports the server (openapi does, to write the contract)"
+type = "forbidden"
+source_modules = ["app.api", "app.middleware", "app.infra", "app.services", "app.config"]
+forbidden_modules = ["app.server"]
+allow_indirect_imports = true

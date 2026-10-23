@@ -41,8 +41,14 @@ const KEY = Buffer.from(env.ENCRYPTION_KEY, 'base64')
 const IV_BYTES = 12
 const TAG_BYTES = 16
 
+// @auth-start
+// The session service seals its rotation grace token with encrypt/decrypt; they are also the
+// home for encrypting any secret at rest (for example a third-party token stored on a record).
+// @auth-end
+// @noauth-start
 // Nothing in the template calls encrypt/decrypt yet; they are the home for encrypting a secret
 // at rest (for example a third-party token stored on a record).
+// @noauth-end
 export function encrypt(plain: string): string {
   const iv = randomBytes(IV_BYTES)
   const cipher = createCipheriv('aes-256-gcm', KEY, iv)

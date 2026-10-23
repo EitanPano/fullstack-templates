@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.2.0 — 2026-10-23
+
+- The development and test database URLs default to `127.0.0.1`, not `localhost`: the Compose service
+  publishes on IPv4 loopback only and Windows resolves `localhost` to `::1` first, which cost about
+  2 s per connection.
+- With `database/postgres`, the root `docker-compose.yml` gets a derived one-shot
+  `backend-migrate` service on the app profile: the backend's image running `db:migrate` with
+  the backend's environment, which the backend waits on (`service_completed_successfully`).
+  `docker compose --profile app up --build` now applies the migrations before the backend
+  starts, and the backend does not start if they fail. `bun run db:migrate` stays for local
+  development. `AGENTS.md` and the README replace the `run --rm backend bun run db:migrate`
+  instruction with `docker compose --profile app run --rm backend-migrate`, which needs the
+  production secrets exported as the app does.
+- `AGENTS.md › Tests` lists every form that skips or filters a test (`.todo`, `.skipIf`,
+  `.failing`, `xit`, a test-name filter and the others), which the harness's guardrails cite.
+- The Postgres capability pins the base files its overlay shadows, so a change to one of them
+  in `base/` is noticed instead of silently losing to the overlay.
+- A new case, `stack-auth-off-postgres` (`next-bun-express`, `auth: false`,
+  `database: postgres`).
+
 ## 2.1.0 — 2026-10-22
 
 - The `database/postgres` capability. With `--capability database=postgres` the overlay

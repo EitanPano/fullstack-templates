@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs'
-import type { DependencyChange } from './catalog'
+import type { DependencyAdapter, DependencyChange } from './catalog'
 
 export class DependencyError extends Error {}
 
@@ -31,6 +31,14 @@ function mapOf(pkg: Manifest, key: string): DependencyMap | undefined {
 
 function sortKeys(map: DependencyMap): DependencyMap {
   return Object.fromEntries(Object.entries(map).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+}
+
+// The loader refuses pyproject flag and capability changes (they are markers), so reaching this
+// is a bug in the caller, not a bad manifest.
+function pyprojectUnreachable(where: string): DependencyError {
+  return new DependencyError(
+    `${where}: internal error: the pyproject adapter takes no dependency or script changes; use markers in pyproject.toml`,
+  )
 }
 
 function applyNpm(file: string, change: DependencyChange, where: string): void {
@@ -72,7 +80,7 @@ function applyNpmScripts(file: string, scripts: Record<string, string>, where: s
 // The loader refuses a clashing script too; this is the last line before a write.
 export function applyScripts(
   manifestPath: string,
-  adapter: 'npm',
+  adapter: DependencyAdapter,
   scripts: Record<string, string>,
   where: string,
 ): void {
@@ -80,6 +88,8 @@ export function applyScripts(
     case 'npm':
       applyNpmScripts(manifestPath, scripts, where)
       return
+    case 'pyproject':
+      throw pyprojectUnreachable(where)
     default:
       throw new DependencyError(`${where}: unknown dependency adapter ${String(adapter)}`)
   }
@@ -87,7 +97,7 @@ export function applyScripts(
 
 export function applyDependencyChange(
   manifestPath: string,
-  adapter: 'npm',
+  adapter: DependencyAdapter,
   change: DependencyChange,
   where: string,
 ): void {
@@ -95,6 +105,8 @@ export function applyDependencyChange(
     case 'npm':
       applyNpm(manifestPath, change, where)
       return
+    case 'pyproject':
+      throw pyprojectUnreachable(where)
     default:
       throw new DependencyError(`${where}: unknown dependency adapter ${String(adapter)}`)
   }

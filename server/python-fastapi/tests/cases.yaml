@@ -1,0 +1,23 @@
+schemaVersion: 1
+cases:
+  - name: default
+  - name: auth-off
+    flags: { auth: false }
+  - name: stack
+    stack: next-python-fastapi
+  - name: stack-auth-off
+    stack: next-python-fastapi
+    flags: { auth: false }
+  - name: postgres
+    capabilities: { database: postgres }
+  - name: auth-off-postgres
+    flags: { auth: false }
+    capabilities: { database: postgres }
+  - name: stack-postgres
+    stack: next-python-fastapi
+    capabilities: { database: postgres }
+    withApp: true
+  - name: stack-auth-off-postgres
+    stack: next-python-fastapi
+    flags: { auth: false }
+    capabilities: { database: postgres }

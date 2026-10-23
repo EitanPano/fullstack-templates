@@ -10,6 +10,8 @@ export interface GenerationCase {
   packageDir: string | null
   flags: Record<string, boolean>
   capabilities: Record<string, string>
+  // Runs the Compose smoke (build, boot, probe) when test-generated gets --with-app.
+  withApp: boolean
 }
 
 function stackDir(catalog: Catalog, stack: string, template: LoadedTemplate): string {
@@ -32,6 +34,7 @@ export function listCases(catalog: Catalog): GenerationCase[] {
         packageDir: entry.stack ? stackDir(catalog, entry.stack, template) : null,
         flags: entry.flags ?? {},
         capabilities: entry.capabilities ?? {},
+        withApp: entry.withApp === true,
       })
     }
   }

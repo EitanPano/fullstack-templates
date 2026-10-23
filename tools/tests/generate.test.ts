@@ -1,8 +1,16 @@
 import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import path from 'node:path'
-import { parse } from 'yaml'
+import { parse, parseDocument } from 'yaml'
 import { loadCatalog } from '../lib/catalog'
 import { removeTree } from '../lib/files'
 import {
@@ -209,7 +217,12 @@ describe('generate: edges', () => {
     )
     const lines: string[] = []
     const values = packagePlaceholders(plan, plan.packages[0]!, (l) => lines.push(l))
-    expect(values).toMatchObject({ SERVER_DIR: 'backend', SERVER_PORT: '4000', PORT: '3000' })
+    expect(values).toMatchObject({
+      SERVER_DIR: 'backend',
+      SERVER_PORT: '4000',
+      SERVER_DEV_COMMAND: 'bun run dev',
+      PORT: '3000',
+    })
     expect(lines).toHaveLength(1)
   })
 
@@ -638,5 +651,208 @@ describe('generate with a capability', () => {
     const provenance = parse(read(out, '.fullstack', 'catalog.yaml'))
     expect(provenance.providers).toEqual({})
     expect(provenance.packages.backend.capabilities).toEqual({})
+  })
+})
+
+describe('generate: drop after post-generate', () => {
+  const codeError = (code: string) => Object.assign(new Error(`${code}: rm`), { code })
+
+  // mini whose install writes what it saw and builds a cache directory next to a file that stays.
+  function droppingCatalog() {
+    const root = copyFixture('catalog')
+    const template = path.join(root, 'server/mini/template.yaml')
+    edit(template, 'install: bun ./ok.ts', 'install: bun ./build.ts')
+    edit(
+      template,
+      'postGenerate: [install, contract]',
+      'postGenerate: [install, contract]\ndropAfterPostGenerate: [cache, nothing/here]',
+    )
+    writeFileSync(
+      path.join(root, 'server/mini/base/build.ts'),
+      [
+        "import { mkdirSync, writeFileSync } from 'node:fs'",
+        "mkdirSync('cache', { recursive: true })",
+        "writeFileSync('cache/built.txt', 'x')",
+        "writeFileSync('seen.txt', process.env.PYTHONDONTWRITEBYTECODE ?? 'unset')",
+        '',
+      ].join('\n'),
+    )
+    mkdirSync(path.join(root, 'server/mini/base/cache'))
+    writeFileSync(path.join(root, 'server/mini/base/cache/keep.txt'), 'x')
+    return loadCatalog(root)
+  }
+  const only = (cat: typeof catalog, out: string, extra = {}) =>
+    resolveRequest(cat, request(out, { stack: undefined, template: 'server/mini', ...extra }))
+
+  test('removes the listed paths from the output and tolerates a missing one', () => {
+    const cat = droppingCatalog()
+    const out = tempDir()
+    generate(cat, only(cat, out, { skipPostGenerate: false }))
+    expect(existsSync(path.join(out, 'backend', 'cache'))).toBe(false)
+    expect(existsSync(path.join(out, 'backend', 'seen.txt'))).toBe(true)
+  })
+
+  test('post-generate commands see PYTHONDONTWRITEBYTECODE=1', () => {
+    const cat = droppingCatalog()
+    const out = tempDir()
+    generate(cat, only(cat, out, { skipPostGenerate: false }))
+    expect(readFileSync(path.join(out, 'backend', 'seen.txt'), 'utf8')).toBe('1')
+  })
+
+  test('a transient EBUSY on removal is retried with growing delays, then succeeds', () => {
+    const cat = droppingCatalog()
+    const out = tempDir()
+    let calls = 0
+    const delays: number[] = []
+    generate(cat, only(cat, out, { skipPostGenerate: false }), {
+      remove: (target) => {
+        calls += 1
+        if (calls <= 2) throw codeError('EBUSY')
+        removeTree(target)
+      },
+      sleep: (ms) => delays.push(ms),
+    })
+    // `cache` fails twice and succeeds on the third call; `nothing/here` is one more call.
+    expect(calls).toBe(4)
+    expect(delays.slice(0, 2)).toEqual([100, 200])
+    expect(existsSync(path.join(out, 'backend', 'cache'))).toBe(false)
+  })
+
+  test('a removal that keeps failing fails the generation and leaves the target untouched', () => {
+    const cat = droppingCatalog()
+    const out = tempDir()
+    expect(() =>
+      generate(cat, only(cat, out, { skipPostGenerate: false }), {
+        remove: () => {
+          throw codeError('EPERM')
+        },
+        sleep: () => undefined,
+      }),
+    ).toThrow('EPERM')
+    expect(existsSync(path.join(out, 'backend'))).toBe(false)
+  })
+
+  test('a non-transient removal error is not retried', () => {
+    const cat = droppingCatalog()
+    let calls = 0
+    expect(() =>
+      generate(cat, only(cat, tempDir(), { skipPostGenerate: false }), {
+        remove: () => {
+          calls += 1
+          throw codeError('ENOENT')
+        },
+        sleep: () => undefined,
+      }),
+    ).toThrow('ENOENT')
+    expect(calls).toBe(1)
+  })
+
+  test('nothing is dropped when post-generate is skipped', () => {
+    const cat = droppingCatalog()
+    const out = tempDir()
+    generate(cat, only(cat, out, { skipPostGenerate: true }), {
+      remove: () => {
+        throw new Error('must not be called')
+      },
+    })
+    expect(existsSync(path.join(out, 'backend', 'cache', 'keep.txt'))).toBe(true)
+    expect(existsSync(path.join(out, 'backend', 'seen.txt'))).toBe(false)
+  })
+})
+
+describe('generate with a capability that declares container.migrate', () => {
+  function migrateCatalog() {
+    const root = copyFixture('catalog')
+    appendFileSync(
+      path.join(root, 'server/mini/capabilities/database/fake/capability.yaml'),
+      'container:\n  migrate: bun ./ok.ts\n',
+    )
+    return loadCatalog(root)
+  }
+  const fakeRequest = (cat: ReturnType<typeof loadCatalog>, out: string) =>
+    resolveRequest(cat, request(out, { capabilities: ['database=fake'] }))
+  const compose = (out: string) => readFileSync(path.join(out, 'docker-compose.yml'), 'utf8')
+
+  test('writes the derived one-shot service and the dependency on it', () => {
+    const cat = migrateCatalog()
+    const out = tempDir()
+    generate(cat, fakeRequest(cat, out))
+    const { services } = parse(compose(out))
+    expect(services['backend-migrate']).toEqual({
+      build: './backend',
+      environment: services.backend.environment,
+      command: 'bun ./ok.ts',
+      restart: 'no',
+      profiles: ['app'],
+      depends_on: { database: { condition: 'service_healthy' } },
+    })
+    expect(services.backend.depends_on['backend-migrate']).toEqual({
+      condition: 'service_completed_successfully',
+    })
+    expect(services.backend.depends_on.database).toEqual({ condition: 'service_healthy' })
+  })
+
+  test('adds nothing without the capability', () => {
+    const cat = migrateCatalog()
+    const out = tempDir()
+    generate(cat, resolveRequest(cat, request(out)))
+    expect(Object.keys(parse(compose(out)).services)).toEqual(['backend', 'frontend'])
+  })
+
+  test('a rerun keeps the service in the file and does not duplicate it', () => {
+    const cat = migrateCatalog()
+    const out = tempDir()
+    generate(cat, fakeRequest(cat, out))
+    const file = path.join(out, 'docker-compose.yml')
+    const doc = parseDocument(compose(out))
+    doc.setIn(['services', 'backend-migrate', 'command'], 'edited by hand')
+    doc.deleteIn(['services', 'backend'])
+    writeFileSync(file, doc.toString())
+    removeTree(path.join(out, 'backend'))
+    const lines: string[] = []
+    generate(
+      cat,
+      resolveRequest(
+        cat,
+        request(out, {
+          stack: undefined,
+          template: 'server/mini',
+          capabilities: ['database=fake'],
+        }),
+      ),
+      { log: (l) => lines.push(l) },
+    )
+    const text = compose(out)
+    expect(text.match(/^ {2}backend-migrate:/gm)).toHaveLength(1)
+    expect(parse(text).services['backend-migrate'].command).toBe('edited by hand')
+    expect(lines).toContain('docker-compose.yml already has service backend-migrate; kept')
+  })
+
+  test('a rerun that keeps a service with no migrate service next to it says so', () => {
+    const cat = migrateCatalog()
+    const out = tempDir()
+    generate(cat, fakeRequest(cat, out))
+    const file = path.join(out, 'docker-compose.yml')
+    const doc = parseDocument(compose(out))
+    doc.deleteIn(['services', 'backend-migrate'])
+    writeFileSync(file, doc.toString())
+    removeTree(path.join(out, 'backend'))
+    const lines: string[] = []
+    generate(
+      cat,
+      resolveRequest(
+        cat,
+        request(out, {
+          stack: undefined,
+          template: 'server/mini',
+          capabilities: ['database=fake'],
+        }),
+      ),
+      { log: (l) => lines.push(l) },
+    )
+    expect(compose(out)).not.toMatch(/^ {2}backend-migrate:/m)
+    expect(lines).toContain(
+      'docker-compose.yml has service backend but not backend-migrate; backend-migrate was not added because backend is kept as it is and would not wait for it',
+    )
   })
 })
