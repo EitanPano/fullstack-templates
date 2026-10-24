@@ -1,9 +1,11 @@
 # Changelog
 
-## 1.1.1 — unreleased
+## 1.1.1 — 2026-10-24
 
 - Fix: the import zones in `eslint.config.mjs` are enforced. The last `no-restricted-imports` block (`src/**`) replaced the zone rules of the earlier blocks, so a cross-feature `ui/` import, `ui/` or `model.ts` importing `app/`, and `shared/` or `lib/` importing `feature/` or `app/` passed lint. The zones are now disjoint and each lists every restriction that applies to it.
 - `tests/unit/eslint-zones.test.ts` lints one snippet per zone through the real config and fails if a zone stops being enforced.
+- The client ban now also covers `shared/` and `lib/` (outside `lib/api/`): only `feature/*/server/` may import `@/lib/api/client`, as `AGENTS.md` already said.
+- `AGENTS.md` gains `## Deployment`: Next is always deployed `split` (its own image and port, the server behind it on loopback with `TRUST_PROXY` `1`, no `STATIC_DIR`). Its import rules tell agents to use `@/` for cross-directory imports, because the relative cross-feature `ui/` patterns cover a bounded depth.
 
 ## 1.1.0 — 2026-10-23
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.3.0 — unreleased
+## 2.3.0 — 2026-10-24
 
 - Static serving of a built single-page app, shipped in every project and inert unless `STATIC_DIR`
   is set (blank is unset; in production a directory without `index.html` stops the boot with
