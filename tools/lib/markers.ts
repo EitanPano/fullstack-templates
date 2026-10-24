@@ -24,7 +24,7 @@ const BY_EXTENSION: Readonly<Record<string, CommentSyntax>> = {
       .map((ext) => [ext, SLASH]),
   ),
   ...Object.fromEntries(
-    '.yml .yaml .toml .py .rb .sh .example .gitignore .dockerignore .editorconfig .properties'
+    '.yml .yaml .toml .py .rb .sh .conf .example .gitignore .dockerignore .editorconfig .properties'
       .split(' ')
       .map((ext) => [ext, HASH]),
   ),

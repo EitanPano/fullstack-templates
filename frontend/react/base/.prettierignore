@@ -1,0 +1,7 @@
+dist/
+node_modules/
+playwright-report/
+test-results/
+coverage/
+src/lib/api/schema.d.ts
+bun.lock

@@ -16,6 +16,7 @@ const TEXT_EXTENSIONS: ReadonlySet<string> = new Set([
   '.css',
   '.html',
   '.txt',
+  '.conf',
   '.example',
   '.sql',
   '.py',

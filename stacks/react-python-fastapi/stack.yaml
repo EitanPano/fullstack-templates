@@ -1,0 +1,8 @@
+schemaVersion: 1
+id: react-python-fastapi
+summary: React 19 (Vite) in front of FastAPI on Python 3.14
+packages:
+  - template: server/python-fastapi
+    dir: backend
+  - template: frontend/react
+    dir: frontend

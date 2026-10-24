@@ -1,0 +1,8 @@
+schemaVersion: 1
+id: react-bun-express
+summary: React 19 (Vite) in front of Express 5 on Bun
+packages:
+  - template: server/bun-express
+    dir: backend
+  - template: frontend/react
+    dir: frontend
