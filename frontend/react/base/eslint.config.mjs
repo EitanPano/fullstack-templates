@@ -21,7 +21,16 @@ const featureOnly = [
   '../../../*/ui/**',
   '../../../../*/ui/**',
 ]
-const clientPaths = ['@/lib/api/client', '**/lib/api/client', './api/client']
+// The trailing .* also catches a suffixed spelling (client.ts, client.js), which the template's
+// tsconfig allows and Vite resolves.
+const clientPaths = [
+  '@/lib/api/client',
+  '@/lib/api/client.*',
+  '**/lib/api/client',
+  '**/lib/api/client.*',
+  './api/client',
+  './api/client.*',
+]
 
 export default defineConfig([
   globalIgnores([

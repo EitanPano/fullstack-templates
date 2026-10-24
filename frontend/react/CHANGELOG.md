@@ -9,5 +9,7 @@
   `single`) and a `serve` target on `nginx-unprivileged` (non-root, templated port, the helmet
   headers, SPA fallback, `/api/` proxy) for `split`; the per-mode Compose fragment; stacks
   `react-python-fastapi` and `react-bun-express`.
+- The root error boundary logs the cause with `console.error`, like the route boundaries.
+- The client lint rule also covers the suffixed spellings (`client.ts`, `client.js`, `client.tsx`).
 - Lint enforces the layer boundaries with disjoint zones, proved by a unit test that lints one
   seeded violation per zone.

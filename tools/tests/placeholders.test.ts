@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { COMMENT_BASENAMES, COMMENT_EXTENSIONS, commentSyntaxFor } from '../lib/markers'
 import {
   findLeftoverPlaceholder,
   isTextFile,
@@ -40,5 +41,15 @@ describe('isTextFile', () => {
     expect(isTextFile('a/.env.example')).toBe(true)
     expect(isTextFile('a/logo.png')).toBe(false)
     expect(isTextFile('a/bun.lock')).toBe(true)
+  })
+
+  test('every file type with a comment syntax is a text file', () => {
+    for (const ext of COMMENT_EXTENSIONS) {
+      expect(commentSyntaxFor(`a/b${ext}`)).toBeDefined()
+      expect(isTextFile(`a/b${ext}`)).toBe(true)
+    }
+    for (const name of COMMENT_BASENAMES) expect(isTextFile(`a/${name}`)).toBe(true)
+    expect(isTextFile('a/App.vue')).toBe(true)
+    expect(isTextFile('a/run.sh')).toBe(true)
   })
 })

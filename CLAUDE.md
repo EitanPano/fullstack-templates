@@ -150,10 +150,12 @@ catalog with `skipPostGenerate`. The `*-cli.test.ts` files spawn the entry scrip
   `--` in `.sql`, `<!-- -->`; chosen by extension or file name in `markers.ts`). `name` is a flag
   (`auth`) or a capability: `@database` is true for any provider, `@database:postgres` for that
   one. Two selections are reserved and cannot be flag names: `server` (the plan has a server) and
-  `single` (the plan deploys as one image; never true without a server). A file type that neither
-  `markers.ts` nor `placeholders.ts` lists (`.conf` is listed, with `#`) is not processed at all:
-  a marker in it survives into the output and `validate` does not notice. An undeclared name, an
-  unbalanced block or a marker left in generated output fails.
+  `single` (the plan deploys as one image; never true without a server). Every extension
+  `markers.ts` gives a comment syntax is a text file by construction (`placeholders.ts` derives its
+  list from it), and a unit test pins that. A file of any other type is copied untouched: if it
+  looks like text (no NUL byte in its first KiB) and holds a marker comment or a declared
+  `__NAME__` token, generation and `validate` fail naming the file; a binary file is never read.
+  An undeclared name, an unbalanced block or a marker left in generated output fails.
   Keep the no-capability variant byte for byte unchanged when adding markers.
 - **Placeholders** are `__NAME__` tokens in text files. Templates declare their own
   (`__PROJECT_NAME__`); the generator adds `__PACKAGE_DIR__`, `__PORT__`, `__SERVER_DIR__`,

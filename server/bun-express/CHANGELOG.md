@@ -20,6 +20,8 @@
 - `AGENTS.md › Deployment` states both modes: the image and the lines each carries, `STATIC_DIR`,
   the behaviour table, ports, `TRUST_PROXY` per mode and in production, the Compose 2.35.0 floor for
   `single` and `docker compose --profile app down`.
+- A file outside `assets/` (`/favicon.ico`, `/robots.txt`) is sent with `Cache-Control: no-cache`, the
+  same as `index.html` and the nginx edge; it had been `public, max-age=0`.
 - `createApp(staticDir?)` is exported from `server.ts` (defaulting to `STATIC_DIR`), so a test
   builds an app over a fixture directory.
 

@@ -156,10 +156,10 @@ below is what `validate` and the cases prove.
       has no server, so its e2e is skipped). Set `withApp: true` on the cases that build images.
 - [ ] A case that needs a capability lives in the server's `tests/cases.yaml`, because a frontend
       case cannot select one: see `stack-react-postgres` in `server/python-fastapi`.
-- [ ] A `.conf` file (the nginx config) may carry markers, in `#` comments, and placeholders. A
-      marker in a file whose extension `tools/lib/markers.ts` and `tools/lib/placeholders.ts` do
-      not both list is not processed and stays in the output, and `validate` does not report it:
-      add the extension to both lists, with a test, before using a new one.
+- [ ] A `.conf` file (the nginx config) may carry markers, in `#` comments, and placeholders. A new
+      file type that needs markers is added to `tools/lib/markers.ts` only: `placeholders.ts`
+      derives its text types from it. A marker or placeholder in a file of a type neither knows
+      fails generation and `validate`, naming the file.
 - [ ] A stack in `stacks/` per server, an `index.yaml` entry, the README matrix
       (`bun tools/validate.ts --readme`), and a lint-zones unit test that seeds one violation per
       zone through ESLint's Node API.

@@ -125,6 +125,32 @@ describe('generate', () => {
     expect(existsSync(path.join(out, 'backend'))).toBe(false)
   })
 
+  test('a file of an unlisted type holding a marker or a placeholder fails generation', () => {
+    for (const [name, content, found] of [
+      ['extra.zzz', 'x // @auth\n', 'marker'],
+      ['extra.zzz', 'x __PROJECT_NAME__\n', 'placeholder __PROJECT_NAME__'],
+    ] as const) {
+      const root = copyFixture('catalog')
+      writeFileSync(path.join(root, 'server/mini/base/src', name), content)
+      const out = tempDir()
+      const marked = loadCatalog(root)
+      expect(() => generate(marked, resolveRequest(marked, request(out)))).toThrow(
+        new RegExp(`extra[.]zzz: holds ${found}`),
+      )
+      expect(existsSync(path.join(out, 'backend'))).toBe(false)
+    }
+  })
+
+  test('an unlisted binary file is copied untouched', () => {
+    const root = copyFixture('catalog')
+    const bytes = Buffer.concat([Buffer.from([0, 1, 2]), Buffer.from('// @auth __PROJECT_NAME__')])
+    writeFileSync(path.join(root, 'server/mini/base/src/blob.zzz'), bytes)
+    const out = tempDir()
+    const marked = loadCatalog(root)
+    generate(marked, resolveRequest(marked, request(out)))
+    expect(readFileSync(path.join(out, 'backend/src/blob.zzz'))).toEqual(bytes)
+  })
+
   test('a lone frontend skips the contract step and still generates', () => {
     const out = tempDir()
     const lines: string[] = []

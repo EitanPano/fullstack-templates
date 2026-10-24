@@ -100,11 +100,8 @@ class SpaFiles(StaticFiles):
         status_code: int = 200,
     ) -> Response:
         name = Path(full_path).relative_to(self._root).as_posix()
-        headers: dict[str, str] = {}
-        if name == "index.html":
-            headers["cache-control"] = SHELL_CACHE
-        elif name.startswith("assets/"):
-            headers["cache-control"] = ASSETS_CACHE
+        # Only hashed build output is cached; any other file revalidates, as in the other servers.
+        headers = {"cache-control": ASSETS_CACHE if name.startswith("assets/") else SHELL_CACHE}
         response = FileResponse(
             full_path, status_code=status_code, headers=headers, stat_result=stat_result
         )
@@ -126,6 +123,7 @@ class SpaMount(Mount):
         super().__init__("/", app=SpaFiles(directory))
 
     def matches(self, scope: Scope) -> tuple[Match, Scope]:
-        if scope["type"] == "http" and _is_api(scope["path"]):
+        # StaticFiles asserts an http scope, so a websocket upgrade is never ours.
+        if scope["type"] != "http" or _is_api(scope["path"]):
             return Match.NONE, {}
         return super().matches(scope)

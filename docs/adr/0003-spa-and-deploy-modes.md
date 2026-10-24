@@ -178,7 +178,7 @@ Rejected:
 
   | Request | Response |
   | --- | --- |
-  | GET or HEAD of an existing file | The file. `assets/*` gets `Cache-Control: public, max-age=31536000, immutable`; `index.html` gets `no-cache`. |
+  | GET or HEAD of an existing file | The file. `assets/*` gets `Cache-Control: public, max-age=31536000, immutable`; every other file, `index.html` included, gets `no-cache`. |
   | GET or HEAD of an extension-less path outside `/api` | `index.html`, `no-cache`. The SPA's router renders it, its own not-found included. |
   | A path with an extension and no file | The 404 envelope. |
   | `/api/*` with no route | The 404 envelope, unchanged. |
@@ -439,9 +439,12 @@ them.
 Not generated, because it changes the security model per product. A frontend served from another
 origin (a static host) than the API requires, at least:
 
-- `CORS_ORIGINS` set to the frontend's origin, so the server answers its preflights, with credentials;
-- session cookies sent cross-site: `SameSite=None; Secure`, and a cookie `domain` that both origins
-  share where the browser rules allow it;
+- `CORS_ORIGINS` set to an explicit list of the frontend's origins (never `*`, which browsers refuse
+  with credentials), so the server answers its preflights, with credentials;
+- session cookies sent cross-site: `SameSite=None; Secure`, only when the frontend and the API are
+  cross-site (same-site hosts keep `Lax`), and host-only cookies: no shared cookie `domain`, which
+  would expose the session to every subdomain;
+- the client sends `credentials: 'include'` on its API calls, or the browser drops the cookie;
 - a CSRF defence, because `SameSite=Lax` no longer protects: a synchroniser token, or the
   double-submit cookie pattern with a custom header the server requires;
 - an API base URL in the bundle, so the "no API URL compiled in" rule of M5-1 is given up
@@ -663,8 +666,10 @@ Differences from the text above:
 - **`.conf` joined the marker engine and the text extensions** (`tools/lib/markers.ts`,
   `tools/lib/placeholders.ts`), with `#` as its comment syntax. A marker in a file whose extension
   neither list knows is not processed: `# @server` stayed in the generated nginx file until `.conf` was
-  listed (`18d4934`). `validate`'s dry-run skips such files too, so it does not catch an unlisted type;
-  that check was not added.
+  listed (`18d4934`). The final review found the hole open and the two lists disagreeing (`.vue`, `.sh`
+  and others had a comment syntax and no text type). Now `placeholders.ts` derives its text types from
+  `markers.ts`, a unit test pins it, and generation and `validate` fail when a file of an unlisted type
+  that looks like text holds a marker comment or a declared token (this commit).
 - **The react and Postgres case** is `stack-react-postgres` in `server/python-fastapi/tests/cases.yaml`,
   `deploy: single`, `withApp: true`. A frontend case cannot declare a capability, and the Next
   Postgres stacks live with the server for the same reason (`18d4934`).
@@ -681,8 +686,28 @@ Differences from the text above:
 - **The frontend headings check has no layer-map heading.** It checks exactly `Adding a feature`,
   `Styling`, `Errors`, `Tests` and `Deployment`, as M5-9 says, and `next`'s and `react`'s layer maps remain
   unheaded text (`985447c`).
+- **The split edge's security behaviour is asserted.** The app smoke's probe returns response headers, and
+  in both modes it checks the CSP (`default-src 'self'`), `nosniff`, `X-Frame-Options`,
+  `Strict-Transport-Security` and `Referrer-Policy` on `index.html`, a deep link and a hashed asset, the
+  cache headers (`index.html` `no-cache`, assets `immutable`), a dotfile 404, an encoded traversal
+  refused (400 or 404) and `/assets/` 404. A fake site missing one fails the case naming it (this commit).
+- **Client imports with a file suffix.** The React lint rule also covers `client.ts`, `client.js` and
+  `client.tsx` spellings, which the template's tsconfig allows; `next` is not affected because its
+  tsconfig rejects `.ts` imports (this commit).
+- **Cache headers are identical in the three static servers.** Both servers send `no-cache` for a file
+  outside `assets/` that is not `index.html` (`/favicon.ico`), as nginx does; bun-express had sent
+  `public, max-age=0` and python-fastapi none (this commit).
+- **A body with no Content-Type is not JSON in either server.** The final review said FastAPI parses
+  such a body as JSON; the installed FastAPI (0.161, the floor) does not: its `strict_content_type`
+  defaults to True, so a typeless or `text/plain` body reaches the route as bytes and validation
+  answers 400 `invalid body`, exactly as in bun-express (`express.json` ignores it, validation sees
+  none). No code changed; both servers now have tests for both spellings, so a change of that default
+  fails one (this commit).
+- **`SpaMount` ignores a websocket scope** (`Match.NONE` for any non-http scope), because
+  `StaticFiles` asserts an http scope (this commit).
+- **The React root error boundary logs the cause** with `console.error`, as the route boundary does (this
+  commit).
 
 Not done:
 
-- A check that flags marker text in a file the engine skips (see `.conf` above).
 - A static-host mode, as decided.

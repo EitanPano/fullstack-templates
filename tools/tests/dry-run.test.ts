@@ -23,6 +23,19 @@ describe('dryRunMarkers', () => {
     expect(dryRunMarkers(template)).toContain('base/src/left.ts: leftover marker # @auth')
   })
 
+  test('reports a marker or a placeholder in a file of an unlisted type', () => {
+    const template = setup(
+      {
+        'server/mini/base/src/a.zzz': 'x // @auth\n',
+        'server/mini/base/src/b.zzz': 'x __PROJECT_NAME__\n',
+      },
+      'server/mini',
+    )
+    const problems = dryRunMarkers(template)
+    expect(problems.some((p) => p.startsWith('base/src/a.zzz: holds marker // @auth'))).toBe(true)
+    expect(problems.some((p) => p.includes('b.zzz: holds placeholder __PROJECT_NAME__'))).toBe(true)
+  })
+
   test('finds a problem that only appears when a flag is on', () => {
     const template = setup(
       { 'server/mini/base/src/on.ts': '// @auth-start\nx // @bogus\n// @auth-end\n' },

@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { COMMENT_BASENAMES, COMMENT_EXTENSIONS } from './markers'
 
 const TEXT_EXTENSIONS: ReadonlySet<string> = new Set([
   '.ts',
@@ -26,6 +27,7 @@ const TEXT_EXTENSIONS: ReadonlySet<string> = new Set([
   '.xml',
   '.properties',
   '.svg',
+  ...COMMENT_EXTENSIONS,
 ])
 
 // bun.lock is text because it records the package name, which carries a placeholder.
@@ -39,12 +41,24 @@ const TEXT_BASENAMES: ReadonlySet<string> = new Set([
   '.env.example',
   '.gitattributes',
   'bun.lock',
+  ...COMMENT_BASENAMES,
 ])
 
 export function isTextFile(filePath: string): boolean {
   const base = path.basename(filePath)
   return TEXT_BASENAMES.has(base) || TEXT_EXTENSIONS.has(path.extname(base))
 }
+
+// The tokens the generator itself defines, beside the ones a template declares.
+export const GENERATED_PLACEHOLDERS: readonly string[] = [
+  'PROJECT_NAME',
+  'PACKAGE_DIR',
+  'PORT',
+  'SERVER_DIR',
+  'SERVER_PORT',
+  'SERVER_DEV_COMMAND',
+  'FRONTEND_DIR',
+]
 
 export function substitutePlaceholders(
   content: string,

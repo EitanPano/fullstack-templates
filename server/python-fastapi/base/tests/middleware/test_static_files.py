@@ -166,13 +166,13 @@ class TestExistingFile:
         assert res.headers["cache-control"] == "no-cache"
         assert_common_headers(res)
 
-    def test_serves_a_root_file_outside_assets_without_the_immutable_header(
+    def test_serves_a_root_file_outside_assets_with_no_cache_like_the_shell(
         self, port: int
     ) -> None:
         res = raw(port, "GET", "/favicon.svg")
 
         assert res.status == 200
-        assert "immutable" not in res.headers.get("cache-control", "")
+        assert res.headers["cache-control"] == "no-cache"
         assert_common_headers(res)
 
     @pytest.mark.parametrize("target", ["/assets/app-abc123.js", "/dashboard"])
@@ -307,6 +307,13 @@ class TestMissesAndApi:
         # of an API route (a wrong method) from the router. Not matching is what keeps every API
         # request as it is without STATIC_DIR.
         scope = {"type": "http", "path": target, "root_path": "", "method": "POST"}
+
+        assert SpaMount(tree).matches(scope)[0] == Match.NONE
+
+    @pytest.mark.parametrize("target", ["/dashboard", "/api/health", "/"])
+    def test_the_spa_mount_ignores_a_websocket_scope(self, tree: Path, target: str) -> None:
+        # StaticFiles asserts an http scope; matching a websocket upgrade would raise on it.
+        scope = {"type": "websocket", "path": target, "root_path": ""}
 
         assert SpaMount(tree).matches(scope)[0] == Match.NONE
 

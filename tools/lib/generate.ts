@@ -25,6 +25,7 @@ import { copyTree, listFiles, pruneEmptyParents, removeTree, retryTransient } fr
 import { mergeGitignore } from './gitignore'
 import { applyMarkers, commentSyntaxFor, findLeftoverMarker } from './markers'
 import {
+  GENERATED_PLACEHOLDERS,
   findLeftoverPlaceholder,
   isTextFile,
   placeholderValues,
@@ -34,6 +35,7 @@ import type { GenerationPlan, PackagePlan } from './plan'
 import { findToolProblem, runVersion, type VersionRunner } from './preflight'
 import { PROVENANCE_PATH, buildProvenance, catalogIdentity, type Provenance } from './provenance'
 import { validateAgainst } from './schema'
+import { UNPROCESSED_HINT, findUnprocessed } from './unprocessed'
 
 export const STAGING_DIR = '.fullstack-staging'
 
@@ -438,6 +440,14 @@ function sweepPlaceholders(plan: GenerationPlan, staging: string): void {
     const left = findLeftoverPlaceholder(readFileSync(file, 'utf8'), names)
     if (left !== null) {
       throw new GenerateError(`${toWhere(staging, file)}: unreplaced placeholder ${left}`)
+    }
+  }
+  // A file the passes above skip must not hold what they would have replaced or swept.
+  const declared = [...new Set([...names, ...GENERATED_PLACEHOLDERS])]
+  for (const file of listFiles(staging)) {
+    const found = findUnprocessed(file, declared)
+    if (found !== null) {
+      throw new GenerateError(`${toWhere(staging, file)}: holds ${found}, but ${UNPROCESSED_HINT}`)
     }
   }
 }

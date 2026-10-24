@@ -67,6 +67,18 @@ describe('the error handler', () => {
     expect(res.body).toMatchObject({ error: { code: 'validation_failed' } })
   })
 
+  it('refuses a JSON body sent as text/plain or with no Content-Type', async () => {
+    const json = JSON.stringify({ name: 'ada' })
+    const plain = await request(probeApp()).post('/greet').type('text/plain').send(json)
+    const bare = await request(probeApp()).post('/greet').unset('Content-Type').send(Buffer.from(json))
+
+    // body-parser ignores a body it was not told is JSON, so validation sees none.
+    for (const res of [plain, bare]) {
+      expect(res.status).toBe(400)
+      expect(res.body).toMatchObject({ error: { code: 'validation_failed', message: 'invalid body' } })
+    }
+  })
+
   it('turns an oversized body into a 413 envelope', async () => {
     const res = await request(probeApp())
       .post('/greet')

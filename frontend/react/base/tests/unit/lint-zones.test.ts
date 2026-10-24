@@ -156,6 +156,21 @@ const seeds: Seed[] = [
     rule: IMPORTS,
     message: 'only feature/*/api/ calls the API client',
   },
+  // A suffixed spelling of the client path is the same import: the tsconfig allows it.
+  ...['.ts', '.js', '.tsx'].flatMap((ext): Seed[] => {
+    const message = 'only feature/*/api/ calls the API client'
+    const code = (from: string) => `import { client } from '${from}'
+export { client }
+`
+    return [
+      { zone: `feature ui imports client${ext} (alias)`, file: 'src/feature/health/ui/seed.tsx', code: code(`@/lib/api/client${ext}`), rule: IMPORTS, message },
+      { zone: `feature ui imports client${ext} (relative)`, file: 'src/feature/health/ui/seed.tsx', code: code(`../../../lib/api/client${ext}`), rule: IMPORTS, message },
+      { zone: `app imports client${ext}`, file: 'src/app/seed.tsx', code: code(`@/lib/api/client${ext}`), rule: IMPORTS, message },
+      { zone: `main imports client${ext}`, file: 'src/main.tsx', code: code(`@/lib/api/client${ext}`), rule: IMPORTS, message },
+      { zone: `shared imports client${ext}`, file: 'src/shared/lib/seed.ts', code: code(`@/lib/api/client${ext}`), rule: IMPORTS, message: 'nor the API client' },
+      { zone: `lib imports client${ext} (relative)`, file: 'src/lib/seed.ts', code: code(`./api/client${ext}`), rule: IMPORTS, message: 'nor the API client' },
+    ]
+  }),
   {
     zone: 'import.meta outside env.ts (lib)',
     file: 'src/lib/seed.ts',

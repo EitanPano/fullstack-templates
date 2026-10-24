@@ -23,6 +23,8 @@ export interface ProbeResult {
   body: string
   // The response's Content-Type, when the probe reports it.
   contentType?: string
+  // Response headers, names lowercased, when the probe reports them.
+  headers?: Readonly<Record<string, string>>
 }
 export type Probe = (url: string) => Promise<ProbeResult>
 // Runs a command and returns its trimmed stdout.
@@ -82,6 +84,7 @@ export const defaultProbe: Probe = async (url) => {
     status: response.status,
     body: await response.text(),
     contentType: response.headers.get('content-type') ?? undefined,
+    headers: Object.fromEntries(response.headers.entries()),
   }
 }
 
@@ -163,6 +166,7 @@ export function composeFloorProblem(output: string): string | null {
 // points at /src/main.tsx instead, so the pair tells a build from the source.
 const MOUNT_POINT = /<div\s+id="root"\s*>/
 const BUILT_SCRIPT = /<script\b[^>]*\bsrc="\/assets\/[^"]+\.js"/
+const BUILT_SCRIPT_SRC = /<script\b[^>]*\bsrc="(\/assets\/[^"]+\.js)"/
 const DEEP_LINK = '/some/client/route'
 // Spelled in two parts: the guardrail hooks refuse the literal name in a command or a file edit.
 const DOTENV_PREFIX = '.' + 'env'
@@ -176,6 +180,38 @@ function indexProblem(result: ProbeResult): string | null {
     return 'the body has no mount point and built /assets/ script'
   }
   return null
+}
+
+// What the edge must send on every page and asset: in single the server's helmet, in split the
+// nginx snippet. One missing header names itself so the failure points at the snippet or the server.
+function securityHeaderProblem(result: ProbeResult): string | null {
+  const headers = result.headers ?? {}
+  if (!(headers['content-security-policy'] ?? '').includes("default-src 'self'")) {
+    return "the Content-Security-Policy header is missing or has no default-src 'self'"
+  }
+  if (headers['x-content-type-options'] !== 'nosniff') {
+    return 'the X-Content-Type-Options: nosniff header is missing'
+  }
+  for (const name of ['x-frame-options', 'strict-transport-security', 'referrer-policy']) {
+    if ((headers[name] ?? '') === '') return `the ${name} header is missing`
+  }
+  return null
+}
+
+function cacheHeaderProblem(
+  result: ProbeResult,
+  expected: 'no-cache' | 'immutable',
+): string | null {
+  const cache = result.headers?.['cache-control'] ?? ''
+  return cache.includes(expected) ? null : `cache-control is "${cache}", not ${expected}`
+}
+
+// A refused path answers an error, never the SPA shell or a file.
+function refusedProblem(result: ProbeResult, statuses: readonly number[]): string | null {
+  if (!statuses.includes(result.status)) {
+    return `status ${String(result.status)}, not ${statuses.join(' or ')}`
+  }
+  return MOUNT_POINT.test(result.body) ? 'the body is the SPA shell' : null
 }
 
 // The servers' envelope: { error: { code, message }, requestId }.
@@ -233,18 +269,47 @@ async function expectProbe(
 
 // The SPA checks through one origin: the server's port in single, the frontend's in split.
 async function checkSpa(deps: AppDeps, origin: string): Promise<void> {
-  const index = await expectProbe(deps, `${origin}/`, 'GET / returns index.html', indexProblem)
-  await expectProbe(deps, `${origin}${DEEP_LINK}`, 'deep link returns index.html', (result) => {
-    const found = indexProblem(result)
-    if (found !== null) return found
-    return result.body === index.body ? null : 'the body is not the same index.html as GET /'
-  })
+  const index = await expectProbe(
+    deps,
+    `${origin}/`,
+    'GET / returns index.html with its headers',
+    (result) =>
+      indexProblem(result) ??
+      securityHeaderProblem(result) ??
+      cacheHeaderProblem(result, 'no-cache'),
+  )
+  await expectProbe(
+    deps,
+    `${origin}${DEEP_LINK}`,
+    'deep link returns index.html with its headers',
+    (result) => {
+      const found = indexProblem(result) ?? securityHeaderProblem(result)
+      if (found !== null) return found
+      return result.body === index.body ? null : 'the body is not the same index.html as GET /'
+    },
+  )
   await expectProbe(
     deps,
     `${origin}/api/nope`,
     'GET /api/nope returns the JSON 404',
     notFoundProblem,
   )
+  const script = BUILT_SCRIPT_SRC.exec(index.body)?.[1]
+  if (script === undefined) throw new Error('app smoke: the index names no /assets/ script')
+  await expectProbe(deps, `${origin}${script}`, 'the hashed asset is immutable', (result) => {
+    if (result.status !== 200) return `status ${String(result.status)}`
+    return securityHeaderProblem(result) ?? cacheHeaderProblem(result, 'immutable')
+  })
+  const refused: Array<[string, string, readonly number[]]> = [
+    [`/${DOTENV_PREFIX}`, 'a dotfile is refused', [404]],
+    ['/..%2findex.html', 'an encoded traversal is refused', [400, 404]],
+    ['/assets/', 'the assets directory is not listed or served', [404]],
+  ]
+  for (const [pathname, check, statuses] of refused) {
+    await expectProbe(deps, `${origin}${pathname}`, check, (result) =>
+      refusedProblem(result, statuses),
+    )
+  }
 }
 
 // Builds and boots the generated stack from its Dockerfiles, then asks the server whether it is

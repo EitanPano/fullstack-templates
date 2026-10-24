@@ -337,6 +337,25 @@ function stackCatalog(options: {
   return { loaded, c: found }
 }
 
+const ASSET = '/assets/index-AbC123.js'
+const GOOD_HEADERS: Record<string, string> = {
+  'content-security-policy': "default-src 'self';script-src 'self'",
+  'x-content-type-options': 'nosniff',
+  'x-frame-options': 'SAMEORIGIN',
+  'strict-transport-security': 'max-age=31536000; includeSubDomains',
+  'referrer-policy': 'no-referrer',
+}
+const PAGE_HEADERS = { ...GOOD_HEADERS, 'cache-control': 'no-cache' }
+const ASSET_HEADERS = { ...GOOD_HEADERS, 'cache-control': 'public, max-age=31536000, immutable' }
+// The refused paths the smoke asks for, as the fake site answers them.
+const DOTFILE_PATH = '/.' + 'env'
+const TRAVERSAL_PATH = '/..%2findex.html'
+const refusal = (status = 404): ProbeResult => ({
+  status,
+  body: NOT_FOUND,
+  contentType: 'application/json',
+})
+
 type Reply = ProbeResult | Error
 // A fake site keyed by URL; `overrides` replaces single answers. `at` is the public port.
 function site(at: number, overrides: Record<string, Reply> = {}) {
@@ -344,6 +363,7 @@ function site(at: number, overrides: Record<string, Reply> = {}) {
     status: 200,
     body,
     contentType: 'text/html; charset=utf-8',
+    headers: PAGE_HEADERS,
   })
   const base = `http://127.0.0.1:${String(at)}`
   const table: Record<string, Reply> = {
@@ -352,6 +372,15 @@ function site(at: number, overrides: Record<string, Reply> = {}) {
     [`${base}/`]: html(INDEX),
     [`${base}${SPA_ROUTE}`]: html(INDEX),
     [`${base}/api/nope`]: { status: 404, body: NOT_FOUND, contentType: 'application/json' },
+    [`${base}${ASSET}`]: {
+      status: 200,
+      body: 'console.log(1)',
+      contentType: 'text/javascript',
+      headers: ASSET_HEADERS,
+    },
+    [`${base}${DOTFILE_PATH}`]: refusal(),
+    [`${base}${TRAVERSAL_PATH}`]: refusal(400),
+    [`${base}/assets/`]: refusal(),
     ...overrides,
   }
   const urls: string[] = []
@@ -431,6 +460,7 @@ describe('app smoke, single', () => {
     status: 200,
     body,
     contentType,
+    headers: PAGE_HEADERS,
   })
   test('checks the floor, boots, probes the SPA and the 404 on the server port, inspects public/', async () => {
     const { probe, urls } = site(4000)
@@ -442,6 +472,10 @@ describe('app smoke, single', () => {
       'http://127.0.0.1:4000/',
       `http://127.0.0.1:4000${SPA_ROUTE}`,
       'http://127.0.0.1:4000/api/nope',
+      `http://127.0.0.1:4000${ASSET}`,
+      `http://127.0.0.1:4000${DOTFILE_PATH}`,
+      `http://127.0.0.1:4000${TRAVERSAL_PATH}`,
+      'http://127.0.0.1:4000/assets/',
     ])
     expect(asked).toEqual([
       'docker compose version --short',
@@ -591,6 +625,10 @@ describe('app smoke, split', () => {
       'http://127.0.0.1:5173/',
       `http://127.0.0.1:5173${SPA_ROUTE}`,
       'http://127.0.0.1:5173/api/nope',
+      `http://127.0.0.1:5173${ASSET}`,
+      `http://127.0.0.1:5173${DOTFILE_PATH}`,
+      `http://127.0.0.1:5173${TRAVERSAL_PATH}`,
+      'http://127.0.0.1:5173/assets/',
     ])
     expect(asked).toEqual(['docker compose --profile app exec -T frontend id -u'])
     expect(verbs(calls)).toEqual(['up --build --wait', 'down -v'])
@@ -643,6 +681,143 @@ describe('app smoke, split', () => {
     const { calls, result } = smoke(build(true), E2E, site(5173).probe, fakeCapture().capture)
     await result
     expect(againstApp(calls).map((x) => x.vars?.E2E_BASE_URL)).toEqual(['http://127.0.0.1:5173'])
+  })
+})
+
+// A fake site that lacks one security behaviour fails the case naming the check, in both modes.
+const omit = (headers: Record<string, string>, name: string) =>
+  Object.fromEntries(Object.entries(headers).filter(([key]) => key !== name))
+const page = (headers: Record<string, string>): ProbeResult => ({
+  status: 200,
+  body: INDEX,
+  contentType: 'text/html',
+  headers,
+})
+const FAKE_SITES: Array<[string, (base: string) => Record<string, Reply>, RegExp]> = [
+  [
+    'no CSP on index.html',
+    (b) => ({ [`${b}/`]: page(omit(PAGE_HEADERS, 'content-security-policy')) }),
+    /GET [/] .*Content-Security-Policy/,
+  ],
+  [
+    'a CSP without default-src on index.html',
+    (b) => ({ [`${b}/`]: page({ ...PAGE_HEADERS, 'content-security-policy': 'img-src *' }) }),
+    /GET [/] .*default-src/,
+  ],
+  [
+    'no nosniff on index.html',
+    (b) => ({ [`${b}/`]: page(omit(PAGE_HEADERS, 'x-content-type-options')) }),
+    /GET [/] .*nosniff/,
+  ],
+  [
+    'no X-Frame-Options on index.html',
+    (b) => ({ [`${b}/`]: page(omit(PAGE_HEADERS, 'x-frame-options')) }),
+    /GET [/] .*x-frame-options/,
+  ],
+  [
+    'no HSTS on index.html',
+    (b) => ({ [`${b}/`]: page(omit(PAGE_HEADERS, 'strict-transport-security')) }),
+    /GET [/] .*strict-transport-security/,
+  ],
+  [
+    'no Referrer-Policy on index.html',
+    (b) => ({ [`${b}/`]: page(omit(PAGE_HEADERS, 'referrer-policy')) }),
+    /GET [/] .*referrer-policy/,
+  ],
+  [
+    'a cacheable index.html',
+    (b) => ({ [`${b}/`]: page({ ...PAGE_HEADERS, 'cache-control': 'public, max-age=3600' }) }),
+    /GET [/] .*no-cache/,
+  ],
+  [
+    'no CSP on a deep link',
+    (b) => ({ [`${b}${SPA_ROUTE}`]: page(omit(PAGE_HEADERS, 'content-security-policy')) }),
+    /deep link .*Content-Security-Policy/,
+  ],
+  [
+    'no CSP on an asset',
+    (b) => ({
+      [`${b}${ASSET}`]: {
+        status: 200,
+        body: 'x',
+        headers: omit(ASSET_HEADERS, 'content-security-policy'),
+      },
+    }),
+    /hashed asset .*Content-Security-Policy/,
+  ],
+  [
+    'a mutable asset',
+    (b) => ({
+      [`${b}${ASSET}`]: {
+        status: 200,
+        body: 'x',
+        headers: { ...GOOD_HEADERS, 'cache-control': 'no-cache' },
+      },
+    }),
+    /hashed asset .*immutable/,
+  ],
+  [
+    'a served dotfile',
+    (b) => ({ [`${b}${DOTFILE_PATH}`]: page(PAGE_HEADERS) }),
+    /dotfile .*status 200/,
+  ],
+  [
+    'a traversal answered with the shell',
+    (b) => ({ [`${b}${TRAVERSAL_PATH}`]: page(PAGE_HEADERS) }),
+    /traversal .*status 200/,
+  ],
+  [
+    'a listed assets directory',
+    (b) => ({
+      [`${b}/assets/`]: { status: 200, body: '<pre>index.js</pre>', contentType: 'text/html' },
+    }),
+    /assets directory .*status 200/,
+  ],
+  [
+    'an assets directory answered with the shell',
+    (b) => ({ [`${b}/assets/`]: { status: 404, body: INDEX } }),
+    /assets directory .*SPA shell/,
+  ],
+]
+describe('app smoke, the edge security behaviour', () => {
+  test.each(FAKE_SITES)(
+    'single: %s fails the case naming the check',
+    async (_name, overrides, message) => {
+      const base = 'http://127.0.0.1:4000'
+      const { calls, result } = smoke(
+        stackCatalog({ frontend: 'mini-spa' }),
+        APP,
+        site(4000, overrides(base)).probe,
+        fakeCapture().capture,
+      )
+      await expect(result).rejects.toThrow(message)
+      expect(verbs(calls).at(-1)).toBe('down -v')
+    },
+  )
+  test.each(FAKE_SITES)(
+    'split: %s fails the case naming the check',
+    async (_name, overrides, message) => {
+      const base = 'http://127.0.0.1:5173'
+      const { calls, result } = smoke(
+        stackCatalog({ frontend: 'mini-spa', deploy: 'split' }),
+        APP,
+        site(5173, overrides(base)).probe,
+        fakeCapture().capture,
+      )
+      await expect(result).rejects.toThrow(message)
+      expect(verbs(calls).at(-1)).toBe('down -v')
+    },
+  )
+  test('a probe that reports no headers fails the headers check', async () => {
+    const bare: ProbeResult = { status: 200, body: INDEX, contentType: 'text/html' }
+    const probe = site(5173, { 'http://127.0.0.1:5173/': bare }).probe
+    const built = stackCatalog({ frontend: 'mini-spa', deploy: 'split' })
+    await expect(smoke(built, APP, probe, fakeCapture().capture).result).rejects.toThrow(
+      /Content-Security-Policy/,
+    )
+  })
+  test('the traversal probe survives URL normalisation', () => {
+    expect(new URL(`http://h${TRAVERSAL_PATH}`).pathname).toBe(TRAVERSAL_PATH)
   })
 })
 

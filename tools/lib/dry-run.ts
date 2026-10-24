@@ -3,7 +3,8 @@ import path from 'node:path'
 import type { LoadedOverlay, LoadedTemplate } from './catalog'
 import { listFiles } from './files'
 import { applyMarkers, commentSyntaxFor, findLeftoverMarker, MarkerError } from './markers'
-import { isTextFile } from './placeholders'
+import { GENERATED_PLACEHOLDERS, isTextFile } from './placeholders'
+import { UNPROCESSED_HINT, findUnprocessed } from './unprocessed'
 import { SERVER_SELECTION, SINGLE_SELECTION, selectionsFor } from './plan'
 
 // Every choice of providers: for each declared kind, none or one listed provider.
@@ -24,7 +25,7 @@ function relative(from: string, file: string): string {
 
 // What a generation with these overlays would apply markers to: compose.yaml, each overlay's
 // files, and the base files no overlay replaces (same relative path).
-function filesFor(template: LoadedTemplate, overlays: LoadedOverlay[]): string[] {
+function candidateFiles(template: LoadedTemplate, overlays: LoadedOverlay[]): string[] {
   const base = path.join(template.dir, 'base')
   const replaced = new Set(
     overlays.flatMap((overlay) =>
@@ -33,9 +34,28 @@ function filesFor(template: LoadedTemplate, overlays: LoadedOverlay[]): string[]
   )
   const kept = listFiles(base).filter((file) => !replaced.has(relative(base, file)))
   const added = overlays.flatMap((overlay) => listFiles(overlay.overlayDir))
-  return [...kept, ...added, path.join(template.dir, 'compose.yaml')]
-    .filter((file) => isTextFile(file) && commentSyntaxFor(file) !== undefined)
-    .filter((file) => existsSync(file)) // compose.yaml is optional
+  return [...kept, ...added, path.join(template.dir, 'compose.yaml')].filter(
+    (file) => existsSync(file), // compose.yaml is optional
+  )
+}
+
+function filesFor(template: LoadedTemplate, overlays: LoadedOverlay[]): string[] {
+  return candidateFiles(template, overlays).filter(
+    (file) => isTextFile(file) && commentSyntaxFor(file) !== undefined,
+  )
+}
+
+// Files of a type the generator does not process must not hold a marker or a placeholder.
+function unprocessedProblems(template: LoadedTemplate): string[] {
+  const overlays = [...template.overlays.values()]
+  const declared = [...new Set([...template.manifest.placeholders, ...GENERATED_PLACEHOLDERS])]
+  const files = new Set(candidateFiles(template, overlays))
+  return [...files].flatMap((file) => {
+    const found = findUnprocessed(file, declared)
+    return found === null
+      ? []
+      : [`${relative(template.dir, file)}: holds ${found}, but ${UNPROCESSED_HINT}`]
+  })
 }
 
 export function dryRunMarkers(template: LoadedTemplate): string[] {
@@ -56,7 +76,7 @@ export function dryRunMarkers(template: LoadedTemplate): string[] {
     return content
   }
 
-  const problems = new Set<string>()
+  const problems = new Set<string>(unprocessedProblems(template))
   for (const capabilities of capabilityCombinations(template)) {
     const overlays = Object.entries(capabilities).flatMap(([kind, provider]) => {
       const overlay = template.overlays.get(`${kind}/${provider}`)

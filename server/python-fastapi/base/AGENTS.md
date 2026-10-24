@@ -887,7 +887,7 @@ the `Dockerfile` and the Compose fragment differ, through the lines named below,
 
   | Request | Response |
   | --- | --- |
-  | GET or HEAD of an existing file | The file. `assets/*` gets `Cache-Control: public, max-age=31536000, immutable`; `index.html` gets `no-cache`. |
+  | GET or HEAD of an existing file | The file. `assets/*` gets `Cache-Control: public, max-age=31536000, immutable`; every other file, `index.html` included, gets `no-cache`. |
   | GET or HEAD of an extension-less path outside `/api` | `index.html`, `no-cache`. |
   | A path with an extension and no file | The 404 envelope. |
   | `/api` or `/api/*` with no route, in any letter case or encoding | The 404 envelope, never the shell. |
@@ -910,6 +910,12 @@ the `Dockerfile` and the Compose fragment differ, through the lines named below,
   `8000:8000` on every interface: the server is the public edge. `TRUST_PROXY` defaults
   to `false`, so no caller can choose its own client IP through `X-Forwarded-For`. This needs
   Docker Compose 2.35.0 or later; an older client fails with a message that does not name the cause.
+  The `spa` context exists only in Compose, so a plain `docker build` of this package fails in
+  `single` ("pull access denied for spa"). Build it with `docker compose --profile app build`; a
+  builder that cannot use Compose passes the context itself: `docker buildx build --target dist
+  --output type=local,dest=<dir> <frontend dir>`, then `docker buildx build --build-context
+  spa=<dir> <server dir>`. Or switch to `split`. Do not delete the `single` lines to make a plain
+  build pass: the image would serve no SPA.
 - **`split`.** The `Dockerfile` has no SPA lines and `STATIC_DIR` is unset. The Compose service has
   `build: ./<dir>` and publishes `127.0.0.1:8000:8000`, loopback only: the frontend container
   reaches the server on the Compose network and nothing else on the host network can.

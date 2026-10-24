@@ -134,11 +134,11 @@ describe('static: existing file', () => {
     expectCommonHeaders(res)
   })
 
-  it('serves a root file outside assets without the immutable header', async () => {
+  it('serves a root file outside assets with no-cache, like the shell', async () => {
     const res = await raw(server, 'GET', '/favicon.svg')
 
     expect(res.status).toBe(200)
-    expect(res.headers['cache-control']).not.toContain('immutable')
+    expect(res.headers['cache-control']).toBe('no-cache')
     expectCommonHeaders(res)
   })
 

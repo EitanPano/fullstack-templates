@@ -66,8 +66,9 @@ export function staticFiles(dir: string): RequestHandler {
     fallthrough: true,
     setHeaders: (res, path) => {
       const name = relative(root, path).split(sep).join('/')
-      if (name === 'index.html') res.setHeader('Cache-Control', SHELL_CACHE)
-      else if (name.startsWith('assets/')) res.setHeader('Cache-Control', ASSETS_CACHE)
+      // Only hashed build output is cached; any other file (favicon, robots.txt) revalidates,
+      // as in the nginx edge, where send's default `public, max-age=0` would differ.
+      res.setHeader('Cache-Control', name.startsWith('assets/') ? ASSETS_CACHE : SHELL_CACHE)
     },
   })
 
