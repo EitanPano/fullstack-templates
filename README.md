@@ -64,11 +64,13 @@ stack; production does not refuse its credentials if you export them.
 | `bun-express` | server | 2.2.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
 | `python-fastapi` | server | 1.0.0 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
 | `next` | frontend | 1.1.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
+| `react` | frontend | 1.0.0 | — | — | Vite and React 19 single-page app with React Router data mode and a typed client generated from the server's contract |
 
 | Stack | Packages | Summary |
 | --- | --- | --- |
 | `next-bun-express` | `server/bun-express`, `frontend/next` | Next.js 16 in front of Express 5 on Bun |
 | `next-python-fastapi` | `server/python-fastapi`, `frontend/next` | Next.js 16 in front of FastAPI on Python 3.14 |
+| `react-python-fastapi` | `server/python-fastapi`, `frontend/react` | React 19 (Vite) in front of FastAPI on Python 3.14 |
 <!-- matrix:end -->
 
 ## How a template is built

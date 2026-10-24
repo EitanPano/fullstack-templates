@@ -1,0 +1,4 @@
+build: ./__PACKAGE_DIR__
+ports: ["__PORT__:__PORT__"]
+depends_on: [__SERVER_DIR__] # @server
+profiles: ["app"]

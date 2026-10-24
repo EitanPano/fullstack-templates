@@ -1,0 +1,5 @@
+schemaVersion: 1
+cases:
+  - name: default
+    stack: react-python-fastapi
+  - name: alone
