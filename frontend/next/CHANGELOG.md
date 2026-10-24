@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1 — unreleased
+
+- Fix: the import zones in `eslint.config.mjs` are enforced. The last `no-restricted-imports` block (`src/**`) replaced the zone rules of the earlier blocks, so a cross-feature `ui/` import, `ui/` or `model.ts` importing `app/`, and `shared/` or `lib/` importing `feature/` or `app/` passed lint. The zones are now disjoint and each lists every restriction that applies to it.
+- `tests/unit/eslint-zones.test.ts` lints one snippet per zone through the real config and fails if a zone stops being enforced.
+
 ## 1.1.0 — 2026-10-23
 
 - The e2e API web server's command comes from the server package in the stack
