@@ -2,7 +2,7 @@ schemaVersion: 1
 id: bun-express
 kind: server
 name: Express 5 on Bun
-version: 2.2.0
+version: 2.3.0
 summary: "Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus"
 runtime: { language: typescript, platform: bun, minVersion: '1.4' }
 tools:

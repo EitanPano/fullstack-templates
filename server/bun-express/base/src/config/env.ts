@@ -1,3 +1,6 @@
+import { statSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+
 import { z } from 'zod'
 
 // The only file that reads process.env. Parsed once at startup; a missing or malformed
@@ -78,6 +81,12 @@ const schema = z
               .map((origin) => origin.trim())
               .filter((origin) => origin !== ''),
       ),
+    // The built SPA to serve, resolved once to an absolute path; blank is unset and serves none.
+    STATIC_DIR: z
+      .string()
+      .trim()
+      .optional()
+      .transform((value) => (value === undefined || value === '' ? undefined : resolve(value))),
     JWT_ACCESS_SECRET: secret, // @auth
     JWT_REFRESH_SECRET: secret, // @auth
     OTP_SECRET: secret, // @auth
@@ -129,6 +138,14 @@ function placeholderProblems(source: Record<string, string | undefined>): string
   return problems
 }
 
+function isFile(path: string): boolean {
+  try {
+    return statSync(path).isFile()
+  } catch {
+    return false
+  }
+}
+
 export function loadEnv(source: Record<string, string | undefined> = process.env): {
   env: Env
   defaultedSecrets: string[]
@@ -160,6 +177,10 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
       .map((issue) => `${issue.path.map(String).join('.')}: ${issue.message}`)
       .join('; ')
     throw new Error(`invalid environment: ${issues}`)
+  }
+  const staticDir = result.data.STATIC_DIR
+  if (production && staticDir !== undefined && !isFile(join(staticDir, 'index.html'))) {
+    throw new Error(`invalid environment: STATIC_DIR: ${staticDir} has no index.html`)
   }
   return { env: result.data, defaultedSecrets }
 }

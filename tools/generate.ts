@@ -7,8 +7,8 @@ import { PlanError, resolveRequest, type Answers } from './lib/plan'
 
 const USAGE =
   'usage: bun tools/generate.ts (--stack <id> | --template <kind/id> [--dir <name>]) --out <dir> --name <name> ' +
-  '[--flag k=v] [--capability k=v] [--answers <json-file>] [--catalog <root>] ' +
-  '[--catalog-version <tag>] [--skip-post-generate] [--keep-staging]'
+  '[--flag k=v] [--capability k=v] [--deploy single|split] [--answers <json-file>] ' +
+  '[--catalog <root>] [--catalog-version <tag>] [--skip-post-generate] [--keep-staging]'
 
 function readAnswers(file: string): Answers {
   let parsed: unknown
@@ -25,7 +25,17 @@ function readAnswers(file: string): Answers {
 
 function run(argv: string[]): void {
   const args = parseArgs(argv, {
-    values: ['stack', 'template', 'dir', 'out', 'name', 'answers', 'catalog', 'catalog-version'],
+    values: [
+      'stack',
+      'template',
+      'dir',
+      'out',
+      'name',
+      'answers',
+      'deploy',
+      'catalog',
+      'catalog-version',
+    ],
     repeatable: ['flag', 'capability'],
     booleans: ['skip-post-generate', 'keep-staging'],
   })
@@ -36,6 +46,7 @@ function run(argv: string[]): void {
     template,
     dir,
     answers,
+    deploy,
     catalog,
     'catalog-version': version,
   } = args.values
@@ -53,6 +64,7 @@ function run(argv: string[]): void {
     flags: args.lists.flag as string[],
     capabilities: args.lists.capability as string[],
     answers: answers ? readAnswers(answers) : undefined,
+    deploy,
     catalogVersion: version,
     skipPostGenerate: args.booleans['skip-post-generate'] as boolean,
   })

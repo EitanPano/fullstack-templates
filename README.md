@@ -27,6 +27,17 @@ cd ../my-app/backend && uv run poe check
 cd ../frontend && bun run check
 ```
 
+A React single-page app (Vite, React Router) instead of Next.js, in front of either server:
+
+```sh
+bun tools/generate.ts --stack react-python-fastapi --out ../my-app --name my-app
+cd ../my-app/backend && uv run poe check
+cd ../frontend && bun run check
+```
+
+`react-bun-express` is the same frontend over Express on Bun. The Next.js stacks are
+`next-bun-express` and `next-python-fastapi`.
+
 The generator copies each package's base, applies the flags, assembles the root
 `docker-compose.yml`, installs dependencies, generates the contract and the client types,
 and writes `.fullstack/catalog.yaml` recording what was generated and which commands to run.
@@ -56,19 +67,32 @@ production secrets and `DATABASE_URL` exported, as the app needs; `bun run db:mi
 `uv run poe migrate`) stays for local development. The bundled `database` service is the local
 stack; production does not refuse its credentials if you export them.
 
+## Deploy modes
+
+A project with a server and a frontend ships in one of two modes, chosen with
+`--deploy single|split` and recorded in `.fullstack/catalog.yaml`. `single` puts the server and a
+single-page app's built files in one image on one port, with no CORS; it is the default for a
+React stack and needs Docker Compose 2.35.0 or later. `split` gives each package its own image and
+puts the frontend in front. Next.js stacks are always `split`. See
+[docs/conventions.md › Deploy modes](docs/conventions.md) and
+[ADR 0003](docs/adr/0003-spa-and-deploy-modes.md).
+
 ## Templates
 
 <!-- matrix:start -->
 | Template | Kind | Version | Flags | Capabilities | Summary |
 | --- | --- | --- | --- | --- | --- |
-| `bun-express` | server | 2.2.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
-| `python-fastapi` | server | 1.0.0 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
-| `next` | frontend | 1.1.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
+| `bun-express` | server | 2.3.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
+| `python-fastapi` | server | 1.1.0 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
+| `next` | frontend | 1.1.1 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
+| `react` | frontend | 1.0.0 | — | — | Vite and React 19 single-page app with React Router data mode and a typed client generated from the server's contract |
 
 | Stack | Packages | Summary |
 | --- | --- | --- |
 | `next-bun-express` | `server/bun-express`, `frontend/next` | Next.js 16 in front of Express 5 on Bun |
 | `next-python-fastapi` | `server/python-fastapi`, `frontend/next` | Next.js 16 in front of FastAPI on Python 3.14 |
+| `react-bun-express` | `server/bun-express`, `frontend/react` | React 19 (Vite) in front of Express 5 on Bun |
+| `react-python-fastapi` | `server/python-fastapi`, `frontend/react` | React 19 (Vite) in front of FastAPI on Python 3.14 |
 <!-- matrix:end -->
 
 ## How a template is built
@@ -91,7 +115,8 @@ Each template lives in `<kind>/<id>/` and is described by a `template.yaml` mani
 (database, cache, messaging) are provider overlays: a template's `capabilities/<kind>/<provider>/`
 holds the files copied over the base and the scripts and commands they add, and the provider's
 Compose service and env contract in `shared/providers/` are wired into the project root.
-`bun-express` and `python-fastapi` ship `database/postgres`. See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/capabilities.md](docs/capabilities.md).
+`bun-express` and `python-fastapi` ship `database/postgres`. A frontend that declares a `static`
+build output (`react`) can be served by a server's image; `next` cannot. See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/capabilities.md](docs/capabilities.md).
 
 ## Architecture contract
 
@@ -113,8 +138,13 @@ template finds the same shape.
   dependency adapter, tree hygiene and a tools preflight. Compose gets a derived one-shot migrate
   service, the base files an overlay shadows are pinned, and CI installs uv and smoke-tests the
   built images in Compose. `bun-express` is 2.2.0 and `frontend/next` 1.1.0.
-- Next: `frontend/react` ([ADR 0001](docs/adr/0001-catalog-architecture.md)), then mongodb,
-  redis, and a worker with rabbitmq.
+- v1.2.0: `frontend/react` 1.0.0 (Vite, React 19 and React Router 8 in data mode), the
+  `react-bun-express` and `react-python-fastapi` stacks, and the `single` and `split` deploy modes
+  ([ADR 0003](docs/adr/0003-spa-and-deploy-modes.md)). Both servers serve a built single-page app
+  behind `STATIC_DIR` (`bun-express` 2.3.0, `python-fastapi` 1.1.0), `generate` gains `--deploy`,
+  the app smoke runs per mode with the e2e suite against the container, and `frontend/next` 1.1.1
+  enforces its ESLint import zones.
+- Next: mongodb, redis, and a worker with rabbitmq.
 
 The design is in [ADR 0001](docs/adr/0001-catalog-architecture.md).
 

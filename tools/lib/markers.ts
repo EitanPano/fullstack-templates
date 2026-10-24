@@ -19,12 +19,12 @@ const DASH: CommentSyntax = ['--', '']
 
 const BY_EXTENSION: Readonly<Record<string, CommentSyntax>> = {
   ...Object.fromEntries(
-    '.ts .tsx .mts .cts .js .mjs .cjs .cs .java .php .go .rs .kt .swift'
+    '.ts .tsx .mts .cts .js .mjs .cjs .cs .java .php .go .rs .kt .swift .scss'
       .split(' ')
       .map((ext) => [ext, SLASH]),
   ),
   ...Object.fromEntries(
-    '.yml .yaml .toml .py .rb .sh .example .gitignore .dockerignore .editorconfig .properties'
+    '.yml .yaml .toml .py .rb .sh .conf .example .gitignore .dockerignore .editorconfig .properties'
       .split(' ')
       .map((ext) => [ext, HASH]),
   ),
@@ -39,6 +39,11 @@ const BY_BASENAME: Readonly<Record<string, CommentSyntax>> = Object.fromEntries(
     HASH,
   ]),
 )
+
+// The one list of file types the generator processes; placeholders.ts derives its text types from
+// these, so a type with a comment syntax can never be skipped.
+export const COMMENT_EXTENSIONS: readonly string[] = Object.keys(BY_EXTENSION)
+export const COMMENT_BASENAMES: readonly string[] = Object.keys(BY_BASENAME)
 
 export function commentSyntaxFor(filePath: string): CommentSyntax | undefined {
   return BY_BASENAME[path.basename(filePath)] ?? BY_EXTENSION[path.extname(filePath)]

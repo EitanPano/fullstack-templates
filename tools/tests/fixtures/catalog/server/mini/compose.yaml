@@ -1,6 +1,20 @@
+# Single: the build reads the SPA from the frontend's build-only service. Split: its own build.
+# @single-start
+build:
+  context: ./__PACKAGE_DIR__
+  additional_contexts:
+    spa: service:__FRONTEND_DIR__
+# @single-end
+# @nosingle-start
 build: ./__PACKAGE_DIR__
+# @nosingle-end
 # keep this comment
 environment:
   PORT: '__PORT__'
   SECRET: ${SECRET} # @auth
+  TRUST_PROXY: ${TRUST_PROXY:-false} # @single
+  TRUST_PROXY: ${TRUST_PROXY:-1} # @nosingle
+# Single: the server is the public edge. Split: loopback only, behind the frontend's proxy.
+ports: ['__PORT__:__PORT__'] # @single
+ports: ['127.0.0.1:__PORT__:__PORT__'] # @nosingle
 profiles: [app]

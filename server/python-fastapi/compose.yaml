@@ -1,4 +1,14 @@
+# @single-start
+# Single: the image also holds the SPA, copied from the frontend's build-only service (the
+# Dockerfile's `spa` context; Compose 2.35.0 or later).
+build:
+  context: ./__PACKAGE_DIR__
+  additional_contexts:
+    spa: service:__FRONTEND_DIR__
+# @single-end
+# @nosingle-start
 build: ./__PACKAGE_DIR__
+# @nosingle-end
 environment:
   APP_ENV: production
   PORT: "__PORT__"
@@ -11,9 +21,18 @@ environment:
   OTP_SECRET: ${OTP_SECRET}
   # @auth-end
   ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-  # One reverse proxy in front (the Next.js server counts); IP-keyed rate limits depend on it.
+  # @single-start
+  # Single: the server is the edge, so no proxy hop is trusted; IP-keyed rate limits use the socket
+  # address. Behind a production edge set the hop count (a PaaS edge is usually 1).
+  TRUST_PROXY: ${TRUST_PROXY:-false}
+  # @single-end
+  # @nosingle-start
+  # Split: the frontend container (the Next.js server, or the SPA's nginx) is the one proxy hop;
+  # IP-keyed rate limits depend on it.
   TRUST_PROXY: ${TRUST_PROXY:-1}
-  # Comma-separated browser origins; empty keeps CORS off (the Next.js server is the client).
+  # @nosingle-end
+  # Comma-separated browser origins allowed by CORS. Empty keeps it off, which is right while no
+  # browser calls the API from another origin.
   CORS_ORIGINS: ${CORS_ORIGINS:-}
   # Scheduled jobs run on exactly one replica. The template itself runs as one instance
   # @nodatabase-start
@@ -24,8 +43,15 @@ environment:
   # until the cache task (the cache, rate limits and the bus live in one process).
   # @database:postgres-end
   JOBS_ENABLED: ${JOBS_ENABLED:-true}
-# Loopback only: the frontend container reaches the backend on the compose network.
+# @single-start
+# Single: the server is the public edge, so it publishes on every interface. With TRUST_PROXY
+# false no caller can choose its own client IP through X-Forwarded-For.
+ports: ["__PORT__:__PORT__"]
+# @single-end
+# @nosingle-start
+# Split: loopback only, the frontend container reaches the backend on the compose network.
 # Publishing the port on every interface with TRUST_PROXY=1 would let any direct caller
 # choose its own client IP through X-Forwarded-For.
 ports: ["127.0.0.1:__PORT__:__PORT__"]
+# @nosingle-end
 profiles: ["app"]

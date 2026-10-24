@@ -125,6 +125,32 @@ describe('generate', () => {
     expect(existsSync(path.join(out, 'backend'))).toBe(false)
   })
 
+  test('a file of an unlisted type holding a marker or a placeholder fails generation', () => {
+    for (const [name, content, found] of [
+      ['extra.zzz', 'x // @auth\n', 'marker'],
+      ['extra.zzz', 'x __PROJECT_NAME__\n', 'placeholder __PROJECT_NAME__'],
+    ] as const) {
+      const root = copyFixture('catalog')
+      writeFileSync(path.join(root, 'server/mini/base/src', name), content)
+      const out = tempDir()
+      const marked = loadCatalog(root)
+      expect(() => generate(marked, resolveRequest(marked, request(out)))).toThrow(
+        new RegExp(`extra[.]zzz: holds ${found}`),
+      )
+      expect(existsSync(path.join(out, 'backend'))).toBe(false)
+    }
+  })
+
+  test('an unlisted binary file is copied untouched', () => {
+    const root = copyFixture('catalog')
+    const bytes = Buffer.concat([Buffer.from([0, 1, 2]), Buffer.from('// @auth __PROJECT_NAME__')])
+    writeFileSync(path.join(root, 'server/mini/base/src/blob.zzz'), bytes)
+    const out = tempDir()
+    const marked = loadCatalog(root)
+    generate(marked, resolveRequest(marked, request(out)))
+    expect(readFileSync(path.join(out, 'backend/src/blob.zzz'))).toEqual(bytes)
+  })
+
   test('a lone frontend skips the contract step and still generates', () => {
     const out = tempDir()
     const lines: string[] = []
@@ -854,5 +880,143 @@ describe('generate with a capability that declares container.migrate', () => {
     expect(lines).toContain(
       'docker-compose.yml has service backend but not backend-migrate; backend-migrate was not added because backend is kept as it is and would not wait for it',
     )
+  })
+})
+
+describe('generate: the deploy modes', () => {
+  const readOut = (out: string, ...parts: string[]) =>
+    readFileSync(path.join(out, ...parts), 'utf8')
+  const spa = (out: string, extra = {}) =>
+    resolveRequest(catalog, request(out, { stack: 'mini-spa', ...extra }))
+  const composeAt = (out: string) => parse(readOut(out, 'docker-compose.yml'))
+
+  test('single: the frontend is build-only and the server reads it as a context', () => {
+    const out = tempDir()
+    generate(catalog, spa(out))
+    const { services } = composeAt(out)
+    expect(services.frontend).toEqual({
+      build: { context: './frontend', target: 'dist' },
+      scale: 0,
+    })
+    expect(services.backend.build).toEqual({
+      context: './backend',
+      additional_contexts: { spa: 'service:frontend' },
+    })
+    expect(services.backend.environment.TRUST_PROXY).toBe('${TRUST_PROXY:-false}')
+    expect(services.backend.ports).toEqual(['4000:4000'])
+    expect(readOut(out, 'docker-compose.yml')).not.toContain('__FRONTEND_DIR__')
+  })
+
+  test('split: each package keeps its own image, ports and TRUST_PROXY default', () => {
+    const out = tempDir()
+    generate(catalog, spa(out, { deploy: 'split' }))
+    const { services } = composeAt(out)
+    expect(services.frontend).toEqual({
+      build: './frontend',
+      environment: { API_URL: 'http://backend:4000' },
+      ports: ['5173:5173'],
+      depends_on: ['backend'],
+      profiles: ['app'],
+    })
+    expect(services.backend.build).toBe('./backend')
+    expect(services.backend.environment.TRUST_PROXY).toBe('${TRUST_PROXY:-1}')
+    expect(services.backend.ports).toEqual(['127.0.0.1:4000:4000'])
+  })
+
+  test('@single and @nosingle work in package files, line and block form', () => {
+    const root = copyFixture('catalog')
+    writeFileSync(
+      path.join(root, 'server/mini/base/src/mode.ts'),
+      [
+        'export const a = 1 // @single',
+        'export const b = 2 // @nosingle',
+        '// @single-start',
+        'export const c = 3',
+        '// @single-end',
+        '// @nosingle-start',
+        'export const d = 4',
+        '// @nosingle-end',
+        '',
+      ].join('\n'),
+    )
+    const loaded = loadCatalog(root)
+    const modes = {
+      single: 'export const a = 1\nexport const c = 3\n',
+      split: 'export const b = 2\nexport const d = 4\n',
+    }
+    for (const [deploy, expected] of Object.entries(modes)) {
+      const out = tempDir()
+      generate(loaded, resolveRequest(loaded, request(out, { stack: 'mini-spa', deploy })))
+      expect(readOut(out, 'backend', 'src', 'mode.ts')).toBe(expected)
+    }
+  })
+
+  test('a lone server drops its @single lines, so __FRONTEND_DIR__ never has to resolve', () => {
+    const out = tempDir()
+    generate(
+      catalog,
+      resolveRequest(catalog, request(out, { stack: undefined, template: 'server/mini' })),
+    )
+    const { services } = composeAt(out)
+    expect(services.backend.build).toBe('./backend')
+    expect(readOut(out, 'docker-compose.yml')).not.toContain('__FRONTEND_DIR__')
+  })
+
+  test('__FRONTEND_DIR__ on a kept line with no frontend fails naming the token', () => {
+    const root = copyFixture('catalog')
+    const file = path.join(root, 'server/mini/compose.yaml')
+    writeFileSync(file, `${readFileSync(file, 'utf8')}x-front: __FRONTEND_DIR__\n`)
+    const loaded = loadCatalog(root)
+    const plan = resolveRequest(
+      loaded,
+      request(tempDir(), { stack: undefined, template: 'server/mini' }),
+    )
+    expect(() => generate(loaded, plan)).toThrow('__FRONTEND_DIR__')
+    const withFrontend = resolveRequest(loaded, request(tempDir(), { stack: 'mini-spa' }))
+    expect(() => generate(loaded, withFrontend)).not.toThrow()
+  })
+
+  test('packagePlaceholders resolves FRONTEND_DIR to the frontend package directory', () => {
+    const plan = spa(tempDir())
+    for (const pkg of plan.packages) {
+      expect(packagePlaceholders(plan, pkg).FRONTEND_DIR).toBe('frontend')
+    }
+    const alone = resolveRequest(
+      catalog,
+      request(tempDir(), { stack: undefined, template: 'server/mini' }),
+    )
+    expect(packagePlaceholders(alone, alone.packages[0]!)).not.toHaveProperty('FRONTEND_DIR')
+  })
+
+  test('provenance records the mode, only when the plan has a server and a frontend', () => {
+    const modes: Array<[string, Record<string, unknown>, string | undefined]> = [
+      ['default', {}, 'single'],
+      ['explicit split', { deploy: 'split' }, 'split'],
+      ['no static', { stack: 'mini' }, 'split'],
+      ['lone server', { stack: undefined, template: 'server/mini' }, undefined],
+    ]
+    for (const [, extra, expected] of modes) {
+      const out = tempDir()
+      generate(catalog, resolveRequest(catalog, request(out, { stack: 'mini-spa', ...extra })))
+      const provenance = parse(readOut(out, '.fullstack', 'catalog.yaml'))
+      expect(provenance.deploy).toBe(expected)
+      expect(validateAgainst('provenance', provenance)).toEqual([])
+      if (expected !== undefined)
+        expect(readOut(out, '.fullstack', 'catalog.yaml')).toMatch(
+          new RegExp(`^deploy: ${expected}$`, 'm'),
+        )
+    }
+  })
+
+  test('a rerun that adds one package keeps the mode recorded earlier', () => {
+    const out = tempDir()
+    generate(catalog, spa(out))
+    const kept = path.join(out, 'frontend')
+    removeTree(kept)
+    generate(
+      catalog,
+      resolveRequest(catalog, request(out, { stack: undefined, template: 'frontend/mini-spa' })),
+    )
+    expect(parse(readOut(out, '.fullstack', 'catalog.yaml')).deploy).toBe('single')
   })
 })

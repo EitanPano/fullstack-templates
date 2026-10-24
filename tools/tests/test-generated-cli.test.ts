@@ -24,7 +24,7 @@ describe('test-generated CLI', () => {
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('PASS server/mini/auth-off')
     expect(result.stdout).toContain('PASS frontend/mini-ui/default')
-  })
+  }, 30_000)
   test('rejects an unknown case id as a usage error', () => {
     const result = run(FIXTURE, '--case', 'server/nope/default')
     expect(result.status).toBe(2)
@@ -95,8 +95,8 @@ describe('test-generated CLI', () => {
     expect(result.status).toBe(1)
     expect(result.stdout).toMatch(/FAIL frontend\/mini-ui\/default \(.+\)/)
     expect(result.stdout).toContain('PASS server/mini/default')
-    expect(result.stdout).toContain('6 of 8 cases passed')
-  })
+    expect(result.stdout).toContain('8 of 10 cases passed')
+  }, 30_000)
   test('--list includes the capability cases', () => {
     const ids = JSON.parse(run(FIXTURE, '--list').stdout)
     expect(ids).toContain('server/mini/fake')

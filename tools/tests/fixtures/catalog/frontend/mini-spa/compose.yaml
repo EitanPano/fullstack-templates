@@ -1,0 +1,17 @@
+# Single: a build-only service that the server's build reads as its spa context. Split: the
+# serve target, published on its own port. In single it has no depends_on (the server's build
+# waits for this one) and no environment (nothing runs).
+# @single-start
+build:
+  context: ./__PACKAGE_DIR__
+  target: dist
+scale: 0
+# @single-end
+# @nosingle-start
+build: ./__PACKAGE_DIR__
+environment:
+  API_URL: http://__SERVER_DIR__:__SERVER_PORT__ # @server
+ports: ['__PORT__:__PORT__']
+depends_on: [__SERVER_DIR__] # @server
+profiles: ['app']
+# @nosingle-end

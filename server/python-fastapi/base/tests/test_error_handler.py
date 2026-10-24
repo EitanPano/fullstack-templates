@@ -160,6 +160,25 @@ class TestValidation:
         assert res.status_code == 400
         assert res.json()["error"]["message"] == "invalid body"
 
+    async def test_answers_400_invalid_body_for_json_sent_with_no_content_type(self) -> None:
+        """Row: Non-JSON body on a JSON route. Express ignores a body with no Content-Type and
+        FastAPI would parse it as JSON: a same-site page could post one with the cookies."""
+        async with http_client(probe_app()) as http:
+            res = await http.post("/greet", content=b'{"name": "ada"}')
+
+        assert res.status_code == 400
+        assert res.json()["error"]["message"] == "invalid body"
+
+    async def test_answers_400_invalid_body_for_json_sent_as_text_plain(self) -> None:
+        """Row: Non-JSON body on a JSON route."""
+        async with http_client(probe_app()) as http:
+            res = await http.post(
+                "/greet", content=b'{"name": "ada"}', headers={"content-type": "text/plain"}
+            )
+
+        assert res.status_code == 400
+        assert res.json()["error"]["message"] == "invalid body"
+
     async def test_answers_400_invalid_body_for_a_top_level_scalar(self) -> None:
         """Row: Malformed JSON (Deviations): a scalar is valid JSON but not a body."""
         async with http_client(probe_app()) as http:

@@ -19,6 +19,7 @@ import ipaddress
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Annotated, Final, Literal
 
 from pydantic import (
@@ -68,6 +69,7 @@ _BLANK_IS_UNSET: Final = (
     "CORS_ORIGINS",
     "COOKIE_DOMAIN",  # @auth
     "MAIL_FROM",
+    "STATIC_DIR",
     "TRUST_PROXY",
 )
 # @auth-start
@@ -144,6 +146,10 @@ def _split_origins(value: object) -> object:
     return value
 
 
+def _resolve_dir(value: Path | None) -> Path | None:
+    return None if value is None else value.resolve()
+
+
 def _parse_boolean_text(value: object) -> object:
     if value == "true":
         return True
@@ -169,6 +175,8 @@ class Env(BaseModel):
         TrustProxy, BeforeValidator(_parse_trust_proxy), AfterValidator(_check_trust_proxy)
     ] = False
     cors_origins: Annotated[tuple[str, ...] | None, BeforeValidator(_split_origins)] = None
+    # The built SPA to serve, resolved once to an absolute path; blank is unset and serves none.
+    static_dir: Annotated[Path | None, AfterValidator(_resolve_dir)] = None
     jwt_access_secret: Secret  # @auth
     jwt_refresh_secret: Secret  # @auth
     otp_secret: Secret  # @auth
@@ -242,6 +250,8 @@ def load_env(source: Mapping[str, str]) -> LoadedEnv:
         raise EnvError(
             "invalid environment: MAIL_FROM: is required when MAIL_PROVIDER is not console"
         )
+    if production and parsed.static_dir and not (parsed.static_dir / "index.html").is_file():
+        raise EnvError(f"invalid environment: STATIC_DIR: {parsed.static_dir} has no index.html")
     return LoadedEnv(env=parsed, defaulted_secrets=defaulted)
 
 

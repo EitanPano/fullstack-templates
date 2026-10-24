@@ -71,6 +71,13 @@ describe('applyMarkers', () => {
     expect(applyMarkers(src, sql ?? ts, 'init.sql', on)).toBe('a\nx\ny\n')
     expect(applyMarkers(src, sql ?? ts, 'init.sql', off)).toBe('y\n')
   })
+  test('takes # markers in a .conf file', () => {
+    const conf = commentSyntaxFor('nginx/default.conf')
+    expect(conf).toEqual(['#', ''])
+    const src = 'a # @auth\n# @auth-start\nx\n# @auth-end\ny\n'
+    expect(applyMarkers(src, conf ?? ts, 'default.conf', on)).toBe('a\nx\ny\n')
+    expect(applyMarkers(src, conf ?? ts, 'default.conf', off)).toBe('y\n')
+  })
 })
 
 describe('capability selections', () => {

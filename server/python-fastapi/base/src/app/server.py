@@ -14,6 +14,7 @@ from app.middleware.proxy import ProxyMiddleware, compile_trust
 from app.middleware.request_id import RequestIdMiddleware
 from app.middleware.request_log import RequestLogMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
+from app.middleware.static_files import SpaMount
 from app.openapi import openapi_document
 
 # The app, assembled in one place: middleware, the exception handlers, every module mounted under
@@ -53,7 +54,7 @@ def create_app(lifespan: Lifespan[FastAPI] | None = None, *, config: Env = env) 
     app.add_middleware(ProxyMiddleware, trust=compile_trust(config.trust_proxy))
     # The request id must exist before anything logs or fails.
     app.add_middleware(RequestIdMiddleware)
-    # CORS only when origins are configured; the default API client is the Next.js server.
+    # CORS only when origins are configured; the browser reaches the API on its own origin.
     cors = cors_options_for(config)
     if cors is not None:
         app.add_middleware(CorsMiddleware, options=cors)
@@ -68,6 +69,11 @@ def create_app(lifespan: Lifespan[FastAPI] | None = None, *, config: Env = env) 
     @app.get("/openapi.json", include_in_schema=False)
     async def contract() -> JSONResponse:
         return JSONResponse(openapi_document(app))
+
+    # The built SPA, only when configured: after every API route and the contract, and last in
+    # the router, so an unmatched path reaches it and the exception handlers shape its misses.
+    if config.static_dir is not None:
+        app.router.routes.append(SpaMount(config.static_dir))
 
     return app
 

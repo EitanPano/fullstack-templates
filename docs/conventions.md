@@ -65,6 +65,75 @@ The per-language equivalents (the table every new server template is written aga
 - Gates: typecheck, lint, format, unit tests; e2e with an accessibility scan.
 - Tokens as CSS variables; one toast library, one icon set per template.
 
+**Frontend, single-page app**
+
+The shape every SPA template (React now, Vue and Angular later) satisfies, on top of the
+frontend contract above. The rationale is in [ADR 0003](adr/0003-spa-and-deploy-modes.md).
+
+- `src/app/` is routing only: `routes.tsx` (the route table), a root `layout` and `not-found`,
+  and per route segment a `page`, a `loading` (the hydrate and pending fallback) and an `error`
+  (the route's error boundary). `src/main.tsx` mounts the router and the toaster and nothing
+  else.
+- `src/feature/<name>/` holds `ui/`, `api/` (the route loaders and actions) and `model.ts`.
+  Only `feature/*/api/` imports `lib/api/client`; lint enforces it. A feature never imports
+  another feature's `ui/`.
+- The API is reached at relative `/api/*` on the page's own origin in every deploy mode. The
+  dev server proxies `/api` to the server's port. No API URL is compiled into the bundle and
+  CORS stays off. The client resolves the origin explicitly
+  (`baseUrl: window.location.origin`).
+- `src/env.ts` is the only reader of `import.meta.env` (lint), browser-visible values only,
+  never a secret.
+- `build` writes `dist/`: `index.html` at its root, hashed files under `dist/assets/`. The
+  manifest declares `static: { out: dist }`; a frontend without `static` cannot be served by the
+  server (`single`).
+- E2E: with `E2E_BASE_URL` set, Playwright tests that URL and starts no web server; otherwise it
+  starts the server's dev command and the dev server.
+- The Dockerfile has two targets: `dist` (the built files only, at `/dist`) and the default
+  `serve` (the `split` static server).
+- The agents file has the layer map and the headings `Adding a feature`, `Styling`, `Errors`,
+  `Tests` and `Deployment`. `validate` checks these five headings, in any frontend template and
+  not only an SPA; the layer map is not a checked heading.
+
+**Deploy modes**
+
+How a project with a server and a frontend ships. Chosen at generation with `--deploy`, recorded
+in provenance (`deploy`), and moved later by a planned project change. Rationale and the rejected
+alternatives: ADR 0003 (M5-4 to M5-7).
+
+| | `single` | `split` |
+| --- | --- | --- |
+| Images | one: the server's, holding the API and the SPA's `dist/` | one per package |
+| Public port | the server's | the frontend's (the server's is loopback only) |
+| API reached by the browser | the same origin, the same process | the same origin, through the frontend image's `/api` proxy |
+| `TRUST_PROXY` default | `false` (the server is the edge) | `1` (the frontend's proxy counts) |
+| Frontend Compose service | build-only (`target: dist`, `scale: 0`, no ports): no container | yes, the `serve` target |
+
+- **Defaults and refusals.** `single` is the default when the plan has a server and the frontend
+  declares `static`; otherwise `split`. `--deploy single` with a frontend lacking `static`
+  (Next), or with no server in the plan, fails and names the reason, as does an unknown value.
+  With only a frontend or only a server the option is not written to provenance.
+- **Static serving** is always shipped in a server template and inert unless `STATIC_DIR` is set.
+  Only Dockerfile and Compose lines carry the mode, so the code is identical in both.
+- **Reserved selection `single`.** Marker lines in `base/` and `compose.yaml` use `@single` and
+  `@nosingle` (and the `-start`/`-end` forms). It is true in `single` and never true in a plan
+  without a server. Manifests cannot declare a flag named `single`; `validate` dry-runs it on and
+  off wherever `server` is true.
+- **`__FRONTEND_DIR__`** is a package placeholder: the frontend's directory, used by the server's
+  Compose fragment to reach the SPA's build.
+- **Ports.** A frontend's `http.port` is its dev-server port, and in `split` its container's.
+  In `single` the deployed app and the app smoke use the server's port.
+- **`TRUST_PROXY`.** `false` in `single` and `1` in `split`, as defaults. Production sets the hop
+  count of whatever sits in front; each template's `AGENTS.md › Deployment` says how.
+- **Compose floor.** `single` needs Docker Compose 2.35.0 or later: the server's build reads the
+  SPA's build through `additional_contexts: { spa: "service:<frontend dir>" }`. Older clients fail
+  with a message that does not name the cause. `split` has no such floor.
+- **`docker compose down`** needs `--profile app` (or `COMPOSE_PROFILES=app`) to stop the
+  application services, which carry that profile; without it they keep running.
+- **Provenance** records the mode generated. `.doc/architecture.md › Deployment` in the project
+  is the current mode and wins when they differ.
+- **Not generated:** a static host (CDN) mode, because it needs CORS, cross-site cookies and a
+  CSRF stance. See ADR 0003.
+
 **Worker**
 
 - The server layout without `api/` and `middleware/`: `config/`, `models/`, `services/`,

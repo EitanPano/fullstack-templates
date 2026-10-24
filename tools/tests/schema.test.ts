@@ -214,6 +214,11 @@ describe('validateAgainst negatives', () => {
     ['command', { commands: { check: 'echo $HOME' } }],
     ['postGenerate', { postGenerate: ['dev'] }],
     ['reserved flag', { flags: { server: { summary: 's', default: true } } }],
+    ['reserved flag single', { flags: { single: { summary: 's', default: true } } }],
+    ['static without out', { static: {} }],
+    ['static with an empty out', { static: { out: '' } }],
+    ['static out outside the package', { static: { out: '../dist' } }],
+    ['static with an extra key', { static: { out: 'dist', spa: true } }],
     ['capability kind as a flag', { flags: { database: { summary: 's', default: true } } }],
   ])('rejects an unsafe template manifest value: %s', (_label, patch) => {
     expect(validateAgainst('template', { ...template, ...patch })).not.toEqual([])
@@ -254,6 +259,38 @@ describe('validateAgainst negatives', () => {
       expect(validateAgainst('template', { ...template, agents })).not.toEqual([])
     },
   )
+})
+
+describe('deploy mode fields', () => {
+  test('accepts static on a template manifest', () => {
+    expect(validateAgainst('template', { ...template, static: { out: 'dist' } })).toEqual([])
+  })
+  test.each(['single', 'split'])('accepts a case with deploy %s', (deploy) => {
+    expect(
+      validateAgainst('cases', { schemaVersion: 1, cases: [{ name: 'default', deploy }] }),
+    ).toEqual([])
+  })
+  test('rejects a case with an unknown deploy', () => {
+    expect(
+      validateAgainst('cases', { schemaVersion: 1, cases: [{ name: 'default', deploy: 'both' }] }),
+    ).not.toEqual([])
+  })
+  const provenance = {
+    schemaVersion: 1,
+    catalog: { repository: 'r', version: 'v1.2.0', commit: null },
+    generatedAt: '2026-10-24T10:00:00Z',
+    stack: null,
+    packages: {},
+    providers: {},
+    answers: { projectName: 'demo' },
+  }
+  test.each(['single', 'split'])('accepts provenance with deploy %s, and none', (deploy) => {
+    expect(validateAgainst('provenance', { ...provenance, deploy })).toEqual([])
+    expect(validateAgainst('provenance', provenance)).toEqual([])
+  })
+  test('rejects provenance with an unknown deploy', () => {
+    expect(validateAgainst('provenance', { ...provenance, deploy: 'both' })).not.toEqual([])
+  })
 })
 
 describe('provider and capability manifests', () => {

@@ -23,6 +23,19 @@ describe('dryRunMarkers', () => {
     expect(dryRunMarkers(template)).toContain('base/src/left.ts: leftover marker # @auth')
   })
 
+  test('reports a marker or a placeholder in a file of an unlisted type', () => {
+    const template = setup(
+      {
+        'server/mini/base/src/a.zzz': 'x // @auth\n',
+        'server/mini/base/src/b.zzz': 'x __PROJECT_NAME__\n',
+      },
+      'server/mini',
+    )
+    const problems = dryRunMarkers(template)
+    expect(problems.some((p) => p.startsWith('base/src/a.zzz: holds marker // @auth'))).toBe(true)
+    expect(problems.some((p) => p.includes('b.zzz: holds placeholder __PROJECT_NAME__'))).toBe(true)
+  })
+
   test('finds a problem that only appears when a flag is on', () => {
     const template = setup(
       { 'server/mini/base/src/on.ts': '// @auth-start\nx // @bogus\n// @auth-end\n' },
@@ -54,6 +67,30 @@ describe('dryRunMarkers', () => {
     const template = loadCatalog(root).templates.get('server/mini')
     if (template === undefined) throw new Error('no template')
     expect(dryRunMarkers(template).some((p) => p.startsWith('compose.yaml:'))).toBe(true)
+  })
+})
+
+describe('dryRunMarkers with the reserved single', () => {
+  test('accepts @single and @nosingle, line and block form, in a base file', () => {
+    const content = [
+      'a // @single',
+      'b // @nosingle',
+      '// @single-start',
+      'c',
+      '// @single-end',
+      '// @nosingle-start',
+      'd',
+      '// @nosingle-end',
+      '',
+    ].join('\n')
+    const template = setup({ 'server/mini/base/src/m.ts': content }, 'server/mini')
+    expect(dryRunMarkers(template)).toEqual([])
+  })
+
+  test('a problem only inside a single block is found, once', () => {
+    const content = '// @single-start\nx // @bogus\n// @single-end\n'
+    const template = setup({ 'server/mini/base/src/m.ts': content }, 'server/mini')
+    expect(dryRunMarkers(template).filter((p) => p.includes('m.ts:2'))).toHaveLength(1)
   })
 })
 
