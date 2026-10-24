@@ -9,7 +9,8 @@
   that window in its `tools`). uv installs Python 3.14 itself; the generator checks each
   template's `tools` before it starts.
 - Docker with Compose: provider-backed tests (`--with-services`) and the image smoke
-  (`--with-app`) start containers. Every `check` command runs without Docker.
+  (`--with-app`) start containers. Every `check` command runs without Docker. The `single`
+  deploy mode needs Compose 2.35.0 or later; the app smoke of a `single` case checks it first.
 
 ## Running the tools
 
@@ -25,14 +26,15 @@ Then, from the repository root:
 bun tools/validate.ts [--readme] [--lockfiles]
 bun tools/validate.ts --pin <template>/<kind>/<provider>
 bun tools/generate.ts --stack <id> --out <dir> --name <name> \
-  [--flag k=v] [--capability k=v] [--answers <file>] [--template <kind/id>] \
+  [--flag k=v] [--capability k=v] [--deploy single|split] [--answers <file>] \
+  [--template <kind/id>] \
   [--skip-post-generate] [--keep-staging]
 bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] \
   [--with-services] [--with-app] [--keep]
 ```
 
 - `validate` checks the catalog (manifests, indexes, schemas, markers, placeholders, the
-  pins of every overlay, the headings a server's `AGENTS.md` must have) and dry-runs every
+  pins of every overlay, the headings an `AGENTS.md` must have) and dry-runs every
   flag combination. `--readme` rewrites the generated matrix in `README.md`. `--lockfiles`
   also checks each template's lock in a scratch copy, so a manifest edited without
   refreshing its lock fails: `bun install --frozen-lockfile` for an `npm` template,
@@ -47,11 +49,17 @@ bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] 
   `docker compose up -d --wait`, runs `migrate`, `check`, `testDb` (and e2e), then
   `docker compose down -v`; without it a case with providers runs `check` only.
   `--with-app` runs the app smoke for a case that sets `withApp: true` in its
-  `tests/cases.yaml` (`stack-postgres`, in both server templates), and skips it otherwise.
+  `tests/cases.yaml` (`stack-postgres` in both server templates, and `default`, `split` and `bun`
+  in `frontend/react`), and skips it otherwise. A case's `deploy` field selects the deploy mode it
+  generates and is smoked in.
   It exports throwaway production secrets in the child environment only, runs
   `docker compose --profile app up --build --wait` (which builds the images and runs the
   migrate service), checks the server's `http.health` and `http.ready` on the host, and always
-  ends with `down -v`. CI passes `--with-services --with-app`.
+  ends with `down -v`. For a stack with a static frontend it also checks the SPA shell, a deep
+  link, the JSON 404, and the server's public directory (`single`) or a non-root frontend
+  container (`split`), then, with `--e2e`, runs the frontend's e2e suite against the container
+  with `E2E_BASE_URL`. CI passes `--with-services --with-app`. Run Postgres cases one at a time on
+  one machine: they publish the database on host port 5432.
 
 ## Adding a template
 
@@ -113,6 +121,50 @@ Checklist, under `<kind>/<id>/` (for example `server/bun-express`):
 A manifest `commands` entry is a program plus whitespace-separated arguments, run without a
 shell: no pipes, redirects, quoting, variables or command substitution (the schema rejects
 `& | ; < > ' " $` and backticks). Put anything more elaborate in a script and call that.
+
+### Adding an SPA template
+
+`frontend/react` is the model. The contract is
+[docs/conventions.md › Frontend, single-page app](docs/conventions.md) (ADR 0003, M5-1); the checklist
+below is what `validate` and the cases prove.
+
+- [ ] The contract: `src/app/` is routing only (`routes.tsx`, a root `layout` and `not-found`, and per
+      route segment a `page`, a `loading` and an `error`); `src/main.tsx` mounts the router and the
+      toaster and nothing else; `feature/<name>/{ui,api,model.ts}` with only `feature/*/api/`
+      importing the client; `src/env.ts` the only reader of `import.meta.env`; the API reached at
+      relative `/api` with no compiled-in URL and no CORS; the dev server proxies `/api` to the
+      server's port.
+- [ ] `static: { out: dist }` in `template.yaml`. Without it the server cannot serve the build and
+      `--deploy single` is refused for the template. The app smoke proves that the `dist` target
+      holds an `index.html`.
+- [ ] A `Dockerfile` with two targets: `dist` (`FROM scratch`, the built files at `/dist`) for the
+      server's image to copy in `single`, and `serve`, the last and so the default target, the
+      static server of `split`. The nginx config, its security-header snippet and a
+      `.dockerignore` sit beside it.
+- [ ] A `compose.yaml` fragment per mode, the build-only pattern: the `single` variant is a
+      `@single-start` ... `@single-end` block with `build: { context, target: dist }` and
+      `scale: 0` (no ports, no `depends_on`, no profile); the `split` variant is a
+      `@nosingle-start` ... `@nosingle-end` block with `target: serve`, the ports and the `app`
+      profile, and its `environment` and `depends_on` lines marked `@server` so a lone frontend has
+      none. `single` is a reserved selection, true only with a server in the plan and
+      `--deploy single`; `validate` dry-runs the file with it on and off.
+- [ ] `base/AGENTS.md` has the headings `Adding a feature`, `Styling`, `Errors`, `Tests` and
+      `Deployment`, matched exactly; `validate` checks them in every frontend template. The layer
+      map is required by the contract but is not a checked heading.
+- [ ] `tests/cases.yaml`: `default` (the stack in its default mode), a case with `deploy: split`, a
+      case per other server in the catalog, and `alone` (the frontend generated by itself, which
+      has no server, so its e2e is skipped). Set `withApp: true` on the cases that build images.
+- [ ] A case that needs a capability lives in the server's `tests/cases.yaml`, because a frontend
+      case cannot select one: see `stack-react-postgres` in `server/python-fastapi`.
+- [ ] A `.conf` file (the nginx config) may carry markers, in `#` comments, and placeholders. A
+      marker in a file whose extension `tools/lib/markers.ts` and `tools/lib/placeholders.ts` do
+      not both list is not processed and stays in the output, and `validate` does not report it:
+      add the extension to both lists, with a test, before using a new one.
+- [ ] A stack in `stacks/` per server, an `index.yaml` entry, the README matrix
+      (`bun tools/validate.ts --readme`), and a lint-zones unit test that seeds one violation per
+      zone through ESLint's Node API.
+- [ ] Proof: `bun tools/test-generated.ts --case frontend/<id>/default --e2e --with-app`, and the
+      same for every other case that sets `withApp`.
 
 ## Adding a provider
 
@@ -218,6 +270,8 @@ Markers are written in the file's own comment syntax (`//`, `--` in `.sql`, `#` 
 - Names match `[a-z][a-z0-9-]*(:[a-z0-9-]+)?`; `@database` is true when any provider of the
   capability is selected and `@database:postgres` when that provider is; the `no` prefix
   negates either.
+- `server` (the plan has a server package) and `single` (the plan deploys as one image, which
+  needs a server) are reserved selections; a manifest cannot declare a flag of either name.
 - A name that no flag or capability declares fails validation, as does an unbalanced block
   or a marker left in generated output. `validate` dry-runs the marker pass for every flag
   combination; `test-generated` proves each declared case generates and passes its gates.
@@ -231,7 +285,8 @@ const sessions = null
 
 Placeholders are `__NAME__` tokens substituted in text files. A template declares its own
 in `placeholders` (usually `__PROJECT_NAME__`); the generator also provides
-`__PACKAGE_DIR__`, `__PORT__`, `__SERVER_DIR__`, `__SERVER_PORT__` and `__SERVER_DEV_COMMAND__`. A declared token
+`__PACKAGE_DIR__`, `__PORT__`, `__SERVER_DIR__`, `__SERVER_PORT__`, `__SERVER_DEV_COMMAND__` and
+`__FRONTEND_DIR__` (the frontend's directory, for a server's Compose fragment). A declared token
 left in the output fails the run; undeclared tokens such as `__dirname` are ignored.
 
 ## Refreshing `frontend/next/base`
@@ -252,6 +307,30 @@ When Next is bumped:
 6. Run `next dev` once so Next refreshes its block in `AGENTS.md`.
 7. Bump the template `version` in `template.yaml` and `index.yaml`, and add a CHANGELOG
    entry.
+
+## Refreshing `frontend/react/base`
+
+When a dependency moves or the base is regenerated:
+
+1. Verify every version on the registry; never write one from memory. The set is listed in
+   [ADR 0003 › Versions](docs/adr/0003-spa-and-deploy-modes.md).
+2. Keep the exceptions to "latest" unless the reason is gone:
+   - ESLint 9 and TypeScript 5.9: `eslint-plugin-jsx-a11y` peers ESLint up to 9, and
+     typescript-eslint requires TypeScript below 6.1.0. This matches `next`.
+   - React 19.3.0: the version `next` pins, so one React runs across the frontends.
+   - `react-router` is pinned exactly (8.5.0).
+3. Run `bun install` and commit `bun.lock`; `bun tools/validate.ts --lockfiles` checks it with
+   `--frozen-lockfile`.
+4. Run `bun run api:types` when the server's contract moved, and commit `src/lib/api/schema.d.ts`.
+5. Run `tests/unit/lint-zones.test.ts`. It lints a seeded violation per zone through the real
+   `eslint.config.mjs`, so a new block that overlaps a zone fails it (ESLint flat config replaces a
+   rule's options for a file with those of the last block that matches it, and does not merge them).
+6. Bump `version` in `template.yaml` and `index.yaml`, add a `CHANGELOG.md` entry, and run
+   `bun tools/validate.ts --readme`.
+7. Re-run the react cases with the container smoke:
+   `bun tools/test-generated.ts --case frontend/react/default --e2e --with-app`, then `split` and
+   `bun`, `alone` (no `--with-app`), and
+   `--case server/python-fastapi/stack-react-postgres --with-services --with-app`.
 
 ## Lockfile policy
 

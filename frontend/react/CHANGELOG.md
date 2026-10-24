@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0 — unreleased
+## 1.0.0 — 2026-10-24
 
 - First release: Vite and React 19 single-page app, React Router 8 in data mode, Tailwind 4,
   sonner and lucide-react, a typed client generated from the server's contract (committed

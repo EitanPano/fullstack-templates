@@ -623,6 +623,61 @@ React Router 8's browser targets.
 Accepted by Eitan at gate G1 of plan 010 (2026-10-24), with the `service:` context and its Compose
 2.35.0 floor (M5-6) and the ESLint zone fixes (M5-10). T1 and later build against it.
 
-## As built
+## As built (v1.2.0)
 
-<!-- Filled at T3, with the commit of each difference. -->
+The decisions above held. These are the ways the shipped catalog differs from the accepted text,
+each with its commit. The commits below are on the milestone branch.
+
+Proof: <!-- P1 results -->
+
+Differences from the text above:
+
+- **React Router 8.5.0**, not 7 (the G1 delta, already written into M5-2): `frontend/react` pins
+  `react-router` `8.5.0` exactly (`cc66002`).
+- **python-fastapi needed its own symlink-out guard.** S1 said Starlette's `lookup_path` made one
+  unnecessary. In S2 a name that exists in the tree but resolves outside the root (an
+  extension-less link out of it) was skipped as missing and so served the shell, so the template
+  carries an explicit guard (`_is_link_out`) and a test for it (`87d2320`).
+- **`SpaMount`.** The static mount in python-fastapi is a `Mount` subclass whose `matches` returns
+  `Match.NONE` for `/api` and `/api/*`, instead of a plain `mount("/")`. In this template the router maps
+  404 and 405 to the same envelope, so the plain mount changed nothing observable; the subclass keeps
+  the API's answers from becoming static misses by construction. Both servers have a test that
+  every API answer is the same with `STATIC_DIR` set as without it, and python-fastapi a unit test
+  that `SpaMount` never matches an API path (`87d2320`).
+- **The encoded `/api` skip runs on the once-decoded path in bun-express**, as in python-fastapi, so
+  `/%61pi/x` and `/api%2F…` get the API's 404 envelope and never the shell (`87d2320`). One difference
+  between the servers remains and is pinned by a test in each: `/%61pi/health` is the 404 envelope in
+  bun-express (Express routes on the raw path) and 200 in python-fastapi (Starlette routes on the
+  decoded path). It is framework routing, not the static layer, and neither serves the shell.
+- **nginx traversal refusal** is a `map` on the request path before the `?`, so a query string cannot
+  trigger it, and `/api/` is exempt, so a proxied call whose query holds `..` or `%5c` reaches the
+  server. The M5-7 text names `$request_uri` (`18d4934`).
+- **nginx's own 400 is kept**, as ruled in M5-7. The tests assert 400 or 404 for a path above the root.
+- **A lone frontend's `environment:`** sits under an `@server` marker in `compose.yaml`. Compose rejected
+  the empty key a frontend generated alone would otherwise carry (`18d4934`).
+- **`.conf` joined the marker engine and the text extensions** (`tools/lib/markers.ts`,
+  `tools/lib/placeholders.ts`), with `#` as its comment syntax. A marker in a file whose extension
+  neither list knows is not processed: `# @server` stayed in the generated nginx file until `.conf` was
+  listed (`18d4934`). `validate`'s dry-run skips such files too, so it does not catch an unlisted type;
+  that check was not added.
+- **The react and Postgres case** is `stack-react-postgres` in `server/python-fastapi/tests/cases.yaml`,
+  `deploy: single`, `withApp: true`. A frontend case cannot declare a capability, and the Next
+  Postgres stacks live with the server for the same reason (`18d4934`).
+- **The `single` smoke checks the Compose version first** and fails naming 2.35.0 when the client is
+  older or prints no version; CI logs `docker compose version` (`768cb27`).
+- **E2E runs twice for a static case that sets `withApp`**: once in the dev flow (the dev server and
+  the server's dev command) and once against the container through `E2E_BASE_URL`. M5-8 names only
+  the container run. The redundancy is known and left for a follow-up (`768cb27`).
+- **The ESLint zones of `next`** were fixed in 1.1.1 as ruled at G1 (`f4ec3ed`): five disjoint zones and
+  `tests/unit/eslint-zones.test.ts`. The bun-express audit seeded 132 imports and found 0 mismatches,
+  so bun-express's zones are unchanged in 2.3.0. The audit's seed script is not in the repository.
+  Relative cross-feature `ui/` patterns cover 2 to 4 levels of `../`; `next`'s `AGENTS.md` tells agents
+  to use `@/` for imports across directories (`f4ec3ed`).
+- **The frontend headings check has no layer-map heading.** It checks exactly `Adding a feature`,
+  `Styling`, `Errors`, `Tests` and `Deployment`, as M5-9 says, and `next`'s and `react`'s layer maps remain
+  unheaded text (`985447c`).
+
+Not done:
+
+- A check that flags marker text in a file the engine skips (see `.conf` above).
+- A static-host mode, as decided.
