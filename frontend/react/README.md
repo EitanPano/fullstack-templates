@@ -10,7 +10,10 @@ stack. The shape it follows is ADR 0003 and `docs/conventions.md › Frontend, s
 - `template.yaml`: the manifest (commands, contract, HTTP surface).
 - `base/`: the files copied into the generated package, including `AGENTS.md`, `bun.lock` and
   the committed `src/lib/api/schema.d.ts`.
-- `compose.yaml`: the Compose service body, keyed by the package directory at generation.
+- `base/Dockerfile`, `base/nginx/`: the `dist` and `serve` image targets and the nginx config
+  template and headers snippet of the `split` mode.
+- `compose.yaml`: the Compose service body, keyed by the package directory at generation and
+  written per deploy mode (`single`: build-only, `split`: nginx on its own port).
 - `tests/cases.yaml`: the generated variants the catalog gates.
 - `CHANGELOG.md`: version history.
 

@@ -70,6 +70,7 @@ stack; production does not refuse its credentials if you export them.
 | --- | --- | --- |
 | `next-bun-express` | `server/bun-express`, `frontend/next` | Next.js 16 in front of Express 5 on Bun |
 | `next-python-fastapi` | `server/python-fastapi`, `frontend/next` | Next.js 16 in front of FastAPI on Python 3.14 |
+| `react-bun-express` | `server/bun-express`, `frontend/react` | React 19 (Vite) in front of Express 5 on Bun |
 | `react-python-fastapi` | `server/python-fastapi`, `frontend/react` | React 19 (Vite) in front of FastAPI on Python 3.14 |
 <!-- matrix:end -->
 

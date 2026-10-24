@@ -22,7 +22,8 @@ client rule and the `env.ts` rule; `tests/unit/lint-zones.test.ts` seeds one vio
 Lint flags an import of another feature's `ui/` through the `@/feature/<name>/ui` alias at any
 depth, and through a relative path from 2 to 4 levels up (a deeper path is not caught). Inside a
 feature, import relatively: the alias form is reserved for other directories, and lint flags it
-for a feature's own `ui/` too.
+for a feature's own `ui/` too. Reach `shared/` and `lib/` through `@/` (`@/shared/ui/...`),
+never a relative path: a deep relative path into `shared/ui` also trips the cross-feature `ui/` rule.
 The API is always reached at relative `/api` on the page's own origin (see Deployment), so the
 client takes its base from `window.location.origin` and the bundle carries no API URL.
 Data reaches a page through its route `loader`, and a mutation goes through a route `action`
@@ -104,3 +105,47 @@ or a form; a component never calls `fetch` (a convention, not enforced by lint).
   `/api` to the server (a reverse proxy, or the server serving the files itself).
 - Browser-visible configuration is `VITE_*`, read in `src/env.ts` at build time. Never put a
   secret there.
+- **Two modes**, chosen at generation (`--deploy`).
+  - `single` (default): one container. The server serves `dist/` and `/api` on its own port
+    (published on every interface), so the page is on the server's port and `5173` is dev-only.
+  - `split`: two containers. This package's nginx serves the files on `5173` (published on every
+    interface, the public edge) and proxies `/api/` to the server, which is published on
+    loopback only.
+- **`Dockerfile` targets.** `build` runs a frozen install and `bun run build`. `dist` is
+  `FROM scratch` and holds only the built files at `/dist`: the server's image copies it
+  (`COPY --from=spa /dist ./public`). `serve`, the last and so the default target, is
+  `nginxinc/nginx-unprivileged:1.31.7-alpine` with the files at `/usr/share/nginx/html`; it runs
+  as uid 101, listens on `PORT` (default 5173, above 1024) and has a `wget` healthcheck.
+  `.dockerignore` keeps environment files, tests and source maps out of every image.
+- **nginx files**, in `nginx/`. `default.conf` is the config template (copied to
+  `/etc/nginx/templates/default.conf.template`; the image's entrypoint renders it with
+  `envsubst` over `PORT` and `API_URL`). The `@server` markers around its `/api/` proxy are
+  resolved at generation, so a frontend generated alone has no proxy block. `security-headers.conf` holds the 12 headers of helmet 8.3.0 and is
+  included by each static location. Behaviour: `/assets/*` is `immutable`, `index.html` and
+  other files `no-cache`, an extension-less path is `index.html`, a missing file with an
+  extension, a dotfile and `/assets/` are 404 (never a listing), a path above the root is
+  nginx's own 400, and `/api/` is proxied with `X-Forwarded-For` while the server's own headers
+  pass through untouched. Keep three rules when editing: no `add_header` at server level (a
+  location with its own drops the inherited ones), no dollar sign in a comment (`envsubst`
+  rewrites it), and no environment variable named like an nginx variable (`host`, `uri`).
+- **Compose fragment** (`compose.yaml`), per mode. `single`: `build: { context, target: dist }`
+  with `scale: 0`, so the image is built and no container runs; the server's build reads it as
+  `additional_contexts: spa: service:<dir>`. This needs **Docker Compose 2.35.0 or newer**; an
+  older client fails with "pull access denied" or a missing `service:` context. `split`:
+  `target: serve`, `ports: ["5173:5173"]`, `API_URL` (the server's name and port on the Compose
+  network), `depends_on` the server, and the `app` profile.
+- **Run and stop.** `docker compose --profile app up --build --wait`; stop with
+  `docker compose --profile app down`, because a plain `down` does not see profile services.
+- **`TRUST_PROXY`** is the server's. `single`: `false`, because nothing sits in front of it.
+  `split`: `1`, because nginx is the one hop and sets `X-Forwarded-For`. Raise it by one for
+  every proxy placed in front of the edge.
+- **TLS.** The containers speak HTTP, while the CSP carries `upgrade-insecure-requests` and
+  `Strict-Transport-Security`. For any non-loopback host an edge must terminate TLS. In `split`
+  nginx sends `X-Forwarded-Proto: $scheme`, always `http` at this hop: behind a TLS edge, change
+  that line in the `/api/` location to forward the edge's value (`$http_x_forwarded_proto`), and
+  make the server's `TRUST_PROXY` count the edge as well as nginx.
+- **Body size.** nginx's `client_max_body_size` is its 1 MB default. Both servers cap a body at
+  1 MB too (`express.json({ limit: '1mb' })` in `server.ts`; `MAX_BODY_BYTES` in
+  `config/constants.py`), so an oversize body gets nginx's own 413 page, not the server's
+  envelope. To accept more, raise the server's limit and set `client_max_body_size` in the
+  `/api/` location of `nginx/default.conf` to match.

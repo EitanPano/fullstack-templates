@@ -30,3 +30,6 @@ stacks:
   - id: react-python-fastapi
     path: stacks/react-python-fastapi
     summary: React 19 (Vite) in front of FastAPI on Python 3.14
+  - id: react-bun-express
+    path: stacks/react-bun-express
+    summary: React 19 (Vite) in front of Express 5 on Bun

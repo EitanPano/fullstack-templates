@@ -36,6 +36,7 @@ describe('isTextFile', () => {
   test('by extension and basename', () => {
     expect(isTextFile('a/b.ts')).toBe(true)
     expect(isTextFile('a/Dockerfile')).toBe(true)
+    expect(isTextFile('a/default.conf')).toBe(true)
     expect(isTextFile('a/.env.example')).toBe(true)
     expect(isTextFile('a/logo.png')).toBe(false)
     expect(isTextFile('a/bun.lock')).toBe(true)
