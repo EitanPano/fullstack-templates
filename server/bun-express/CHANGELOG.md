@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.3.0 — unreleased
+
+- Static serving of a built single-page app, shipped in every project and inert unless `STATIC_DIR`
+  is set (blank is unset; in production a directory without `index.html` stops the boot with
+  `invalid environment: STATIC_DIR: <dir> has no index.html`). `src/middleware/static.ts` serves it
+  after the API routes and `/openapi.json`: files from the directory (`assets/*` immutable for a
+  year, `index.html` `no-cache`), `index.html` for any extension-less path outside `/api`, and the
+  404 envelope for a missing file with an extension, another method, a dotfile, an encoded
+  traversal, a symlink out of the directory and a directory (never a listing). `/api` is decided on
+  the once-decoded path, so `/%61pi/x` is not the shell. Every static response carries the security
+  headers and the request id. The behaviour is the same as in the python-fastapi template, one test
+  per row in each.
+- The `Dockerfile` and the Compose fragment gain `single` deploy-mode lines (generated only when the
+  frontend is built into the server's image): the SPA copied from the frontend's `dist` build
+  context into `public/` for the `bun` user, `STATIC_DIR=/app/public`, `TRUST_PROXY` defaulting to
+  `false`, and the port published on every interface. The `split` shape is unchanged; the Compose
+  comments are now per mode and no longer say the Next.js server is the only client.
+- `AGENTS.md › Deployment` states both modes: the image and the lines each carries, `STATIC_DIR`,
+  the behaviour table, ports, `TRUST_PROXY` per mode and in production, the Compose 2.35.0 floor for
+  `single` and `docker compose --profile app down`.
+- `createApp(staticDir?)` is exported from `server.ts` (defaulting to `STATIC_DIR`), so a test
+  builds an app over a fixture directory.
+
 ## 2.2.0 — 2026-10-23
 
 - The development and test database URLs default to `127.0.0.1`, not `localhost`: the Compose service

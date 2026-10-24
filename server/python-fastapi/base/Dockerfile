@@ -15,6 +15,11 @@ FROM python:3.14-slim
 RUN useradd --system --uid 10001 --no-create-home app
 WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
+# @single-start
+# The built SPA from the frontend's `dist` target, served when STATIC_DIR names it.
+COPY --from=spa --chown=app:app /dist ./public
+ENV STATIC_DIR=/app/public
+# @single-end
 ENV PATH="/app/.venv/bin:$PATH" APP_ENV=production PORT=8000 PYTHONUNBUFFERED=1
 USER app
 EXPOSE 8000
