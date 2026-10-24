@@ -1,6 +1,6 @@
 # ADR 0003: SPA frontends and the single and split deploy modes
 
-Status: proposed (2026-10-24, awaiting Eitan's approval at gate G1 of plan 010)
+Status: accepted (2026-10-24, gate G1 of plan 010)
 Owner: Eitan
 Plan: `fullstack-dev-harness/.plan/010-2026-10-24-frontend-react.md` (milestone 5)
 Amends: ADR 0001 (D2, D4, D5, D7, Delivery order) and `docs/conventions.md`
@@ -620,7 +620,8 @@ React Router 8's browser targets.
 
 ## Status of this ADR
 
-Proposed. Eitan approves it at gate G1 of plan 010; T1 and later build against it.
+Accepted by Eitan at gate G1 of plan 010 (2026-10-24), with the `service:` context and its Compose
+2.35.0 floor (M5-6) and the ESLint zone fixes (M5-10). T1 and later build against it.
 
 ## As built
 
