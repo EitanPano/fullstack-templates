@@ -287,7 +287,9 @@ class TestMissesAndApi:
         self, port: int, method: str, target: str
     ) -> None:
         def comparable(res: Reply) -> tuple[int, str | None, str | None, str]:
+            # The request id and the health uptime differ between two apps by design.
             body = re.sub(r'"requestId":\s*"[^"]*"', "", res.body)
+            body = re.sub(r'"uptimeSeconds":\s*\d+', "", body)
             return res.status, res.headers.get("allow"), res.headers.get("content-type"), body
 
         with serving(None) as plain:

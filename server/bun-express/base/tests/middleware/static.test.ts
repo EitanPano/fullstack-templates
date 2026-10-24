@@ -241,6 +241,8 @@ describe('static: misses and API', () => {
   })
 
   it('every API answer is the same with STATIC_DIR set as without it', async () => {
+    const comparable = (body: string) =>
+      body.replace(/"requestId":"[^"]*"/g, '').replace(/"uptimeSeconds":\d+/g, '')
     const without = await listen(createApp())
     try {
       const requests: [string, string][] = [
@@ -262,9 +264,8 @@ describe('static: misses and API', () => {
           b.headers.allow,
           b.headers['content-type'],
         ])
-        expect(a.body.replace(/"requestId":"[^"]*"/g, '')).toBe(
-          b.body.replace(/"requestId":"[^"]*"/g, ''),
-        )
+        // The request id and the health uptime differ between two apps by design.
+        expect(comparable(a.body)).toBe(comparable(b.body))
       }
     } finally {
       without.close()
