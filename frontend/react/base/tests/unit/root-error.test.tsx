@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -30,6 +30,9 @@ describe('root error boundary', () => {
 
     expect(await screen.findByRole('heading', { name: 'Something went wrong' })).toBeInTheDocument()
     expect(document.body).not.toHaveTextContent('internal')
-    expect(log).toHaveBeenCalledWith('app: render failed', cause)
+    // The boundary logs from an effect, which can run after the heading is on screen.
+    await waitFor(() => {
+      expect(log).toHaveBeenCalledWith('app: render failed', cause)
+    })
   })
 })

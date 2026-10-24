@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -44,7 +44,10 @@ describe('home route', () => {
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('The page could not be loaded')
     expect(alert).not.toHaveTextContent('500')
-    expect(error).toHaveBeenCalledWith('home: route failed', expect.any(Error))
+    // The boundary logs and the button toasts from effects, which can run after the render.
+    await waitFor(() => {
+      expect(error).toHaveBeenCalledWith('home: route failed', expect.any(Error))
+    })
   })
 
   it('recovers through Try again once the API is back', async () => {
@@ -73,7 +76,9 @@ describe('home route', () => {
 
     expect(await screen.findByText('API v0.1.0, up 8s')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(toast.success).toHaveBeenCalledWith('Status refreshed')
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith('Status refreshed')
+    })
   })
 
   it('shows the error boundary and no success toast when Refresh finds the API down', async () => {
