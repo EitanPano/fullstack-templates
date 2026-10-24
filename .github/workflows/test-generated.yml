@@ -60,5 +60,9 @@ jobs:
       - name: Install generator dependencies
         working-directory: tools
         run: bun install --frozen-lockfile
+      # The single deploy mode needs Compose 2.35.0 or later (ADR 0003 M5-6); the log shows which
+      # one the runner has when a case fails on it.
+      - name: Log the Compose version
+        run: docker compose version
       - name: Generate and test ${{ matrix.case }}
         run: bun tools/test-generated.ts --case ${{ matrix.case }} --e2e --install-browsers --with-services --with-app

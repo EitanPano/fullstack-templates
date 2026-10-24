@@ -1,4 +1,4 @@
-import type { Catalog, LoadedTemplate } from './catalog'
+import type { Catalog, DeployMode, LoadedTemplate } from './catalog'
 import type { RequestInput } from './plan'
 
 export interface GenerationCase {
@@ -12,6 +12,8 @@ export interface GenerationCase {
   capabilities: Record<string, string>
   // Runs the Compose smoke (build, boot, probe) when test-generated gets --with-app.
   withApp: boolean
+  // The deploy mode the case asks for; null leaves the plan's default.
+  deploy: DeployMode | null
 }
 
 function stackDir(catalog: Catalog, stack: string, template: LoadedTemplate): string {
@@ -35,6 +37,7 @@ export function listCases(catalog: Catalog): GenerationCase[] {
         flags: entry.flags ?? {},
         capabilities: entry.capabilities ?? {},
         withApp: entry.withApp === true,
+        deploy: entry.deploy ?? null,
       })
     }
   }
@@ -42,7 +45,12 @@ export function listCases(catalog: Catalog): GenerationCase[] {
 }
 
 export function requestFor(c: GenerationCase, out: string): RequestInput {
-  const base = { out, name: 'demo', skipPostGenerate: false }
+  const base = {
+    out,
+    name: 'demo',
+    skipPostGenerate: false,
+    ...(c.deploy === null ? {} : { deploy: c.deploy }),
+  }
   if (c.stack === null || c.packageDir === null) {
     return {
       ...base,
