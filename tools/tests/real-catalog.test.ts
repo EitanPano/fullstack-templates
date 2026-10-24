@@ -82,3 +82,30 @@ describe('generation from the real catalog', () => {
     })
   })
 })
+
+describe('deploy modes in the real catalog', () => {
+  test('a Next stack is split and records it', () => {
+    generated({ stack: 'next-python-fastapi' }, (out) => {
+      const recorded = parse(readFileSync(path.join(out, '.fullstack', 'catalog.yaml'), 'utf8'))
+      expect(recorded.deploy).toBe('split')
+      const { services } = composeOf(out)
+      expect(services.frontend.ports).toEqual(['3000:3000'])
+      expect(services.backend.ports).toEqual(['127.0.0.1:8000:8000'])
+      expect(services.backend.environment.TRUST_PROXY).toBe('${TRUST_PROXY:-1}')
+    })
+  })
+
+  test('single is refused for Next, which declares no static', () => {
+    expect(() =>
+      resolveRequest(catalog, {
+        out: tempDir(),
+        name: 'Demo',
+        stack: 'next-bun-express',
+        flags: [],
+        capabilities: [],
+        skipPostGenerate: true,
+        deploy: 'single',
+      }),
+    ).toThrow(/frontend\/next.*static/)
+  })
+})

@@ -860,3 +860,20 @@ A gated endpoint also tests its 401 and, where it checks a role, its 403. <!-- @
   `collect_ignore_glob` in a `conftest.py`; and none of those options in `addopts` in
   `pyproject.toml`. A removed test is named and justified in the stage report. `check` never needs
   Docker.
+
+## Deployment
+
+- **Image.** Multi-stage `Dockerfile`: uv builds a locked, no-dev virtualenv, then only that and
+  `src/` are copied. The container runs as the non-root `app` user and listens on `8000`.
+- **Compose service.** The root `docker-compose.yml` builds the package from its `Dockerfile`
+  under the `app` profile, so `docker compose --profile app up --build` starts it. With the
+  Postgres capability, a `<dir>-migrate` service runs the migrations first.
+- **Port.** Published as `127.0.0.1:8000:8000`, loopback only: the frontend container
+  reaches it on the Compose network, and nothing else on the host network can.
+- **`TRUST_PROXY`.** The Compose file defaults it to `1`, because the Next.js server in front
+  counts as one proxy hop and the rate limits are keyed by client IP. The server's own default,
+  `.env.example` included, is `false`. Behind any other edge set the real hop count: too high lets
+  a caller choose its own rate-limit key through `X-Forwarded-For`, too low keys every caller to
+  the proxy.
+- **Secrets.** Production values come from the shell environment or a secret manager; Compose
+  reads `${VAR}` and never stores them.

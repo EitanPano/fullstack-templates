@@ -77,6 +77,9 @@ export function packagePlaceholders(
   const http = pkg.template.manifest.http
   return {
     ...placeholderValues(plan.projectName),
+    // Absent without a frontend: a kept line that uses it fails in sweepPlaceholders, while the
+    // lines marked @single are gone before this substitution runs.
+    ...(pkg.frontendDir === null ? {} : { FRONTEND_DIR: pkg.frontendDir }),
     PACKAGE_DIR: pkg.dir,
     PORT: http === undefined ? '' : String(http.port),
     SERVER_DIR: pkg.serverDir ?? DEFAULT_SERVER.dir,
@@ -429,6 +432,8 @@ function writeProviderFiles(plan: GenerationPlan, staging: string): void {
 
 function sweepPlaceholders(plan: GenerationPlan, staging: string): void {
   const names = [...new Set(plan.packages.flatMap((p) => p.template.manifest.placeholders))]
+  // The generator's own token has no default, so it must not survive a plan without a frontend.
+  if (plan.packages.every((p) => p.frontendDir === null)) names.push('FRONTEND_DIR')
   for (const file of textFiles(staging)) {
     const left = findLeftoverPlaceholder(readFileSync(file, 'utf8'), names)
     if (left !== null) {
@@ -450,6 +455,10 @@ function writeProvenance(
     const previous = parse(readFileSync(earlier, 'utf8')) as Partial<Provenance> | null
     provenance.packages = { ...previous?.packages, ...provenance.packages }
     provenance.providers = { ...previous?.providers, ...provenance.providers }
+    // A rerun that adds one package has no mode of its own; the earlier record stands.
+    if (provenance.deploy === undefined && previous?.deploy !== undefined) {
+      provenance.deploy = previous.deploy
+    }
   }
   const errors = validateAgainst('provenance', provenance)
   if (errors.length > 0) throw new GenerateError(`provenance is invalid: ${errors.join('; ')}`)

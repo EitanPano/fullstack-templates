@@ -4,7 +4,7 @@ import type { LoadedOverlay, LoadedTemplate } from './catalog'
 import { listFiles } from './files'
 import { applyMarkers, commentSyntaxFor, findLeftoverMarker, MarkerError } from './markers'
 import { isTextFile } from './placeholders'
-import { SERVER_SELECTION, selectionsFor } from './plan'
+import { SERVER_SELECTION, SINGLE_SELECTION, selectionsFor } from './plan'
 
 // Every choice of providers: for each declared kind, none or one listed provider.
 function capabilityCombinations(template: LoadedTemplate): Record<string, string>[] {
@@ -39,8 +39,13 @@ function filesFor(template: LoadedTemplate, overlays: LoadedOverlay[]): string[]
 }
 
 export function dryRunMarkers(template: LoadedTemplate): string[] {
-  // The reserved server selection varies like a flag: the plan may or may not hold a server.
-  const flagNames = [...Object.keys(template.manifest.flags ?? {}), SERVER_SELECTION]
+  // The reserved selections vary like flags: the plan may or may not hold a server, and with one
+  // it may deploy as a single image.
+  const flagNames = [
+    ...Object.keys(template.manifest.flags ?? {}),
+    SERVER_SELECTION,
+    SINGLE_SELECTION,
+  ]
   const contents = new Map<string, string>()
   const read = (file: string) => {
     let content = contents.get(file)
@@ -63,8 +68,12 @@ export function dryRunMarkers(template: LoadedTemplate): string[] {
       const switches: Record<string, boolean> = {}
       flagNames.forEach((name, index) => (switches[name] = (mask & (1 << index)) !== 0))
       const hasServer = switches[SERVER_SELECTION] === true
+      const single = switches[SINGLE_SELECTION] === true
+      // Single without a server cannot happen, and selectionsFor would make it split again.
+      if (single && !hasServer) continue
       delete switches[SERVER_SELECTION]
-      const selections = selectionsFor(template, switches, hasServer, capabilities)
+      delete switches[SINGLE_SELECTION]
+      const selections = selectionsFor(template, switches, hasServer, single, capabilities)
 
       for (const file of files) {
         const where = relative(template.dir, file)

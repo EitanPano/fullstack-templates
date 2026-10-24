@@ -1,9 +1,11 @@
 import {
   CAPABILITY_KINDS,
   DEFAULT_DIR_BY_KIND,
+  DEPLOY_MODES,
   type Catalog,
   type CapabilitySpec,
   type CommandName,
+  type DeployMode,
   type LoadedOverlay,
   type LoadedProvider,
   type LoadedTemplate,
@@ -14,6 +16,8 @@ import { toProjectName } from './placeholders'
 
 export interface Answers {
   projectName?: string
+  // Validated in resolveRequest, so a bad value from a JSON file names the reason.
+  deploy?: string
   packages?: Record<
     string,
     { flags?: Record<string, boolean>; capabilities?: Record<string, string> }
@@ -31,6 +35,8 @@ export interface RequestInput {
   answers?: Answers
   catalogVersion?: string
   skipPostGenerate: boolean
+  // The --deploy value; overrides the answers file like a flag shorthand does.
+  deploy?: string
 }
 
 export interface PackagePlan {
@@ -46,6 +52,8 @@ export interface PackagePlan {
   selections: Record<string, boolean>
   serverDir: string | null
   serverPort: number | null
+  // The frontend package's directory, null when the plan has none (__FRONTEND_DIR__).
+  frontendDir: string | null
   // The server package's dev command, null when the plan has no server (or it declares none).
   serverDevCommand: string | null
   contractSkipped: boolean
@@ -60,6 +68,8 @@ export interface GenerationPlan {
   providers: LoadedProvider[]
   catalogVersion: string | undefined
   skipPostGenerate: boolean
+  // Null unless the plan has both a server and a frontend: a lone package has no mode to choose.
+  deploy: DeployMode | null
 }
 
 export const DIR_PATTERN = /^[a-z][a-z0-9-]*$/
@@ -167,20 +177,27 @@ function routeShorthandCapabilities(
   return routed
 }
 
-// "server" is reserved: a manifest cannot declare a flag of that name, so a marker can ask whether
-// the plan has a server package (a lone frontend must not depend on one).
+// "server" and "single" are reserved: a manifest cannot declare a flag of either name. A marker
+// asks whether the plan has a server package (a lone frontend must not depend on one) and whether
+// the plan deploys as one image, which only a plan with a server can.
 export const SERVER_SELECTION = 'server'
+export const SINGLE_SELECTION = 'single'
 
 // Shared by the plan and the marker dry-run so the two cannot drift: every flag, the reserved
-// server, then per declared kind `<kind>` (a provider is selected) and `<kind>:<provider>` for
+// server and single, then per declared kind `<kind>` (a provider is selected) and `<kind>:<provider>` for
 // each provider the template lists.
 export function selectionsFor(
   template: LoadedTemplate,
   flags: Record<string, boolean>,
   hasServer: boolean,
+  single: boolean,
   capabilities: Record<string, string>,
 ): Record<string, boolean> {
-  const selections: Record<string, boolean> = { ...flags, [SERVER_SELECTION]: hasServer }
+  const selections: Record<string, boolean> = {
+    ...flags,
+    [SERVER_SELECTION]: hasServer,
+    [SINGLE_SELECTION]: hasServer && single,
+  }
   for (const [kind, spec] of Object.entries(template.manifest.capabilities ?? {})) {
     selections[kind] = capabilities[kind] !== undefined
     for (const provider of spec.providers) {
@@ -188,6 +205,38 @@ export function selectionsFor(
     }
   }
   return selections
+}
+
+function isDeployMode(value: string): value is DeployMode {
+  return (DEPLOY_MODES as readonly string[]).includes(value)
+}
+
+// The mode of a plan with a server and a frontend; null for a lone package, where only split is
+// accepted (it is true of any one package) and single has nothing to join.
+function resolveDeploy(
+  requested: string | undefined,
+  server: Member | undefined,
+  frontend: Member | undefined,
+): DeployMode | null {
+  if (requested !== undefined && !isDeployMode(requested)) {
+    throw new PlanError(`unknown deploy mode "${requested}": expected ${DEPLOY_MODES.join(' or ')}`)
+  }
+  const servable = frontend?.template.manifest.static !== undefined
+  if (requested === 'single') {
+    if (server === undefined) {
+      throw new PlanError('deploy single needs a server package in the plan, which has none')
+    }
+    if (frontend === undefined) {
+      throw new PlanError('deploy single needs a frontend package in the plan, which has none')
+    }
+    if (!servable) {
+      throw new PlanError(
+        `${frontend.template.path} declares no static, so deploy single cannot serve it from the server`,
+      )
+    }
+  }
+  if (server === undefined || frontend === undefined) return null
+  return requested ?? (servable ? 'single' : 'split')
 }
 
 function assertListed(member: Member, kind: string, provider: string): void {
@@ -253,6 +302,8 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
     )
   }
   const server = servers[0]
+  const frontend = members.find((m) => m.template.manifest.kind === 'frontend')
+  const deploy = resolveDeploy(input.deploy ?? input.answers?.deploy, server, frontend)
 
   const shorthand = routeShorthandFlags(members, input.flags)
   const shorthandCapabilities = routeShorthandCapabilities(members, input.capabilities)
@@ -287,9 +338,16 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
         member.template.manifest.commands,
         ...overlays.map((overlay) => overlay.manifest.commands),
       ) as PackagePlan['commands'],
-      selections: selectionsFor(member.template, flags, server !== undefined, capabilities),
+      selections: selectionsFor(
+        member.template,
+        flags,
+        server !== undefined,
+        deploy === 'single',
+        capabilities,
+      ),
       serverDir: server?.dir ?? null,
       serverPort: server?.template.manifest.http?.port ?? null,
+      frontendDir: frontend?.dir ?? null,
       serverDevCommand: null,
       contractSkipped: consumer && server === undefined,
     }
@@ -338,5 +396,6 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
     providers,
     catalogVersion: input.catalogVersion,
     skipPostGenerate: input.skipPostGenerate,
+    deploy,
   }
 }

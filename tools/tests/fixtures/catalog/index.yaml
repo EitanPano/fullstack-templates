@@ -15,7 +15,15 @@ templates:
     path: frontend/mini-ui
     version: 1.0.0
     summary: A minimal frontend fixture
+  - id: mini-spa
+    kind: frontend
+    path: frontend/mini-spa
+    version: 1.0.0
+    summary: A minimal static frontend fixture
 stacks:
   - id: mini
     path: stacks/mini
     summary: Mini server and UI
+  - id: mini-spa
+    path: stacks/mini-spa
+    summary: Mini server and static UI

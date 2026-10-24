@@ -10,6 +10,10 @@ import {
 import { CAPABILITY_KINDS, type CapabilityKind } from './capability-kinds'
 import { readChecked, subdirectories } from './read-checked'
 
+export type DeployMode = 'single' | 'split'
+
+export const DEPLOY_MODES: readonly DeployMode[] = ['single', 'split']
+
 export type TemplateKind = 'server' | 'frontend' | 'worker'
 
 export type CommandName =
@@ -126,6 +130,8 @@ export interface TemplateManifest {
   postGenerate?: CommandName[]
   dropAfterPostGenerate?: string[]
   defaultStack?: string
+  // Frontend only: the directory the build writes, which the server serves in the single mode.
+  static?: { out: string }
 }
 
 export interface StackManifest {
@@ -156,6 +162,8 @@ export interface CasesFile {
     capabilities?: Record<string, string>
     // The case also runs the Compose smoke under test-generated --with-app.
     withApp?: boolean
+    // The deploy mode the case generates with; the Compose smoke of T2 reads it.
+    deploy?: DeployMode
   }>
 }
 
@@ -213,11 +221,21 @@ export const SERVER_AGENTS_HEADINGS = [
   'Adding the data layer',
   'Errors',
   'Tests',
+  'Deployment',
+] as const
+
+// The layer map is part of the frontend contract but is not a checked heading (ADR 0003, M5-9).
+export const FRONTEND_AGENTS_HEADINGS = [
+  'Adding a feature',
+  'Styling',
+  'Errors',
+  'Tests',
+  'Deployment',
 ] as const
 
 // A fenced block may hold a shell comment that looks like a heading; only a fence of the same
 // character, at least as long, closes it (CommonMark).
-function missingHeadings(agentsFile: string): string[] {
+function missingHeadings(agentsFile: string, required: readonly string[]): string[] {
   const found = new Set<string>()
   let fence: { char: string; length: number } | null = null
   for (const line of readFileSync(agentsFile, 'utf8').split(/\r?\n/)) {
@@ -235,7 +253,7 @@ function missingHeadings(agentsFile: string): string[] {
     const match = /^#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/.exec(line)
     if (match?.[1] !== undefined) found.add(match[1])
   }
-  return SERVER_AGENTS_HEADINGS.filter((heading) => !found.has(heading))
+  return required.filter((heading) => !found.has(heading))
 }
 
 function checkTemplateFiles(
@@ -253,14 +271,25 @@ function checkTemplateFiles(
     problems.push(`${templatePath}: agents file base/${manifest.agents} is missing`)
   }
   const agentsFile = path.join(base, manifest.agents)
-  if (manifest.kind === 'server' && existsSync(agentsFile)) {
-    const missing = missingHeadings(agentsFile)
+  const required =
+    manifest.kind === 'server'
+      ? SERVER_AGENTS_HEADINGS
+      : manifest.kind === 'frontend'
+        ? FRONTEND_AGENTS_HEADINGS
+        : undefined
+  if (required !== undefined && existsSync(agentsFile)) {
+    const missing = missingHeadings(agentsFile, required)
     if (missing.length > 0) {
       const names = missing.map((heading) => `"${heading}"`).join(', ')
       problems.push(
         `${templatePath}: agents file base/${manifest.agents} lacks the headings ${names}`,
       )
     }
+  }
+  if (manifest.static !== undefined && manifest.kind !== 'frontend') {
+    problems.push(
+      `${templatePath}: static is only for frontend templates, this one is a ${manifest.kind}`,
+    )
   }
   // A "." segment names the package itself or a path that a drop would resolve oddly; refusing it
   // here names the template before any generation runs.

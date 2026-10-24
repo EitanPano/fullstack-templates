@@ -57,6 +57,30 @@ describe('dryRunMarkers', () => {
   })
 })
 
+describe('dryRunMarkers with the reserved single', () => {
+  test('accepts @single and @nosingle, line and block form, in a base file', () => {
+    const content = [
+      'a // @single',
+      'b // @nosingle',
+      '// @single-start',
+      'c',
+      '// @single-end',
+      '// @nosingle-start',
+      'd',
+      '// @nosingle-end',
+      '',
+    ].join('\n')
+    const template = setup({ 'server/mini/base/src/m.ts': content }, 'server/mini')
+    expect(dryRunMarkers(template)).toEqual([])
+  })
+
+  test('a problem only inside a single block is found, once', () => {
+    const content = '// @single-start\nx // @bogus\n// @single-end\n'
+    const template = setup({ 'server/mini/base/src/m.ts': content }, 'server/mini')
+    expect(dryRunMarkers(template).filter((p) => p.includes('m.ts:2'))).toHaveLength(1)
+  })
+})
+
 describe('dryRunMarkers with capabilities', () => {
   const OVERLAY = 'server/mini/capabilities/database/fake/overlay/src'
   const OVERLAY_PATH = 'capabilities/database/fake/overlay/src'

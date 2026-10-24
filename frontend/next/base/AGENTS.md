@@ -85,6 +85,22 @@ shows with `sonner`.
 - Every new behaviour gets a test for the happy path and at least one for a failure or empty
   path. No `.skip` or `.only`; a removed test is named in the stage report.
 
+## Deployment
+
+- **Image.** Multi-stage `Dockerfile`: a frozen install, `bun run build`, then only Next's
+  standalone output, its static files and `public/` are copied. The container runs as the
+  non-root `node` user and listens on `3000`.
+- **Compose service.** The root `docker-compose.yml` builds the package from its `Dockerfile`
+  under the `app` profile, so `docker compose --profile app up --build` starts it. With a server
+  in the plan it gets `API_URL` (the server's name and port on the Compose network) and waits
+  for the server.
+- **Port.** Published as `3000:3000` on every interface: this container is the public edge, and
+  the server behind it is published on loopback only. API calls are made by the Next.js server
+  through `API_URL`, not by the browser.
+- **`TRUST_PROXY`.** Not read here. The server's Compose service defaults it to `1` because this
+  server counts as the one proxy hop in front of it. Anything placed in front of this container
+  adds a hop: raise the server's `TRUST_PROXY` to match.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know

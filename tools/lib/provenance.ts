@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
-import type { CommandName } from './catalog'
+import type { CommandName, DeployMode } from './catalog'
 import { commandOutput } from './commands'
 import type { GenerationPlan } from './plan'
 
@@ -17,6 +17,8 @@ export interface Provenance {
   catalog: CatalogIdentity
   generatedAt: string
   stack: string | null
+  // Present only when the plan has a server and a frontend.
+  deploy?: DeployMode
   packages: Record<
     string,
     {
@@ -54,6 +56,7 @@ export function buildProvenance(
     catalog,
     generatedAt: now.toISOString(),
     stack: plan.stackId,
+    ...(plan.deploy === null ? {} : { deploy: plan.deploy }),
     packages,
     providers: Object.fromEntries(plan.providers.map((p) => [p.kind, p.id])),
     answers: { projectName: plan.projectName },

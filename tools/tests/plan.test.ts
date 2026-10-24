@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { loadCatalog } from '../lib/catalog'
-import { PlanError, resolveRequest } from '../lib/plan'
+import { PlanError, resolveRequest, selectionsFor } from '../lib/plan'
 import { copyFixture, FIXTURE } from './helpers'
 
 const catalog = loadCatalog(FIXTURE)
@@ -38,6 +38,7 @@ describe('resolveRequest', () => {
       database: false,
       'database:fake': false,
       server: true,
+      single: false,
     })
     expect(plan.packages[1]?.serverDir).toBe('backend')
     expect(plan.packages[1]?.serverPort).toBe(4000)
@@ -51,6 +52,7 @@ describe('resolveRequest', () => {
       database: false,
       'database:fake': false,
       server: true,
+      single: false,
     })
   })
   test('rejects an ambiguous shorthand naming both packages', () => {
@@ -107,6 +109,7 @@ describe('resolveRequest', () => {
     expect(backend?.selections).toEqual({
       auth: true,
       server: true,
+      single: false,
       database: true,
       'database:fake': true,
     })
@@ -153,6 +156,7 @@ describe('resolveRequest', () => {
     expect(plan.packages[0]?.selections).toEqual({
       auth: true,
       server: true,
+      single: false,
       database: false,
       'database:fake': false,
     })
@@ -328,5 +332,83 @@ describe('resolveRequest: derived migrate service and the server dev command', (
       template: 'frontend/mini-ui',
     })
     expect(alone.packages[0]?.serverDevCommand).toBeNull()
+  })
+})
+
+describe('resolveRequest: deploy mode', () => {
+  const spa = { ...base, stack: 'mini-spa' }
+  const single = (plan: ReturnType<typeof resolveRequest>) =>
+    plan.packages.map((pkg) => pkg.selections.single)
+
+  test('defaults to single when the plan has a server and the frontend declares static', () => {
+    const plan = resolveRequest(catalog, spa)
+    expect(plan.deploy).toBe('single')
+    expect(single(plan)).toEqual([true, true])
+    expect(plan.packages.map((pkg) => pkg.frontendDir)).toEqual(['frontend', 'frontend'])
+  })
+  test('defaults to split when the frontend has no static', () => {
+    const plan = resolveRequest(catalog, { ...base, stack: 'mini' })
+    expect(plan.deploy).toBe('split')
+    expect(single(plan)).toEqual([false, false])
+  })
+  test('--deploy split on a static frontend and a server gives split', () => {
+    const plan = resolveRequest(catalog, { ...spa, deploy: 'split' })
+    expect(plan.deploy).toBe('split')
+    expect(single(plan)).toEqual([false, false])
+  })
+  test('takes deploy from the answers, and the request overrides them', () => {
+    const fromAnswers = resolveRequest(catalog, { ...spa, answers: { deploy: 'split' } })
+    expect(fromAnswers.deploy).toBe('split')
+    const overridden = resolveRequest(catalog, {
+      ...spa,
+      answers: { deploy: 'split' },
+      deploy: 'single',
+    })
+    expect(overridden.deploy).toBe('single')
+  })
+  test('a lone package has no mode, and single is never true without a server', () => {
+    for (const template of ['server/mini', 'frontend/mini-ui', 'frontend/mini-spa']) {
+      const plan = resolveRequest(catalog, { ...base, template })
+      expect(plan.deploy).toBeNull()
+      expect(single(plan)).toEqual([false])
+    }
+  })
+  test('refuses single when the frontend declares no static, naming the template', () => {
+    const request = { ...base, stack: 'mini', deploy: 'single' }
+    expect(() => resolveRequest(catalog, request)).toThrow(PlanError)
+    expect(() => resolveRequest(catalog, request)).toThrow(/frontend\/mini-ui.*static/)
+  })
+  test('refuses single with no server in the plan', () => {
+    const request = { ...base, template: 'frontend/mini-spa', deploy: 'single' }
+    expect(() => resolveRequest(catalog, request)).toThrow(/needs a server package/)
+  })
+  test('refuses single with no frontend in the plan', () => {
+    const request = { ...base, template: 'server/mini', deploy: 'single' }
+    expect(() => resolveRequest(catalog, request)).toThrow(/needs a frontend package/)
+  })
+  test('accepts split on a lone package as a no-op: it is true of any one package', () => {
+    for (const template of ['server/mini', 'frontend/mini-ui']) {
+      const plan = resolveRequest(catalog, { ...base, template, deploy: 'split' })
+      expect(plan.deploy).toBeNull()
+    }
+  })
+  test('refuses an unknown value from the request and from the answers', () => {
+    expect(() => resolveRequest(catalog, { ...spa, deploy: 'both' })).toThrow(
+      'unknown deploy mode "both": expected single or split',
+    )
+    expect(() => resolveRequest(catalog, { ...spa, answers: { deploy: 'x' } })).toThrow(
+      'unknown deploy mode "x"',
+    )
+  })
+})
+
+describe('selectionsFor: the reserved single', () => {
+  const template = catalog.templates.get('server/mini') as NonNullable<
+    ReturnType<typeof catalog.templates.get>
+  >
+  test('is true only when asked and a server is present', () => {
+    expect(selectionsFor(template, {}, true, true, {}).single).toBe(true)
+    expect(selectionsFor(template, {}, true, false, {}).single).toBe(false)
+    expect(selectionsFor(template, {}, false, true, {}).single).toBe(false)
   })
 })
