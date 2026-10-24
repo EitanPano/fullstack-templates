@@ -21,3 +21,8 @@ cases:
     stack: next-python-fastapi
     flags: { auth: false }
     capabilities: { database: postgres }
+  - name: stack-react-postgres
+    stack: react-python-fastapi
+    deploy: single
+    capabilities: { database: postgres }
+    withApp: true

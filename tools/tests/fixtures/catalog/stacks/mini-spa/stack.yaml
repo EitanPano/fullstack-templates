@@ -1,0 +1,8 @@
+schemaVersion: 1
+id: mini-spa
+summary: Mini server and static UI
+packages:
+  - template: server/mini
+    dir: backend
+  - template: frontend/mini-spa
+    dir: frontend

@@ -68,6 +68,6 @@ export function runQuiet(commandLine: string, cwd: string): void {
   execute(commandLine, cwd, undefined, true, true)
 }
 
-export function commandOutput(commandLine: string, cwd: string): string {
-  return execute(commandLine, cwd, undefined, true)
+export function commandOutput(commandLine: string, cwd: string, env?: NodeJS.ProcessEnv): string {
+  return execute(commandLine, cwd, env, true)
 }

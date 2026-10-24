@@ -27,6 +27,7 @@
     },
     "generatedAt": { "type": "string", "format": "date-time" },
     "stack": { "type": ["string", "null"] },
+    "deploy": { "enum": ["single", "split"] },
     "packages": {
       "type": "object",
       "additionalProperties": {

@@ -1,0 +1,31 @@
+schemaVersion: 1
+id: mini-spa
+kind: frontend
+name: Mini SPA
+version: 1.0.0
+summary: A minimal static frontend fixture
+runtime:
+  language: typescript
+  platform: bun
+tools:
+  - name: bun
+    min: '1.4'
+placeholders: [PROJECT_NAME]
+dependencies:
+  manifest: package.json
+  adapter: npm
+commands:
+  install: bun ./ok.ts
+  check: bun ./ok.ts
+  contract: bun ./ok.ts
+contract:
+  consumes: '<server>/openapi.json'
+http:
+  port: 5173
+  health: /
+static:
+  out: dist
+gitignore: [node]
+agents: AGENTS.md
+defaultStack: mini-spa
+postGenerate: [install, contract]

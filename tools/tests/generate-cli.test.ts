@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { parse } from 'yaml'
 import { FIXTURE, tempDir } from './helpers'
 
 const cli = path.join(import.meta.dir, '..', 'generate.ts')
@@ -141,5 +142,73 @@ describe('generate CLI', () => {
     ])
     expect(result.status).toBe(0)
     expect(readFileSync(path.join(out, 'docker-compose.yml'), 'utf8')).toContain('name: app')
+  })
+})
+
+describe('generate CLI: --deploy', () => {
+  const common = ['--out', '', '--name', 'Demo', '--catalog', FIXTURE, '--skip-post-generate']
+  const withOut = (out: string, ...rest: string[]) => [
+    ...common.map((arg) => (arg === '' ? out : arg)),
+    ...rest,
+  ]
+  const deployOf = (out: string) =>
+    parse(readFileSync(path.join(out, '.fullstack', 'catalog.yaml'), 'utf8')).deploy
+
+  test('defaults to single for a stack with a static frontend and records it', () => {
+    const out = tempDir()
+    const result = run(['--stack', 'mini-spa', ...withOut(out)])
+    expect(result.status).toBe(0)
+    expect(deployOf(out)).toBe('single')
+  })
+
+  test('--deploy split overrides the default', () => {
+    const out = tempDir()
+    expect(run(['--stack', 'mini-spa', ...withOut(out, '--deploy', 'split')]).status).toBe(0)
+    expect(deployOf(out)).toBe('split')
+  })
+
+  test('takes deploy from the answers file, and --deploy wins over it', () => {
+    const dir = tempDir()
+    const answers = path.join(dir, 'answers.json')
+    writeFileSync(answers, JSON.stringify({ deploy: 'split' }))
+    const fromAnswers = path.join(dir, 'a')
+    expect(run(['--stack', 'mini-spa', ...withOut(fromAnswers, '--answers', answers)]).status).toBe(
+      0,
+    )
+    expect(deployOf(fromAnswers)).toBe('split')
+    const overridden = path.join(dir, 'b')
+    const flags = ['--answers', answers, '--deploy', 'single']
+    expect(run(['--stack', 'mini-spa', ...withOut(overridden, ...flags)]).status).toBe(0)
+    expect(deployOf(overridden)).toBe('single')
+  })
+
+  test('fails with exit 1 and names the reason when single cannot be met', () => {
+    const noStatic = run(['--stack', 'mini', ...withOut(tempDir(), '--deploy', 'single')])
+    expect(noStatic.status).toBe(1)
+    expect(noStatic.stderr).toContain('static')
+    const noServer = run([
+      '--template',
+      'frontend/mini-spa',
+      ...withOut(tempDir(), '--deploy', 'single'),
+    ])
+    expect(noServer.status).toBe(1)
+    expect(noServer.stderr).toContain('server package')
+  })
+
+  test('fails with exit 1 on an unknown value', () => {
+    const result = run(['--stack', 'mini-spa', ...withOut(tempDir(), '--deploy', 'both')])
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('unknown deploy mode "both"')
+  })
+
+  test('accepts split on a lone server as a no-op and writes no mode', () => {
+    const out = tempDir()
+    const result = run(['--template', 'server/mini', ...withOut(out, '--deploy', 'split')])
+    expect(result.status).toBe(0)
+    expect(deployOf(out)).toBeUndefined()
+  })
+
+  test('is listed in the usage text', () => {
+    expect(run(['--bogus']).stderr).toContain('[--deploy single|split]')
   })
 })

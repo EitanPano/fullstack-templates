@@ -185,7 +185,7 @@
       },
       "propertyNames": {
         "not": {
-          "enum": ["server", "database", "cache", "messaging"]
+          "enum": ["server", "single", "database", "cache", "messaging"]
         }
       }
     },
@@ -304,6 +304,17 @@
     "defaultStack": {
       "type": "string",
       "minLength": 1
+    },
+    "static": {
+      "type": "object",
+      "description": "The directory a frontend build writes (frontend templates only; the loader checks the kind). A server in the single deploy mode serves it.",
+      "additionalProperties": false,
+      "required": ["out"],
+      "properties": {
+        "out": {
+          "$ref": "#/$defs/relativePath"
+        }
+      }
     }
   },
   "$defs": {

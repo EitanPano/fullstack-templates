@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'bun:test'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { loadEnv } from '../src/config/env'
@@ -209,6 +212,43 @@ describe('loadEnv', () => {
   it('treats a blank CORS_ORIGINS as unset', () => {
     expect(loadEnv({ CORS_ORIGINS: '' }).env.CORS_ORIGINS).toBeUndefined()
     expect(loadEnv({ CORS_ORIGINS: '   ' }).env.CORS_ORIGINS).toBeUndefined()
+  })
+
+  it('leaves STATIC_DIR undefined when unset or blank and resolves it to an absolute path', () => {
+    expect(loadEnv({}).env.STATIC_DIR).toBeUndefined()
+    expect(loadEnv({ STATIC_DIR: '' }).env.STATIC_DIR).toBeUndefined()
+    expect(loadEnv({ STATIC_DIR: '   ' }).env.STATIC_DIR).toBeUndefined()
+    expect(loadEnv({ STATIC_DIR: 'dist' }).env.STATIC_DIR).toBe(join(process.cwd(), 'dist'))
+  })
+
+  it('refuses a production STATIC_DIR without an index.html and names it', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'static-dir-'))
+    try {
+      expect(() => loadEnv({ ...productionSource, STATIC_DIR: dir })).toThrow(
+        /invalid environment: STATIC_DIR: .* has no index\.html/,
+      )
+      expect(() => loadEnv({ ...productionSource, STATIC_DIR: join(dir, 'missing') })).toThrow(
+        /STATIC_DIR/,
+      )
+      // A directory named index.html is not the file.
+      mkdirSync(join(dir, 'index.html'))
+      expect(() => loadEnv({ ...productionSource, STATIC_DIR: dir })).toThrow(/STATIC_DIR/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('accepts a production STATIC_DIR that holds an index.html, and a missing one elsewhere', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'static-dir-'))
+    try {
+      writeFileSync(join(dir, 'index.html'), '<title>spa</title>')
+      expect(loadEnv({ ...productionSource, STATIC_DIR: dir }).env.STATIC_DIR).toBe(dir)
+      expect(loadEnv({ STATIC_DIR: join(dir, 'missing') }).env.STATIC_DIR).toBe(
+        join(dir, 'missing'),
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   // @auth-start

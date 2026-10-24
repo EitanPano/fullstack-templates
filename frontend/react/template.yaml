@@ -1,0 +1,32 @@
+schemaVersion: 1
+id: react
+kind: frontend
+name: React 19 SPA (Vite)
+version: 1.0.0
+summary: "Vite and React 19 single-page app with React Router data mode and a typed client generated from the server's contract"
+runtime: { language: typescript, platform: node, minVersion: '24' }
+tools:
+  - { name: bun, min: '1.4' }
+  - { name: node, min: '24' }
+placeholders: [PROJECT_NAME]
+dependencies: { manifest: package.json, adapter: npm }
+commands:
+  install: bun install
+  dev: bun run dev
+  check: bun run check
+  typecheck: bun run typecheck
+  lint: bun run lint
+  format: bun run format
+  test: bun run test
+  testE2e: bun run test:e2e
+  contract: bun run api:types
+contract: { consumes: '<server>/openapi.json' }
+http: { port: 5173, health: / }
+static: { out: dist }
+gitignore: [node]
+agents: AGENTS.md
+defaultStack: react-python-fastapi
+postGenerate:
+  - install
+  - contract
+  - format

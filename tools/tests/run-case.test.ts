@@ -3,7 +3,7 @@ import { loadCatalog } from '../lib/catalog'
 import { listCases } from '../lib/cases'
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { runCase, type Options, type Probe } from '../lib/run-case'
+import { runCase, type Capture, type Options, type Probe, type ProbeResult } from '../lib/run-case'
 import { FIXTURE, copyFixture, tempDir } from './helpers'
 
 const catalog = loadCatalog(FIXTURE)
@@ -134,11 +134,11 @@ const APP: Options = { ...OFF, withApp: true }
 const ok: Probe = async () => ({ status: 200, body: 'ok' })
 
 type Call = { line: string; vars: NodeJS.ProcessEnv | undefined }
-function recordWithVars(failOn?: (line: string) => boolean) {
+function recordWithVars(failOn?: (line: string, vars?: NodeJS.ProcessEnv) => boolean) {
   const calls: Call[] = []
   const runner = (line: string, _cwd: string, vars?: NodeJS.ProcessEnv) => {
     calls.push({ line, vars })
-    if (failOn?.(line)) throw new Error(`boom ${line}`)
+    if (failOn?.(line, vars)) throw new Error(`boom ${line}`)
   }
   return { calls, runner }
 }
@@ -291,5 +291,551 @@ describe('runCase app smoke', () => {
     await runCase(loaded, c, tempDir(), OFF, runner, log, ok)
     expect(docker(calls)).toEqual([])
     expect(out).toContain('SKIP app smoke: needs --with-app')
+  })
+})
+
+// The per-mode smoke: a stack of the fixture server (port 4000) and either a static frontend
+// (mini-spa, port 5173) or one that is not an SPA (mini-ui).
+const INDEX =
+  '<html><body><div id="root"></div><script type="module" crossorigin src="/assets/index-AbC123.js"></script></body></html>'
+const SPA_ROUTE = '/some/client/route'
+const NOT_FOUND = JSON.stringify({
+  error: { code: 'not_found', message: 'no route' },
+  requestId: 'r1',
+})
+const PUBLIC_FILES =
+  '/app/public\n/app/public/index.html\n/app/public/assets\n/app/public/assets/index-AbC123.js'
+// Spelled in two parts so no tool that scans for secret file names trips on the test data.
+const DOTFILE = '/app/public/.' + 'env.local'
+
+function stackCatalog(options: {
+  frontend: 'mini-spa' | 'mini-ui'
+  deploy?: string
+  e2e?: boolean
+}) {
+  const root = copyFixture('catalog')
+  const stack = options.frontend === 'mini-spa' ? 'mini-spa' : 'mini'
+  const cases = path.join(root, `frontend/${options.frontend}/tests/cases.yaml`)
+  const extra = `    withApp: true\n${options.deploy ? `    deploy: ${options.deploy}\n` : ''}`
+  writeFileSync(
+    cases,
+    readFileSync(cases, 'utf8').replace(`stack: ${stack}\n`, (m) => m + extra),
+  )
+  if (options.e2e) {
+    const manifest = path.join(root, `frontend/${options.frontend}/template.yaml`)
+    writeFileSync(
+      manifest,
+      readFileSync(manifest, 'utf8').replace(
+        '  contract: bun ./ok.ts\n',
+        '  contract: bun ./ok.ts\n  testE2e: bun ./ok.ts e2e\n',
+      ),
+    )
+  }
+  const loaded = loadCatalog(root)
+  const found = listCases(loaded).find((c) => c.id === `frontend/${options.frontend}/default`)
+  if (!found?.withApp) throw new Error('fixture case lost withApp')
+  return { loaded, c: found }
+}
+
+const ASSET = '/assets/index-AbC123.js'
+const GOOD_HEADERS: Record<string, string> = {
+  'content-security-policy': "default-src 'self';script-src 'self'",
+  'x-content-type-options': 'nosniff',
+  'x-frame-options': 'SAMEORIGIN',
+  'strict-transport-security': 'max-age=31536000; includeSubDomains',
+  'referrer-policy': 'no-referrer',
+}
+const PAGE_HEADERS = { ...GOOD_HEADERS, 'cache-control': 'no-cache' }
+const ASSET_HEADERS = { ...GOOD_HEADERS, 'cache-control': 'public, max-age=31536000, immutable' }
+// The refused paths the smoke asks for, as the fake site answers them.
+const DOTFILE_PATH = '/.' + 'env'
+const TRAVERSAL_PATH = '/..%2findex.html'
+const refusal = (status = 404): ProbeResult => ({
+  status,
+  body: NOT_FOUND,
+  contentType: 'application/json',
+})
+
+type Reply = ProbeResult | Error
+// A fake site keyed by URL; `overrides` replaces single answers. `at` is the public port.
+function site(at: number, overrides: Record<string, Reply> = {}) {
+  const html = (body: string): ProbeResult => ({
+    status: 200,
+    body,
+    contentType: 'text/html; charset=utf-8',
+    headers: PAGE_HEADERS,
+  })
+  const base = `http://127.0.0.1:${String(at)}`
+  const table: Record<string, Reply> = {
+    'http://127.0.0.1:4000/api/health': { status: 200, body: '{}' },
+    [`${base}/api/health`]: { status: 200, body: '{}' },
+    [`${base}/`]: html(INDEX),
+    [`${base}${SPA_ROUTE}`]: html(INDEX),
+    [`${base}/api/nope`]: { status: 404, body: NOT_FOUND, contentType: 'application/json' },
+    [`${base}${ASSET}`]: {
+      status: 200,
+      body: 'console.log(1)',
+      contentType: 'text/javascript',
+      headers: ASSET_HEADERS,
+    },
+    [`${base}${DOTFILE_PATH}`]: refusal(),
+    [`${base}${TRAVERSAL_PATH}`]: refusal(400),
+    [`${base}/assets/`]: refusal(),
+    ...overrides,
+  }
+  const urls: string[] = []
+  const probe: Probe = async (url) => {
+    urls.push(url)
+    const found = table[url]
+    if (found === undefined) throw new Error(`unexpected ${url}`)
+    if (found instanceof Error) throw found
+    return found
+  }
+  return { probe, urls }
+}
+// Captured commands are matched by a fragment of their line; the first match answers.
+function fakeCapture(answers: Record<string, string> = {}) {
+  const asked: string[] = []
+  const defaults = {
+    'docker compose version --short': '5.5.0',
+    'exec -T backend find /app/public': PUBLIC_FILES,
+    'exec -T frontend id -u': '101',
+  }
+  const table = [...Object.entries(answers), ...Object.entries(defaults)]
+  const capture: Capture = (line) => {
+    asked.push(line.replace(/-p \S+ /, ''))
+    const hit = table.find(([needle]) => line.includes(needle))
+    if (hit === undefined) throw new Error(`unexpected capture ${line}`)
+    return hit[1]
+  }
+  return { capture, asked }
+}
+const verbs = (calls: Call[]) => docker(calls).map((d) => d.line.split(' --profile app ')[1])
+const e2eCalls = (calls: Call[]) => calls.filter((x) => x.line === 'bun ./ok.ts e2e')
+const againstApp = (calls: Call[]) => e2eCalls(calls).filter((x) => x.vars?.E2E_BASE_URL)
+const E2E: Options = { ...APP, e2e: true }
+function smoke(
+  built: ReturnType<typeof stackCatalog>,
+  options: Options,
+  probe: Probe,
+  capture: Capture,
+  failOn?: (line: string, vars?: NodeJS.ProcessEnv) => boolean,
+) {
+  const rec = recordWithVars(failOn)
+  const result = runCase(
+    built.loaded,
+    built.c,
+    tempDir(),
+    options,
+    rec.runner,
+    lines().log,
+    probe,
+    capture,
+  )
+  return { calls: rec.calls, result }
+}
+
+describe('case deploy', () => {
+  test('a case with deploy split generates split and one without generates the default', async () => {
+    for (const [deploy, expected] of [
+      ['split', 'split'],
+      [undefined, 'single'],
+    ] as const) {
+      const built = stackCatalog({ frontend: 'mini-spa', deploy })
+      const out = tempDir()
+      await runCase(built.loaded, built.c, out, OFF, recordWithVars().runner, lines().log)
+      expect(readFileSync(path.join(out, '.fullstack/catalog.yaml'), 'utf8')).toMatch(
+        new RegExp(`^deploy: ${expected}$`, 'm'),
+      )
+      const compose = readFileSync(path.join(out, 'docker-compose.yml'), 'utf8')
+      expect(compose.includes('scale: 0')).toBe(expected === 'single')
+    }
+  })
+})
+
+describe('app smoke, single', () => {
+  const build = (e2e = false) => stackCatalog({ frontend: 'mini-spa', e2e })
+  const at4000 = (path: string, reply: Reply) => ({ [`http://127.0.0.1:4000${path}`]: reply })
+  const htmlReply = (body: string, contentType = 'text/html'): ProbeResult => ({
+    status: 200,
+    body,
+    contentType,
+    headers: PAGE_HEADERS,
+  })
+  test('checks the floor, boots, probes the SPA and the 404 on the server port, inspects public/', async () => {
+    const { probe, urls } = site(4000)
+    const { capture, asked } = fakeCapture()
+    const { calls, result } = smoke(build(), APP, probe, capture)
+    await result
+    expect(urls).toEqual([
+      'http://127.0.0.1:4000/api/health',
+      'http://127.0.0.1:4000/',
+      `http://127.0.0.1:4000${SPA_ROUTE}`,
+      'http://127.0.0.1:4000/api/nope',
+      `http://127.0.0.1:4000${ASSET}`,
+      `http://127.0.0.1:4000${DOTFILE_PATH}`,
+      `http://127.0.0.1:4000${TRAVERSAL_PATH}`,
+      'http://127.0.0.1:4000/assets/',
+    ])
+    expect(asked).toEqual([
+      'docker compose version --short',
+      'docker compose --profile app exec -T backend find /app/public',
+    ])
+    expect(verbs(calls)).toEqual(['up --build --wait', 'down -v'])
+  })
+  test.each(['2.34.1', 'v2.29.1', '1.29.2'])(
+    'Compose %s fails before anything is built',
+    async (found) => {
+      const { probe, urls } = site(4000)
+      const { calls, result } = smoke(
+        build(),
+        APP,
+        probe,
+        fakeCapture({ 'docker compose version --short': found }).capture,
+      )
+      const shown = found.replace(/^v/, '').replace(/\./g, '\\.')
+      await expect(result).rejects.toThrow(new RegExp(`2\\.35\\.0.*${shown}`))
+      expect(docker(calls)).toEqual([])
+      expect(urls).toEqual([])
+    },
+  )
+  test.each(['2.35.0', 'v2.35.0', '2.40.3', '5.5.0', 'v5.6.1'])(
+    'Compose %s passes the floor',
+    async (found) => {
+      const { capture } = fakeCapture({ 'docker compose version --short': found })
+      await smoke(build(), APP, site(4000).probe, capture).result
+    },
+  )
+  test('a version that cannot be read fails the case before the build', async () => {
+    const { capture } = fakeCapture({ 'docker compose version --short': 'dev' })
+    const { calls, result } = smoke(build(), APP, site(4000).probe, capture)
+    await expect(result).rejects.toThrow(/2\.35\.0/)
+    expect(docker(calls)).toEqual([])
+  })
+  test.each([
+    [
+      'index without the mount point',
+      at4000('/', htmlReply('<html></html>')),
+      /GET \/ .*index\.html/,
+    ],
+    [
+      'index that is not HTML',
+      at4000('/', htmlReply(INDEX, 'application/json')),
+      /GET \/ .*index\.html/,
+    ],
+    [
+      'index from the dev server',
+      at4000(
+        '/',
+        htmlReply('<div id="root"></div><script type="module" src="/src/main.tsx"></script>'),
+      ),
+      /GET \/ .*index\.html/,
+    ],
+    [
+      'index missing',
+      at4000('/', { status: 404, body: NOT_FOUND, contentType: 'application/json' }),
+      /GET \/ .*404/,
+    ],
+    [
+      'deep link 404',
+      at4000(SPA_ROUTE, { status: 404, body: NOT_FOUND, contentType: 'application/json' }),
+      /deep link .*404/,
+    ],
+    [
+      'deep link serving other HTML',
+      at4000(SPA_ROUTE, htmlReply(`${INDEX} `)),
+      /deep link .*index\.html/,
+    ],
+    ['unknown API path answering HTML', at4000('/api/nope', htmlReply(INDEX)), /\/api\/nope .*404/],
+    [
+      'unknown API path with a non-JSON 404',
+      at4000('/api/nope', { status: 404, body: '<h1>404</h1>', contentType: 'text/html' }),
+      /\/api\/nope .*JSON/,
+    ],
+    [
+      'unknown API path with another envelope',
+      at4000('/api/nope', {
+        status: 404,
+        body: '{"message":"x"}',
+        contentType: 'application/json',
+      }),
+      /\/api\/nope .*envelope/,
+    ],
+  ])('%s fails the case naming the check, with teardown', async (_name, overrides, message) => {
+    const { calls, result } = smoke(
+      build(),
+      APP,
+      site(4000, overrides).probe,
+      fakeCapture().capture,
+    )
+    await expect(result).rejects.toThrow(message)
+    expect(verbs(calls).at(-1)).toBe('down -v')
+  })
+  test.each([
+    ['source files', '/app/public/index.html\n/app/public/src\n/app/public/src/main.tsx'],
+    ['a dotenv file', `/app/public/index.html\n${DOTFILE}`],
+    ['a source map', '/app/public/index.html\n/app/public/assets/index-AbC123.js.map'],
+    ['nothing', ''],
+  ])('public/ with %s fails the case', async (_name, listing) => {
+    const { capture } = fakeCapture({ 'find /app/public': listing })
+    const { calls, result } = smoke(build(), APP, site(4000).probe, capture)
+    await expect(result).rejects.toThrow(/public\//)
+    expect(verbs(calls).at(-1)).toBe('down -v')
+  })
+  test('runs the frontend e2e against the server port before the teardown, and only with --e2e', async () => {
+    const withE2e = smoke(build(true), E2E, site(4000).probe, fakeCapture().capture)
+    await withE2e.result
+    // runPackages runs the dev-flow e2e first (no E2E_BASE_URL); the container run is the other.
+    expect(e2eCalls(withE2e.calls)).toHaveLength(2)
+    const against = againstApp(withE2e.calls)
+    expect(against.map((x) => x.vars?.E2E_BASE_URL)).toEqual(['http://127.0.0.1:4000'])
+    const order = withE2e.calls.map((x) => x)
+    const down = order.findIndex((x) => x.line.includes(' down '))
+    const up = order.findIndex((x) => x.line.includes(' up '))
+    const ran = order.indexOf(against[0] as Call)
+    expect(up).toBeLessThan(ran)
+    expect(ran).toBeLessThan(down)
+    const without = smoke(build(true), APP, site(4000).probe, fakeCapture().capture)
+    await without.result
+    expect(e2eCalls(without.calls)).toEqual([])
+  })
+  test('a failing e2e fails the case and the teardown still runs', async () => {
+    const { calls, result } = smoke(
+      build(true),
+      E2E,
+      site(4000).probe,
+      fakeCapture().capture,
+      (line, vars) => line === 'bun ./ok.ts e2e' && vars?.E2E_BASE_URL !== undefined,
+    )
+    await expect(result).rejects.toThrow('boom bun ./ok.ts e2e')
+    expect(verbs(calls).at(-1)).toBe('down -v')
+  })
+})
+
+describe('app smoke, split', () => {
+  const build = (e2e = false) => stackCatalog({ frontend: 'mini-spa', deploy: 'split', e2e })
+  test('probes the server, then the SPA and the proxy through the frontend port, and checks the user', async () => {
+    const { probe, urls } = site(5173)
+    const { capture, asked } = fakeCapture()
+    const { calls, result } = smoke(build(), APP, probe, capture)
+    await result
+    expect(urls).toEqual([
+      'http://127.0.0.1:4000/api/health',
+      'http://127.0.0.1:5173/api/health',
+      'http://127.0.0.1:5173/',
+      `http://127.0.0.1:5173${SPA_ROUTE}`,
+      'http://127.0.0.1:5173/api/nope',
+      `http://127.0.0.1:5173${ASSET}`,
+      `http://127.0.0.1:5173${DOTFILE_PATH}`,
+      `http://127.0.0.1:5173${TRAVERSAL_PATH}`,
+      'http://127.0.0.1:5173/assets/',
+    ])
+    expect(asked).toEqual(['docker compose --profile app exec -T frontend id -u'])
+    expect(verbs(calls)).toEqual(['up --build --wait', 'down -v'])
+  })
+  test('does not check the Compose floor', async () => {
+    const { capture, asked } = fakeCapture({ 'docker compose version --short': '2.1.0' })
+    await smoke(build(), APP, site(5173).probe, capture).result
+    expect(asked.some((line) => line.includes('version'))).toBe(false)
+  })
+  test.each([
+    ['root', '0'],
+    ['unreadable', 'oops'],
+  ])('a frontend container whose user is %s fails the case', async (_name, uid) => {
+    const { calls, result } = smoke(
+      build(),
+      APP,
+      site(5173).probe,
+      fakeCapture({ 'id -u': uid }).capture,
+    )
+    await expect(result).rejects.toThrow(/non-root/)
+    expect(verbs(calls).at(-1)).toBe('down -v')
+  })
+  test('the proxy not answering fails naming the check', async () => {
+    const probe = site(5173, {
+      'http://127.0.0.1:5173/api/health': new Error('connection refused'),
+    }).probe
+    // The wait retries for 60 s; a clock that jumps 20 s per reading makes that instant.
+    let clock = 0
+    const realNow = Date.now
+    const realSetTimeout = globalThis.setTimeout
+    Date.now = () => (clock += 20_000)
+    globalThis.setTimeout = ((fn: () => void) => realSetTimeout(fn, 0)) as typeof setTimeout
+    try {
+      const { calls, result } = smoke(build(), APP, probe, fakeCapture().capture)
+      await expect(result).rejects.toThrow(/5173\/api\/health.*connection refused/)
+      expect(verbs(calls).at(-1)).toBe('down -v')
+    } finally {
+      Date.now = realNow
+      globalThis.setTimeout = realSetTimeout
+    }
+  })
+  test('an index the proxy answers with a 404 fails the case', async () => {
+    const reply: ProbeResult = { status: 404, body: '', contentType: 'text/html' }
+    const probe = site(5173, { 'http://127.0.0.1:5173/': reply }).probe
+    await expect(smoke(build(), APP, probe, fakeCapture().capture).result).rejects.toThrow(
+      /GET \/ .*404/,
+    )
+  })
+  test('runs the e2e against the frontend port', async () => {
+    const { calls, result } = smoke(build(true), E2E, site(5173).probe, fakeCapture().capture)
+    await result
+    expect(againstApp(calls).map((x) => x.vars?.E2E_BASE_URL)).toEqual(['http://127.0.0.1:5173'])
+  })
+})
+
+// A fake site that lacks one security behaviour fails the case naming the check, in both modes.
+const omit = (headers: Record<string, string>, name: string) =>
+  Object.fromEntries(Object.entries(headers).filter(([key]) => key !== name))
+const page = (headers: Record<string, string>): ProbeResult => ({
+  status: 200,
+  body: INDEX,
+  contentType: 'text/html',
+  headers,
+})
+const FAKE_SITES: Array<[string, (base: string) => Record<string, Reply>, RegExp]> = [
+  [
+    'no CSP on index.html',
+    (b) => ({ [`${b}/`]: page(omit(PAGE_HEADERS, 'content-security-policy')) }),
+    /GET [/] .*Content-Security-Policy/,
+  ],
+  [
+    'a CSP without default-src on index.html',
+    (b) => ({ [`${b}/`]: page({ ...PAGE_HEADERS, 'content-security-policy': 'img-src *' }) }),
+    /GET [/] .*default-src/,
+  ],
+  [
+    'no nosniff on index.html',
+    (b) => ({ [`${b}/`]: page(omit(PAGE_HEADERS, 'x-content-type-options')) }),
+    /GET [/] .*nosniff/,
+  ],
+  [
+    'no X-Frame-Options on index.html',
+    (b) => ({ [`${b}/`]: page(omit(PAGE_HEADERS, 'x-frame-options')) }),
+    /GET [/] .*x-frame-options/,
+  ],
+  [
+    'no HSTS on index.html',
+    (b) => ({ [`${b}/`]: page(omit(PAGE_HEADERS, 'strict-transport-security')) }),
+    /GET [/] .*strict-transport-security/,
+  ],
+  [
+    'no Referrer-Policy on index.html',
+    (b) => ({ [`${b}/`]: page(omit(PAGE_HEADERS, 'referrer-policy')) }),
+    /GET [/] .*referrer-policy/,
+  ],
+  [
+    'a cacheable index.html',
+    (b) => ({ [`${b}/`]: page({ ...PAGE_HEADERS, 'cache-control': 'public, max-age=3600' }) }),
+    /GET [/] .*no-cache/,
+  ],
+  [
+    'no CSP on a deep link',
+    (b) => ({ [`${b}${SPA_ROUTE}`]: page(omit(PAGE_HEADERS, 'content-security-policy')) }),
+    /deep link .*Content-Security-Policy/,
+  ],
+  [
+    'no CSP on an asset',
+    (b) => ({
+      [`${b}${ASSET}`]: {
+        status: 200,
+        body: 'x',
+        headers: omit(ASSET_HEADERS, 'content-security-policy'),
+      },
+    }),
+    /hashed asset .*Content-Security-Policy/,
+  ],
+  [
+    'a mutable asset',
+    (b) => ({
+      [`${b}${ASSET}`]: {
+        status: 200,
+        body: 'x',
+        headers: { ...GOOD_HEADERS, 'cache-control': 'no-cache' },
+      },
+    }),
+    /hashed asset .*immutable/,
+  ],
+  [
+    'a served dotfile',
+    (b) => ({ [`${b}${DOTFILE_PATH}`]: page(PAGE_HEADERS) }),
+    /dotfile .*status 200/,
+  ],
+  [
+    'a traversal answered with the shell',
+    (b) => ({ [`${b}${TRAVERSAL_PATH}`]: page(PAGE_HEADERS) }),
+    /traversal .*status 200/,
+  ],
+  [
+    'a listed assets directory',
+    (b) => ({
+      [`${b}/assets/`]: { status: 200, body: '<pre>index.js</pre>', contentType: 'text/html' },
+    }),
+    /assets directory .*status 200/,
+  ],
+  [
+    'an assets directory answered with the shell',
+    (b) => ({ [`${b}/assets/`]: { status: 404, body: INDEX } }),
+    /assets directory .*SPA shell/,
+  ],
+]
+describe('app smoke, the edge security behaviour', () => {
+  test.each(FAKE_SITES)(
+    'single: %s fails the case naming the check',
+    async (_name, overrides, message) => {
+      const base = 'http://127.0.0.1:4000'
+      const { calls, result } = smoke(
+        stackCatalog({ frontend: 'mini-spa' }),
+        APP,
+        site(4000, overrides(base)).probe,
+        fakeCapture().capture,
+      )
+      await expect(result).rejects.toThrow(message)
+      expect(verbs(calls).at(-1)).toBe('down -v')
+    },
+  )
+  test.each(FAKE_SITES)(
+    'split: %s fails the case naming the check',
+    async (_name, overrides, message) => {
+      const base = 'http://127.0.0.1:5173'
+      const { calls, result } = smoke(
+        stackCatalog({ frontend: 'mini-spa', deploy: 'split' }),
+        APP,
+        site(5173, overrides(base)).probe,
+        fakeCapture().capture,
+      )
+      await expect(result).rejects.toThrow(message)
+      expect(verbs(calls).at(-1)).toBe('down -v')
+    },
+  )
+  test('a probe that reports no headers fails the headers check', async () => {
+    const bare: ProbeResult = { status: 200, body: INDEX, contentType: 'text/html' }
+    const probe = site(5173, { 'http://127.0.0.1:5173/': bare }).probe
+    const built = stackCatalog({ frontend: 'mini-spa', deploy: 'split' })
+    await expect(smoke(built, APP, probe, fakeCapture().capture).result).rejects.toThrow(
+      /Content-Security-Policy/,
+    )
+  })
+  test('the traversal probe survives URL normalisation', () => {
+    expect(new URL(`http://h${TRAVERSAL_PATH}`).pathname).toBe(TRAVERSAL_PATH)
+  })
+})
+
+describe('app smoke, a frontend that is not an SPA', () => {
+  test('keeps the server-port probe only: no capture, no SPA checks, no e2e against the container', async () => {
+    const built = stackCatalog({ frontend: 'mini-ui', deploy: 'split', e2e: true })
+    const urls: string[] = []
+    const probe: Probe = async (url) => {
+      urls.push(url)
+      return { status: 200, body: '' }
+    }
+    const capture: Capture = () => {
+      throw new Error('nothing to capture')
+    }
+    const { calls, result } = smoke(built, E2E, probe, capture)
+    await result
+    expect(urls).toEqual(['http://127.0.0.1:4000/api/health'])
+    expect(verbs(calls)).toEqual(['up --build --wait', 'down -v'])
+    expect(againstApp(calls)).toEqual([])
   })
 })

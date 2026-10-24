@@ -25,6 +25,13 @@ APIs. Data reaches client components through props or server actions, never thro
 or `revalidateTag` for what it changed, and returns an `ActionResult` that the client leaf
 shows with `sonner`.
 
+Lint enforces the direction, the client rule and the `env.ts` rule, and `tests/unit/eslint-zones.test.ts`
+seeds one violation per zone. A relative import of another feature's `ui/` is flagged only from a file 1 to 3
+directories below `feature/<name>/` (2 to 4 levels of `../`); a file nested deeper, or one directly in
+`feature/<name>/`, is not covered. Use the `@/` alias for every import that crosses a directory
+(`@/shared/ui/...`, `@/lib/...`), and keep relative imports inside one feature. `@/feature/<name>/ui/...` is
+flagged at any depth, and also for a feature's own `ui/`.
+
 ## Adding a feature
 
 1. Create `src/feature/<name>/` (singular) with `model.ts` (types, form schemas), `server/`
@@ -84,6 +91,28 @@ shows with `sonner`.
   `bun x playwright install chromium` (add `--with-deps` on Linux).
 - Every new behaviour gets a test for the happy path and at least one for a failure or empty
   path. No `.skip` or `.only`; a removed test is named in the stage report.
+
+## Deployment
+
+Next is always deployed `split`: `--deploy single` is refused for this template because it declares no
+`static` output, and a Next stack records `deploy: split` in provenance. The package has no `STATIC_DIR`,
+and it is not served by the server.
+
+- **Image.** Multi-stage `Dockerfile`: a frozen install, `bun run build`, then only Next's
+  standalone output, its static files and `public/` are copied. The container runs as the
+  non-root `node` user and listens on `3000`.
+- **Compose service.** The root `docker-compose.yml` builds the package from its `Dockerfile`
+  under the `app` profile, so `docker compose --profile app up --build` starts it. With a server
+  in the plan it gets `API_URL` (the server's name and port on the Compose network) and waits
+  for the server. Stop it with `docker compose --profile app down`: a plain `down` does not see
+  profile services.
+- **Port.** Published as `3000:3000` on every interface: this container is the public edge, and
+  the server behind it is published on loopback only. API calls are made by the Next.js server
+  through `API_URL`, not by the browser.
+- **`TRUST_PROXY`.** Not read here. The server's Compose service defaults it to `1` because this
+  server counts as the one proxy hop in front of it. Anything placed in front of this container
+  adds a hop: raise the server's `TRUST_PROXY` to match.
+- **`STATIC_DIR`.** Leave it unset on the server: it serves the API only.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

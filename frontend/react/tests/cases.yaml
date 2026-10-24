@@ -1,0 +1,15 @@
+schemaVersion: 1
+cases:
+  - name: default
+    stack: react-python-fastapi
+    deploy: single
+    withApp: true
+  - name: split
+    stack: react-python-fastapi
+    deploy: split
+    withApp: true
+  - name: bun
+    stack: react-bun-express
+    deploy: single
+    withApp: true
+  - name: alone

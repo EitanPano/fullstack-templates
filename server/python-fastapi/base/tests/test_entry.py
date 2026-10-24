@@ -291,6 +291,34 @@ class TestLoadEnv:
         assert load_env({"CORS_ORIGINS": ""}).env.cors_origins is None
         assert load_env({"CORS_ORIGINS": "   "}).env.cors_origins is None
 
+    def test_leaves_static_dir_none_when_unset_or_blank_and_resolves_it(self) -> None:
+        assert load_env({}).env.static_dir is None
+        assert load_env({"STATIC_DIR": ""}).env.static_dir is None
+        assert load_env({"STATIC_DIR": "   "}).env.static_dir is None
+        assert load_env({"STATIC_DIR": "dist"}).env.static_dir == Path("dist").resolve()
+
+    def test_refuses_a_production_static_dir_without_an_index_html_and_names_it(
+        self, tmp_path: Path
+    ) -> None:
+        message = r"invalid environment: STATIC_DIR: .* has no index\.html"
+        with pytest.raises(EnvError, match=message):
+            load_env({**PRODUCTION, "STATIC_DIR": str(tmp_path)})
+        with pytest.raises(EnvError, match="STATIC_DIR"):
+            load_env({**PRODUCTION, "STATIC_DIR": str(tmp_path / "missing")})
+        # A directory named index.html is not the file.
+        (tmp_path / "index.html").mkdir()
+        with pytest.raises(EnvError, match="STATIC_DIR"):
+            load_env({**PRODUCTION, "STATIC_DIR": str(tmp_path)})
+
+    def test_accepts_a_production_static_dir_with_an_index_html_and_a_missing_one_elsewhere(
+        self, tmp_path: Path
+    ) -> None:
+        (tmp_path / "index.html").write_text("<title>spa</title>")
+        production = load_env({**PRODUCTION, "STATIC_DIR": str(tmp_path)})
+        assert production.env.static_dir == tmp_path.resolve()
+        missing = tmp_path / "missing"
+        assert load_env({"STATIC_DIR": str(missing)}).env.static_dir == missing.resolve()
+
     def test_refuses_a_trust_proxy_entry_that_is_not_an_address_a_range_or_a_preset(self) -> None:
         """Fail fast, as bun-express does at boot: the message names the variable and the entry."""
         for bad in ("banana", "10.0.0.0/33", "loopback, banana"):

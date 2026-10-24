@@ -23,6 +23,7 @@ describe('loadCatalog', () => {
   test('loads templates and stacks keyed by path and id', () => {
     const catalog = loadCatalog(FIXTURE)
     expect([...catalog.templates.keys()].sort()).toEqual([
+      'frontend/mini-spa',
       'frontend/mini-ui',
       'server/mini',
       'server/mini-py',
@@ -629,9 +630,76 @@ describe('loadCatalog: server agents headings', () => {
     expect(() => loadCatalog(root)).not.toThrow()
   })
 
-  test('does not check a frontend template', () => {
+  test('refuses a server template whose agents file lacks Deployment', () => {
     const root = copyFixture('catalog')
-    writeFileSync(path.join(root, 'frontend/mini-ui/base/AGENTS.md'), '# UI\n')
+    edit(root, `${mini}/base/AGENTS.md`, (t) => t.replace('## Deployment\n', ''))
+    const message = problems(root)
+    expect(message).toContain(mini)
+    expect(message).toContain('"Deployment"')
+    expect(message).not.toContain('"Errors"')
+  })
+})
+
+describe('loadCatalog: frontend agents headings', () => {
+  const ui = 'frontend/mini-ui'
+  const FIVE = ['Adding a feature', 'Styling', 'Errors', 'Tests', 'Deployment']
+
+  test('accepts a frontend with the five headings and no layer map heading', () => {
+    const root = copyFixture('catalog')
+    const text = FIVE.map((heading) => `## ${heading}\n`).join('\n')
+    writeFileSync(path.join(root, `${ui}/base/AGENTS.md`), text)
     expect(() => loadCatalog(root)).not.toThrow()
+  })
+
+  test.each(FIVE)('refuses a frontend template whose agents file lacks %s', (heading) => {
+    const root = copyFixture('catalog')
+    edit(root, `${ui}/base/AGENTS.md`, (t) => t.replace(`## ${heading}\n`, ''))
+    const message = problems(root)
+    expect(message).toContain(ui)
+    expect(message).toContain(`"${heading}"`)
+    for (const other of FIVE.filter((h) => h !== heading)) {
+      expect(message).not.toContain(`"${other}"`)
+    }
+  })
+
+  test('lists every missing heading of a bare agents file', () => {
+    const root = copyFixture('catalog')
+    writeFileSync(path.join(root, `${ui}/base/AGENTS.md`), '# UI\n')
+    expect(problems(root)).toContain(
+      '"Adding a feature", "Styling", "Errors", "Tests", "Deployment"',
+    )
+  })
+
+  test('ignores a heading inside a fenced block', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${ui}/base/AGENTS.md`, (t) =>
+      t.replace('## Deployment\n', '```sh\n# Deployment\n```\n'),
+    )
+    expect(problems(root)).toContain('"Deployment"')
+  })
+})
+
+describe('loadCatalog: the static field and the reserved single', () => {
+  test('keeps static on a frontend', () => {
+    const manifest = loadCatalog(FIXTURE).templates.get('frontend/mini-spa')?.manifest
+    expect(manifest?.static).toEqual({ out: 'dist' })
+  })
+
+  test('refuses static on a server template, naming it', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'server/mini/template.yaml', (t) =>
+      t.replace('http:', 'static:\n  out: dist\nhttp:'),
+    )
+    const message = problems(root)
+    expect(message).toContain('server/mini')
+    expect(message).toContain('static')
+  })
+
+  test('refuses a manifest that declares a flag named single', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'server/mini/template.yaml', (t) =>
+      t.replace('flags:\n', 'flags:\n  single:\n    summary: One image\n    default: false\n'),
+    )
+    expect(problems(root)).toContain('server/mini/template.yaml')
   })
 })
