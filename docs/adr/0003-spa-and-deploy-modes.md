@@ -628,7 +628,12 @@ Accepted by Eitan at gate G1 of plan 010 (2026-10-24), with the `service:` conte
 The decisions above held. These are the ways the shipped catalog differs from the accepted text,
 each with its commit. The commits below are on the milestone branch.
 
-Proof: <!-- P1 results -->
+Proof (2026-10-24, Windows 11, Docker Desktop 29.7.2, Compose 5.5.0, at `7004eb9`): the tools suite
+(498 tests), `validate` and `validate --lockfiles` pass; all 22 cases pass one at a time with `--e2e
+--with-services --with-app`: `frontend/react/{default,split,bun}`, `server/python-fastapi/stack-react-postgres`
+(the migrate one-shot exits 0 first), `frontend/react/alone` (`--e2e`), and the 17 existing server and `next`
+cases. The V04 diff of `next-python-fastapi` against `v1.1.0` shows only the listed differences plus the `next`
+zone fix and the comment rewording. CI on the pull request proves the Linux runner (V14).
 
 Differences from the text above:
 
