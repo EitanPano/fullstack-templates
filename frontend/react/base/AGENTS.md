@@ -149,3 +149,40 @@ or a form; a component never calls `fetch` (a convention, not enforced by lint).
   `config/constants.py`), so an oversize body gets nginx's own 413 page, not the server's
   envelope. To accept more, raise the server's limit and set `client_max_body_size` in the
   `/api/` location of `nginx/default.conf` to match.
+
+<!-- @server-start -->
+**The lines of each mode.** Switching mode edits exactly these lines, copied from this package's
+`compose.yaml`, so they cannot drift. A generated project holds only the lines of its own mode, so
+copy the other mode's from here. They sit under this package's service in the root
+`docker-compose.yml`, indented four spaces (the generated file may spell the `ports` and
+`depends_on` lists with spaces inside the brackets, which is the same YAML). `API_URL` is the
+server's Compose service name and port, and `depends_on` names that service. The `Dockerfile` has
+both targets in both modes and is not edited. The server's own lines are in its
+`AGENTS.md › Deployment`.
+
+Compose, `single`:
+
+```yaml
+# A build-only service that the server's build reads as its spa context (Compose 2.35.0 or
+# newer). No depends_on (the server's build waits for this one), no environment, no container.
+build:
+  context: ./__PACKAGE_DIR__
+  target: dist
+scale: 0
+```
+
+Compose, `split` (replaces the `single` lines above):
+
+```yaml
+# nginx serves the static files on its own port.
+build:
+  context: ./__PACKAGE_DIR__
+  target: serve
+# nginx proxies /api to the server and starts after it.
+environment:
+  API_URL: http://__SERVER_DIR__:__SERVER_PORT__
+ports: ['__PORT__:__PORT__']
+depends_on: [__SERVER_DIR__]
+profiles: ['app']
+```
+<!-- @server-end -->

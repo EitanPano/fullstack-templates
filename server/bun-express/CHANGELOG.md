@@ -24,6 +24,7 @@
   same as `index.html` and the nginx edge; it had been `public, max-age=0`.
 - `createApp(staticDir?)` is exported from `server.ts` (defaulting to `STATIC_DIR`), so a test
   builds an app over a fixture directory.
+- `AGENTS.md › Deployment` lists the Compose and `Dockerfile` lines of both modes verbatim from `compose.yaml` and the `Dockerfile`, so a project generated in one mode can be moved to the other; a unit test keeps them equal to the files.
 
 ## 2.2.0 — 2026-10-23
 

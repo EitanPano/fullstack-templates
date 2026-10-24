@@ -704,15 +704,8 @@ the `Dockerfile` and the Compose fragment differ, through the lines named below,
   Every static response carries the security headers (the CSP included) and the request id. The
   server does not compress; the host's edge does. A product that needs `/.well-known/*` adds a
   route by plan.
-- **`single`.** One image holds the API and the SPA. The `Dockerfile` has these lines (the
-  `spa` build context is the frontend's `dist` target):
-
-  ```dockerfile
-  COPY --from=spa --chown=bun:bun /dist ./public
-  ENV STATIC_DIR=/app/public
-  ```
-
-  The Compose service adds `build.additional_contexts: { spa: "service:<frontend dir>" }`, which
+- **`single`.** One image holds the API and the SPA. The `Dockerfile` copies the SPA from the
+  `spa` build context (the frontend's `dist` target) and sets `STATIC_DIR`. The Compose service adds `build.additional_contexts: { spa: "service:<frontend dir>" }`, which
   copies from the frontend's build-only service (`scale: 0`, no container), and publishes
   `4000:4000` on every interface: the server is the public edge. `TRUST_PROXY` defaults
   to `false`, so no caller can choose its own client IP through `X-Forwarded-For`. This needs
@@ -737,3 +730,56 @@ the `Dockerfile` and the Compose fragment differ, through the lines named below,
   requests to HTTPS and the page is blank.
 - **Secrets.** Production values come from the shell environment or a secret manager; Compose
   reads `${VAR}` and never stores them.
+
+**The lines of each mode.** Switching mode edits exactly these lines, copied from this package's
+`compose.yaml` and `Dockerfile`, so they cannot drift. A generated project holds only the lines
+of its own mode, so copy the other mode's from here. The Compose lines sit under this package's
+service in the root `docker-compose.yml`, indented four spaces; the generated file may spell the
+`ports` list with spaces inside the brackets, which is the same YAML. `<frontend dir>` is the
+frontend's directory in `.fullstack/catalog.yaml`. The frontend's own lines are in its
+`AGENTS.md › Deployment`.
+
+Compose, `single`:
+
+```yaml
+# Single: the image also holds the SPA, copied from the frontend's build-only service (the
+# Dockerfile's `spa` context; Compose 2.35.0 or later).
+build:
+  context: ./__PACKAGE_DIR__
+  additional_contexts:
+    spa: service:<frontend dir>
+environment:
+  # (the other environment entries stay)
+  # Single: the server is the edge, so no proxy hop is trusted; IP-keyed rate limits use the socket
+  # address. Behind a production edge set the hop count (a PaaS edge is usually 1).
+  TRUST_PROXY: ${TRUST_PROXY:-false}
+# (the other service keys stay)
+# Single: the server is the public edge, so it publishes on every interface. With TRUST_PROXY
+# false no caller can choose its own client IP through X-Forwarded-For.
+ports: ["__PORT__:__PORT__"]
+```
+
+Compose, `split` (replaces the `single` lines above):
+
+```yaml
+build: ./__PACKAGE_DIR__
+environment:
+  # (the other environment entries stay)
+  # Split: the frontend container (the Next.js server, or the SPA's nginx) is the one proxy hop;
+  # IP-keyed rate limits depend on it.
+  TRUST_PROXY: ${TRUST_PROXY:-1}
+# (the other service keys stay)
+# Split: loopback only, the frontend container reaches the backend on the compose network.
+# Publishing the port on every interface with TRUST_PROXY=1 would let any direct caller
+# choose its own client IP through X-Forwarded-For.
+ports: ["127.0.0.1:__PORT__:__PORT__"]
+```
+
+`Dockerfile`, `single` only, between `COPY --chown=bun:bun src ./src` and `USER bun`. In `split` these three lines
+(the comment, the `COPY` and the `ENV`) are absent, so delete them:
+
+```dockerfile
+# The built SPA from the frontend's `dist` target, served when STATIC_DIR names it.
+COPY --from=spa --chown=bun:bun /dist ./public
+ENV STATIC_DIR=/app/public
+```

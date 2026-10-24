@@ -25,6 +25,7 @@
 - Tests pin that a JSON route answers 400 `invalid body` for a body with no `Content-Type` or with
   `text/plain`, as bun-express does (FastAPI's `strict_content_type` default).
 - `SpaMount` returns no match for a websocket scope, which `StaticFiles` cannot serve.
+- `AGENTS.md › Deployment` lists the Compose and `Dockerfile` lines of both modes verbatim from `compose.yaml` and the `Dockerfile`, so a project generated in one mode can be moved to the other; a unit test keeps them equal to the files.
 
 ## 1.0.0 — 2026-10-23
 

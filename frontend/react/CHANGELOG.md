@@ -13,3 +13,4 @@
 - The client lint rule also covers the suffixed spellings (`client.ts`, `client.js`, `client.tsx`).
 - Lint enforces the layer boundaries with disjoint zones, proved by a unit test that lints one
   seeded violation per zone.
+- `AGENTS.md › Deployment` lists the Compose lines of both modes verbatim from `compose.yaml` (shown only when a server is in the project), so a project generated in one mode can be moved to the other; a unit test keeps them equal to the fragment.
