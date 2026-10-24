@@ -22,6 +22,7 @@ commands:
   contract: bun run api:types
 contract: { consumes: '<server>/openapi.json' }
 http: { port: 5173, health: / }
+static: { out: dist }
 gitignore: [node]
 agents: AGENTS.md
 defaultStack: react-python-fastapi
