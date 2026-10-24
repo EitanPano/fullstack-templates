@@ -15,6 +15,11 @@ templates:
     path: frontend/next
     version: 1.1.0
     summary: "Next.js 16 App Router with a typed client generated from the server's contract"
+  - id: react
+    kind: frontend
+    path: frontend/react
+    version: 1.0.0
+    summary: "Vite and React 19 single-page app with React Router data mode and a typed client generated from the server's contract"
 stacks:
   - id: next-bun-express
     path: stacks/next-bun-express
@@ -22,3 +27,6 @@ stacks:
   - id: next-python-fastapi
     path: stacks/next-python-fastapi
     summary: Next.js 16 in front of FastAPI on Python 3.14
+  - id: react-python-fastapi
+    path: stacks/react-python-fastapi
+    summary: React 19 (Vite) in front of FastAPI on Python 3.14
