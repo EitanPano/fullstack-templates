@@ -657,3 +657,24 @@ this ADR where it assumed npm or TypeScript:
   mechanism, a `validate` middleware) are made language-neutral in `conventions.md`.
 - Delivery order (After v1): `server/python-fastapi` ships with the `next-python-fastapi` stack
   in v1.1.0, before `frontend/react`; `react-python-fastapi` follows react.
+
+## Amendments (v1.2.0)
+
+[ADR 0003](0003-spa-and-deploy-modes.md) records the first single-page-app frontend and the deploy
+modes:
+
+- Delivery order (After v1): milestone 5 ships `frontend/react` with the `react-python-fastapi`
+  and `react-bun-express` stacks in v1.2.0, after `server/python-fastapi` and before MongoDB.
+- D2: a frontend template manifest gains `static: { out: <dir> }`, which says the build writes
+  static files a server can serve. Template cases gain `deploy`. `schemaVersion` stays 1.
+- D4: the frontend contract has two documented shapes, server-rendered (`server/` data layer) and
+  single-page app (`api/` data layer, relative `/api`, `dist/`, two Dockerfile targets).
+  `conventions.md` gains "Frontend, single-page app" and "Deploy modes". The agents-file headings
+  check covers frontends (`Adding a feature`, `Styling`, `Errors`, `Tests`, `Deployment`) and adds
+  `Deployment` to servers.
+- D5: Compose is assembled per deploy mode. `generate.ts` gains `--deploy single|split`, defaulting
+  to `single` for a stack whose frontend declares `static` and has a server, `split` otherwise.
+  `__FRONTEND_DIR__` joins the package placeholders and `single` joins `server` as a reserved marker
+  selection (`@single`, `@nosingle`).
+- D7: provenance gains an optional top-level `deploy: single | split`, written when the plan has a
+  server and a frontend.
