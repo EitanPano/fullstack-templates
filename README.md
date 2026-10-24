@@ -61,8 +61,8 @@ stack; production does not refuse its credentials if you export them.
 <!-- matrix:start -->
 | Template | Kind | Version | Flags | Capabilities | Summary |
 | --- | --- | --- | --- | --- | --- |
-| `bun-express` | server | 2.2.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
-| `python-fastapi` | server | 1.0.0 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
+| `bun-express` | server | 2.3.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
+| `python-fastapi` | server | 1.1.0 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
 | `next` | frontend | 1.1.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
 
 | Stack | Packages | Summary |

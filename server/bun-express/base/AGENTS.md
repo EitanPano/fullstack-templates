@@ -55,11 +55,11 @@ api/<name>/         routes · controller · schema; service only when the module
 models/<name>/      interface.ts · type.ts · enum.ts · constants.ts
 <!-- @auth-start -->
 middleware/         auth · role · validate · rate-limit · error-handler · not-found ·
-                    request-id · request-log · express.d.ts
+                    request-id · request-log · static · express.d.ts
 <!-- @auth-end -->
 <!-- @noauth-start -->
 middleware/         validate · rate-limit · error-handler · not-found · request-id ·
-                    request-log · express.d.ts
+                    request-log · static · express.d.ts
 <!-- @noauth-end -->
 <!-- @auth-start -->
 services/           db.ts · cache.ts · event.ts · logger.ts · session.ts
@@ -168,12 +168,13 @@ infra/              dependency.ts · postgres.ts · memory.ts · scheduler.ts ·
 <!-- @auth-start -->
 - `middleware/`: request handling an endpoint or every request needs. `auth.ts` resolves the
   caller, `role.ts` gates by role, `validate.ts` validates, `rate-limit.ts` limits (the key holds a hash of the subject).
-  `express.d.ts` types `res.locals`.
+  `express.d.ts` types `res.locals`. `static.ts` serves a built SPA when `STATIC_DIR` is set
+  (see Deployment).
 <!-- @auth-end -->
 <!-- @noauth-start -->
 - `middleware/`: request handling an endpoint or every request needs. `validate.ts` validates,
   `rate-limit.ts` limits (the key holds a hash of the subject). `express.d.ts` types
-  `res.locals`.
+  `res.locals`. `static.ts` serves a built SPA when `STATIC_DIR` is set (see Deployment).
 <!-- @noauth-end -->
 <!-- @auth-start -->
 - `services/`: stateful or I/O capabilities shared by modules: the stores' seams, events,
@@ -671,17 +672,62 @@ A gated endpoint also tests its 401 and, where it checks a role, its 403. <!-- @
 
 ## Deployment
 
+The server ships in one of two deploy modes, `single` or `split`; the project's mode is recorded
+in `.doc/architecture.md` (Operational Concerns › Deployment). The code is the same in both. Only
+the `Dockerfile` and the Compose fragment differ, through the lines named below, and the harness's
+`deployment` skill moves a project between them.
+
 - **Image.** Multi-stage `Dockerfile`: a frozen, production-only install, then only `package.json`
-  and `src/` copied. The container runs as the non-root `bun` user and listens on `4000`.
+  and `src/` copied (and `public/` in `single`). The container runs as the non-root `bun` user and
+  listens on `4000`.
 - **Compose service.** The root `docker-compose.yml` builds the package from its `Dockerfile`
   under the `app` profile, so `docker compose --profile app up --build` starts it. With the
-  Postgres capability, a `<dir>-migrate` service runs the migrations first.
-- **Port.** Published as `127.0.0.1:4000:4000`, loopback only: the frontend container
-  reaches it on the Compose network, and nothing else on the host network can.
-- **`TRUST_PROXY`.** The Compose file defaults it to `1`, because the Next.js server in front
-  counts as one proxy hop and the rate limits are keyed by client IP. The server's own default,
-  `.env.example` included, is `false`. Behind any other edge set the real hop count: too high lets
-  a caller choose its own rate-limit key through `X-Forwarded-For`, too low keys every caller to
-  the proxy.
+  Postgres capability, a `<dir>-migrate` service runs the migrations first and shares the image.
+  Stop the stack with `docker compose --profile app down`: a plain `docker compose down` does not
+  see the profiled service and leaves it running.
+- **Static serving (`STATIC_DIR`).** `STATIC_DIR` names a built single-page app, which
+  `src/middleware/static.ts` serves from `src/server.ts` after the API routes and `/openapi.json`,
+  before the not-found handler. Unset or blank (the default, and always in `split`), nothing is mounted. Set, it
+  is resolved to an absolute path once, and in production the process refuses to boot when the
+  directory has no `index.html`. Outside production a missing directory is not fatal: every page is
+  the JSON 404. The behaviour is the same in every server template:
+
+  | Request | Response |
+  | --- | --- |
+  | GET or HEAD of an existing file | The file. `assets/*` gets `Cache-Control: public, max-age=31536000, immutable`; `index.html` gets `no-cache`. |
+  | GET or HEAD of an extension-less path outside `/api` | `index.html`, `no-cache`. |
+  | A path with an extension and no file | The 404 envelope. |
+  | `/api` or `/api/*` with no route, in any letter case or encoding | The 404 envelope, never the shell. |
+  | Another method on a non-API path | The 404 envelope. |
+  | A dotfile (`/.well-known/*` too), an encoded traversal, a symlink out of the directory or a directory | The 404 envelope. Never a listing. |
+
+  Every static response carries the security headers (the CSP included) and the request id. The
+  server does not compress; the host's edge does. A product that needs `/.well-known/*` adds a
+  route by plan.
+- **`single`.** One image holds the API and the SPA. The `Dockerfile` has these lines (the
+  `spa` build context is the frontend's `dist` target):
+
+  ```dockerfile
+  COPY --from=spa --chown=bun:bun /dist ./public
+  ENV STATIC_DIR=/app/public
+  ```
+
+  The Compose service adds `build.additional_contexts: { spa: "service:<frontend dir>" }`, which
+  copies from the frontend's build-only service (`scale: 0`, no container), and publishes
+  `4000:4000` on every interface: the server is the public edge. `TRUST_PROXY` defaults
+  to `false`, so no caller can choose its own client IP through `X-Forwarded-For`. This needs
+  Docker Compose 2.35.0 or later; an older client fails with a message that does not name the cause.
+- **`split`.** The `Dockerfile` has no SPA lines and `STATIC_DIR` is unset. The Compose service has
+  `build: ./<dir>` and publishes `127.0.0.1:4000:4000`, loopback only: the frontend container
+  reaches the server on the Compose network and nothing else on the host network can.
+  `TRUST_PROXY` defaults to `1`, because the frontend container (the Next.js server, or the SPA's
+  nginx) in front is one proxy hop and the rate limits are keyed by client IP.
+- **`TRUST_PROXY` in production.** The server's own default, `.env.example` included, is `false`.
+  Set the real hop count of the deployment: behind a PaaS edge it is usually `1`, behind a CDN and
+  a load balancer `2`. Too high lets a caller choose its own rate-limit key through
+  `X-Forwarded-For`, too low keys every caller to the proxy.
+- **TLS.** The container speaks HTTP and the CSP keeps `upgrade-insecure-requests`, so an edge
+  terminates TLS. Over plain HTTP at a host other than loopback the browser upgrades the page's
+  requests to HTTPS and the page is blank.
 - **Secrets.** Production values come from the shell environment or a secret manager; Compose
   reads `${VAR}` and never stores them.
