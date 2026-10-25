@@ -15,7 +15,10 @@ export default defineConfig({
     baseURL: external ?? 'http://localhost:5173',
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'phone', use: { ...devices['Pixel 7'], screenshot: 'on' } },
+  ],
   webServer: external
     ? undefined
     : [

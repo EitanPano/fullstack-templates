@@ -3,6 +3,8 @@ import { useEffect, useRef } from 'react'
 import { useRevalidator } from 'react-router'
 import { toast } from 'sonner'
 
+import { Button } from '@/shared/ui/button'
+
 // Re-runs the route's loaders through the router; the button never calls the API itself.
 // `revalidate()` resolves even when a loader fails, so the toast fires from the loading to
 // idle transition instead: a failed reload swaps the page for the route's error boundary
@@ -22,17 +24,16 @@ export function RefreshButton() {
   }, [state])
 
   return (
-    <button
-      type="button"
+    <Button
       onClick={() => {
         phase.current = 'waiting'
         void revalidate()
       }}
       disabled={pending}
-      className="inline-flex w-fit items-center gap-2 rounded-md border px-3 py-1 text-sm hover:bg-foreground/5 disabled:opacity-50"
+      className="w-fit"
     >
       <RefreshCw aria-hidden className={`size-4 ${pending ? 'animate-spin' : ''}`} />
       Refresh
-    </button>
+    </Button>
   )
 }
