@@ -2,7 +2,7 @@ schemaVersion: 1
 id: react
 kind: frontend
 name: React 19 SPA (Vite)
-version: 1.0.0
+version: 1.1.0
 summary: "Vite and React 19 single-page app with React Router data mode and a typed client generated from the server's contract"
 runtime: { language: typescript, platform: node, minVersion: '24' }
 tools:

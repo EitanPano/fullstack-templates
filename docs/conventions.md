@@ -34,6 +34,10 @@ language-neutral core.
   pydantic, FluentValidation with Swashbuckle, Bean Validation with springdoc, Laravel
   form requests with Scramble). Singular resource paths under `/api/`, JSON only, one
   error envelope, a request id on every response.
+- Rate-limit subject: `by_ip` keys an IPv6 address by its /64 network and an IPv4 address by
+  itself; an IPv4-mapped IPv6 address is its IPv4. One /64 is one subscriber, and keying the
+  full address lets it rotate past any per-IP limit
+  ([ADR 0004](adr/0004-ui-baseline.md), U6).
 - `GET /api/health` (liveness, no store) and `GET /api/health/ready` (pings every
   resource, 503 with a per-dependency map).
 - Config from environment variables only, read once, failing fast in production on a
@@ -63,7 +67,35 @@ The per-language equivalents (the table every new server template is written aga
   the typed client generated from the server's contract and is imported only by a
   feature's data layer. Import direction `app → feature → shared, lib`.
 - Gates: typecheck, lint, format, unit tests; e2e with an accessibility scan.
-- Tokens as CSS variables; one toast library, one icon set per template.
+- Tokens as CSS variables; one toast library, one icon set per template. The five rules below
+  apply to every frontend, server-rendered or SPA; the rationale is in
+  [ADR 0004](adr/0004-ui-baseline.md).
+- **Shell.** `shared/ui/app-shell` is composed by the root layout in `app/`: a skip link to
+  `#main`, `<header>` with the project name linking to `/` and `<nav aria-label="Primary">` built
+  from `app/nav.ts` (`NavEntry { to | href, label }`: `to` in react-router, `href` in `next/link`),
+  the page's one `<main id="main">`, and `<footer>`. A feature adds a nav entry and renders
+  inside `main`; it never adds a second landmark set. A product restyles the shell by plan; the
+  landmarks, the skip link and one `main` stay. The root layout passes the nav entries to the
+  shell as props, so `shared/` never imports `app/`.
+- **Token scales.** The token file declares colour (`background`, `foreground`, `muted`,
+  `muted-foreground`, `border`, `input`, `primary`, `primary-foreground`, `ring`, with a dark
+  variant), type (`--text-sm`, `base`, `lg`, `xl`, `2xl`, with line heights), radius
+  (`--radius-sm` 4 px, `md` 8 px, `lg` 12 px), and `--shadow-1`, `--shadow-2`, exposed to the
+  utility layer. Spacing is a 4 px base (Tailwind's default multiplier in the current templates);
+  steps 1, 2, 3, 4, 6, 8, 12, 16. A template never adds a `--spacing-N` key. A component uses a
+  token, never a literal.
+- **Mobile first.** Unprefixed utilities are the phone layout; `sm`, `md`, `lg` widen it;
+  their pixel values are in the template's `AGENTS.md › Styling` (Tailwind's defaults today). No
+  horizontal overflow at any viewport. Buttons, nav links and form controls are at least
+  44 x 44 px; `shared/ui/button` is the one place for a button.
+- **Phone e2e project.** The Playwright config has a `phone` project (`devices['Pixel 7']`,
+  `screenshot: 'on'`) beside `chromium`. Every journey and the accessibility scan run on both.
+  `tests/e2e/shell.spec.ts` asserts, on the phone project, the landmarks, the skip link, no
+  horizontal overflow and the 44 px targets. The screenshots are the UX evidence QA reads.
+- **E2E data.** With a database, the e2e server uses the development database: start it and
+  migrate before `testE2e`. A journey creates its data through the API with a name unique per
+  run, removes it through the API once the product has a delete endpoint, and never takes the
+  database's contents as a precondition.
 
 **Frontend, single-page app**
 

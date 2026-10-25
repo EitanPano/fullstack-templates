@@ -71,6 +71,7 @@ Written in `docs/conventions.md › Frontend, single-page app`. Every SPA templa
   `serve` (the split-mode static server).
 - **The agents file** has a layer map and the headings `Adding a feature`, `Styling`, `Errors`,
   `Tests` and `Deployment` (M5-9).
+  The shell, token scales and phone e2e project that `Styling` and `Tests` carry: ADR 0004.
 
 Why: the shape mirrors `frontend/next` (routing-only `app/`, `loading`/`error` per segment, one
 data layer per feature), so the same agent works in both. Relative `/api` is what makes `single`,

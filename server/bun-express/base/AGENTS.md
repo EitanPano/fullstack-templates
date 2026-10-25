@@ -720,7 +720,8 @@ the `Dockerfile` and the Compose fragment differ, through the lines named below,
   `build: ./<dir>` and publishes `127.0.0.1:4000:4000`, loopback only: the frontend container
   reaches the server on the Compose network and nothing else on the host network can.
   `TRUST_PROXY` defaults to `1`, because the frontend container (the Next.js server, or the SPA's
-  nginx) in front is one proxy hop and the rate limits are keyed by client IP.
+  nginx) in front is one proxy hop and the rate limits are keyed by client
+  IP (an IPv6 address by its /64 network, an IPv4 address as is).
 - **`TRUST_PROXY` in production.** The server's own default, `.env.example` included, is `false`.
   Set the real hop count of the deployment: behind a PaaS edge it is usually `1`, behind a CDN and
   a load balancer `2`. Too high lets a caller choose its own rate-limit key through

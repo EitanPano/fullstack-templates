@@ -5,7 +5,13 @@ import request from 'supertest'
 
 import * as cache from '../../src/services/cache'
 import { errorHandler } from '../../src/middleware/error-handler'
-import { byBodyPath, byBodyString, byIp, rateLimit } from '../../src/middleware/rate-limit'
+import {
+  byBodyPath,
+  byBodyString,
+  byIp,
+  rateLimit,
+  rateLimitSubject,
+} from '../../src/middleware/rate-limit'
 
 type Body = { error: { code: string } }
 
@@ -59,6 +65,40 @@ describe('rateLimit', () => {
     const app = probe({ name: 't-skip', limit: 1, window: '1m', key: () => undefined })
 
     for (let i = 0; i < 3; i++) expect((await request(app).post('/hit')).status).toBe(200)
+  })
+})
+
+describe('rateLimit by IPv6 subnet', () => {
+  it('shares one bucket across a /64 and not with another /64', async () => {
+    const app = probe({ name: 't-v6', limit: 1, window: '1m', key: byIp })
+    const from = (address: string) => request(app).post('/hit').set('x-forwarded-for', address)
+
+    expect((await from('2001:db8:1:2::1')).status).toBe(200)
+    expect((await from('2001:db8:1:2:aaaa::2')).status).toBe(429)
+    expect((await from('2001:db8:1:3::1')).status).toBe(200)
+  })
+})
+
+describe('rateLimitSubject', () => {
+  it('leaves an IPv4 address unchanged', () => {
+    expect(rateLimitSubject('203.0.113.5')).toBe('203.0.113.5')
+  })
+
+  it('maps an IPv4-mapped IPv6 address to its IPv4', () => {
+    expect(rateLimitSubject('::ffff:203.0.113.5')).toBe('203.0.113.5')
+  })
+
+  it('maps any other IPv6 address to its canonical /64, dropping a zone index', () => {
+    expect(rateLimitSubject('2001:db8:1:2:aaaa:bbbb:cccc:dddd')).toBe('2001:db8:1:2::/64')
+    expect(rateLimitSubject('2001:DB8:0001:0002::1%eth0')).toBe('2001:db8:1:2::/64')
+    expect(rateLimitSubject('::1')).toBe('::/64')
+    expect(rateLimitSubject('2001:db8:0:0:5::1')).toBe('2001:db8::/64')
+    expect(rateLimitSubject('1:0:0:2:3::4')).toBe('1:0:0:2::/64')
+    expect(rateLimitSubject('::ffff:cb00:7105')).toBe('203.0.113.5')
+  })
+
+  it('leaves something that is not an address unchanged', () => {
+    expect(rateLimitSubject('unknown')).toBe('unknown')
   })
 })
 

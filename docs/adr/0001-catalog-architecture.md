@@ -678,3 +678,14 @@ modes:
   selection (`@single`, `@nosingle`).
 - D7: provenance gains an optional top-level `deploy: single | split`, written when the plan has a
   server and a frontend.
+
+## Amendments (v1.3.0)
+
+[ADR 0004](0004-ui-baseline.md) records the UI baseline:
+
+- Template versions: `frontend/react` 1.1.0, `frontend/next` 1.2.0, `server/python-fastapi` 1.1.1
+  and `server/bun-express` 2.3.1.
+- D4: the frontend contract gains the shell, token scales, mobile-first and touch-target rules,
+  the `phone` e2e project and the e2e data rule; the server contract gains the `by_ip` subject
+  rule. `conventions.md` states them.
+- `schemaVersion` stays 1; the change is additive.

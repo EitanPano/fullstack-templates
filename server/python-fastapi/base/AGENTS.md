@@ -31,9 +31,18 @@ package with an `__init__.py`.
   (`uv sync`), `dev` (`uv run python -m app.main --reload`, run directly and not through poe,
   which starts tasks in a new session so a supervisor's process-group stop would not reach the
   server; `uv run poe dev` is the same for people), `check` (`uv run poe check`: lint, format
-  check, type check, then tests, stopping at the first failure), `typecheck` (`uv run poe typecheck`), `lint`
-  (`uv run poe lint`: ruff, then import-linter), `format` (`uv run poe format`), `test`
-  (`uv run poe test`) and `contract` (`uv run poe contract`). `check` never needs Docker.
+  check, type check, then tests, stopping at the first failure), `typecheck`
+  (`uv run poe typecheck`), `lint` (`uv run poe lint`: ruff, then import-linter), `format`
+  (`uv run poe format`), `test` (`uv run poe test`) and `contract` (`uv run poe contract`).
+  `check` never needs Docker.
+  - On Windows the `--reload` parent leaves its child holding the port after the parent is
+    stopped, and the port's `OwningProcess` then names the dead parent, so killing that id
+    finds nothing. Stop the owner and its children in Windows PowerShell (replace 8000 with
+    the server's `PORT`), then check the port is free before starting again:
+
+    ```powershell
+    $o = (Get-NetTCPConnection -LocalPort 8000 -State Listen).OwningProcess | Select-Object -Unique; Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -in $o -or $_.ParentProcessId -in $o } | ForEach-Object { Stop-Process -Id $_.ProcessId }
+    ```
 <!-- @database:postgres-start -->
 - With the database, two more: `migrate` (`uv run poe migrate`) applies the SQL migrations, and
   `testDb` (`uv run poe test-db`) runs the whole suite against the test database; `check` skips the
@@ -527,10 +536,11 @@ Work in this order, test first.
    `AppError`), publishes the event after the write, then the exported rules other modules need.
 6. `routes.py`: `router: APIRouter` and one `router.add_api_route(...)` per endpoint, with its
    gates as `dependencies=[Depends(...)]`. A rate limit is `rate_limit(name=, limit=, window=,
-   key=)` from `middleware/rate_limit.py` with the key `by_ip`, `by_body_string(field)` or
-   `by_body_path(...)`; it runs before the body is validated. A collection endpoint's path is
-   `""`, not `"/"`: with redirect slashes off, `"/"` under the `/api/<name>` prefix would serve
-   and document `/api/<name>/`.
+   key=)` from `middleware/rate_limit.py` with the key `by_ip` (an IPv6 address by its /64
+   network, an IPv4 address as is), `by_body_string(field)` or `by_body_path(...)`; it runs
+   before the body is validated. A collection endpoint's path is `""`, not `"/"`: with
+   redirect slashes off, `"/"` under the `/api/<name>` prefix would serve and document
+   `/api/<name>/`.
 7. One line in `config/routes.py`, the component names in `COMPONENTS` in `openapi.py`, then the
    `contract` command (`uv run poe contract`), then `check`.
 
@@ -913,7 +923,8 @@ the `Dockerfile` and the Compose fragment differ, through the lines named below,
   `build: ./<dir>` and publishes `127.0.0.1:8000:8000`, loopback only: the frontend container
   reaches the server on the Compose network and nothing else on the host network can.
   `TRUST_PROXY` defaults to `1`, because the frontend container (the Next.js server, or the SPA's
-  nginx) in front is one proxy hop and the rate limits are keyed by client IP.
+  nginx) in front is one proxy hop and the rate limits are keyed by client
+  IP (an IPv6 address by its /64 network, an IPv4 address as is).
 - **`TRUST_PROXY` in production.** The server's own default, `.env.example` included, is `false`.
   Set the real hop count of the deployment: behind a PaaS edge it is usually `1`, behind a CDN and
   a load balancer `2`. Too high lets a caller choose its own rate-limit key through
