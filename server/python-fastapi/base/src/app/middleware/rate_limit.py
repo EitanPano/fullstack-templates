@@ -13,6 +13,7 @@ import hashlib
 import json
 import math
 from collections.abc import Awaitable, Callable
+from ipaddress import IPv6Address, IPv6Network, ip_address
 from typing import Final
 
 from fastapi import Request
@@ -58,7 +59,22 @@ def rate_limit(
 async def by_ip(request: Request) -> str:
     """Only right behind a proxy that forwards X-Forwarded-For when `TRUST_PROXY` trusts it
     (`middleware/proxy.py`); otherwise every client shares the proxy's address."""
-    return client_ip_of(request.scope)
+    return rate_limit_subject(client_ip_of(request.scope))
+
+
+def rate_limit_subject(address: str) -> str:
+    """The subject a client address is limited as: an IPv4 address (or an IPv4-mapped IPv6 one) as
+    itself, any other IPv6 address as its /64, anything that is not an address unchanged. A /64 is
+    one subscriber's allocation, so rotating addresses inside it must not dodge the limit."""
+    try:
+        ip = ip_address(address.partition("%")[0])
+    except ValueError:
+        return address
+    if not isinstance(ip, IPv6Address):
+        return str(ip)
+    if ip.ipv4_mapped is not None:
+        return str(ip.ipv4_mapped)
+    return str(IPv6Network((ip, 64), strict=False))
 
 
 async def _json_body(request: Request) -> object:

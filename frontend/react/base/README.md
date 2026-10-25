@@ -6,7 +6,8 @@ definition of done are in the repository's `AGENTS.md`; nothing here repeats the
 - `bun run dev` starts the dev server on port 5173 and proxies `/api` to the API
   (port `__SERVER_PORT__`).
 - `bun run build` writes the static app to `dist/`.
-- `bun run check` runs every gate; `bun run test:e2e` runs Playwright.
+- `bun run check` runs every gate; `bun run test:e2e` runs Playwright on a desktop and a phone
+  project.
 - `bun run api:types` regenerates `src/lib/api/schema.d.ts` from `../__SERVER_DIR__/openapi.json`.
 
 `AGENTS.md` in this directory ships with the package and holds its layer map.

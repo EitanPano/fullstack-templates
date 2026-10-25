@@ -46,15 +46,43 @@ flagged at any depth, and also for a feature's own `ui/`.
    `revalidateTag` for what it changed, and returns an `ActionResult`.
 5. Add the route in `src/app/<route>/`: a `page.tsx` that composes the feature and nothing
    else, plus `loading.tsx` and `error.tsx` for the new segment.
-6. Configuration comes only through `src/env.ts`. A browser-visible value is `NEXT_PUBLIC_*`,
+6. When the feature adds a top-level screen, add its nav entry to `src/app/nav.ts`.
+7. Configuration comes only through `src/env.ts`. A browser-visible value is `NEXT_PUBLIC_*`,
    declared in a separate public schema, and listed in the package's example env file.
 
 ## Styling
 
 - Tailwind utility classes only: no new `.css` files beyond `src/app/globals.css`, no inline
   styles.
-- Design tokens are CSS variables in `:root` in `globals.css`, exposed to utilities through
-  `@theme inline`. Add a token there instead of a literal colour or size in a component.
+- Design tokens are CSS variables in `globals.css`: colours in `:root` plus `@theme inline`,
+  type, radius and shadow in a plain `@theme` block. Add a token there instead of a literal
+  colour or size in a component.
+- Four scales, all in `globals.css`; a component uses the utility, never the variable or a
+  literal:
+  - Colour: `background`, `foreground`, `muted`, `muted-foreground`, `border`, `primary`,
+    `primary-foreground`, `ring`, `input` (`bg-primary`, `text-muted-foreground`), each with a dark
+    value. `border` is for separators; a form control's outline uses `input` (3:1 against the
+    background).
+  - Spacing, 4 px base: Tailwind's default `--spacing: 0.25rem` multiplier, so `p-1` is 4 px,
+    `p-2` 8, `p-3` 12, `p-4` 16, `p-6` 24, `p-8` 32, `p-12` 48, `p-16` 64. Do not add a
+    `--spacing-<n>` key: it replaces the default step behind `p-<n>` and moves every
+    existing use. A value off the scale is a new token by plan.
+  - Type: `text-sm`, `text-base`, `text-lg`, `text-xl`, `text-2xl`, each with its
+    `--text-<size>--line-height`.
+  - Radius `rounded-sm` 4 px, `rounded-md` 8 px, `rounded-lg` 12 px; shadow `shadow-1`,
+    `shadow-2`. Type, radius and shadow are declared in the plain `@theme` block, which emits
+    them as variables. They live in `@theme`, not in `:root` plus `@theme inline`, because a
+    same-named `:root` variable inside `@theme inline` would be circular.
+- Mobile first: unprefixed utilities are the phone layout; `sm:` (640 px), `md:` (768 px) and `lg:` (1024 px) widen it.
+  No page scrolls horizontally at any width.
+- Buttons, nav links and form controls are at least 44 x 44 px. `src/shared/ui/button.tsx`
+  is the one button; a denser layout gets a responsive variant, not a smaller control.
+- The shell is `src/shared/ui/app-shell.tsx`, composed by `src/app/layout.tsx` from the table in
+  `src/app/nav.ts`: a skip link, a `header` with the project name and `nav` named Primary, the
+  page's one `main` (`id="main"`) and a `footer`. The layout owns `main`: a page, `loading.tsx`,
+  `error.tsx` and `not-found.tsx` render inside it and never add a landmark set. A feature adds
+  its entry to `nav.ts`. A product may restyle the shell by plan; the landmarks, the skip link
+  and exactly one `main` stay.
 - Toasts use `sonner`: concise and action-oriented ("Status refreshed", not "Operation
   completed successfully"). Icons come from `lucide-react`, the same icon for the same
   concept everywhere, with `aria-hidden` when a text label sits next to it.
@@ -89,6 +117,17 @@ flagged at any depth, and also for a feature's own `ui/`.
   journey, each with an axe scan. `bun run test:e2e` starts the server and this app through
   the `webServer` entries in `playwright.config.ts`. Install the browser once with
   `bun x playwright install chromium` (add `--with-deps` on Linux).
+- Playwright has two projects: `chromium` (desktop) and `phone` (`Pixel 7`, screenshots on).
+  Every spec and its axe scan run on both. The phone project writes one screenshot per test
+  under `test-results/`; QA reads them as the evidence of how the product looks.
+  `tests/e2e/shell.spec.ts` holds the shell checks (landmarks, skip link, no horizontal
+  overflow, 44 px targets).
+- When the project has a database, the e2e server uses the development database: start it
+  (`docker compose up -d --wait <service>` at the project root) and run the server package's
+  `migrate` before `bun run test:e2e`.
+- A journey creates its data through the API with a name unique per run, removes it through
+  the API once the product has a delete endpoint, and never takes the development database's
+  contents as a precondition.
 - Every new behaviour gets a test for the happy path and at least one for a failure or empty
   path. No `.skip` or `.only`; a removed test is named in the stage report.
 

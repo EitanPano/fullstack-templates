@@ -1,10 +1,14 @@
 import { Outlet } from 'react-router'
 
-// The shell every route renders inside: the page's single landmark and its width.
+import { AppShell } from '@/shared/ui/app-shell'
+
+import { NAV } from './nav'
+
+// The frame every route renders inside; the navigation table is `nav.ts`.
 export default function RootLayout() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 p-8">
+    <AppShell name="__PROJECT_NAME__" nav={NAV}>
       <Outlet />
-    </main>
+    </AppShell>
   )
 }

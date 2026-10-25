@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.3.1 — 2026-10-25
+
+- `byIp` limits an IPv6 client by its /64, not its full address: a subscriber owns a whole /64, so
+  rotating addresses inside it no longer dodges a per-IP limit. An IPv4 address is unchanged, an
+  IPv4-mapped IPv6 address (`::ffff:203.0.113.5`) is its IPv4, and anything that is not an address
+  is unchanged. `rateLimitSubject` in `middleware/rate-limit.ts` does the mapping; the hashing and
+  the cache key are as before. The same rule is in the python-fastapi template.
+
 ## 2.3.0 — 2026-10-24
 
 - Static serving of a built single-page app, shipped in every project and inert unless `STATIC_DIR`

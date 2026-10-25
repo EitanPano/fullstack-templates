@@ -12,7 +12,14 @@ from starlette.types import Message
 
 from app.config.env import load_env
 from app.infra.memory import memory
-from app.middleware.rate_limit import KeyOf, by_body_path, by_body_string, by_ip, rate_limit
+from app.middleware.rate_limit import (
+    KeyOf,
+    by_body_path,
+    by_body_string,
+    by_ip,
+    rate_limit,
+    rate_limit_subject,
+)
 from app.server import create_app
 from app.services import cache
 from app.services.utils.api_model import RequestModel
@@ -185,6 +192,35 @@ class TestByIp:
 
         # No proxy middleware ran, so it is the socket peer.
         assert subject == "1.2.3.4"
+
+    async def test_shares_one_bucket_across_a_64(self) -> None:
+        app = limited_app(name="t-v6-same", limit=1, window="1m", key=by_ip)
+
+        async with http_client(app) as http:
+            one = await http.post("/hit", headers={"x-forwarded-for": "2001:db8:1:2::1"})
+            same = await http.post("/hit", headers={"x-forwarded-for": "2001:db8:1:2:aaaa::2"})
+            other = await http.post("/hit", headers={"x-forwarded-for": "2001:db8:1:3::1"})
+
+        assert [one.status_code, same.status_code, other.status_code] == [200, 429, 200]
+
+
+class TestRateLimitSubject:
+    @pytest.mark.parametrize(
+        ("address", "subject"),
+        [
+            ("203.0.113.5", "203.0.113.5"),
+            ("::ffff:203.0.113.5", "203.0.113.5"),
+            ("2001:db8:1:2:aaaa:bbbb:cccc:dddd", "2001:db8:1:2::/64"),
+            ("2001:DB8:1:2::1%eth0", "2001:db8:1:2::/64"),
+            ("::1", "::/64"),
+            ("2001:db8:0:0:5::1", "2001:db8::/64"),
+            ("1:0:0:2:3::4", "1:0:0:2::/64"),
+            ("::ffff:cb00:7105", "203.0.113.5"),
+            ("unknown", "unknown"),
+        ],
+    )
+    async def test_maps_an_address_to_its_subject(self, address: str, subject: str) -> None:
+        assert rate_limit_subject(address) == subject
 
 
 class TestByBodyString:

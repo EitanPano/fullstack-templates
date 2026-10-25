@@ -134,6 +134,10 @@ below is what `validate` and the cases prove.
       importing the client; `src/env.ts` the only reader of `import.meta.env`; the API reached at
       relative `/api` with no compiled-in URL and no CORS; the dev server proxies `/api` to the
       server's port.
+- [ ] The UI baseline ([ADR 0004](docs/adr/0004-ui-baseline.md)): `shared/ui/app-shell`,
+      `shared/ui/button` and `app/nav` (the layout passes the entries to the shell as props),
+      token scales in `globals.css`, `tests/e2e/shell.spec` and the `phone` project in
+      `playwright.config.ts`.
 - [ ] `static: { out: dist }` in `template.yaml`. Without it the server cannot serve the build and
       `--deploy single` is refused for the template. The app smoke proves that the `dist` target
       holds an `index.html`.

@@ -46,19 +46,47 @@ or a form; a component never calls `fetch` (a convention, not enforced by lint).
    `error.tsx` (set as `ErrorBoundary`).
 6. Configuration comes only through `src/env.ts`. A browser-visible value is `VITE_*`, declared
    in the zod schema and listed in the example env file. Never put a secret there.
+7. When the feature adds a top-level screen, add its nav entry to `src/app/nav.ts`
+   (`{ to, label }`); the shell renders it.
 
 ## Styling
 
 - Tailwind utility classes only: no new `.css` files beyond `src/app/globals.css`, no inline
   styles.
-- Design tokens are CSS variables in `:root` in `globals.css`, exposed to utilities through
-  `@theme inline`. Add a token there instead of a literal colour or size in a component.
+- Design tokens are CSS variables in `globals.css`: colours in `:root` plus `@theme inline`,
+  type, radius and shadow in a plain `@theme` block. Add a token there instead of a literal
+  colour or size in a component.
 - Toasts use `sonner`: concise and action-oriented ("Status refreshed", not "Operation
   completed successfully"). Icons come from `lucide-react`, the same icon for the same
   concept everywhere, with `aria-hidden` when a text label sits next to it.
 - Use semantic HTML, labelled controls and keyboard-reachable interactions. The layout owns the
   page's one `<main>`; a page renders its content inside it. The target is WCAG 2.2 AA, checked
   by the axe scan in the e2e tests.
+- **Mobile first.** Unprefixed utilities are the phone layout; `sm:` (640 px), `md:` (768 px) and `lg:`
+  (1024 px) widen it. Nothing overflows horizontally at any width (`tests/e2e/shell.spec.ts` checks it).
+- **Four scales** in `globals.css`; a component uses the utility (`rounded-md`, `text-lg`,
+  `bg-muted`, `p-4`), never the variable and never a literal. Off the scale means adding a
+  token by plan.
+  - Colour: `background`, `foreground`, `muted`, `muted-foreground`, `border`, `primary`,
+    `input`, `primary-foreground`, `ring`, each with a dark value (`bg-muted`, `text-primary`, ...).
+    `border` is for separators; a form control's outline uses `input` (3:1 against the
+    background).
+  - Spacing: Tailwind's 4 px `--spacing` multiplier, left at its default. A component uses steps
+    1, 2, 3, 4, 6, 8, 12, 16 (4, 8, 12, 16, 24, 32, 48, 64 px). Do not add a `--spacing-N` key: it
+    would override Tailwind's numeric steps.
+  - Type: `text-sm`, `text-base`, `text-lg`, `text-xl`, `text-2xl`, each with its
+    `--text-<size>--line-height`.
+  - Radius `rounded-sm` 4 px, `rounded-md` 8 px, `rounded-lg` 12 px; shadow `shadow-1`,
+    `shadow-2`. Type, radius and shadow are declared in the plain `@theme` block, which emits
+    them as variables. They live in `@theme`, not in `:root` plus `@theme inline`, because a
+    same-named `:root` variable inside `@theme inline` would be circular.
+- **Touch targets are 44 px.** Buttons, nav links and form controls are at least 44 x 44 px.
+  `src/shared/ui/button.tsx` is the one button: use it, do not hand-roll another.
+- **The shell.** `src/shared/ui/app-shell.tsx`, composed by `src/app/layout.tsx`, gives every
+  page a skip link to `#main`, a `<header>` with the name and `<nav aria-label="Primary">`
+  built from `src/app/nav.ts`, the one `<main id="main">` and a `<footer>`. A feature adds a nav
+  entry and renders inside `main`; it never adds a second landmark set. The shell is product
+  code: restyle it by plan, keeping the landmarks, the skip link and one `main`.
 
 ## Errors
 
@@ -88,6 +116,16 @@ or a form; a component never calls `fetch` (a convention, not enforced by lint).
   and starts no web server; otherwise it starts the server and the Vite dev server through the
   `webServer` entries in `playwright.config.ts`. Install the browser once with
   `bun x playwright install chromium` (add `--with-deps` on Linux).
+- Every journey and its axe scan run on two projects: `chromium` (desktop) and `phone`
+  (`devices['Pixel 7']`, `screenshot: 'on'`, so one screenshot per test lands under
+  `test-results/`; QA reads them as the design evidence). `tests/e2e/shell.spec.ts` asserts the
+  landmarks, the skip link, no horizontal overflow and the 44 px targets.
+- When the project has a database, e2e needs it: the e2e server uses the development database.
+  Start it with `docker compose up -d --wait <service>` at the project root, then run the server
+  package's `migrate`, before `bun run test:e2e`.
+- The data rule: a journey creates its data through the API with a name unique per run, removes
+  it through the API once the product has a delete endpoint, and never takes the development
+  database's contents as a precondition.
 - Every new behaviour gets a test for the happy path and at least one for a failure or empty
   path. No `.skip`, `.only`, `test.fixme` or `describe.skip`; a removed test is named in the
   stage report.

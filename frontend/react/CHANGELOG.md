@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.0 — 2026-10-25
+
+- The UI baseline (catalog ADR 0004): an app shell (`shared/ui/app-shell.tsx`, composed by
+  `app/layout.tsx`; skip link, header with `<nav aria-label="Primary">` from `app/nav.ts`, one
+  `main`, footer) and a `Button` primitive with a 44 px target (`shared/ui/button.tsx`).
+- `globals.css` gains colour tokens (muted, border, input, primary, ring, with dark values) and the
+  type, radius and shadow tokens. Spacing is Tailwind's default 4 px scale, unchanged.
+- Playwright gains a `phone` project (Pixel 7, screenshots on) and `shell.spec.ts`.
+- `AGENTS.md` (`Adding a feature`, `Styling`, `Tests`) states mobile first, the scales, the
+  44 px rule, the shell, the phone project and the e2e data rule.
+- The home page heading is `Home`; the project name is in the header.
+
 ## 1.0.0 — 2026-10-24
 
 - First release: Vite and React 19 single-page app, React Router 8 in data mode, Tailwind 4,

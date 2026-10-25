@@ -9,7 +9,7 @@ export default function HomePage() {
   const health = useLoaderData<HealthView>()
   return (
     <>
-      <h1 className="text-3xl font-semibold">__PROJECT_NAME__</h1>
+      <h1 className="text-2xl font-semibold">Home</h1>
       <p>Replace this page with the first feature.</p>
       <HealthStatus health={health} />
       <RefreshButton />

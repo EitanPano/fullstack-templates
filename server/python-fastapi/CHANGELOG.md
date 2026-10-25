@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.1 — 2026-10-25
+
+- `by_ip` limits an IPv6 client by its /64, not its full address: a subscriber owns a whole /64, so
+  rotating addresses inside it no longer dodges a per-IP limit. An IPv4 address is unchanged, an
+  IPv4-mapped IPv6 address (`::ffff:203.0.113.5`) is its IPv4, and anything that is not an address
+  is unchanged. `rate_limit_subject` in `middleware/rate_limit.py` does the mapping; the hashing and
+  the cache key are as before. The same rule is in the bun-express template.
+- `AGENTS.md`: on Windows, `dev --reload` leaves its child holding the port after the parent is
+  stopped, and the port's owner then names the dead parent; the Commands note gives a PowerShell
+  recipe that stops the owner and its children by port.
+
 ## 1.1.0 — 2026-10-24
 
 - Static serving of a built single-page app, shipped in every project and inert unless `STATIC_DIR`

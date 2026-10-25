@@ -5,6 +5,7 @@ import { useTransition } from 'react'
 import { toast } from 'sonner'
 
 import type { ActionResult } from '@/shared/lib/action'
+import { Button } from '@/shared/ui/button'
 
 // A client leaf: receives the server action as a prop, shows the outcome with a toast.
 export function RefreshButton({ action }: { action: () => Promise<ActionResult> }) {
@@ -19,14 +20,9 @@ export function RefreshButton({ action }: { action: () => Promise<ActionResult> 
   }
 
   return (
-    <button
-      type="button"
-      onClick={refresh}
-      disabled={pending}
-      className="inline-flex w-fit items-center gap-2 rounded-md border px-3 py-1 text-sm hover:bg-foreground/5 disabled:opacity-50"
-    >
+    <Button onClick={refresh} disabled={pending} className="w-fit">
       <RefreshCw aria-hidden className={`size-4 ${pending ? 'animate-spin' : ''}`} />
       Refresh
-    </button>
+    </Button>
   )
 }
