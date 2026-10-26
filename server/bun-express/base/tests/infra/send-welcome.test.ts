@@ -7,11 +7,14 @@ import { pubsub } from '../../src/infra/pubsub'
 import { drain } from '../../src/services/event'
 import { sendWelcome } from '../../src/infra/subscribers/send-welcome'
 import { registerProvider, resetProviders, type Message } from '../../src/services/communicate'
+import { captureLogs } from '../logs'
 import { describeStore, resetStore } from '../store'
 
 const PASSWORD = 'correct horse battery'
 
 let sent: Message[] = []
+// The delivery-failure case logs on purpose.
+let logs: ReturnType<typeof captureLogs>
 
 beforeAll(async () => {
   await pubsub.connect()
@@ -21,7 +24,12 @@ afterAll(async () => {
   await pubsub.close()
 })
 
+beforeEach(() => {
+  logs = captureLogs([/^message delivery failed /, /^subscriber failed topic=/])
+})
+
 afterEach(() => {
+  logs.restore()
   resetProviders()
 })
 

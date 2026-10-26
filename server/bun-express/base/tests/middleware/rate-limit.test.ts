@@ -11,6 +11,7 @@ import {
   byIp,
   rateLimit,
   rateLimitSubject,
+  scaledLimit,
 } from '../../src/middleware/rate-limit'
 
 type Body = { error: { code: string } }
@@ -65,6 +66,32 @@ describe('rateLimit', () => {
     const app = probe({ name: 't-skip', limit: 1, window: '1m', key: () => undefined })
 
     for (let i = 0; i < 3; i++) expect((await request(app).post('/hit')).status).toBe(200)
+  })
+
+  it('multiplies the limit by the scale', async () => {
+    const app = probe({ name: 't-scale', limit: 2, scale: 3, window: '1m', key: byIp })
+
+    for (let i = 0; i < 6; i++) expect((await request(app).post('/hit')).status).toBe(200)
+    expect((await request(app).post('/hit')).status).toBe(429)
+  })
+})
+
+describe('scaledLimit', () => {
+  it('refuses a scale below 1, above 1000 or not finite, so no value disables limiting', () => {
+    for (const bad of [0, 0.5, -1, 1001, 1e300, Infinity, NaN]) {
+      expect(() => scaledLimit(10, bad)).toThrow(/scale/)
+    }
+  })
+
+  it('leaves the limit alone at scale 1 and multiplies it above', () => {
+    expect(scaledLimit(10, 1)).toBe(10)
+    expect(scaledLimit(10, 25)).toBe(250)
+  })
+
+  it('rounds a fractional result up, so a scale never lowers a limit', () => {
+    expect(scaledLimit(5, 1.5)).toBe(8)
+    expect(scaledLimit(1, 1.2)).toBe(2)
+    expect(scaledLimit(10, 1.1)).toBe(11)
   })
 })
 

@@ -11,5 +11,7 @@ env:
     compose: postgres://app:app@database:5432/app
     test: postgres://app:app@127.0.0.1:5432/app_test
     testOverride: TEST_DATABASE_URL
+    e2e: postgres://app:app@127.0.0.1:5432/app_e2e
+    e2eOverride: E2E_DATABASE_URL
     secret: true
 files: [db/init.sql]

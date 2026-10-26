@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.2.0 — 2026-10-26
+
+- New command `start` (`uv run python -m app.main`): the server without a watcher or reloader, which a frontend's e2e starts.
+- `RATE_LIMIT_SCALE` (a number from 1 to 1000, default 1, read once in `config/env.py`, listed in
+  `.env.example`) multiplies every limit in `RATE_LIMITS`, rounded up; `rate_limit` applies it, with
+  an optional `scale` argument for a caller that needs another. An e2e run raises it so a journey
+  suite does not meet the limits; production keeps 1. There is no bypass switch. The same in the
+  bun-express template.
+- With the Postgres capability, a new command `e2eDb` (`uv run poe e2e-db`) prepares the e2e
+  database that the provider's `e2e` URL names (`app_e2e`, overridden by `E2E_DATABASE_URL`). It
+  creates the database when it is missing, applies the migrations and truncates every table except
+  `schema_migration`, and refuses any database whose name does not end in `_e2e`. The script reads
+  `E2E_DATABASE_URL` itself and sets `DATABASE_URL` before the first import that reads the
+  environment.
+- The Compose fragment writes the app secrets as `${NAME-}`, so `docker compose up -d --wait
+  database` prints no "variable is not set" warning for them. An unset secret is still an empty
+  string, and the server still refuses to boot in production without it.
+- Test logs: pytest already captures what a test logs, so a green run prints no stack trace; the
+  `AGENTS.md › Tests` section says so.
+
 ## 1.1.1 — 2026-10-25
 
 - `by_ip` limits an IPv6 client by its /64, not its full address: a subscriber owns a whole /64, so

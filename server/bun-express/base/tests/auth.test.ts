@@ -10,6 +10,7 @@ import { type Message, registerProvider, resetProviders } from '../src/services/
 import { createConsoleProvider } from '../src/services/communicate/console'
 import { drain } from '../src/services/event'
 import { createLogger } from '../src/services/logger'
+import { captureLogs } from './logs'
 import { deleteRecord, describeStore, resetStore } from './store'
 
 const PASSWORD = 'correct horse battery'
@@ -22,6 +23,16 @@ type Body = {
 }
 const body = (res: request.Response) => res.body as Body
 let sent: Message[] = []
+// What the journeys log on purpose; any other warning or error fails the test.
+const EXPECTED_LOGS = [
+  /^refresh token reused /,
+  /^target verified on login/,
+  /^message delivery failed /,
+  /^otp delivery failed /,
+  /^subscriber failed topic=/,
+]
+// Some journeys log a warning or an error on purpose (a reused refresh token, a failed delivery).
+let logs: ReturnType<typeof captureLogs>
 
 beforeAll(async () => {
   await pubsub.connect()
@@ -32,6 +43,7 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
+  logs = captureLogs(EXPECTED_LOGS)
   await resetStore()
   sent = []
   const capture = {
@@ -45,6 +57,7 @@ beforeEach(async () => {
 })
 
 afterEach(() => {
+  logs.restore()
   setSystemTime()
   resetProviders()
 })

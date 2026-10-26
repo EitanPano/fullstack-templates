@@ -11,6 +11,7 @@ import {
   revokeSession,
   rotateSession,
 } from '../../src/services/session'
+import { captureLogs } from '../logs'
 
 const DAY = 86_400_000
 const T0 = new Date('2026-01-01T00:00:00Z')
@@ -27,11 +28,18 @@ async function failureOf(promise: Promise<unknown>): Promise<unknown> {
 }
 const at = (ms: number) => setSystemTime(new Date(T0.getTime() + ms))
 
+// Reusing a rotated token is logged on purpose.
+let logs: ReturnType<typeof captureLogs>
+
 beforeEach(async () => {
+  logs = captureLogs([/^refresh token reused /])
   await memory.close()
   setSystemTime(T0)
 })
-afterEach(() => setSystemTime())
+afterEach(() => {
+  logs.restore()
+  setSystemTime()
+})
 
 describe('createSession', () => {
   test('stores the hash of the token, never the token', async () => {
