@@ -74,7 +74,9 @@ export function wireConsumer(
   }
   for (const { service: provider, env } of wirings) {
     for (const { name, compose, secret } of env) {
-      const value = secret === true ? `\${${name}}` : `\${${name}:-${compose}}`
+      // `${NAME-}`: empty when unset, so Compose does not warn on `up -d database`; the server
+      // still refuses an empty value in production.
+      const value = secret === true ? `\${${name}-}` : `\${${name}:-${compose}}`
       doc.setIn(['environment', name], value)
     }
     doc.setIn(['depends_on', provider], { condition: 'service_healthy' })

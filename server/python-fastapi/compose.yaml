@@ -12,15 +12,15 @@ build: ./__PACKAGE_DIR__
 environment:
   APP_ENV: production
   PORT: "__PORT__"
-  # Required in production; the backend fails fast at boot when one is missing. Plain
-  # ${VAR} (not ${VAR:?}) so `docker compose up -d <service>` for local infrastructure
-  # needs no secrets in the shell.
+  # Required in production; the backend fails fast at boot when one is missing. ${VAR-} (not
+  # ${VAR:?}, not a bare ${VAR}) so `docker compose up -d <service>` for local infrastructure needs
+  # no secrets in the shell and prints no "variable is not set" warning.
   # @auth-start
-  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
-  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-  OTP_SECRET: ${OTP_SECRET}
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET-}
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET-}
+  OTP_SECRET: ${OTP_SECRET-}
   # @auth-end
-  ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY-}
   # @single-start
   # Single: the server is the edge, so no proxy hop is trusted; IP-keyed rate limits use the socket
   # address. Behind a production edge set the hop count (a PaaS edge is usually 1).

@@ -1,11 +1,12 @@
 schemaVersion: 1
 kind: database
 provider: postgres
-summary: Postgres through psycopg 3 (an async pool), SQL migrations and a separate test database
+summary: Postgres through psycopg 3 (an async pool), SQL migrations, a separate test database and an e2e database
 container:
   migrate: python -m app.infra.scripts.migrate
 commands:
   testDb: uv run poe test-db
+  e2eDb: uv run poe e2e-db
   migrate: uv run poe migrate
 flags:
   auth:

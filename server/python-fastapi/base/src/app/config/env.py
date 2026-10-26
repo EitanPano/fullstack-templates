@@ -188,6 +188,9 @@ class Env(BaseModel):
     whatsapp_provider: Annotated[str, Field(min_length=1)] = "console"
     mail_from: Annotated[str, Field(min_length=1)] = _DEFAULT_MAIL_FROM
     jobs_enabled: Annotated[bool, BeforeValidator(_parse_boolean_text)] = True
+    # Multiplies every limit in RATE_LIMITS (middleware/rate_limit.py). An e2e run sets it so a
+    # journey suite is not limited; production keeps 1. At most 1000, so no value is a bypass.
+    rate_limit_scale: Annotated[float, Field(ge=1, le=1000, allow_inf_nan=False)] = 1
 
 
 @dataclass(frozen=True)

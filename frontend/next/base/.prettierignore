@@ -3,6 +3,5 @@ node_modules/
 playwright-report/
 test-results/
 coverage/
-src/lib/api/schema.d.ts
 next-env.d.ts
 bun.lock

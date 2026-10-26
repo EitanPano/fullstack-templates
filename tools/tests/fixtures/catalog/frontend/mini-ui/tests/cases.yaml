@@ -3,3 +3,13 @@ cases:
   - name: default
     stack: mini
   - name: alone
+  - name: auth-off
+    stack: mini
+    server:
+      flags:
+        auth: false
+  - name: fake
+    stack: mini
+    server:
+      capabilities:
+        database: fake

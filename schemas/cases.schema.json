@@ -20,7 +20,16 @@
           "flags": { "type": "object", "additionalProperties": { "type": "boolean" } },
           "capabilities": { "type": "object", "additionalProperties": { "type": "string" } },
           "withApp": { "type": "boolean" },
-          "deploy": { "enum": ["single", "split"] }
+          "deploy": { "enum": ["single", "split"] },
+          "server": {
+            "type": "object",
+            "description": "A frontend case only: the flags and capabilities of the stack's server package.",
+            "additionalProperties": false,
+            "properties": {
+              "flags": { "type": "object", "additionalProperties": { "type": "boolean" } },
+              "capabilities": { "type": "object", "additionalProperties": { "type": "string" } }
+            }
+          }
         }
       }
     }

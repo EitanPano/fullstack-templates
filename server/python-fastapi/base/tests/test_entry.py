@@ -344,6 +344,20 @@ class TestLoadEnv:
             with pytest.raises(EnvError, match="JOBS_ENABLED"):
                 load_env({"JOBS_ENABLED": bad})
 
+    def test_reads_rate_limit_scale_as_a_number_of_one_or_more_defaulting_to_one(self) -> None:
+        assert load_env({}).env.rate_limit_scale == 1
+        assert load_env({"RATE_LIMIT_SCALE": "25"}).env.rate_limit_scale == 25
+        assert load_env({"RATE_LIMIT_SCALE": "1.5"}).env.rate_limit_scale == 1.5
+        assert load_env({"RATE_LIMIT_SCALE": "1000"}).env.rate_limit_scale == 1000
+
+    def test_keeps_the_default_rate_limit_scale_in_production(self) -> None:
+        assert load_env(PRODUCTION).env.rate_limit_scale == 1
+
+    def test_refuses_a_rate_limit_scale_below_one_or_not_finite_naming_the_variable(self) -> None:
+        for bad in ("0", "0.5", "-3", "abc", "inf", "nan", "", "1001", "1e300"):
+            with pytest.raises(EnvError, match="RATE_LIMIT_SCALE"):
+                load_env({"RATE_LIMIT_SCALE": bad})
+
     def test_names_every_problem_at_once(self) -> None:
         with pytest.raises(EnvError) as raised:
             load_env({"PORT": "x", "JOBS_ENABLED": "maybe"})

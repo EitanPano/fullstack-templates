@@ -1,4 +1,5 @@
 import json
+import math
 import re
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
@@ -19,6 +20,7 @@ from app.middleware.rate_limit import (
     by_ip,
     rate_limit,
     rate_limit_subject,
+    scaled_limit,
 )
 from app.server import create_app
 from app.services import cache
@@ -38,14 +40,18 @@ class Named(RequestModel):
     name: Annotated[str, Field(min_length=3)] | MISSING = MISSING
 
 
-def limited_app(*, name: str, limit: int, window: str, key: KeyOf) -> FastAPI:
+def limited_app(
+    *, name: str, limit: int, window: str, key: KeyOf, scale: float | None = None
+) -> FastAPI:
     """The real app (so the proxy middleware computes the client IP), with a route behind the
     limiter whose body is validated, so the order of the two shows."""
     app = create_app(config=load_env({"TRUST_PROXY": "true"}).env)
 
     @app.post(
         "/hit",
-        dependencies=[Depends(rate_limit(name=name, limit=limit, window=window, key=key))],
+        dependencies=[
+            Depends(rate_limit(name=name, limit=limit, window=window, key=key, scale=scale))
+        ],
     )
     async def hit(body: Named | None = None) -> dict[str, bool]:
         del body
@@ -141,6 +147,30 @@ class TestRateLimit:
         assert invalid.status_code == 400
         assert limited.status_code == 429
         assert error_of(limited).code == "rate_limited"
+
+
+class TestTheRateLimitScale:
+    async def test_multiplies_the_limit_by_the_scale(self) -> None:
+        app = limited_app(name="t-scale", limit=2, scale=3, window="1m", key=by_ip)
+
+        async with http_client(app) as http:
+            statuses = [(await http.post("/hit")).status_code for _ in range(7)]
+
+        assert statuses == [200, 200, 200, 200, 200, 200, 429]
+
+    async def test_leaves_the_limit_alone_at_scale_one_and_multiplies_it_above(self) -> None:
+        assert scaled_limit(10, 1) == 10
+        assert scaled_limit(10, 25) == 250
+
+    @pytest.mark.parametrize("bad", [0, 0.5, -1, 1001, 1e300, math.inf, math.nan])
+    async def test_refuses_a_scale_below_one_above_1000_or_not_finite(self, bad: float) -> None:
+        with pytest.raises(ValueError, match="scale"):
+            scaled_limit(10, bad)
+
+    async def test_rounds_a_fractional_result_up_so_a_scale_never_lowers_a_limit(self) -> None:
+        assert scaled_limit(5, 1.5) == 8
+        assert scaled_limit(1, 1.2) == 2
+        assert scaled_limit(10, 1.1) == 11
 
 
 class TestRateLimitKeys:

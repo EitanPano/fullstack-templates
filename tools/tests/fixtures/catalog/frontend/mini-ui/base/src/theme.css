@@ -1,0 +1,11 @@
+:root {
+__THEME_LIGHT__
+  --radius: __THEME_RADIUS__;
+}
+.dark {
+__THEME_DARK__
+}
+/* __PROJECT_DISPLAY_NAME__ | __THEME_DEFAULT__ | __THEME_DENSITY__ | __THEME_FONT__ */
+:root {
+  --font-sans: __THEME_FONT_STACK__;
+}

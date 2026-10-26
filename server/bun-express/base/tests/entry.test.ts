@@ -191,7 +191,35 @@ describe('loadEnv', () => {
   it('defaults the database URL to the local service outside production', () => {
     expect(loadEnv({}).env.DATABASE_URL).toBe('postgres://app:app@127.0.0.1:5432/app')
   })
+
+  it('defaults E2E_DATABASE_URL to the e2e database and refuses a URL that is not postgres', () => {
+    expect(loadEnv({}).env.E2E_DATABASE_URL).toBe('postgres://app:app@127.0.0.1:5432/app_e2e')
+    expect(() => loadEnv({ E2E_DATABASE_URL: 'mysql://u:p@h/x_e2e' })).toThrow(/E2E_DATABASE_URL/)
+  })
+
+  it('treats a blank E2E_DATABASE_URL as unset, so a production server that never uses it boots', () => {
+    const blank = { ...productionSource, E2E_DATABASE_URL: '' }
+
+    expect(loadEnv(blank).env.E2E_DATABASE_URL).toBe('postgres://app:app@127.0.0.1:5432/app_e2e')
+  })
   // @database:postgres-end
+
+  it('reads RATE_LIMIT_SCALE as a number of 1 or more and defaults it to 1', () => {
+    expect(loadEnv({}).env.RATE_LIMIT_SCALE).toBe(1)
+    expect(loadEnv({ RATE_LIMIT_SCALE: '25' }).env.RATE_LIMIT_SCALE).toBe(25)
+    expect(loadEnv({ RATE_LIMIT_SCALE: '1.5' }).env.RATE_LIMIT_SCALE).toBe(1.5)
+    expect(loadEnv({ RATE_LIMIT_SCALE: '1000' }).env.RATE_LIMIT_SCALE).toBe(1000)
+  })
+
+  it('keeps the default RATE_LIMIT_SCALE in production', () => {
+    expect(loadEnv(productionSource).env.RATE_LIMIT_SCALE).toBe(1)
+  })
+
+  it('refuses a RATE_LIMIT_SCALE below 1 or not finite, naming the variable', () => {
+    for (const bad of ['0', '0.5', '-3', 'abc', 'Infinity', 'NaN', '1001', '1e300']) {
+      expect(() => loadEnv({ RATE_LIMIT_SCALE: bad })).toThrow(/RATE_LIMIT_SCALE/)
+    }
+  })
 
   it('parses TRUST_PROXY as a boolean, a number or a string', () => {
     expect(loadEnv({}).env.TRUST_PROXY).toBe(false)

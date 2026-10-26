@@ -1,7 +1,8 @@
 """Fixed-window request limiting per subject, mounted per endpoint as a FastAPI dependency in the
 route's `dependencies=[...]`, so it runs before body validation errors are raised and before any
 gate declared after it. Choosing the limits is not its job (`config/constants.py` `RATE_LIMITS`).
-It is the only middleware allowed to import `services/cache.py`.
+It is the only middleware allowed to import `services/cache.py`. It applies `RATE_LIMIT_SCALE` to
+every limit, so no caller scales its own.
 
 Not a pure ASGI middleware like the rest of `middleware/`: it needs the matched route's policy
 (which limit, which subject), and a dependency is where FastAPI attaches that. A malformed JSON
@@ -18,6 +19,7 @@ from typing import Final
 
 from fastapi import Request
 
+from app.config.env import env
 from app.middleware.context import client_ip_of
 from app.services import cache
 from app.services.utils import clock
@@ -27,15 +29,27 @@ from app.services.utils.error import AppError
 type KeyOf = Callable[[Request], Awaitable[str | None]]
 
 _KEY_PREFIX: Final = "rl"
+# Same bounds as RATE_LIMIT_SCALE in config/env.py: no value may disable limiting.
+MAX_RATE_LIMIT_SCALE: Final = 1000
+
+
+def scaled_limit(limit: int, scale: float) -> int:
+    """The limit times the scale, rounded up so a scale never lowers it; the epsilon keeps
+    `10 * 1.1` (11.000000000000002) at 11."""
+    if not 1 <= scale <= MAX_RATE_LIMIT_SCALE:  # also false for NaN
+        raise ValueError(f"rate limit scale must be between 1 and {MAX_RATE_LIMIT_SCALE}")
+    return math.ceil(limit * scale - 1e-9)
 
 
 def rate_limit(
-    *, name: str, limit: int, window: str, key: KeyOf
+    *, name: str, limit: int, window: str, key: KeyOf, scale: float | None = None
 ) -> Callable[[Request], Awaitable[None]]:
     """The dependency for one limit. `window` is a duration string, e.g. # @auth
     `RATE_LIMITS.login_per_ip.window`.""" # @auth
     """The dependency for one limit. `window` is a duration string, such as `"15m"`.""" # @noauth
     window_ms = int(clock.parse_duration(window).total_seconds() * 1000)
+    # `scale` defaults to RATE_LIMIT_SCALE, which is 1 unless an e2e run raises it.
+    maximum = scaled_limit(limit, env.rate_limit_scale if scale is None else scale)
 
     async def enforce(request: Request) -> None:
         subject = await key(request)
@@ -45,7 +59,7 @@ def rate_limit(
         # otherwise become a megabyte cache key) and the subject never sits in the cache in clear.
         digest = hashlib.sha256(subject.encode("utf-8")).hexdigest()
         count = await cache.incr(f"{_KEY_PREFIX}:{name}:{digest}", window_ms)
-        if count > limit:
+        if count > maximum:
             # The window length is an upper bound: the window started at the first hit, not now.
             raise AppError(
                 "rate_limited",

@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type { CommandName, DeployMode } from './catalog'
 import { commandOutput } from './commands'
+import type { Brand } from './brand'
 import type { GenerationPlan } from './plan'
 
 export const PROVENANCE_PATH = '.fullstack/catalog.yaml'
@@ -31,7 +32,7 @@ export interface Provenance {
     }
   >
   providers: Record<string, string>
-  answers: { projectName: string }
+  answers: { projectName: string; brand?: Brand }
 }
 
 export function buildProvenance(
@@ -59,7 +60,10 @@ export function buildProvenance(
     ...(plan.deploy === null ? {} : { deploy: plan.deploy }),
     packages,
     providers: Object.fromEntries(plan.providers.map((p) => [p.kind, p.id])),
-    answers: { projectName: plan.projectName },
+    answers: {
+      projectName: plan.projectName,
+      ...(plan.brand === null ? {} : { brand: plan.brand.inputs }),
+    },
   }
 }
 

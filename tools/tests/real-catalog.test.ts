@@ -42,7 +42,7 @@ describe('generation from the real catalog', () => {
       expect(existsSync(path.join(out, 'backend', 'package.json'))).toBe(true)
       expect(existsSync(path.join(out, 'frontend', 'package.json'))).toBe(true)
       expect(Object.keys(composeOf(out).services)).not.toContain('backend-migrate')
-      expect(playwright(out)).toContain("command: 'bun run dev'")
+      expect(playwright(out)).toContain("command: 'bun run start'")
     })
   })
 
@@ -54,16 +54,17 @@ describe('generation from the real catalog', () => {
       expect(services.backend.depends_on['backend-migrate'].condition).toBe(
         'service_completed_successfully',
       )
-      expect(playwright(out)).toContain("command: 'bun run dev'")
+      expect(playwright(out)).toContain("command: 'bun run db:e2e && bun run start'")
+      expect(playwright(out)).toContain('app_e2e')
     })
   })
 
   test('next-python-fastapi with Postgres wires the uv command, port 8000 and the migrate service', () => {
     generated({ stack: 'next-python-fastapi', capabilities: ['database=postgres'] }, (out) => {
-      expect(playwright(out)).toContain("command: 'uv run python -m app.main --reload'")
+      expect(playwright(out)).toContain("command: 'uv run poe e2e-db && uv run python -m app.main'")
       const recorded = parse(readFileSync(path.join(out, '.fullstack', 'catalog.yaml'), 'utf8'))
       expect(recorded.packages.backend.http.port).toBe(8000)
-      expect(playwright(out)).toContain('http://localhost:8000/api/health')
+      expect(playwright(out)).toContain('http://127.0.0.1:8000/api/health')
       const { services } = composeOf(out)
       expect(services.backend.ports).toEqual(['127.0.0.1:8000:8000'])
       expect(services['backend-migrate'].command).toBe('python -m app.infra.scripts.migrate')
@@ -77,7 +78,7 @@ describe('generation from the real catalog', () => {
     generated({ template: 'frontend/next' }, (out) => {
       expect(existsSync(path.join(out, 'frontend', 'package.json'))).toBe(true)
       expect(existsSync(path.join(out, 'backend'))).toBe(false)
-      expect(playwright(out)).toContain("command: 'bun run dev'")
+      expect(playwright(out)).toContain("command: 'bun run start'")
       expect(playwright(out)).toContain("cwd: '../backend'")
     })
   })

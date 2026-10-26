@@ -1,69 +1,69 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@fontsource-variable/inter';
 
-/* Design tokens: colours in :root plus @theme inline; type, radius and shadow in a plain @theme
-   block (see `AGENTS.md › Styling`). */
+@custom-variant dark (&:where(.dark, .dark *));
+/* Fine-pointer control heights shrink under data-density="compact" on <html>. The media query
+   keeps it off touch: compact and pointer-coarse utilities tie on specificity, so without it
+   the later rule would win and shrink touch targets below 44 px. */
+@custom-variant compact {
+  @media (pointer: fine) {
+    &:where([data-density='compact'] *) {
+      @slot;
+    }
+  }
+}
+
+/* Design tokens (see `AGENTS.md › Styling`). The generator fills the placeholders from the
+   brand: one `--token: oklch(...)` line per token for light and dark, and the radius. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --muted: #f5f5f5;
-  --muted-foreground: #595959;
-  --border: #d4d4d4;
-  --input: #737373;
-  --primary: #1d4ed8;
-  --primary-foreground: #ffffff;
-  --ring: #2563eb;
+__THEME_LIGHT__
+  --radius: __THEME_RADIUS__;
+}
+
+.dark {
+__THEME_DARK__
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
   --color-ring: var(--ring);
-  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: __THEME_FONT_STACK__;
 }
 
-/* Type, radius and shadow are declared here once; Tailwind emits them as variables on :root. */
-@theme {
-  --text-sm: 0.875rem;
-  --text-sm--line-height: 1.25rem;
-  --text-base: 1rem;
-  --text-base--line-height: 1.5rem;
-  --text-lg: 1.125rem;
-  --text-lg--line-height: 1.75rem;
-  --text-xl: 1.25rem;
-  --text-xl--line-height: 1.75rem;
-  --text-2xl: 1.5rem;
-  --text-2xl--line-height: 2rem;
-
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-
-  --shadow-1: 0 1px 2px 0 rgb(0 0 0 / 0.08);
-  --shadow-2: 0 4px 12px -2px rgb(0 0 0 / 0.16);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --muted: #1c1c1c;
-    --muted-foreground: #a3a3a3;
-    --border: #404040;
-    --input: #a3a3a3;
-    --primary: #60a5fa;
-    --primary-foreground: #0a0a0a;
-    --ring: #93c5fd;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
-
-body {
-  background: var(--color-background);
-  color: var(--color-foreground);
-  font-family: var(--font-sans);
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+  }
 }

@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.4.0 — 2026-10-26
+
+- New command `start` (`bun run start`): the server without a watcher or reloader, which a frontend's e2e starts.
+- `RATE_LIMIT_SCALE` (a number from 1 to 1000, default 1, read once in `config/env.ts`, listed in
+  `.env.example`) multiplies every limit in `RATE_LIMITS`, rounded up; `rateLimit` applies it, with
+  an optional `scale` option for a caller that needs another. An e2e run raises it so a journey
+  suite does not meet the limits; production keeps 1. There is no bypass switch. The same in the
+  python-fastapi template.
+- With the Postgres capability, a new command `e2eDb` (`bun run db:e2e`) prepares the e2e database
+  that the provider's `e2e` URL names (`app_e2e`, overridden by `E2E_DATABASE_URL`, parsed in
+  `config/env.ts`). It creates the database when it is missing, applies the migrations and
+  truncates every table except `schema_migration`, and refuses any database whose name does not
+  end in `_e2e`.
+- The Compose fragment writes the app secrets as `${NAME-}`, so `docker compose up -d --wait
+  database` prints no "variable is not set" warning for them. An unset secret is still an empty
+  string, and the server still refuses to boot in production without it.
+- Tests that raise an error on purpose capture it (`captureLogs` in `tests/logs.ts`, or a console
+  spy), so a green run prints no stack trace. `tests/services/session.test.ts` changed, and the
+  Postgres overlay's copy and its pin with it.
+
 ## 2.3.1 — 2026-10-25
 
 - `byIp` limits an IPv6 client by its /64, not its full address: a subscriber owns a whole /64, so

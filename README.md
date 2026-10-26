@@ -82,9 +82,9 @@ puts the frontend in front. Next.js stacks are always `split`. See
 <!-- matrix:start -->
 | Template | Kind | Version | Flags | Capabilities | Summary |
 | --- | --- | --- | --- | --- | --- |
-| `bun-express` | server | 2.3.1 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
-| `python-fastapi` | server | 1.1.1 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
-| `next` | frontend | 1.2.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
+| `bun-express` | server | 2.4.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
+| `python-fastapi` | server | 1.2.0 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
+| `next` | frontend | 2.0.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
 | `react` | frontend | 1.1.0 | — | — | Vite and React 19 single-page app with React Router data mode and a typed client generated from the server's contract |
 
 | Stack | Packages | Summary |

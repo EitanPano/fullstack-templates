@@ -80,7 +80,7 @@ infra/              dependency.ts · postgres.ts · memory.ts · scheduler.ts ·
   migrations/       NNNN-<topic>.sql, the schema, applied in name order <!-- @database:postgres -->
   scripts/          one-off commands (reserved: migrate, seed) <!-- @nodatabase -->
                     (reserved: <engine>.ts, redis.ts, the real connections) <!-- @nodatabase -->
-  scripts/          one-off commands: migrate.ts (db:migrate); seed is reserved <!-- @database:postgres -->
+  scripts/          one-off commands: migrate.ts (db:migrate), e2e-db.ts (db:e2e); seed is reserved <!-- @database:postgres -->
                     (reserved: redis.ts, the cache's real connection) <!-- @database:postgres -->
 ```
 
@@ -567,6 +567,13 @@ migrations and, when the database cannot be reached, exits 1 with one line sayin
 exits 1 when `describeStore` would skip every store-backed suite, so `test:db` cannot pass on
 zero tests. Never fake the database with `mock.module`: it is process-global in `bun test`.
 
+E2E database: `app_e2e` on the same service, for a browser suite. `bun run db:e2e` reads
+`E2E_DATABASE_URL` (default `postgres://app:app@127.0.0.1:5432/app_e2e`), creates the database when
+it is missing (through the server's `postgres` maintenance database, same credentials), applies the
+migrations and truncates every table except `schema_migration`. It refuses a name that does not
+end in `_e2e`. Run it before each e2e run; the server under test starts with `DATABASE_URL` set to
+the same URL. Like `app_test`, it needs the service up and nothing else.
+
 Production: the server never migrates on boot. In the Compose stack the one-shot
 `__PACKAGE_DIR__-migrate` service (app profile) runs `db:migrate` from the backend's image with the same
 environment, and the backend waits for it to finish successfully:
@@ -663,6 +670,9 @@ A gated endpoint also tests its 401 and, where it checks a role, its 403. <!-- @
   file level: a file-level `resetStore` breaks `check` in this variant as soon as the file has a
   plain `describe`.
 <!-- @database:postgres-end -->
+- `RATE_LIMIT_SCALE` (a number from 1 to 1000, default 1) multiplies every limit in `RATE_LIMITS`,
+  rounded up; `middleware/rate-limit.ts` applies it. An e2e run raises it so a journey suite is not
+  limited; production keeps 1. There is no switch that turns limiting off.
 - `tests/openapi.test.ts` fails on a stale `openapi.json`: run `bun run openapi`.
 - Every new behaviour gets a happy-path test and at least one failure or empty-path test.
   No `.skip`, `.only`, `.todo`, `.todoIf`, `.skipIf`, `.failing`, `.failingIf` or `.if` used to

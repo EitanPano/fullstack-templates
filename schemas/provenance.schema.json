@@ -58,7 +58,23 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["projectName"],
-      "properties": { "projectName": { "type": "string", "minLength": 1 } }
+      "properties": {
+        "projectName": { "type": "string", "minLength": 1 },
+        "brand": {
+          "type": "object",
+          "description": "The resolved brand inputs of a plan with a frontend.",
+          "additionalProperties": false,
+          "properties": {
+            "displayName": { "type": "string", "minLength": 1, "maxLength": 60 },
+            "primary": { "type": "string", "pattern": "^#[0-9a-f]{6}$" },
+            "neutral": { "type": "string", "pattern": "^#[0-9a-f]{6}$" },
+            "radius": { "enum": ["sm", "md", "lg"] },
+            "font": { "enum": ["system", "inter"] },
+            "theme": { "enum": ["system", "light", "dark"] },
+            "density": { "enum": ["comfortable", "compact"] }
+          }
+        }
+      }
     }
   }
 }

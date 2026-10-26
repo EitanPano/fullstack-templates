@@ -8,12 +8,25 @@ export interface GenerationCase {
   stack: string | null
   // The directory the stack gives this case's template; null for a template case.
   packageDir: string | null
+  // A frontend case: the directory of its stack's server package (null without a stack or a
+  // server) and the flags and capabilities the case sets on that server.
+  serverDir: string | null
+  serverFlags: Record<string, boolean>
+  serverCapabilities: Record<string, string>
   flags: Record<string, boolean>
   capabilities: Record<string, string>
   // Runs the Compose smoke (build, boot, probe) when test-generated gets --with-app.
   withApp: boolean
   // The deploy mode the case asks for; null leaves the plan's default.
   deploy: DeployMode | null
+}
+
+function serverDirOf(catalog: Catalog, stack: string | undefined): string | null {
+  const packages = stack === undefined ? [] : (catalog.stacks.get(stack)?.manifest.packages ?? [])
+  const entry = packages.find(
+    (candidate) => catalog.templates.get(candidate.template)?.manifest.kind === 'server',
+  )
+  return entry?.dir ?? null
 }
 
 function stackDir(catalog: Catalog, stack: string, template: LoadedTemplate): string {
@@ -34,6 +47,9 @@ export function listCases(catalog: Catalog): GenerationCase[] {
         name: entry.name,
         stack: entry.stack ?? null,
         packageDir: entry.stack ? stackDir(catalog, entry.stack, template) : null,
+        serverDir: template.manifest.kind === 'server' ? null : serverDirOf(catalog, entry.stack),
+        serverFlags: entry.server?.flags ?? {},
+        serverCapabilities: entry.server?.capabilities ?? {},
         flags: entry.flags ?? {},
         capabilities: entry.capabilities ?? {},
         withApp: entry.withApp === true,
@@ -65,7 +81,14 @@ export function requestFor(c: GenerationCase, out: string): RequestInput {
     flags: [],
     capabilities: [],
     answers: {
-      packages: { [c.packageDir]: { flags: c.flags, capabilities: c.capabilities } },
+      packages: {
+        [c.packageDir]: { flags: c.flags, capabilities: c.capabilities },
+        // Only a case that sets the server adds its entry, so other answers stay as they were.
+        ...(c.serverDir !== null &&
+        (Object.keys(c.serverFlags).length > 0 || Object.keys(c.serverCapabilities).length > 0)
+          ? { [c.serverDir]: { flags: c.serverFlags, capabilities: c.serverCapabilities } }
+          : {}),
+      },
     },
   }
 }

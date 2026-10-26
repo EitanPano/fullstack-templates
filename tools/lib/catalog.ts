@@ -7,7 +7,7 @@ import {
   loadOverlays,
   loadProviders,
 } from './capabilities'
-import { CAPABILITY_KINDS, type CapabilityKind } from './capability-kinds'
+import { CAPABILITY_KINDS, isKind, type CapabilityKind } from './capability-kinds'
 import { readChecked, subdirectories } from './read-checked'
 
 export type DeployMode = 'single' | 'split'
@@ -24,8 +24,10 @@ export type CommandName =
   | 'lint'
   | 'format'
   | 'test'
+  | 'start'
   | 'testDb'
   | 'testE2e'
+  | 'e2eDb'
   | 'contract'
   | 'migrate'
 
@@ -37,8 +39,10 @@ export const COMMAND_NAMES: readonly CommandName[] = [
   'lint',
   'format',
   'test',
+  'start',
   'testDb',
   'testE2e',
+  'e2eDb',
   'contract',
   'migrate',
 ]
@@ -50,6 +54,21 @@ export const DEFAULT_DIR_BY_KIND: Record<TemplateKind, string> = {
 }
 
 const KINDS = Object.keys(DEFAULT_DIR_BY_KIND) as TemplateKind[]
+
+// A frontend sees the server package's flags and capability kinds as `server:<name>`.
+export const SERVER_PREFIX = 'server:'
+
+// Every name any server template of the catalog declares, so a marker in a frontend resolves
+// whichever server the stack brings (and is off for the ones it does not).
+export function serverSelectionNames(templates: Iterable<LoadedTemplate>): string[] {
+  const names = new Set<string>()
+  for (const { manifest } of templates) {
+    if (manifest.kind !== 'server') continue
+    for (const flag of Object.keys(manifest.flags ?? {})) names.add(flag)
+    for (const kind of Object.keys(manifest.capabilities ?? {})) names.add(kind)
+  }
+  return [...names].sort()
+}
 
 export interface DependencyChange {
   remove?: string[]
@@ -79,6 +98,9 @@ export interface ProviderEnv {
   compose: string
   test: string
   testOverride?: string
+  // The browser-test database (e2eDb, testE2e) and the variable that overrides it.
+  e2e?: string
+  e2eOverride?: string
   secret?: boolean
 }
 
@@ -129,6 +151,9 @@ export interface TemplateManifest {
   gitignore?: string[]
   postGenerate?: CommandName[]
   dropAfterPostGenerate?: string[]
+  // Frontend only: files kept only while a `server:<name>` selection is on, as a flag's onlyPaths
+  // are kept only while the flag is.
+  onlyWhen?: Record<string, string[]>
   defaultStack?: string
   // Frontend only: the directory the build writes, which the server serves in the single mode.
   static?: { out: string }
@@ -164,6 +189,8 @@ export interface CasesFile {
     withApp?: boolean
     // The deploy mode the case generates with; the Compose smoke of T2 reads it.
     deploy?: DeployMode
+    // A frontend case only: the flags and capabilities of the stack's server package.
+    server?: { flags?: Record<string, boolean>; capabilities?: Record<string, string> }
   }>
 }
 
@@ -300,6 +327,16 @@ function checkTemplateFiles(
       )
     }
   }
+  for (const [name, paths] of Object.entries(manifest.onlyWhen ?? {})) {
+    if (manifest.kind === 'server') {
+      problems.push(`${templatePath}: onlyWhen is not for a server template, which has no ${name}`)
+    }
+    for (const only of paths) {
+      if (!existsSync(path.join(base, only))) {
+        problems.push(`${templatePath}: onlyWhen "${name}" path "${only}" does not exist in base/`)
+      }
+    }
+  }
   for (const [name, flag] of Object.entries(manifest.flags ?? {})) {
     if (manifest.dependencies?.adapter === 'pyproject' && flag.dependencies !== undefined) {
       problems.push(
@@ -417,11 +454,78 @@ function checkCaseCoverage(template: LoadedTemplate, problems: string[]): void {
   }
 }
 
+// An onlyWhen key must be `server:<name>` for a flag or capability kind some server declares.
+function checkOnlyWhenNames(
+  template: LoadedTemplate,
+  serverNames: readonly string[],
+  problems: string[],
+): void {
+  for (const name of Object.keys(template.manifest.onlyWhen ?? {})) {
+    if (
+      !name.startsWith(SERVER_PREFIX) ||
+      !serverNames.includes(name.slice(SERVER_PREFIX.length))
+    ) {
+      problems.push(
+        `${template.path}: onlyWhen "${name}" is not a server selection; use server:<flag or capability kind> of a server template (${serverNames.map((n) => SERVER_PREFIX + n).join(', ')})`,
+      )
+    }
+  }
+}
+
+// A frontend case may set the flags and capabilities of its stack's server package; the server
+// template must declare them, as a server case's own must.
+function checkServerSettings(
+  template: LoadedTemplate,
+  testCase: CasesFile['cases'][number],
+  stacks: Map<string, LoadedStack>,
+  templates: Map<string, LoadedTemplate>,
+  problems: string[],
+): void {
+  if (testCase.server === undefined) return
+  const where = `${template.path}: case "${testCase.name}"`
+  if (template.manifest.kind === 'server') {
+    problems.push(`${where} has server settings, which only a frontend case takes`)
+    return
+  }
+  const stack = testCase.stack === undefined ? undefined : stacks.get(testCase.stack)
+  if (testCase.stack === undefined) {
+    problems.push(`${where} has server settings but names no stack`)
+    return
+  }
+  const entry = stack?.manifest.packages.find(
+    (pkg) => templates.get(pkg.template)?.manifest.kind === 'server',
+  )
+  const server = entry === undefined ? undefined : templates.get(entry.template)
+  if (server === undefined) {
+    if (stack !== undefined)
+      problems.push(`${where} has server settings, but its stack has no server`)
+    return
+  }
+  for (const flag of Object.keys(testCase.server.flags ?? {})) {
+    if (server.manifest.flags?.[flag] === undefined) {
+      problems.push(`${where} sets server flag "${flag}", which ${server.path} does not declare`)
+    }
+  }
+  for (const [kind, provider] of Object.entries(testCase.server.capabilities ?? {})) {
+    const spec = isKind(kind) ? server.manifest.capabilities?.[kind] : undefined
+    if (spec === undefined) {
+      problems.push(
+        `${where} sets server capability "${kind}", which ${server.path} does not declare`,
+      )
+    } else if (!spec.providers.includes(provider)) {
+      problems.push(
+        `${where} sets server capability ${kind} to unlisted provider "${provider}" of ${server.path}`,
+      )
+    }
+  }
+}
+
 function checkCrossReferences(
   templates: Map<string, LoadedTemplate>,
   stacks: Map<string, LoadedStack>,
   problems: string[],
 ): void {
+  const serverNames = serverSelectionNames(templates.values())
   for (const template of templates.values()) {
     const { manifest } = template
     if (manifest.defaultStack && !stacks.has(manifest.defaultStack)) {
@@ -446,9 +550,11 @@ function checkCrossReferences(
       }
     }
     const declared = new Set(Object.keys(manifest.flags ?? {}))
+    checkOnlyWhenNames(template, serverNames, problems)
     checkCaseCoverage(template, problems)
     checkCapabilityCases(template, problems)
     for (const testCase of template.cases.cases) {
+      checkServerSettings(template, testCase, stacks, templates, problems)
       for (const flag of Object.keys(testCase.flags ?? {})) {
         if (!declared.has(flag)) {
           problems.push(`${template.path}: case "${testCase.name}" uses undeclared flag "${flag}"`)
