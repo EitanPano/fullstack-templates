@@ -252,6 +252,51 @@ describe('generate: edges', () => {
     expect(lines).toHaveLength(1)
   })
 
+  test('a frontend gets the server start command, the e2eDb command and the e2e database URL', () => {
+    const plain = resolveRequest(catalog, request(tempDir()))
+    const web = plain.packages.find((pkg) => pkg.dir === 'frontend')!
+    expect(packagePlaceholders(plain, web)).toMatchObject({
+      SERVER_START_COMMAND: 'bun ./ok.ts start',
+      SERVER_E2E_DB_COMMAND: '',
+      SERVER_E2E_DATABASE_URL: '',
+    })
+    // The fixture's database has no e2e command or URL, so a copy gets both.
+    const root = copyFixture('catalog')
+    const edit = (file: string, from: string, to: string) => {
+      const target = path.join(root, file)
+      writeFileSync(target, readFileSync(target, 'utf8').replace(from, to))
+    }
+    edit(
+      'server/mini/capabilities/database/fake/capability.yaml',
+      'testDb: bun run test:db',
+      'testDb: bun run test:db\n  e2eDb: bun run db:e2e',
+    )
+    edit(
+      'shared/providers/database/fake/provider.yaml',
+      'testOverride: TEST_DATABASE_URL',
+      'testOverride: TEST_DATABASE_URL\n    e2e: fake://localhost:5432/app_e2e',
+    )
+    const copy = loadCatalog(root)
+    const withDb = resolveRequest(copy, request(tempDir(), { capabilities: ['database=fake'] }))
+    const webDb = withDb.packages.find((pkg) => pkg.dir === 'frontend')!
+    expect(packagePlaceholders(withDb, webDb)).toMatchObject({
+      SERVER_START_COMMAND: 'bun ./ok.ts start',
+      SERVER_E2E_DB_COMMAND: 'bun run db:e2e',
+      SERVER_E2E_DATABASE_URL: 'fake://localhost:5432/app_e2e',
+    })
+  })
+
+  test('without a server the start command falls back to the conventional one', () => {
+    const plan = resolveRequest(
+      catalog,
+      request(tempDir(), { stack: undefined, template: 'frontend/mini-ui' }),
+    )
+    expect(packagePlaceholders(plan, plan.packages[0]!)).toMatchObject({
+      SERVER_START_COMMAND: 'bun run start',
+      SERVER_E2E_DB_COMMAND: '',
+    })
+  })
+
   test('a lone frontend with a compose fragment logs the server assumption once', () => {
     const lines: string[] = []
     generate(
@@ -551,7 +596,7 @@ describe('generate with a capability', () => {
     expect(compose.services.database.image).toBe('fake-db:1')
     expect(compose.volumes).toEqual({ 'database-data': {} })
     // a secret entry has no default; a plain one keeps its compose-network value
-    expect(compose.services.backend.environment.DATABASE_URL).toBe('${DATABASE_URL}')
+    expect(compose.services.backend.environment.DATABASE_URL).toBe('${DATABASE_URL-}')
     expect(compose.services.backend.environment.FAKE_POOL_SIZE).toBe('${FAKE_POOL_SIZE:-5}')
     expect(compose.services.backend.depends_on).toEqual({
       database: { condition: 'service_healthy' },

@@ -114,10 +114,16 @@
         "test": {
           "$ref": "#/$defs/command"
         },
+        "start": {
+          "$ref": "#/$defs/command"
+        },
         "testDb": {
           "$ref": "#/$defs/command"
         },
         "testE2e": {
+          "$ref": "#/$defs/command"
+        },
+        "e2eDb": {
           "$ref": "#/$defs/command"
         },
         "contract": {
@@ -270,6 +276,19 @@
         }
       }
     },
+    "onlyWhen": {
+      "type": "object",
+      "description": "Frontend only: files kept only while a selection of the stack's server package is on, as a flag's onlyPaths are kept only while the flag is. A key is server:<name> for a flag or capability kind a server template declares; every path must exist in base/. Alone, the frontend has every server:* selection off.",
+      "propertyNames": {
+        "pattern": "^server:[a-z][a-z0-9-]*$"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/relativePath"
+        }
+      }
+    },
     "gitignore": {
       "type": "array",
       "items": {
@@ -320,8 +339,8 @@
   "$defs": {
     "relativePath": {
       "type": "string",
-      "description": "A POSIX relative path inside the package: segments of letters, digits, dot, underscore, at and hyphen joined by \"/\"; no \"..\" segment, no leading \"/\", no drive letter, no backslash.",
-      "pattern": "^(?!(.*/)?\\.\\.(/|$))[A-Za-z0-9._@-]+(/[A-Za-z0-9._@-]+)*$"
+      "description": "A POSIX relative path inside the package: segments of letters, digits, dot, underscore, at, parentheses (a route group such as (auth)) and hyphen joined by \"/\"; no segment holding \"..\", no leading \"/\", no drive letter, no backslash.",
+      "pattern": "^(?!(.*/)?[().]*\\.\\.[().]*(/|$))[A-Za-z0-9._@()-]+(/[A-Za-z0-9._@()-]+)*$"
     },
     "command": {
       "type": "string",

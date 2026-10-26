@@ -99,8 +99,9 @@ function defaultDeps(run: Runner, log: (message: string) => void, capture: Captu
   }
 }
 
-// The generated Compose file lists its secrets as a plain ${NAME}: no default, so a shell that does
-// not export them cannot start the stack. The provider's entries get the value the compose network
+// The generated Compose file lists its secrets as a plain ${NAME} or ${NAME-} (empty when unset,
+// which keeps `docker compose` from warning): no default, so a shell that does not export them
+// cannot start the stack. The provider's entries get the value the compose network
 // reaches it with; every other one gets 32 random bytes in base64, which satisfies the server's
 // secret rules (length, base64 key of 32 bytes) and differs between variables. Nothing is written
 // to disk; the values live in the child environment only.
@@ -114,7 +115,7 @@ export function appEnvironment(
   }
   // Comments may mention ${VAR} as an example; only the document's own references count.
   const code = composeText.replace(/(^|\s)#.*$/gm, '$1')
-  for (const match of code.matchAll(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g)) {
+  for (const match of code.matchAll(/\$\{([A-Za-z_][A-Za-z0-9_]*)-?\}/g)) {
     const name = match[1]
     if (name !== undefined && env[name] === undefined)
       env[name] = randomBytes(32).toString('base64')
@@ -329,11 +330,18 @@ export async function runAppSmoke(
   if (server === undefined || http === undefined) {
     throw new Error('app smoke: the plan has no server package with http')
   }
-  // A frontend that declares `static` is an SPA; any other (Next) keeps the server-port probe.
+  // A frontend that declares `static` is an SPA.
   const spa = plan.packages.find(
     (pkg) =>
       pkg.template.manifest.kind === 'frontend' &&
       pkg.template.manifest.static !== undefined &&
+      pkg.template.manifest.http !== undefined,
+  )
+  // A frontend without `static` (Next) serves itself: its container is probed on its own port.
+  const next = plan.packages.find(
+    (pkg) =>
+      pkg.template.manifest.kind === 'frontend' &&
+      pkg.template.manifest.static === undefined &&
       pkg.template.manifest.http !== undefined,
   )
   const mode = spa === undefined ? null : plan.deploy
@@ -350,6 +358,15 @@ export async function runAppSmoke(
     deps.run(`${compose} up --build --wait`, out, env)
     await waitFor200(`${base}${http.health}`, deps)
     if (http.ready !== undefined) await waitFor200(`${base}${http.ready}`, deps)
+    if (next?.template.manifest.http !== undefined) {
+      const front = next.template.manifest.http
+      const origin = `http://127.0.0.1:${String(front.port)}`
+      await waitFor200(`${origin}${front.health}`, deps)
+      const e2e = next.commands.testE2e
+      if (options.e2e && e2e !== undefined) {
+        deps.run(e2e, path.join(out, next.dir), { E2E_BASE_URL: origin })
+      }
+    }
     if (spa !== undefined && mode !== null) {
       const front = `http://127.0.0.1:${String(spa.template.manifest.http?.port ?? 0)}`
       // The public origin: the server in single, the frontend's proxy in split.

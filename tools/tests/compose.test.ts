@@ -68,7 +68,7 @@ describe('wireConsumer', () => {
     const doc = parse(out)
     expect(doc.environment).toEqual({
       PORT: '4000',
-      DATABASE_URL: '${DATABASE_URL}',
+      DATABASE_URL: '${DATABASE_URL-}',
       POOL_SIZE: '${POOL_SIZE:-5}',
     })
     expect(doc.depends_on).toEqual({ database: { condition: 'service_healthy' } })
@@ -80,7 +80,7 @@ describe('wireConsumer', () => {
         wiring,
       ]),
     )
-    expect(doc.environment.DATABASE_URL).toBe('${DATABASE_URL}')
+    expect(doc.environment.DATABASE_URL).toBe('${DATABASE_URL-}')
     expect(doc.environment.POOL_SIZE).toBe('${POOL_SIZE:-5}')
     expect(doc.depends_on).toEqual({
       cache: { condition: 'service_started' },
@@ -150,7 +150,7 @@ describe('deriveMigrate', () => {
       build: './backend',
       environment: {
         PORT: '4000',
-        DATABASE_URL: '${DATABASE_URL}',
+        DATABASE_URL: '${DATABASE_URL-}',
         POOL_SIZE: '${POOL_SIZE:-5}',
       },
       command,

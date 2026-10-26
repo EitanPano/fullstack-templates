@@ -256,6 +256,9 @@ describe('loadCatalog', () => {
     edit(root, 'server/mini/tests/cases.yaml', (text) =>
       text.slice(0, text.indexOf('  - name: fake')),
     )
+    edit(root, 'frontend/mini-ui/tests/cases.yaml', (text) =>
+      text.slice(0, text.indexOf('  - name: fake')),
+    )
     expect(loadCatalog(root).providers.size).toBe(0)
   })
 })

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
-import type { LoadedOverlay, LoadedTemplate } from './catalog'
+import { SERVER_PREFIX, type LoadedOverlay, type LoadedTemplate } from './catalog'
 import { listFiles } from './files'
 import { applyMarkers, commentSyntaxFor, findLeftoverMarker, MarkerError } from './markers'
 import { GENERATED_PLACEHOLDERS, isTextFile } from './placeholders'
@@ -58,13 +58,20 @@ function unprocessedProblems(template: LoadedTemplate): string[] {
   })
 }
 
-export function dryRunMarkers(template: LoadedTemplate): string[] {
+// `serverNames` are the flags and capability kinds the catalog servers declare; a frontend sees
+// each as server:<name>, on or off, and on only when the plan has a server.
+export function dryRunMarkers(
+  template: LoadedTemplate,
+  serverNames: readonly string[] = [],
+): string[] {
   // The reserved selections vary like flags: the plan may or may not hold a server, and with one
   // it may deploy as a single image.
+  const factNames = template.manifest.kind === 'server' ? [] : serverNames
   const flagNames = [
     ...Object.keys(template.manifest.flags ?? {}),
     SERVER_SELECTION,
     SINGLE_SELECTION,
+    ...factNames.map((name) => SERVER_PREFIX + name),
   ]
   const contents = new Map<string, string>()
   const read = (file: string) => {
@@ -91,9 +98,15 @@ export function dryRunMarkers(template: LoadedTemplate): string[] {
       const single = switches[SINGLE_SELECTION] === true
       // Single without a server cannot happen, and selectionsFor would make it split again.
       if (single && !hasServer) continue
+      const facts = Object.fromEntries(
+        factNames.map((name) => [name, switches[SERVER_PREFIX + name] === true]),
+      )
+      // A server selection cannot be on in a plan without a server.
+      if (!hasServer && Object.values(facts).some(Boolean)) continue
       delete switches[SERVER_SELECTION]
       delete switches[SINGLE_SELECTION]
-      const selections = selectionsFor(template, switches, hasServer, single, capabilities)
+      for (const name of factNames) delete switches[SERVER_PREFIX + name]
+      const selections = selectionsFor(template, switches, hasServer, single, capabilities, facts)
 
       for (const file of files) {
         const where = relative(template.dir, file)

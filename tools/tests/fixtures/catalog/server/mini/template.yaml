@@ -24,6 +24,7 @@ dependencies:
 commands:
   install: bun ./ok.ts
   check: bun ./ok.ts
+  start: bun ./ok.ts start
   contract: bun ./ok.ts
 contract:
   produces: openapi.json

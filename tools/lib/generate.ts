@@ -39,7 +39,12 @@ import { UNPROCESSED_HINT, findUnprocessed } from './unprocessed'
 
 export const STAGING_DIR = '.fullstack-staging'
 
-const DEFAULT_SERVER = { dir: 'backend', port: '4000', devCommand: 'bun run dev' }
+const DEFAULT_SERVER = {
+  dir: 'backend',
+  port: '4000',
+  devCommand: 'bun run dev',
+  startCommand: 'bun run start',
+}
 
 export interface GenerateOptions {
   keepStaging?: boolean
@@ -66,6 +71,14 @@ export class GenerateError extends Error {
 
 type Log = (line: string) => void
 
+// The provider's browser-test URL; empty when the stack has no provider that declares one.
+function e2eDatabaseUrl(plan: GenerationPlan): string {
+  for (const provider of plan.providers) {
+    for (const entry of provider.manifest.env) if (entry.e2e !== undefined) return entry.e2e
+  }
+  return ''
+}
+
 export function packagePlaceholders(
   plan: GenerationPlan,
   pkg: PackagePlan,
@@ -77,6 +90,7 @@ export function packagePlaceholders(
     )
   }
   const http = pkg.template.manifest.http
+  const server = plan.packages.find((candidate) => candidate.dir === pkg.serverDir)
   return {
     ...placeholderValues(plan.projectName),
     // Absent without a frontend: a kept line that uses it fails in sweepPlaceholders, while the
@@ -87,6 +101,13 @@ export function packagePlaceholders(
     SERVER_DIR: pkg.serverDir ?? DEFAULT_SERVER.dir,
     SERVER_PORT: pkg.serverPort === null ? DEFAULT_SERVER.port : String(pkg.serverPort),
     SERVER_DEV_COMMAND: pkg.serverDevCommand ?? DEFAULT_SERVER.devCommand,
+    // What a frontend's e2e starts: the server without a watcher, the command that prepares its
+    // browser-test database (empty without a database) and that database's URL.
+    SERVER_START_COMMAND: server?.commands.start ?? DEFAULT_SERVER.startCommand,
+    SERVER_E2E_DB_COMMAND: server?.commands.e2eDb ?? '',
+    SERVER_E2E_DATABASE_URL: e2eDatabaseUrl(plan),
+    // Only a frontend takes the brand: no server file holds a theme.
+    ...(pkg.template.manifest.kind === 'frontend' ? (plan.brand?.placeholders ?? {}) : {}),
   }
 }
 
@@ -147,6 +168,14 @@ function removeOnlyPaths(pkg: PackagePlan, pkgStaging: string): void {
         removeOnlyPath(pkg, pkgStaging, only, owner)
       }
     }
+  }
+}
+
+// A selection that is off removes the template's onlyWhen paths for it (server:auth of a frontend).
+function removeOnlyWhen(pkg: PackagePlan, pkgStaging: string): void {
+  for (const [name, paths] of Object.entries(pkg.template.manifest.onlyWhen ?? {})) {
+    if (pkg.selections[name] === true) continue
+    for (const only of paths) removeOnlyPath(pkg, pkgStaging, only, `onlyWhen ${name}`)
   }
 }
 
@@ -242,6 +271,13 @@ function appendEnvExample(
         entry.testOverride === undefined
           ? `# Tests (testDb) use ${entry.test}.`
           : `# Tests (testDb) use ${entry.test}; override with ${entry.testOverride}.`,
+        ...(entry.e2e === undefined
+          ? []
+          : [
+              entry.e2eOverride === undefined
+                ? `# Browser tests (e2eDb) use ${entry.e2e}.`
+                : `# Browser tests (e2eDb) use ${entry.e2e}; override with ${entry.e2eOverride}.`,
+            ]),
         `${entry.name}=${entry.local}`,
       ])
     }
@@ -268,6 +304,7 @@ function buildPackage(
   copyTree(path.join(pkg.template.dir, 'base'), pkgStaging)
   copyOverlays(pkg, pkgStaging)
   removeOnlyPaths(pkg, pkgStaging)
+  removeOnlyWhen(pkg, pkgStaging)
   applyMarkerPass(pkg, staging, pkgStaging)
   sweepMarkers(staging, pkgStaging)
   removeDependencies(pkg, pkgStaging)

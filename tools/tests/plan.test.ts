@@ -64,7 +64,7 @@ describe('resolveRequest', () => {
     )
     writeFileSync(file, yaml)
     const cases = path.join(copy, 'frontend', 'mini-ui', 'tests', 'cases.yaml')
-    appendFileSync(cases, '  - name: auth-off\n    flags: { auth: false }\n')
+    appendFileSync(cases, '  - name: own-auth-off\n    flags: { auth: false }\n')
     const ambiguous = loadCatalog(copy)
     let message = ''
     try {
@@ -410,5 +410,148 @@ describe('selectionsFor: the reserved single', () => {
     expect(selectionsFor(template, {}, true, true, {}).single).toBe(true)
     expect(selectionsFor(template, {}, true, false, {}).single).toBe(false)
     expect(selectionsFor(template, {}, false, true, {}).single).toBe(false)
+  })
+})
+
+describe('cross-package selections', () => {
+  const frontend = (stackOrTemplate: object, extra: object = {}) =>
+    resolveRequest(catalog, { ...base, ...stackOrTemplate, ...extra })
+
+  test('a frontend sees the server flags and capability kinds as server:<name>', () => {
+    const plan = frontend({ stack: 'mini' })
+    expect(plan.packages[1]?.selections).toEqual({
+      server: true,
+      single: false,
+      'server:auth': true,
+      'server:database': false,
+    })
+  })
+
+  test('follows the server package answers', () => {
+    const plan = frontend(
+      { stack: 'mini' },
+      {
+        answers: {
+          packages: { backend: { flags: { auth: false }, capabilities: { database: 'fake' } } },
+        },
+      },
+    )
+    expect(plan.packages[1]?.selections).toMatchObject({
+      'server:auth': false,
+      'server:database': true,
+    })
+    // The server itself has no server: names.
+    expect(
+      Object.keys(plan.packages[0]?.selections ?? {}).some((n) => n.startsWith('server:')),
+    ).toBe(false)
+  })
+
+  test('a flag shorthand reaches the frontend through the server', () => {
+    const plan = frontend({ stack: 'mini', flags: ['auth=false'] })
+    expect(plan.packages[1]?.selections['server:auth']).toBe(false)
+  })
+
+  test('an alone frontend has every server:* selection off, and still knows the names', () => {
+    const plan = frontend({ template: 'frontend/mini-ui' })
+    expect(plan.packages[0]?.selections).toEqual({
+      server: false,
+      single: false,
+      'server:auth': false,
+      'server:database': false,
+    })
+  })
+
+  test('selectionsFor adds the server facts under the server: prefix', () => {
+    const template = catalog.templates.get('frontend/mini-ui')!
+    expect(selectionsFor(template, {}, true, false, {}, { auth: true, database: false })).toEqual({
+      server: true,
+      single: false,
+      'server:auth': true,
+      'server:database': false,
+    })
+  })
+})
+
+describe('brand in the plan', () => {
+  test('a plan with a frontend carries the resolved brand and its placeholders', () => {
+    const plan = resolveRequest(catalog, { ...base, stack: 'mini' })
+    expect(plan.brand?.inputs).toEqual({
+      displayName: 'Demo App',
+      primary: '#1d4ed8',
+      neutral: '#64748b',
+      radius: 'md',
+      font: 'system',
+      theme: 'system',
+      density: 'comfortable',
+    })
+    expect(plan.brand?.placeholders.THEME_LIGHT).toContain('--background: oklch(1 0 0);')
+  })
+  test('a server-only plan has no brand', () => {
+    expect(resolveRequest(catalog, { ...base, template: 'server/mini' }).brand).toBeNull()
+  })
+  test('takes the brand from the request and from answers.brand, the request winning', () => {
+    const answers = { brand: { primary: '#ff0000', radius: 'sm', displayName: 'From File' } }
+    const plan = resolveRequest(catalog, {
+      ...base,
+      stack: 'mini',
+      answers,
+      brand: { primary: '#00aa00', density: 'compact' },
+    })
+    expect(plan.brand?.inputs).toMatchObject({
+      primary: '#00aa00',
+      radius: 'sm',
+      displayName: 'From File',
+      density: 'compact',
+    })
+  })
+  test('refuses a bad value and an unknown answers.brand key as a PlanError', () => {
+    expect(() =>
+      resolveRequest(catalog, { ...base, stack: 'mini', brand: { radius: 'xl' } }),
+    ).toThrow(PlanError)
+    expect(() =>
+      resolveRequest(catalog, {
+        ...base,
+        stack: 'mini',
+        answers: { brand: { colour: 'red' } } as never,
+      }),
+    ).toThrow('colour')
+  })
+  test('a seed that cannot pass fails the plan naming the pair', () => {
+    // A malformed seed stands in; the contrast failure naming a pair is covered in theme.test.ts.
+    expect(() =>
+      resolveRequest(catalog, { ...base, stack: 'mini', brand: { primary: 'nope' } }),
+    ).toThrow(/brand-primary/)
+  })
+})
+
+describe('plan edge cases of the foundation', () => {
+  test('a server-only plan does not resolve the brand, so a long project name is fine', () => {
+    const name = 'a-project-name-' + 'long-'.repeat(20) + 'end'
+    const plan = resolveRequest(catalog, { ...base, name, template: 'server/mini' })
+    expect(plan.brand).toBeNull()
+  })
+  test('a long project name gets a truncated default display name with a frontend', () => {
+    const name = 'a-project-name-' + 'long-'.repeat(20) + 'end'
+    const plan = resolveRequest(catalog, { ...base, name, stack: 'mini' })
+    expect(plan.brand?.inputs.displayName.length).toBeLessThanOrEqual(60)
+  })
+  test('a frontend without contract.consumes still sees the server selections', () => {
+    const copy = copyFixture('catalog')
+    const ui = path.join(copy, 'frontend', 'mini-ui', 'template.yaml')
+    writeFileSync(
+      ui,
+      readFileSync(ui, 'utf8').replace("contract:\n  consumes: '<server>/openapi.json'\n", ''),
+    )
+    writeFileSync(path.join(copy, 'stacks', 'mini', 'stack.yaml'), STACK_FRONT_FIRST)
+    const plan = resolveRequest(loadCatalog(copy), {
+      ...base,
+      stack: 'mini',
+      flags: ['auth=false'],
+    })
+    // The frontend is declared, and so planned, before the server here.
+    expect(plan.packages.map((p) => p.dir)).toEqual(['frontend', 'backend'])
+    expect(plan.packages[0]?.selections['server:auth']).toBe(false)
+    const on = resolveRequest(loadCatalog(copy), { ...base, stack: 'mini' })
+    expect(on.packages[0]?.selections['server:auth']).toBe(true)
   })
 })

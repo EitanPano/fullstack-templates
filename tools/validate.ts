@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { CatalogError, loadCatalog } from './lib/catalog'
+import { CatalogError, loadCatalog, serverSelectionNames } from './lib/catalog'
 import { CATALOG_ROOT, CliError, parseArgs } from './lib/cli'
 import { dryRunMarkers } from './lib/dry-run'
 import { checkLockfiles } from './lib/lockfiles'
@@ -45,7 +45,10 @@ function run(argv: string[]): string[] | null {
     pinCapability(catalog, args.values.pin, (line) => console.log(line))
     return null
   }
-  const problems = [...catalog.templates.values()].flatMap((template) => dryRunMarkers(template))
+  const serverNames = serverSelectionNames(catalog.templates.values())
+  const problems = [...catalog.templates.values()].flatMap((template) =>
+    dryRunMarkers(template, serverNames),
+  )
   problems.push(...checkPins(catalog))
   problems.push(...checkReadme(root, renderMatrix(catalog), args.booleans.readme === true))
   if (args.booleans.lockfiles === true) problems.push(...checkLockfiles(catalog))

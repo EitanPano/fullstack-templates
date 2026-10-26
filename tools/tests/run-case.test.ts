@@ -244,6 +244,23 @@ describe('runCase app smoke', () => {
     expect(Buffer.from(vars.SECRET as string, 'base64')).toHaveLength(32)
     expect(vars.SECRET).not.toMatch(/change|placeholder|example/i)
   })
+  test('a secret written ${NAME-} gets a random value, a defaulted one does not', async () => {
+    const { loaded, c } = appCatalog((root) => {
+      const file = path.join(root, 'server/mini/compose.yaml')
+      writeFileSync(
+        file,
+        readFileSync(file, 'utf8')
+          .replace('${SECRET}', '${SECRET-}')
+          .replace('${TRUST_PROXY:-false}', '${TRUST_PROXY:-false} ${OTHER:-x}'),
+      )
+    })
+    const { calls, runner } = recordWithVars()
+    await runCase(loaded, c, tempDir(), APP, runner, lines().log, ok)
+    const vars = upVars(calls)
+    expect(Buffer.from(vars.SECRET as string, 'base64')).toHaveLength(32)
+    expect(Object.keys(vars)).not.toContain('TRUST_PROXY')
+    expect(Object.keys(vars)).not.toContain('OTHER')
+  })
   test('a variable named only in a comment gets no value', async () => {
     const { loaded, c } = appCatalog((root) => {
       const file = path.join(root, 'server/mini/compose.yaml')
@@ -821,21 +838,74 @@ describe('app smoke, the edge security behaviour', () => {
   })
 })
 
-describe('app smoke, a frontend that is not an SPA', () => {
-  test('keeps the server-port probe only: no capture, no SPA checks, no e2e against the container', async () => {
-    const built = stackCatalog({ frontend: 'mini-ui', deploy: 'split', e2e: true })
-    const urls: string[] = []
-    const probe: Probe = async (url) => {
+describe('app smoke, a Next frontend (not an SPA)', () => {
+  const FRONT = 'http://127.0.0.1:3000/'
+  const answers =
+    (urls: string[]): Probe =>
+    async (url) => {
       urls.push(url)
       return { status: 200, body: '' }
     }
-    const capture: Capture = () => {
-      throw new Error('nothing to capture')
-    }
-    const { calls, result } = smoke(built, E2E, probe, capture)
+  const noCapture: Capture = () => {
+    throw new Error('nothing to capture')
+  }
+
+  test('probes the server, then the frontend port, with no SPA checks and no capture', async () => {
+    const built = stackCatalog({ frontend: 'mini-ui', deploy: 'split', e2e: true })
+    const urls: string[] = []
+    const { calls, result } = smoke(built, APP, answers(urls), noCapture)
     await result
-    expect(urls).toEqual(['http://127.0.0.1:4000/api/health'])
+    expect(urls).toEqual(['http://127.0.0.1:4000/api/health', FRONT])
     expect(verbs(calls)).toEqual(['up --build --wait', 'down -v'])
     expect(againstApp(calls)).toEqual([])
+  })
+
+  test('runs the frontend e2e against its port before the teardown, and only with --e2e', async () => {
+    const built = stackCatalog({ frontend: 'mini-ui', deploy: 'split', e2e: true })
+    const { calls, result } = smoke(built, E2E, answers([]), noCapture)
+    await result
+    expect(againstApp(calls).map((x) => x.vars?.E2E_BASE_URL)).toEqual(['http://127.0.0.1:3000'])
+    const at = (match: (x: Call) => boolean) => calls.findIndex(match)
+    const ran = at((x) => x.vars?.E2E_BASE_URL !== undefined)
+    expect(ran).toBeGreaterThan(at((x) => x.line.endsWith('up --build --wait')))
+    expect(ran).toBeLessThan(at((x) => x.line.endsWith('down -v')))
+  })
+
+  test('a frontend that does not answer fails the case and the teardown still runs', async () => {
+    const built = stackCatalog({ frontend: 'mini-ui', deploy: 'split', e2e: true })
+    const probe: Probe = async (url) => {
+      if (url === FRONT) throw new Error('connection refused')
+      return { status: 200, body: '' }
+    }
+    const rec = recordWithVars()
+    // The clock jumps 20 s per reading, as in the server probe test, so the 60 s wait ends fast.
+    let clock = 0
+    const realNow = Date.now
+    const realSetTimeout = globalThis.setTimeout
+    Date.now = () => (clock += 20_000)
+    globalThis.setTimeout = ((fn: () => void) => realSetTimeout(fn, 0)) as typeof setTimeout
+    try {
+      await expect(
+        runCase(built.loaded, built.c, tempDir(), E2E, rec.runner, lines().log, probe, noCapture),
+      ).rejects.toThrow(/3000/)
+    } finally {
+      Date.now = realNow
+      globalThis.setTimeout = realSetTimeout
+    }
+    expect(againstApp(rec.calls)).toEqual([])
+    expect(verbs(rec.calls).at(-1)).toBe('down -v')
+  })
+
+  test('a failing e2e fails the case and the teardown still runs', async () => {
+    const built = stackCatalog({ frontend: 'mini-ui', deploy: 'split', e2e: true })
+    const { calls, result } = smoke(
+      built,
+      E2E,
+      answers([]),
+      noCapture,
+      (_line, vars) => vars?.E2E_BASE_URL !== undefined,
+    )
+    await expect(result).rejects.toThrow('boom bun ./ok.ts e2e')
+    expect(verbs(calls).at(-1)).toBe('down -v')
   })
 })

@@ -110,8 +110,10 @@
         "lint": { "$ref": "#/$defs/command" },
         "format": { "$ref": "#/$defs/command" },
         "test": { "$ref": "#/$defs/command" },
+        "start": { "$ref": "#/$defs/command" },
         "testDb": { "$ref": "#/$defs/command" },
         "testE2e": { "$ref": "#/$defs/command" },
+        "e2eDb": { "$ref": "#/$defs/command" },
         "contract": { "$ref": "#/$defs/command" },
         "migrate": { "$ref": "#/$defs/command" }
       }
@@ -120,8 +122,8 @@
   "$defs": {
     "relativePath": {
       "type": "string",
-      "description": "A POSIX relative path inside the overlay: segments of letters, digits, dot, underscore, at and hyphen joined by '/'; no '..' segment, no leading '/', no drive letter, no backslash.",
-      "pattern": "^(?!(.*/)?\\.\\.(/|$))[A-Za-z0-9._@-]+(/[A-Za-z0-9._@-]+)*$"
+      "description": "A POSIX relative path inside the overlay: segments of letters, digits, dot, underscore, at, parentheses (a route group) and hyphen joined by '/'; no segment holding '..', no leading '/', no drive letter, no backslash.",
+      "pattern": "^(?!(.*/)?[().]*\\.\\.[().]*(/|$))[A-Za-z0-9._@()-]+(/[A-Za-z0-9._@()-]+)*$"
     },
     "command": {
       "type": "string",

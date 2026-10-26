@@ -55,6 +55,13 @@
             "type": "string",
             "pattern": "^[A-Z][A-Z0-9_]*$"
           },
+          "e2e": {
+            "$ref": "#/$defs/envValue"
+          },
+          "e2eOverride": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$"
+          },
           "secret": {
             "type": "boolean"
           }

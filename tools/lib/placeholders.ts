@@ -57,7 +57,19 @@ export const GENERATED_PLACEHOLDERS: readonly string[] = [
   'SERVER_DIR',
   'SERVER_PORT',
   'SERVER_DEV_COMMAND',
+  'SERVER_START_COMMAND',
+  'SERVER_E2E_DB_COMMAND',
+  'SERVER_E2E_DATABASE_URL',
   'FRONTEND_DIR',
+  // The brand of a frontend package (lib/brand.ts builds the values).
+  'PROJECT_DISPLAY_NAME',
+  'THEME_LIGHT',
+  'THEME_DARK',
+  'THEME_RADIUS',
+  'THEME_DEFAULT',
+  'THEME_DENSITY',
+  'THEME_FONT',
+  'THEME_FONT_STACK',
 ]
 
 export function substitutePlaceholders(
