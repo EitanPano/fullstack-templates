@@ -95,10 +95,12 @@ describe('readSession', () => {
     expect(log).toHaveBeenCalled()
   })
 
-  it('returns null for a 200 that is not a user', async () => {
+  it('returns null for a 200 that is not a user, and logs that the API answered wrongly', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ nope: true })))
 
     await expect(readSession()).resolves.toBeNull()
+    expect(log).toHaveBeenCalledWith('[session] could not read the account', { error: undefined })
   })
 })
 

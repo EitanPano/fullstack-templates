@@ -34,6 +34,8 @@ export function UserMenu({
           variant="ghost"
           size="icon"
           className="rounded-full"
+          // The visible initials must sit inside the accessible name (WCAG 2.5.3); aria-hidden on
+          // them does not satisfy axe, so the label carries them.
           aria-label={initials ? `Account menu, ${initials}` : 'Account menu'}
         >
           <Avatar size="sm">

@@ -182,15 +182,24 @@ React Hook Form with `zodResolver`, wired by `useHookFormAction` (from
 `@next-safe-action/adapter-react-hook-form/hooks`). `SignInForm` is the pattern.
 
 - The schema is in `feature/<action>/model.ts` and extends the generated request schema
-  (`zPostApiXBody.extend({ … })`); limits are never copied. The generated email has no format
-  check: add `z.email()` with `.pipe`. The same schema goes to `.inputSchema` and to `zodResolver`.
-- `<Form form={form} onSubmit={handleSubmitWithAction}>` provides the context; `TextField`,
+  (`zPostApiXBody.extend({ … })`); limits are never copied. A field whose message is ours sets
+  that message itself, whatever the generated schema carries (the servers' schemas differ: one has
+  an email format check and one has none; `feature/auth/model.ts` runs both checks in one
+  `superRefine`). The same schema goes to `.inputSchema` and to `zodResolver`.
+- `<Form form={form} onSubmit={ignoreNavigation(handleSubmitWithAction)}>` provides the context; `TextField`,
   `TextareaField`, `NumberField`, `SelectField`, `CheckboxField`, `PasswordField` and
   `DateTimeField` (all in `shared/ui/form/`) take a `name` and a `label`. An error shows under its
   field with `aria-invalid` and `aria-describedby`; the submit row is `FormActions`.
 - A field error from the server arrives as `validationErrors` and is placed on the field by the
   adapter. The toast reports the outcome (`serverError`, a success) and never repeats a field
-  error. Toasts fire from `actionProps` callbacks or handlers after the await, never from an effect.
+  error, except an error for a field the form does not have (a server-only or renamed field),
+  which the adapter cannot show: `unplacedMessage(error.validationErrors, (path) => hasField(form,
+  path))` returns its text for the toast. Toasts fire from `actionProps` callbacks or handlers after
+  the await, never from an effect.
+- `ignoreNavigation` (`shared/ui/form/action-form.ts`) wraps the submit handler of every form. An
+  action that ends in `redirect()` makes `executeAsync` reject with Next's navigation error, and
+  `<form onSubmit>` drops the promise; the wrapper ignores errors whose `digest` starts with
+  `NEXT_REDIRECT`, `NEXT_NOT_FOUND` or `NEXT_HTTP_ERROR_FALLBACK` and rethrows anything else.
 
 ### Dates
 
@@ -343,7 +352,8 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
 <!-- @server:database-start -->
 
 - With a database the API gets the browser-test database, `app_e2e` (the provider's `e2e` URL;
-  `E2E_DATABASE_URL` overrides it), never the development one. The API's command is
+  `E2E_DATABASE_URL` overrides it; a blank value is ignored and a name not ending in `_e2e` is refused
+  when the config loads), never the development one. The API's command is
   `<server e2eDb> && <server start>`: `e2eDb` creates `app_e2e` when missing, migrates it and
   truncates it, and refuses a name that does not end in `_e2e`. It runs inside the web server command
   and not in a `globalSetup`, because Playwright starts its web servers **before** global setup and the
@@ -352,14 +362,18 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
 
 <!-- @server:database-end -->
 
-- `E2E_BASE_URL` set: nothing is started and the tests target that origin (the catalog's case runner
+- `E2E_BASE_URL` set (a blank value counts as unset): nothing is started and the tests target that origin (the catalog's case runner
   sets it against the Compose stack, `withApp`). There the API is the production one, with its normal
-  rate limits and its own database, so the journeys register few accounts.
+  rate limits and its own database, so the journeys register few accounts. The limit is 10 registrations
+  per 15 minutes for the one shared per-IP bucket, and a run sends six: run it once per 15 minutes per
+  stack. It leaves six users in that stack's `app` database.
 - Playwright has two projects: `phone` (`Pixel 7`, touch) runs every spec, so every journey and its axe
   scan run on the phone; `desktop` (`Desktop Chrome`) runs `shell.spec.ts` and `screens.spec.ts` only.
+  A check for one project carries a `@phone` or `@desktop` tag and the other project filters it out
+  with `grepInvert` in `playwright.config.ts`; never `test.skip` at run time.
   `retries` is 0 and a trace is kept for a failed test: a flaky test is diagnosed, not retried.
-- `tests/e2e/shell.spec.ts` asserts 44 px targets on `phone` only (the navigation sits behind the menu
-  button there), the shadcn densities on `desktop`, and that `data-density="compact"` does not shrink
+- `tests/e2e/shell.spec.ts` asserts 44 px targets on `phone` only (`@phone`; the navigation sits behind
+  the menu button there), the shadcn densities on `desktop` (`@desktop`), and that `data-density="compact"` does not shrink
   a touch target (it sets the attribute `--density compact` generates, so no second build is needed).
 - `tests/e2e/screens.spec.ts` writes a full-page screenshot of every route in `app/nav.ts`, and of
   the sign-in and sign-up screens when the server has auth, to
@@ -378,6 +392,9 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
 
 <!-- @server:auth-end -->
 
+- `tests/unit/use-cache.test.ts` fails when a file with `'use cache'` imports `next/headers`,
+  `@/shared/auth/*` or `createRequestApi`; `tests/unit/proxy-config.test.ts` pins which paths the
+  proxy matcher refreshes.
 - Every new behaviour gets a test for the happy path and at least one for a failure or empty
   path. No `.skip` or `.only`; a removed test is named in the stage report.
 
@@ -399,7 +416,8 @@ and it is not served by the server.
   in the plan it gets `API_URL` (the server's name and port on the Compose network) and waits
   for the server. Stop it with `docker compose --profile app down`: a plain `down` does not see
   profile services.
-- **Port.** Published as `3000:3000` on every interface: this container is the public edge, and
+- **Port.** Published as `3000:3000`, which Docker binds on every interface; the default is for a
+  local run. In production only a proxy you control may reach it (see the production recipe below);
   the server behind it is published on loopback only. API calls are made by the Next.js server
   through `API_URL`, not by the browser.
 - **`TRUST_PROXY`.** Not read here. The server's Compose service defaults it to `1` because this
@@ -411,13 +429,21 @@ and it is not served by the server.
   the API's per-address limits are **one bucket for the whole site**: with the server's auth that is
   10 registrations and 10 sign-ins per 15 minutes and 30 refreshes for all visitors together, so one
   script can lock everybody out of sign-up and sign-in (the per-email sign-in limit, 5 per 15
-  minutes, still applies per account). **A production deployment behind a platform or reverse proxy
-  must set `CLIENT_IP_HEADER`** to the header that proxy sets or appends with the visitor's address
-  (`x-forwarded-for`, or `x-real-ip`; a value that is not a header name stops the server at startup). `createApi({ clientHeaders })` then forwards the RIGHTMOST
-  entry of that header as `X-Forwarded-For` (anything that is not an IP address is dropped), and
-  the server's `TRUST_PROXY` must count this server as a hop. Safe only when a proxy you control
-  sets or appends that header on every request and the container is not reachable directly: if a
-  visitor can reach this server, they choose the header. Public cached loaders never forward.
+  minutes, still applies per account). **The cap.** Without `CLIENT_IP_HEADER` the refresh budget
+  (30 per 15 minutes) and the sign-in budget (10 per 15 minutes) are shared by all visitors, and an
+  access token lives 15 minutes, so about 30 active signed-in visitors per 15 minutes is the
+  ceiling. Past it a refresh answers 429, the expired session is not renewed, the visitor is sent to
+  sign-in, and sign-in answers 429 too. `createApi({ clientHeaders })` forwards the RIGHTMOST entry of
+  `CLIENT_IP_HEADER` as `X-Forwarded-For` (anything that is not an IP address is dropped), and the
+  server's `TRUST_PROXY` must count this server as a hop. Public cached loaders never forward.
+- **Production recipe (one place).** A TLS proxy you control in front (the Cookies bullet needs it
+  anyway); the Next port reachable only from that proxy (publish it to the proxy's network or as
+  `127.0.0.1:3000:3000`, not to the internet); and `CLIENT_IP_HEADER` set, in the shell environment
+  Compose reads, to the header that proxy overwrites or appends with the visitor's address
+  (`x-forwarded-for` or `x-real-ip`; a value that is not a header name stops the server at
+  startup). The package's Compose fragment passes it to the container. Safe only under all three: if
+  a visitor can reach this server directly, or the proxy passes a client-sent header through
+  unchanged, they choose the address the API rate-limits.
 - **Refresh rotation.** The API rotates the refresh token on every refresh. If the new token never
   reaches the browser (an aborted navigation, a dropped response) and the old one is replayed after
   the API's 30 s grace window, the API reads it as reuse and revokes all of the account's sessions:

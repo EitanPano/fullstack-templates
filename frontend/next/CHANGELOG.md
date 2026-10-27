@@ -2,29 +2,53 @@
 
 ## 2.0.0 — 2026-10-26
 
-Frontend foundation (plan 013: D2 layers, D3 design system, D6 to D10 data, mutations, forms, reads and auth, D11 errors and loading, D12 dates). A breaking restructure: a project generated from 1.x does not upgrade in place.
+Frontend foundation (plan 013). A restructure of the whole package: a project generated from 1.x does not upgrade in place.
 
-- Layers: `app/` (routing only, with the `(site)` route group), `widget/<section>/`, `feature/<action>/`, `entity/<noun>/` and `shared/` (`ui/`, `ui/pattern/`, `lib/`, `api/`, `config/env.ts`). `src/lib/api/` moved to `src/shared/api/` and `src/env.ts` to `src/shared/config/env.ts`; the data layer is `server/`. The example slices are product-neutral: `entity/health`, `widget/system-status`, `feature/refresh-health`. The home page is a page header plus the widget inside `Suspense`.
-- Lint: `eslint-plugin-boundaries` 7.2.0 replaces the hand-written import zones (layer direction, no sibling slices, `shared/api` only from `*/server/*`). A local rule keeps a Client Component to `server/action.ts`. The browser controls (`button`, `input`, `select`, `textarea`) are errors outside `shared/ui`; `revalidatePath` and a bare `fetch(` are errors outside `shared/api`. `tests/unit/eslint-boundaries.test.ts` lints one violation and one allowed case per rule in a throwaway project.
-- Design system: shadcn/ui (CLI 4.21.4, new-york) on `radix-ui` 1.8.0 in `shared/ui` (button, input, textarea, label, field, select, checkbox, radio-group, switch, card, badge, alert, skeleton, separator, dialog, sheet, dropdown-menu, avatar, tabs, tooltip, sonner) with `components.json`. Patterns in `shared/ui/pattern`: AppShell with a phone sheet, Page, PageHeader, Section, EmptyState, ErrorState, ListSkeleton, CardSkeleton, AuthCard, FormActions, ConfirmDialog, UserMenu with the theme toggle. `StatusPill` is replaced by badges by meaning.
-- Tokens: shadcn's semantic set in OKLCH plus `success`, `warning` and `info`, from the generator placeholders `__THEME_LIGHT__`, `__THEME_DARK__`, `__THEME_RADIUS__`, `__THEME_FONT_STACK__` (Inter through `@fontsource-variable/inter`), `__THEME_DEFAULT__` and `__THEME_DENSITY__`. `__PROJECT_DISPLAY_NAME__` feeds the title template, header and footer. Dark mode is `next-themes` with `attribute="class"` instead of a media query.
-- Sizing: `h-9 pointer-coarse:h-11` (icon buttons `pointer-coarse:size-11`), so fine pointers get the shadcn densities and touch gets 44 px. The Playwright projects are `desktop` and `phone`; `shell.spec.ts` asserts 44 px on `phone` and the densities on `desktop`.
-- Errors and loading: `loading.tsx`, `error.tsx` and `not-found.tsx` per route group, a skeleton per widget, `global-error.tsx`. An unmatched URL keeps the shell through a catch-all route in the group.
-- Fix round: `compact` density only on fine pointers; 44 px Close buttons on Dialog and Sheet; the client-import rule also checks re-exports; `globalThis.fetch(` banned like `fetch(`; `eslint-import-resolver-typescript` 3.10.1 pinned; one `NavEntry` type.
-- Health action: `refresh()` from `next/cache` replaces `revalidatePath('/')`; it still returns `ActionResult`.
-- Contract (D6): Hey API (`@hey-api/openapi-ts` 0.99.0, a dev dependency) replaces `openapi-typescript` and `openapi-fetch`. `bun run api:types` writes `src/shared/api/generated/` (types, SDK, fetch client, zod; committed, lint-ignored). `createApi({ accessToken, clientHeaders })` in `shared/api/client.ts` builds a per-request client on the server (`credentials: 'omit'`, no custom `fetch`; the generated module-level client is never used); `createRequestApi` reads the current request's headers. Opt-in `CLIENT_IP_HEADER` (a validated header name, unset by default) forwards the rightmost entry of that header as `X-Forwarded-For`; unset, every visitor shares the API's per-address buckets (`AGENTS.md › Deployment`).
-- Mutations (D7): next-safe-action 8.7.3. `shared/lib/safe-action.ts` holds `action` (and, with the server's auth, `accountAction` and `roleAction`); `ActionError` carries copy we wrote and `handleServerError` logs and masks everything else. `shared/api/call.ts` (`call`) turns the generated client's result into data or an `ActionError` from the feature's copy table keyed by the envelope's `code`, with defaults per code and for a missing response. `ActionResult` (`shared/lib/action.ts`) is removed.
-- Forms (D8): React Hook Form 7.90.0, `@hookform/resolvers` 5.9.1 and `@next-safe-action/adapter-react-hook-form` 2.1.0. `shared/ui/form/` has `Form`, `TextField`, `TextareaField`, `NumberField`, `SelectField`, `CheckboxField`, `PasswordField` and `DateTimeField`; an error shows on its field with `aria-invalid` and `aria-describedby`. A form schema extends the generated one. A global zod message map words the common limits.
-- Reads (D9): `cacheComponents: true` and `partialPrefetching: true`. A public loader is `'use cache'` with `cacheTag` and `cacheLife` and throws on failure; a widget is a request-time hole (`await connection()`, then the loader, inside `Suspense`) that renders `ErrorState` on failure, so the image build never calls the API. `updateTag` replaces `refresh()` in `refresh-health`. `entity/health` loses its unreachable branch.
-- Dates (D12): `date-fns` 4.4.0 with `@date-fns/tz` 1.5.0 in `shared/lib/date.ts`: wall time to instant and back in a named zone, a time in a daylight-saving gap refused, an ambiguous one taking the earlier instant, day keys and formatting.
-- Auth (D10), only when the stack's server has its `auth` flag on (`onlyWhen: server:auth`, `// @server:auth` markers): the Next server keeps the API's tokens in HttpOnly `access_token` and `refresh_token` cookies (`Secure` when `NODE_ENV` is `production`; any other name is accepted); `proxy.ts` refreshes an expired access token (one refresh for concurrent requests, a refusal clears the cookies, an outage changes nothing); `shared/auth/session.ts` has `readSession`, `requireAccount` and `requireRole(role, returnTo?)`, which sends an account with another role to the plain `/forbidden` page (no experimental Next API); `feature/auth` has `signUp`, `signIn` and `signOut` (which refreshes first when only the refresh cookie is left); the `(auth)` route group holds `sign-in` and `sign-up` behind a `GuestOnly` gate; `entity/user` and `widget/account-menu` (the `UserMenu` takes an email). Without the flag the shell's account slot is the theme menu, nothing imports auth types, and `AuthCard` and `AuthCardSkeleton` are not generated.
-- Lint: a `model.ts` may `import type` from `@/shared/api` and import the generated zod schemas; the lint test gained cases for both.
-- Hardening: field bindings merge a caller's `aria-describedby` with the error link; a server-supplied error path cannot reach the prototype; `wallTimeToInstant` and `instantToWallTime` refuse an unknown zone instead of throwing; `AGENTS.md` documents refresh-token reuse after a lost rotation and the per-address bucket.
-- E2E (D13): `bun run test:e2e` runs the production build (`scripts/e2e-server.mjs`: `next build`, then the standalone `server.js`, as the image does) against a fresh API (`reuseExistingServer: false`, `RATE_LIMIT_SCALE=100`, the server's `start` command). With a database the API gets `app_e2e` and its command is `e2eDb && start` (Playwright starts web servers before `globalSetup`, so the database cannot be prepared there). `E2E_BASE_URL` targets an existing stack and starts nothing. Projects `phone` (every spec) and `desktop` (shell and screens); `retries: 0`. Journeys: health and Refresh, sign-up, sign-out and sign-in, a wrong password, a taken email, sign-in redirect, and the guarded `/profile` page; `screens.spec.ts` writes `test-results/screens/<route>-<viewport>-<theme>.png`; `shell.spec.ts` also checks that compact density keeps 44 px touch targets.
-- Guarded example: `/profile` (`widget/profile`, `requireAccount('/profile')`), only with the server's auth.
-- Fix found by the e2e axe scan: the account menu button is named `Account menu, <initials>` so its name contains its visible text (WCAG 2.5.3).
-- Cases: `stack-postgres` (`next-bun-express` with the server's postgres capability, `withApp`: the production e2e also runs against the image) and `python` (`next-python-fastapi`); `auth-off` generates the `next-bun-express` stack with the server's `auth` flag off.
-- `AGENTS.md`: the layer map, where each addition goes, the Reads, Mutations, Forms, Dates and Auth recipes, Styling, Errors and Tests rewritten. `bunx shadcn@4.21.4 add <name>` is the one scaffolder an agent may run.
+### Breaking
+
+- New layers: `app/` (routing only), `widget/<section>/`, `feature/<action>/`, `entity/<noun>/` and `shared/`. The example slices are product-neutral (`entity/health`, `widget/system-status`, `feature/refresh-health`).
+- The typed client is generated by Hey API (`@hey-api/openapi-ts` 0.99.0) into `src/shared/api/generated/`; `openapi-typescript` and `openapi-fetch` are gone. Nothing outside a data layer (`*/server/*`) may import it.
+- Every action is a next-safe-action action (8.7.3); `ActionResult` is removed. Errors are `ActionError`s built by `call` from the feature's copy table, never the server's text.
+- `cacheComponents: true` and `partialPrefetching: true`: a route's data is a request-time hole inside `Suspense`, and uncached request-time data outside `Suspense` fails the build. `revalidatePath` is banned by lint; a mutation calls `updateTag`.
+- Lint is `eslint-plugin-boundaries` 7.2.0 (layer direction, no sibling slices, `shared/api` only from `*/server/*`), plus a local rule that keeps a Client Component to `server/action.ts`. Raw `button`, `input`, `select` and `textarea` are errors outside `shared/ui`, as are a bare `fetch(` and `globalThis.fetch(`.
+- The Playwright projects are `phone` and `desktop` (were `chromium` and `phone`), and `bun run test:e2e` tests the production build against a fresh API.
+- The e2e API gets the browser-test database `app_e2e` when the server has one; the config refuses a database not ending in `_e2e`.
+
+### Added
+
+- Design system: shadcn/ui (CLI 4.21.4, new-york) on `radix-ui` 1.8.0 in `shared/ui`, and patterns in `shared/ui/pattern` (AppShell with a phone sheet, Page, PageHeader, Section, EmptyState, ErrorState, skeletons, AuthCard, FormActions, ConfirmDialog, UserMenu with the theme toggle). Badges by meaning replace `StatusPill`.
+- Tokens in OKLCH (shadcn's semantic set plus `success`, `warning`, `info`) written by the generator from the brand; Inter through `@fontsource-variable/inter`; dark mode through `next-themes` (`attribute="class"`). Controls are `h-9 pointer-coarse:h-11`; `compact` density applies to fine pointers only.
+- Forms: React Hook Form 7.90.0, `@hookform/resolvers` and the next-safe-action adapter; `shared/ui/form/` bindings (text, textarea, number, select, checkbox, password, date-time) with `aria-invalid` and `aria-describedby`; a form schema extends the generated one. `ignoreNavigation` wraps every submit handler so a redirecting action raises no unhandled rejection, and an error for a field the form does not have becomes a toast.
+- Dates: `date-fns` 4.4.0 with `@date-fns/tz`, in `shared/lib/date.ts` (zone-aware, gap times refused, ambiguous times take the earlier instant).
+- `createApi({ accessToken, clientHeaders })` and `createRequestApi`. Opt-in `CLIENT_IP_HEADER` forwards the rightmost entry of a header as `X-Forwarded-For`; unset, all visitors share the API's per-address buckets (about 30 active signed-in visitors per 15 minutes; see `AGENTS.md › Deployment`). The package's Compose fragment passes it through.
+- Loading and errors: `loading.tsx`, `error.tsx` and `not-found.tsx` per route group, a skeleton per widget, `global-error.tsx`; an unmatched URL keeps the shell.
+- With the server's `auth` flag (`onlyWhen: server:auth`): the API's tokens in HttpOnly `access_token` and `refresh_token` cookies; `proxy.ts` refreshes an expired access token (one refresh for concurrent requests; a refusal clears the cookies; an outage changes nothing; static assets are excluded by extension, not by any dot in the path); `readSession`, `requireAccount` and `requireRole`; `signUp`, `signIn` and `signOut`; the `(auth)` screens; `/forbidden`; the guarded `/profile` example. Without the flag none of it is generated.
+- E2E journeys: health and Refresh, sign-up, sign-out and sign-in, a wrong password, a taken email, the sign-in redirect, the guarded page, and no `NEXT_REDIRECT` error in the console; `screens.spec.ts` writes a screenshot per route, viewport and theme; `shell.spec.ts` checks 44 px targets (`@phone`) and densities (`@desktop`), selected per project by tag, with no run-time skip. A blank `E2E_BASE_URL` counts as unset.
+- Unit tests that pin the structure: the lint rules, the proxy matcher, that no `'use cache'` file reads cookies, headers or the session, and the density CSS.
+- Cases: `stack-postgres` (the production e2e also runs against the image) and `python`; `auth-off` generates the stack with the server's `auth` flag off.
+
+### Changed
+
+- `refresh-health` uses `updateTag('health')` instead of `revalidatePath('/')`.
+- The account menu button is named `Account menu, <initials>`, so its name contains its visible text (WCAG 2.5.3).
+- Sign-in and sign-up clear themselves after a submit, so a kept, hidden page holds no typed password; their email check words every failure itself, whatever format the generated schema carries.
+- Hardening: a server-supplied error path cannot reach the prototype; field bindings merge a caller's `aria-describedby`; `wallTimeToInstant` and `instantToWallTime` refuse an unknown zone; the 15 s wait on hashed-password steps in e2e.
+- `AGENTS.md` rewritten: layer map, where each addition goes, the Reads, Mutations, Forms, Dates and Auth recipes, Styling, Errors, Tests and Deployment (refresh-token reuse, the per-address cap, the production recipe). `bunx shadcn@4.21.4 add <name>` is the one scaffolder an agent may run.
+
+### Upgrade notes
+
+Move code by hand; there is no codemod.
+
+| 1.x | 2.0.0 |
+| --- | --- |
+| `src/lib/api/client.ts`, `schema.d.ts` | `src/shared/api/client.ts`, `src/shared/api/generated/` (run `bun run api:types`) |
+| `src/env.ts` | `src/shared/config/env.ts` |
+| `src/shared/lib/action.ts` (`ActionResult`) | `src/shared/lib/safe-action.ts` (`action`), `ActionError`, `call` |
+| `src/feature/health/` | `entity/health/`, `widget/system-status/`, `feature/refresh-health/` |
+| `src/shared/ui/app-shell.tsx`, `nav-links.tsx` | `src/shared/ui/pattern/app-shell.tsx`, `nav-links.tsx` |
+| `src/shared/ui/status-pill.tsx` | `Badge` by meaning |
+| `tests/unit/eslint-zones.test.ts` | `tests/unit/eslint-boundaries.test.ts` |
+| `src/app/page.tsx`, `loading.tsx`, `error.tsx` | the same files under `src/app/(site)/` |
 
 ## 1.2.0 — 2026-10-25
 

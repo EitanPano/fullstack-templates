@@ -15,8 +15,8 @@ stack.
   only with the server's `auth` flag (`server:auth`), and `// @server:auth` markers cover the lines
   inside shared files.
 - `compose.yaml`: the Compose service body, keyed by the package directory at generation.
-- `tests/cases.yaml`: the generated variants the catalog gates (`default` and `auth-off`, in the
-  `next-bun-express` stack, and `alone`).
+- `tests/cases.yaml`: the generated variants the catalog gates (`default`, `auth-off` and
+  `stack-postgres` in the `next-bun-express` stack, `python` in `next-python-fastapi`, and `alone`).
 - `CHANGELOG.md`: version history.
 
 ## Commands

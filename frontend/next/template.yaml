@@ -43,7 +43,9 @@ onlyWhen:
     - tests/unit/account-action.test.ts
     - tests/unit/account-menu.test.tsx
     - tests/unit/profile.test.tsx
+    - tests/unit/profile-page.test.tsx
     - tests/unit/auth-actions.test.ts
+    - tests/unit/auth-model.test.ts
     - tests/unit/auth-pages.test.tsx
     - tests/e2e/auth-support.ts
     - tests/e2e/auth.spec.ts
@@ -52,6 +54,10 @@ onlyWhen:
     - tests/unit/session.test.ts
     - tests/unit/sign-in-form.test.tsx
     - tests/unit/sign-up-form.test.tsx
+    - tests/unit/proxy-config.test.ts
+  server:database:
+    - scripts/e2e-database-url.ts
+    - tests/unit/e2e-database-url.test.ts
 agents: AGENTS.md
 defaultStack: next-bun-express
 postGenerate:

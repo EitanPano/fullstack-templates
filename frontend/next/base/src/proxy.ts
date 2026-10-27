@@ -10,6 +10,10 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Pages and actions; not static assets, images or files with an extension.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)'],
+  // Pages and actions; not Next's own assets or static files. A dot alone does not exclude a
+  // path, because a product route can hold one (`/user/jane.doe`, `/release/v1.2`) and must
+  // keep its session refresh. Add an extension here when `public/` serves a new kind of file.
+  matcher: [
+    '/((?!_next/|favicon\\.ico$|robots\\.txt$|sitemap\\.xml$|.*\\.(?:avif|css|gif|ico|jpe?g|js|map|png|svg|txt|webmanifest|webp|woff2?|xml)$).*)',
+  ],
 }
