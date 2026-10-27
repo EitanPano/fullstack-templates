@@ -22,8 +22,16 @@ describe('CLIENT_IP_HEADER', () => {
     },
   )
 
-  it('is unset when empty', async () => {
-    expect((await load('')).CLIENT_IP_HEADER).toBeUndefined()
+  // Compose passes `${CLIENT_IP_HEADER-}`, an empty string when the variable is unset; that must
+  // boot like an unset variable, not answer every request with a 500.
+  it.each(['', ' ', '   \t '])('is unset when blank (%j)', async (blank) => {
+    expect((await load(blank)).CLIENT_IP_HEADER).toBeUndefined()
+  })
+
+  it('is unset when the variable is absent', async () => {
+    vi.resetModules()
+    vi.stubEnv('CLIENT_IP_HEADER', undefined)
+    expect((await import('@/shared/config/env')).env.CLIENT_IP_HEADER).toBeUndefined()
   })
 
   it.each(['x y', 'x:', 'x_y', 'x-forwarded-for, x-real-ip', 'x\ty', 'é'])(

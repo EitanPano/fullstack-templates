@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -38,6 +38,37 @@ describe('SignInForm', () => {
     expect(toast.error).not.toHaveBeenCalled()
   })
 
+  it('clears the fields after success, so no typed password stays in a kept page', async () => {
+    vi.mocked(signIn).mockResolvedValue({})
+    render(<SignInForm />)
+
+    await fill('a@b.co', 'correct horse')
+
+    await waitFor(() => expect(screen.getByLabelText('Email')).toHaveValue(''))
+    expect(screen.getByLabelText('Password')).toHaveValue('')
+  })
+
+  it('clears the fields when the action ends in a redirect, as a real sign-in does', async () => {
+    vi.mocked(signIn).mockRejectedValue(
+      Object.assign(new Error('NEXT_REDIRECT'), { digest: 'NEXT_REDIRECT;push;/;307;' }),
+    )
+    render(<SignInForm />)
+
+    await fill('a@b.co', 'correct horse')
+
+    await waitFor(() => expect(screen.getByLabelText('Email')).toHaveValue(''))
+    expect(screen.getByLabelText('Password')).toHaveValue('')
+  })
+
+  it('labels the button while the action is pending', async () => {
+    vi.mocked(signIn).mockReturnValue(new Promise(() => undefined))
+    render(<SignInForm />)
+
+    await fill('a@b.co', 'correct horse')
+
+    expect(await screen.findByRole('button', { name: 'Signing in…' })).toBeDisabled()
+  })
+
   it('shows field errors on their fields and does not call the action', async () => {
     render(<SignInForm />)
 
@@ -73,6 +104,19 @@ describe('SignInForm', () => {
     expect(await screen.findByText('Check this field.')).toHaveAttribute('role', 'alert')
     expect(screen.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'true')
     expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('toasts the message of an error for a field the form does not have', async () => {
+    vi.mocked(signIn).mockResolvedValue({
+      validationErrors: { nickname: { _errors: ['Pick another nickname.'] } } as never,
+    })
+    render(<SignInForm />)
+
+    await fill('a@b.co', 'correct horse')
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Pick another nickname.')
+    })
   })
 
   it('links to sign-up', () => {

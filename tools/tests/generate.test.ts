@@ -260,23 +260,7 @@ describe('generate: edges', () => {
       SERVER_E2E_DB_COMMAND: '',
       SERVER_E2E_DATABASE_URL: '',
     })
-    // The fixture's database has no e2e command or URL, so a copy gets both.
-    const root = copyFixture('catalog')
-    const edit = (file: string, from: string, to: string) => {
-      const target = path.join(root, file)
-      writeFileSync(target, readFileSync(target, 'utf8').replace(from, to))
-    }
-    edit(
-      'server/mini/capabilities/database/fake/capability.yaml',
-      'testDb: bun run test:db',
-      'testDb: bun run test:db\n  e2eDb: bun run db:e2e',
-    )
-    edit(
-      'shared/providers/database/fake/provider.yaml',
-      'testOverride: TEST_DATABASE_URL',
-      'testOverride: TEST_DATABASE_URL\n    e2e: fake://localhost:5432/app_e2e',
-    )
-    const copy = loadCatalog(root)
+    const copy = catalog
     const withDb = resolveRequest(copy, request(tempDir(), { capabilities: ['database=fake'] }))
     const webDb = withDb.packages.find((pkg) => pkg.dir === 'frontend')!
     expect(packagePlaceholders(withDb, webDb)).toMatchObject({
@@ -284,6 +268,40 @@ describe('generate: edges', () => {
       SERVER_E2E_DB_COMMAND: 'bun run db:e2e',
       SERVER_E2E_DATABASE_URL: 'fake://localhost:5432/app_e2e',
     })
+  })
+
+  test('a frontend over a server without a start command is refused, not given the Bun one', () => {
+    const root = copyFixture('catalog')
+    const target = path.join(root, 'server/mini/template.yaml')
+    writeFileSync(target, readFileSync(target, 'utf8').replace(/^ *start:.*$/m, '# no start'))
+    const plan = resolveRequest(loadCatalog(root), request(tempDir()))
+    const web = plan.packages.find((pkg) => pkg.dir === 'frontend')!
+    expect(() => packagePlaceholders(plan, web)).toThrow(/no start command/)
+  })
+
+  test('a database without an e2eDb command or an e2e URL is refused for a frontend', () => {
+    const edit = (root: string, file: string, from: RegExp, to: string) => {
+      const target = path.join(root, file)
+      writeFileSync(target, readFileSync(target, 'utf8').replace(from, to))
+    }
+    const frontendOf = (root: string) => {
+      const plan = resolveRequest(
+        loadCatalog(root),
+        request(tempDir(), { capabilities: ['database=fake'] }),
+      )
+      return () =>
+        packagePlaceholders(
+          plan,
+          plan.packages.find((pkg) => pkg.dir === 'frontend')!,
+        )
+    }
+    const noCommand = copyFixture('catalog')
+    edit(noCommand, 'server/mini/capabilities/database/fake/capability.yaml', /^ *e2eDb:.*$/m, '')
+    expect(frontendOf(noCommand)).toThrow(/e2eDb/)
+
+    const noUrl = copyFixture('catalog')
+    edit(noUrl, 'shared/providers/database/fake/provider.yaml', /^ *e2e:.*$/m, '')
+    expect(frontendOf(noUrl)).toThrow(/e2e URL/)
   })
 
   test('without a server the start command falls back to the conventional one', () => {
@@ -566,6 +584,7 @@ describe('generate with a capability', () => {
         '# database/fake provider',
         '# Connection string of the fake database',
         '# Tests (testDb) use fake://localhost:5432/app_test; override with TEST_DATABASE_URL.',
+        '# Browser tests (e2eDb) use fake://localhost:5432/app_e2e; override with E2E_DATABASE_URL.',
         'DATABASE_URL=fake://localhost:5432/app',
         '',
         '# database/fake provider',

@@ -425,16 +425,8 @@ describe('the provider e2e database', () => {
   })
 
   test('the example env file names the e2e database and its override', () => {
-    const root = copyFixture('catalog')
-    const file = path.join(root, 'shared', 'providers', 'database', 'fake', 'provider.yaml')
-    const text = readFileSync(file, 'utf8').replace(
-      '    testOverride: TEST_DATABASE_URL\n',
-      '    testOverride: TEST_DATABASE_URL\n    e2e: fake://localhost:5432/app_e2e\n    e2eOverride: E2E_DATABASE_URL\n',
-    )
-    writeFileSync(file, text)
-    const loaded = loadCatalog(root)
     const out = tempDir()
-    generate(loaded, resolveRequest(loaded, request(out, { capabilities: ['database=fake'] })))
+    generate(catalog, resolveRequest(catalog, request(out, { capabilities: ['database=fake'] })))
     expect(read(out, 'backend', '.env.example')).toContain(
       '# Browser tests (e2eDb) use fake://localhost:5432/app_e2e; override with E2E_DATABASE_URL.',
     )
@@ -463,11 +455,7 @@ describe('route-group paths (parentheses) in onlyWhen and onlyPaths', () => {
   }
 
   test('the schema accepts a route group and refuses escapes', () => {
-    for (const ok of [
-      'src/app/(auth)',
-      'src/app/(site)/(staff)/page.tsx',
-      'src/app/(auth)/[id]'.replace('[id]', 'id'),
-    ]) {
+    for (const ok of ['src/app/(auth)', 'src/app/(site)/(staff)/page.tsx', 'src/app/(auth)/id']) {
       expect(validateAgainst('template', frontend([ok]))).toEqual([])
     }
     for (const bad of [
@@ -523,5 +511,69 @@ describe('route-group paths (parentheses) in onlyWhen and onlyPaths', () => {
     expect(existsSync(path.join(off, 'frontend', 'src', 'app', '(auth)'))).toBe(false)
     // The emptied parent goes too, as for any onlyPath.
     expect(existsSync(path.join(off, 'frontend', 'src', 'app'))).toBe(false)
+  })
+})
+
+describe('generated code and ignored brand options', () => {
+  const withFile = (relative: string) => {
+    const root = copyFixture('catalog')
+    const file = path.join(root, 'frontend', 'mini-ui', 'base', relative)
+    mkdirSync(path.dirname(file), { recursive: true })
+    writeFileSync(file, '// @ts-ignore\nexport const generated = 1\n')
+    return loadCatalog(root)
+  }
+  const serverOnly = { stack: undefined, template: 'server/mini' }
+
+  test('the marker scan skips the generated client directory', () => {
+    const loaded = withFile('src/shared/api/generated/sdk.gen.ts')
+    const out = tempDir()
+    generate(loaded, resolveRequest(loaded, request(out)))
+    expect(read(out, 'frontend', 'src', 'shared', 'api', 'generated', 'sdk.gen.ts')).toContain(
+      '@ts-ignore',
+    )
+    expect(dryRunMarkers(loaded.templates.get('frontend/mini-ui')!, ['auth'])).toEqual([])
+  })
+
+  test.each([
+    'src/api/generated/sdk.gen.ts',
+    'src/shared/generated/sdk.gen.ts',
+    'generated/sdk.gen.ts',
+  ])('a generated/ directory elsewhere (%s) is still scanned', (relative) => {
+    const loaded = withFile(relative)
+    expect(() => generate(loaded, resolveRequest(loaded, request(tempDir())))).toThrow(
+      /unknown marker name "ts-ignore"/,
+    )
+    expect(dryRunMarkers(loaded.templates.get('frontend/mini-ui')!, ['auth']).join()).toContain(
+      'ts-ignore',
+    )
+  })
+
+  test('the same line outside generated/ is still an unknown marker', () => {
+    const loaded = withFile('src/api/hand-written.ts')
+    expect(() => generate(loaded, resolveRequest(loaded, request(tempDir())))).toThrow(
+      /unknown marker name "ts-ignore"/,
+    )
+    expect(dryRunMarkers(loaded.templates.get('frontend/mini-ui')!, ['auth']).join()).toContain(
+      'ts-ignore',
+    )
+  })
+
+  test('a server-only plan lists the brand options it ignores, and warns when generating', () => {
+    const brand = { primary: '#00aa00', density: 'compact' }
+    const plan = resolveRequest(catalog, { ...request(tempDir(), serverOnly), brand })
+    expect(plan.ignoredBrand).toEqual(['primary', 'density'])
+    const lines: string[] = []
+    generate(catalog, plan, { log: (line) => lines.push(line) })
+    expect(lines.some((line) => /warning.*brand.*primary, density/.test(line))).toBe(true)
+  })
+
+  test('a plan with a frontend ignores nothing, and no option means no warning', () => {
+    const withBrand = resolveRequest(catalog, {
+      ...request(tempDir()),
+      brand: { primary: '#00aa00' },
+    })
+    expect(withBrand.ignoredBrand).toEqual([])
+    const plain = resolveRequest(catalog, request(tempDir(), serverOnly))
+    expect(plain.ignoredBrand).toEqual([])
   })
 })

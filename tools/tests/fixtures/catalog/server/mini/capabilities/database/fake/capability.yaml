@@ -7,6 +7,7 @@ scripts:
   db:migrate: bun ./ok.ts
 commands:
   testDb: bun run test:db
+  e2eDb: bun run db:e2e
   migrate: bun run db:migrate
 flags:
   auth:

@@ -240,6 +240,7 @@ describe('loadCatalog', () => {
     expect(overlay?.overlayDir).toBe(path.join(overlay?.dir ?? '', 'overlay'))
     expect(overlay?.manifest.commands).toEqual({
       testDb: 'bun run test:db',
+      e2eDb: 'bun run db:e2e',
       migrate: 'bun run db:migrate',
     })
     expect(overlay?.manifest.scripts?.['test:db']).toBe('bun ./ok.ts')

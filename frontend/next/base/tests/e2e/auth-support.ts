@@ -1,6 +1,12 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 
+import { openMenu } from './support'
+
 export const PASSWORD = 'correct horse battery staple'
+
+// A submit that hashes a password is CPU-bound, so under load the navigation after it can pass
+// the 5 s default; the longer wait is the fix, retries stay 0.
+export const HASHED = { timeout: 15_000 }
 
 // Unique per call, so a run never depends on what an earlier run left in the database and
 // parallel journeys never share an account.
@@ -9,10 +15,11 @@ export function uniqueEmail(): string {
   return `e2e-${unique}@example.com`
 }
 
-// React keeps the hidden markup a streamed page arrived in, so after a client navigation the
-// document can still hold an earlier screen's form (the sign-up form's password inputs sit
-// beside the sign-in ones). A label alone is then ambiguous; the visible field is the one a
-// user types into, and there must be exactly one.
+// `cacheComponents` keeps a visited route mounted under React's <Activity mode="hidden">
+// (display: none), so after a client navigation the document can still hold an earlier
+// screen's form (the sign-up password inputs sit beside the sign-in ones). That is framework
+// behaviour, not a stale stream. A label alone is then ambiguous; the visible field is the one
+// a user types into, and there must be exactly one.
 async function field(page: Page, label: string, exact = false): Promise<Locator> {
   const visible = page.getByLabel(label, { exact }).filter({ visible: true })
   await expect(visible).toHaveCount(1)
@@ -36,7 +43,7 @@ export async function fillSignIn(page: Page, email: string, password = PASSWORD)
 export async function registerThroughUi(page: Page, email = uniqueEmail()): Promise<string> {
   await page.goto('/sign-up')
   await fillSignUp(page, email)
-  await expect(page).toHaveURL(/\/$/)
+  await expect(page).toHaveURL(/\/$/, HASHED)
   await openAccountMenu(page, email)
   await closeAccountMenu(page)
   return email
@@ -45,8 +52,9 @@ export async function registerThroughUi(page: Page, email = uniqueEmail()): Prom
 // Opens the menu and checks it names the account. The open menu hides the rest of the page from
 // assistive technology (Radix), so a scan runs after it closes: `closeAccountMenu`.
 export async function openAccountMenu(page: Page, email: string) {
-  await page.getByRole('button', { name: /^Account menu/ }).click()
-  await expect(page.getByText(email)).toBeVisible()
+  const label = page.getByText(email)
+  await openMenu(page.getByRole('button', { name: /^Account menu/ }), label)
+  await expect(label).toBeVisible()
 }
 
 export async function closeAccountMenu(page: Page) {

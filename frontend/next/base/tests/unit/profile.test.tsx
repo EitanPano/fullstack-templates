@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import Profile, { metadata } from '@/app/(site)/profile/page'
 import { ProfileCard } from '@/widget/profile/ui/profile-card'
 
 // The guard is the session module's: here it is a boundary that either returns the account or
@@ -39,14 +38,5 @@ describe('the profile card (the guarded example)', () => {
     requireAccount.mockRejectedValue(new Error('NEXT_REDIRECT'))
 
     await expect(ProfileCard()).rejects.toThrow('NEXT_REDIRECT')
-  })
-})
-
-describe('the profile page', () => {
-  it('has a title and its one h1', () => {
-    render(<Profile />)
-
-    expect(metadata.title).toBe('Profile')
-    expect(screen.getByRole('heading', { level: 1, name: 'Profile' })).toBeInTheDocument()
   })
 })

@@ -3,7 +3,14 @@ import { loadCatalog } from '../lib/catalog'
 import { listCases } from '../lib/cases'
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { runCase, type Capture, type Options, type Probe, type ProbeResult } from '../lib/run-case'
+import {
+  appEnvironment,
+  runCase,
+  type Capture,
+  type Options,
+  type Probe,
+  type ProbeResult,
+} from '../lib/run-case'
 import { FIXTURE, copyFixture, tempDir } from './helpers'
 
 const catalog = loadCatalog(FIXTURE)
@@ -33,6 +40,19 @@ const lines = () => {
   const out: string[] = []
   return { out, log: (message: string) => out.push(message) }
 }
+
+describe('appEnvironment', () => {
+  const plan = { providers: [{ manifest: { env: [{ name: 'DB', compose: 'fake://db' }] } }] }
+  const run = (text: string) =>
+    appEnvironment(text, plan as unknown as Parameters<typeof appEnvironment>[1])
+  test('fills ${A-} and a bare ${A}, never the :- forms', () => {
+    const env = run(['a: ${A-}', 'b: ${B:-}', 'c: ${C:-x}', 'd: ${D}'].join('\n'))
+    expect(Object.keys(env).sort()).toEqual(['A', 'D', 'DB'])
+  })
+  test('a provider value wins over a generated one', () => {
+    expect(run('x: ${DB-}').DB).toBe('fake://db')
+  })
+})
 
 describe('runCase with services', () => {
   test('starts the provider, migrates, checks, tests the database, then tears down', async () => {

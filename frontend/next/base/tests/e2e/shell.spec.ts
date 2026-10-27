@@ -1,12 +1,17 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { expectNoSeriousViolations, isPhone } from './support'
+import { expectNoSeriousViolations, isPhone, openMenu } from './support'
+
+async function openPhoneMenu(page: Page) {
+  const sheet = page.getByRole('dialog', { name: 'Menu' })
+  await openMenu(page.getByRole('button', { name: 'Open menu' }), sheet)
+  return sheet
+}
 
 // The inline nav shows from `md`; on the phone project the same entries sit behind the menu.
 async function openNavigation(page: Page) {
   if (isPhone(test.info().project.name)) {
-    await page.getByRole('button', { name: 'Open menu' }).click()
-    await expect(page.getByRole('dialog', { name: 'Menu' })).toBeVisible()
+    await openPhoneMenu(page)
   }
   await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible()
 }
@@ -58,6 +63,10 @@ test('an unknown URL answers 404 inside the shell', async ({ page }) => {
   await expect(page.getByText('Page not found')).toBeVisible()
 })
 
+// The 44 px rule is the touch rule, so its checks are tagged @phone and the desktop project
+// leaves them out; the shadcn densities are @desktop. The projects in playwright.config.ts select
+// by tag, so no test is skipped at run time.
+
 // A locator pierces open shadow roots; a hidden element (the inline nav under `md`) has no box and
 // is skipped. The skip link is visually hidden until focused, so it is outside this set.
 async function touchTargetSizes(page: Page) {
@@ -70,8 +79,7 @@ async function touchTargetSizes(page: Page) {
   )
 }
 
-test('touch targets are 44 px on the phone project only', async ({ page }) => {
-  test.skip(test.info().project.name !== 'phone', 'the 44 px rule is the touch rule')
+test('touch targets are 44 px on the phone project only', { tag: '@phone' }, async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('button', { name: 'Refresh' })).toBeVisible()
 
@@ -87,68 +95,74 @@ test('touch targets are 44 px on the phone project only', async ({ page }) => {
 })
 
 // `--density compact` sets data-density on <html> at generation; setting it here exercises the
-// same CSS without a second build. Compact shrinks fine-pointer controls only.
-test('compact density does not shrink touch targets on the phone project', async ({ page }) => {
-  test.skip(test.info().project.name !== 'phone', 'the 44 px rule is the touch rule')
-  await page.goto('/')
-  await expect(page.getByRole('button', { name: 'Refresh' })).toBeVisible()
-  await page.evaluate(() => {
-    document.documentElement.setAttribute('data-density', 'compact')
-  })
+// same CSS without a second build (the generator's emission of the attribute is covered by the
+// catalog's generator tests). Compact shrinks fine-pointer controls only.
+test(
+  'compact density does not shrink touch targets on the phone project',
+  { tag: '@phone' },
+  async ({ page }) => {
+    await page.goto('/')
+    await expect(page.getByRole('button', { name: 'Refresh' })).toBeVisible()
+    await page.evaluate(() => {
+      document.documentElement.setAttribute('data-density', 'compact')
+    })
 
-  const sizes = await touchTargetSizes(page)
-  expect(sizes.length).toBeGreaterThanOrEqual(4)
-  for (const size of sizes) {
-    expect(size.width, size.text).toBeGreaterThanOrEqual(44)
-    expect(size.height, size.text).toBeGreaterThanOrEqual(44)
-  }
+    const sizes = await touchTargetSizes(page)
+    expect(sizes.length).toBeGreaterThanOrEqual(4)
+    for (const size of sizes) {
+      expect(size.width, size.text).toBeGreaterThanOrEqual(44)
+      expect(size.height, size.text).toBeGreaterThanOrEqual(44)
+    }
 
-  await page.getByRole('button', { name: 'Open menu' }).click()
-  const close = await page
-    .getByRole('dialog', { name: 'Menu' })
-    .getByRole('button', { name: 'Close' })
-    .boundingBox()
-  expect(close?.width).toBeGreaterThanOrEqual(44)
-  expect(close?.height).toBeGreaterThanOrEqual(44)
-})
+    const sheet = await openPhoneMenu(page)
+    const close = await sheet.getByRole('button', { name: 'Close' }).boundingBox()
+    expect(close?.width).toBeGreaterThanOrEqual(44)
+    expect(close?.height).toBeGreaterThanOrEqual(44)
+  },
+)
 
-test('the phone menu and its Close button are 44 px targets', async ({ page }) => {
-  test.skip(test.info().project.name !== 'phone', 'the 44 px rule is the touch rule')
-  await page.goto('/')
+test(
+  'the phone menu and its Close button are 44 px targets',
+  { tag: '@phone' },
+  async ({ page }) => {
+    await page.goto('/')
 
-  await page.getByRole('button', { name: 'Open menu' }).click()
-  const sheet = page.getByRole('dialog', { name: 'Menu' })
-  await expect(sheet).toBeVisible()
-  for (const target of [
-    sheet.getByRole('button', { name: 'Close' }),
-    ...(await sheet.getByRole('link').all()),
-  ]) {
-    const box = await target.boundingBox()
-    expect(box?.width).toBeGreaterThanOrEqual(44)
-    expect(box?.height).toBeGreaterThanOrEqual(44)
-  }
+    const sheet = await openPhoneMenu(page)
+    for (const target of [
+      sheet.getByRole('button', { name: 'Close' }),
+      ...(await sheet.getByRole('link').all()),
+    ]) {
+      const box = await target.boundingBox()
+      expect(box?.width).toBeGreaterThanOrEqual(44)
+      expect(box?.height).toBeGreaterThanOrEqual(44)
+    }
 
-  await expectNoSeriousViolations(page)
-})
+    await expectNoSeriousViolations(page)
+  },
+)
 
-test('controls keep the shadcn densities on the desktop project', async ({ page }) => {
-  test.skip(test.info().project.name !== 'desktop', 'fine pointers get the compact densities')
-  await page.goto('/')
+test(
+  'controls keep the shadcn densities on the desktop project',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    await page.goto('/')
 
-  const refresh = await page.getByRole('button', { name: 'Refresh' }).boundingBox()
-  const account = await page.getByRole('button', { name: 'Account menu' }).boundingBox()
-  expect(refresh?.height).toBe(36)
-  expect(account?.width).toBe(36)
-  expect(account?.height).toBe(36)
+    const refresh = await page.getByRole('button', { name: 'Refresh' }).boundingBox()
+    const account = await page.getByRole('button', { name: 'Account menu' }).boundingBox()
+    expect(refresh?.height).toBe(36)
+    expect(account?.width).toBe(36)
+    expect(account?.height).toBe(36)
 
-  await expectNoSeriousViolations(page)
-})
+    await expectNoSeriousViolations(page)
+  },
+)
 
 test('the theme menu switches to dark and the choice survives a reload', async ({ page }) => {
   await page.goto('/')
 
-  await page.getByRole('button', { name: 'Account menu' }).click()
-  await page.getByRole('menuitemradio', { name: 'Dark' }).click()
+  const dark = page.getByRole('menuitemradio', { name: 'Dark' })
+  await openMenu(page.getByRole('button', { name: 'Account menu' }), dark)
+  await dark.click()
   await expect(page.locator('html')).toHaveClass(/dark/)
 
   await page.reload()

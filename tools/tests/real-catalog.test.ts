@@ -110,3 +110,40 @@ describe('deploy modes in the real catalog', () => {
     ).toThrow(/frontend\/next.*static/)
   })
 })
+
+// The safety properties of a generated e2e config: a fresh API, its database prepared before it
+// starts, the browser-test database and never the development one. Add a frontend's stacks here
+// when it adopts the same config.
+// The API is the first web server; a frontend's own command (vite build && preview) may chain.
+const apiCommand = (text: string) => /command: '([^']+)'/.exec(text)?.[1] ?? ''
+
+const E2E_STACKS = [
+  'next-bun-express',
+  'next-python-fastapi',
+  'react-bun-express',
+  'react-python-fastapi',
+]
+
+describe.each(E2E_STACKS)('the generated e2e config of %s', (stack) => {
+  test('with a database it prepares app_e2e before the API starts, and refuses another name', () => {
+    generated({ stack, capabilities: ['database=postgres'] }, (out) => {
+      const text = playwright(out)
+      expect(apiCommand(text)).toMatch(/ && /)
+      expect(text).toContain('/app_e2e')
+      expect(text).toContain('e2eDatabaseUrl(process.env.E2E_DATABASE_URL')
+      expect(text.match(/reuseExistingServer: false/g)).toHaveLength(2) // the API and the app
+      expect(existsSync(path.join(out, 'frontend', 'scripts', 'e2e-database-url.ts'))).toBe(true)
+    })
+  })
+
+  test('without a database it has no database URL, no chained command and no guard', () => {
+    generated({ stack }, (out) => {
+      const text = playwright(out)
+      expect(text).not.toContain('app_e2e')
+      expect(text).not.toContain('E2E_DATABASE_URL')
+      expect(apiCommand(text)).not.toContain('&&')
+      expect(text.match(/reuseExistingServer: false/g)).toHaveLength(2) // the API and the app
+      expect(existsSync(path.join(out, 'frontend', 'scripts', 'e2e-database-url.ts'))).toBe(false)
+    })
+  })
+})

@@ -77,15 +77,15 @@ The contract of every frontend, server-rendered or SPA. The rationale and the tr
   entity, shared; `feature` imports entity, shared; `entity` imports shared; `shared` imports
   shared. An entity imports another entity only with `import type` from its `model.ts`. No slice
   imports a sibling slice in its own layer. A `'use client'` file imports from `server/` only an
-  `action.ts`. `shared/api` is imported only by a data layer and `shared/auth`. The language's
-  tool enforces it (ESLint with `eslint-plugin-boundaries`), and each message names the layer to
-  use instead.
+  `action.ts`. `shared/api` is imported only by a data layer and `shared/auth`, plus the types and
+  generated zod schemas a `model.ts` extends. The language's tool enforces it (ESLint with
+  `eslint-plugin-boundaries`), and each message names the layer to use instead.
 - **Where an addition goes.** A domain object's type, mapper, label or card: `entity/<noun>/`. A
   read: the entity's data layer. A mutation and the control that runs it: `feature/<action>/`. A
   section that combines reads and actions: `widget/<section>/`. A route and its layout: `app/`. A
   primitive: `shared/ui/`, added with `shadcn add`. A layout pattern: `shared/ui/pattern/`. A
-  form field binding: `shared/ui/form/`. Formatting: `shared/lib/`. An environment variable:
-  `shared/config/env.ts` and `.env.example`. A navigation entry: `app/nav.ts`.
+  form field binding: `shared/ui/form/`. Date and time helpers: `shared/lib/`. An environment
+  variable: `shared/config/env.ts` and `.env.example`. A navigation entry: `app/nav.ts`.
 - **Design system.** shadcn/ui on Radix, copied into `shared/ui/` (`components.json` maps `ui` to
   `@/shared/ui` and `utils` to `@/shared/lib/cn`). The CLI is pinned; `shadcn add <name>` is the
   one scaffolder an agent may run, and `shadcn init` is not. The `button`, `input`, `select` and
@@ -113,8 +113,9 @@ The contract of every frontend, server-rendered or SPA. The rationale and the tr
   included) and take the shadcn density on a fine pointer.
 - **Contract client.** `contract` generates types, a fetch client and zod schemas into
   `shared/api/generated/` (committed, never edited). A form schema extends the generated request
-  schema; a validation limit is never copied. The Next client runs on the server, forwards no
-  `X-Forwarded-For`, and never uses the generated singleton.
+  schema; a validation limit is never copied. The Next client runs on the server and never uses the
+  generated singleton. It forwards no `X-Forwarded-For` unless the optional `CLIENT_IP_HEADER` names
+  a header a trusted proxy sets ([ADR 0005](adr/0005-frontend-foundation.md), F14).
 - **Mutations.** One action client with `action`, `accountAction` and `roleAction(role)`, and one
   `call` helper that maps an API result to data or to an `ActionError` through the feature's copy
   table, keyed by the envelope's `code`. Copy is ours; the server's text never reaches the user. A
@@ -122,17 +123,19 @@ The contract of every frontend, server-rendered or SPA. The rationale and the tr
   used. In a SPA, `useMutation` with the same `call` and copy tables.
 - **Forms.** React Hook Form with `zodResolver`; `shared/ui/form/` holds the field bindings. A
   field error shows on its field with `aria-invalid` and `aria-describedby`; the toast reports the
-  outcome and never repeats it.
+  outcome and never repeats it. A server field error for a path the form does not register becomes
+  a toast. A Next form's submit ignores only Next's navigation errors (redirect, not-found) through
+  a shared helper and rethrows anything else.
 - **Reads.** A server-rendered framework caches a public read, tags it by entity and renders a
   data widget as a request-time hole (an async component in Suspense that awaits the request, then
   the cached loader); a per-user read is dynamic. A cached loader throws on failure and the widget
   renders `ErrorState`. An SPA reads with TanStack Query: loaders prefetch, widgets suspend,
   mutations invalidate.
 - **Auth** (only when the server has auth). A data access layer (`readSession`, `requireAccount`,
-  `requireRole`) does every real check; a proxy or middleware only refreshes tokens and redirects
-  optimistically. The `(auth)` and `(site)` route groups; a staff group guards its layout, its
-  pages, its loaders and its actions. The `UserMenu` (avatar, email, theme, sign out) sits in the
-  shell's account slot.
+  `requireRole`) does every real check; a Next proxy only refreshes tokens (it never redirects), and
+  `requireRole` sends a wrong role to `/forbidden`. The `(auth)` and `(site)` route groups; a staff
+  group guards its layout, its pages, its loaders and its actions. The `UserMenu` (avatar, email,
+  theme, sign out) sits in the shell's account slot.
 - **Errors and loading.** Every route has a `loading` and an `error` state, its own or its
   group's; every widget has a skeleton that matches its layout. A server-rendered framework adds
   a global error boundary.
@@ -141,23 +144,30 @@ The contract of every frontend, server-rendered or SPA. The rationale and the tr
   the earlier instant.
 - **Gates:** typecheck, lint, format, unit tests; e2e with an accessibility scan and no axe
   exclusion.
-- **E2E** (ADR 0004, U4; amended). Playwright serves the production build (`next build` and
-  `next start`, or `vite build` and `vite preview`) and starts the server fresh with
-  `reuseExistingServer: false`, `RATE_LIMIT_SCALE=100` and, with a database, the provider's `e2e`
-  URL (`app_e2e`); `globalSetup` runs the server's `e2eDb` command. The development database is
-  never touched. The `phone` project (`devices['Pixel 7']`, touch) runs every journey with its
-  accessibility scan; the `desktop` project (`devices['Desktop Chrome']`) runs `shell.spec` and
-  `screens.spec`. `retries: 0`, and a trace on failure. `tests/e2e/shell.spec.ts` asserts the
-  landmarks, the skip link, no horizontal overflow and, on the touch project, the 44 px targets.
-  `tests/e2e/screens.spec.ts` captures every `nav.ts` route, plus sign-in and sign-up when auth is
-  on, on phone and desktop in light and dark, to
-  `test-results/screens/<route>-<viewport>-<theme>.png`. A journey creates its data through the
-  API with a name unique per run and removes it through the API once the product has a delete
-  endpoint.
+- **E2E** (ADR 0004, U4; amended). Playwright serves the production build (Next:
+  `scripts/e2e-server.mjs`, which builds and runs the standalone `server.js`; SPA: `vite build` and
+  `vite preview`) and starts the server fresh with `reuseExistingServer: false`,
+  `RATE_LIMIT_SCALE=100` and the server's `start` command. With a database, the provider's `e2e` URL
+  (`app_e2e`) goes to the server and the server's web server command is `e2eDb && start` (not a
+  `globalSetup`: Playwright starts web servers first). `E2E_DATABASE_URL` overrides the URL, and the
+  config refuses at load any URL whose database name does not end in `_e2e`. Generation fails closed
+  without a server start command or, with a database, an `e2eDb` command and an `e2e` URL
+  (CONTRIBUTING). With `E2E_BASE_URL` set (a blank value counts as unset) nothing is started (CONTRIBUTING). A check for one project carries `@phone` or `@desktop`, and the other project's `grepInvert` leaves it out; never a runtime `test.skip`. The development
+  database is never touched. The `phone` project (`devices['Pixel 7']`, touch) runs every journey
+  with its accessibility scan; the `desktop` project (`devices['Desktop Chrome']`) runs `shell.spec`
+  and `screens.spec`. `retries: 0`, and a trace on failure. `tests/e2e/shell.spec.ts` asserts the
+  landmarks, the skip link, no horizontal overflow, the 44 px targets on the touch project, the
+  shadcn densities on the desktop project and that `data-density="compact"` does not shrink a touch
+  target. `tests/e2e/screens.spec.ts` captures every `nav.ts` route, plus sign-in and sign-up when
+  auth is on, on phone and desktop in light and dark, to
+  `test-results/screens/<route>-<viewport>-<theme>.png`. A journey creates its data through the API
+  with a name unique per run and removes it through the API once the product has a delete endpoint.
 - **Unit tests** are Vitest with React Testing Library. The template tests its own glue once (the
   field bindings, the shell nav, `call`, the action client, theme toggling, the auth helpers).
-- **Brand.** The generator takes `--display-name`, `--brand-primary`, `--brand-neutral`,
-  `--radius`, `--font`, `--theme` and `--density`, recorded in provenance under `answers.brand`.
+- **Brand.** The generator takes `--display-name`, `--brand-primary`, `--brand-neutral`, `--radius`,
+  `--font`, `--theme` and `--density`, recorded in provenance under `answers.brand`. Defaults: the
+  project name in title case, `#1d4ed8` on a `#64748b` neutral, `md`, `system`, `system`,
+  `comfortable`. The generator fails, naming the pair, when a seed cannot pass the contrast checks.
 - **Cross-package selections.** A frontend template may gate files on the server's flags and
   capabilities with `onlyWhen: { "server:<name>": [paths] }`; every `server:*` selection is off
   when the frontend is generated alone ([capabilities](capabilities.md)).
@@ -178,16 +188,29 @@ layers amended by [ADR 0005](adr/0005-frontend-foundation.md).
 - There is no proxy. Route loaders guard routes (`requireAccount`, `requireRole`) and a
   `RequireRole` component hides controls. The client turns a 401 into one refresh and a retry, and
   concurrent refreshes collapse into one.
+- Route loaders call `queryClient.query(...)` (fetch semantics, 30 s `staleTime`), never
+  `ensureQueryData`, which the pinned TanStack Query deprecates.
+- The no-flash theme script is the file `public/theme-init.js`, not an inline script: the deployed
+  pages carry `script-src 'self'`.
+- `shared/api/session-hint.ts` is a `localStorage` flag, never a token: set after sign-in, cleared
+  on sign-out and on a refresh 400, 401 or 403 (a refresh without a cookie answers 400). The client refreshes only when it is set; without it the
+  page shows the signed-out view.
+- The generated query options are produced with `infiniteQueryOptions: false`: the template has no
+  paginated endpoint.
+- A client-side `noindex` is a known limitation: a crawler without JavaScript does not see it.
 - The API is reached at relative `/api/*` on the page's own origin in every deploy mode. The dev
   server proxies `/api` to the server's port. No API URL is compiled into the bundle and CORS stays
-  off. The client resolves the origin explicitly (`baseUrl: window.location.origin`).
+  off. The client resolves the origin explicitly (`baseUrl: window.location.origin`). The client
+  address is the browser's own (the dev proxy, nginx or the server sees it), so `CLIENT_IP_HEADER`
+  does not apply to an SPA.
 - `src/shared/config/env.ts` is the only reader of `import.meta.env` (lint), browser-visible
   values only, never a secret.
 - `build` writes `dist/`: `index.html` at its root, hashed files under `dist/assets/`. The
   manifest declares `static: { out: dist }`; a frontend without `static` cannot be served by the
   server (`single`).
 - E2E: with `E2E_BASE_URL` set, Playwright tests that URL and starts no web server; otherwise it
-  builds and previews the app (`vite build`, `vite preview`) and starts the server fresh.
+  builds and previews the app (`vite build`, `vite preview`) and starts the server fresh, with the
+  same `e2eDb && start` chain as above.
 - The Dockerfile has two targets: `dist` (the built files only, at `/dist`) and the default
   `serve` (the `split` static server).
 - The agents file has the layer map and the headings `Adding a feature`, `Styling`, `Errors`,
@@ -257,6 +280,7 @@ language's own invocation. Only `check` is required.
 | `test` | Unit tests that need no infrastructure. |
 | `testDb` | Tests that need a database; added by a database capability overlay. |
 | `testE2e` | End-to-end tests with the accessibility scan; may start dev servers. |
+| `start` | Run the server once, with no file watcher; a frontend's e2e starts the API with it. |
 | `contract` | Server: write the OpenAPI document. Frontend: regenerate the typed client from it. |
 | `migrate` | Apply schema migrations; added by a database capability overlay. |
 | `e2eDb` | Prepare the e2e database (create if missing, migrate, truncate; refuses a name not ending in `_e2e`); added by a database capability overlay. |

@@ -5,8 +5,9 @@ Owner: Eitan
 Plan: `fullstack-dev-harness/.plan/011-2026-10-25-plant-care-eval-fixes.md`
 Amends: `docs/conventions.md` (frontend and server contracts) and ADR 0003 (M5-1, Styling)
 Superseded in part by ADR 0005: the component-library and theme-switching exclusions, U2's token
-set, U3's 44 px on every pointer and `shared/ui/button` as the one button, and U5's
-development-database rule (see [ADR 0005](0005-frontend-foundation.md), "What this supersedes").
+set, U3's 44 px on every pointer and `shared/ui/button` as the one button, the U1 shell path
+(`shared/ui/app-shell` is `AppShell` in `shared/ui/pattern/`), U4's `chromium` project (now
+`desktop`; journeys run on `phone` only) and U5's development-database rule (see [ADR 0005](0005-frontend-foundation.md), "What this supersedes").
 
 ## Context
 

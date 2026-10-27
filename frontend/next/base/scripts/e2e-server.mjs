@@ -9,7 +9,7 @@ import { pathToFileURL } from 'node:url'
 
 const build = spawnSync('bun', ['run', 'build'], {
   stdio: 'inherit',
-  env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1' },
+  env: { ...process.env, NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1' },
 })
 if (build.status !== 0) process.exit(build.status ?? 1)
 

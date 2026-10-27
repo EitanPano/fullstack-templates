@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { SERVER_PREFIX, type LoadedOverlay, type LoadedTemplate } from './catalog'
-import { listFiles } from './files'
+import { inGeneratedDir, listFiles } from './files'
 import { applyMarkers, commentSyntaxFor, findLeftoverMarker, MarkerError } from './markers'
 import { GENERATED_PLACEHOLDERS, isTextFile } from './placeholders'
 import { UNPROCESSED_HINT, findUnprocessed } from './unprocessed'
@@ -37,6 +37,15 @@ function candidateFiles(template: LoadedTemplate, overlays: LoadedOverlay[]): st
   return [...kept, ...added, path.join(template.dir, 'compose.yaml')].filter(
     (file) => existsSync(file), // compose.yaml is optional
   )
+}
+
+// The file's path inside the generated package: under base/ or under an overlay's own directory.
+function packagePath(template: LoadedTemplate, overlays: LoadedOverlay[], file: string): string {
+  for (const root of [path.join(template.dir, 'base'), ...overlays.map((o) => o.overlayDir)]) {
+    const inside = relative(root, file)
+    if (!inside.startsWith('..') && !path.isAbsolute(inside)) return inside
+  }
+  return relative(template.dir, file)
 }
 
 function filesFor(template: LoadedTemplate, overlays: LoadedOverlay[]): string[] {
@@ -111,7 +120,7 @@ export function dryRunMarkers(
       for (const file of files) {
         const where = relative(template.dir, file)
         const syntax = commentSyntaxFor(file)
-        if (syntax === undefined) continue
+        if (syntax === undefined || inGeneratedDir(packagePath(template, overlays, file))) continue
         try {
           const output = applyMarkers(read(file), syntax, where, selections)
           const leftover = findLeftoverMarker(output, syntax)

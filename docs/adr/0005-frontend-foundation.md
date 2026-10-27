@@ -36,7 +36,8 @@ What the eval found in the generated frontend, and the decision that answers eac
 Five spikes ran before this ADR, each against a generated `next-bun-express` project, and their
 outcomes are recorded where they bind: S1 (Hey API), S2 (Cache Components), S3 (next-safe-action
 with React Hook Form), S4 (`pointer-coarse` sizing) and S5 (the client address through Next). S5
-failed and its fallback applies (F14).
+failed and its fallback applies (F14). The task added the opt-in `CLIENT_IP_HEADER` while building
+(F14).
 
 Decisions F1 to F14 apply to both frontend templates, `frontend/next` and `frontend/react`, unless
 they name one. F13 applies to both server templates and F4 to the generator.
@@ -66,9 +67,10 @@ shared/                       product-agnostic
   ui/                         shadcn primitives (copied source)
   ui/form/                    React Hook Form field bindings
   ui/pattern/                 AppShell, Page, PageHeader, EmptyState, ErrorState, AuthCard, ...
-  lib/                        cn, date, format, safe-action, call
-  api/                        generated client, types and zod; the client factory
-  auth/                       the data access layer: session, requireAccount, requireRole
+  lib/                        cn, date, safe-action, action-error, zod-messages
+  api/                        generated client, types and zod; the client factory; call
+  auth/                       the data access layer: session (readSession, requireAccount,
+                              requireRole), cookies, refresh
   config/env.ts               the only reader of the environment
 ```
 
@@ -87,7 +89,7 @@ Where an addition goes:
 | A primitive (button, input, dialog) | `shared/ui/`, added with `shadcn add` |
 | A reusable layout pattern | `shared/ui/pattern/` |
 | A form field binding | `shared/ui/form/` |
-| Date, time and number formatting | `shared/lib/` |
+| Date and time helpers | `shared/lib/` |
 | A server-only auth check | `shared/auth/` |
 | An environment variable | `shared/config/env.ts` plus `.env.example` |
 | A navigation entry | `app/nav.ts` |
@@ -99,17 +101,24 @@ replaces the hand-written zones. Each message names the layer to use instead:
   `feature` imports entity, shared. `entity` imports shared. `shared` imports shared.
 - An entity imports another entity only with `import type` from its `model.ts`.
 - No slice imports a sibling slice in its own layer.
-- A `'use client'` file imports from `server/` only an `action.ts` (`'use server'`).
-- `shared/api` is imported only by `*/server/*` (`*/api/*` in the SPA) and `shared/auth`.
+- A `'use client'` file imports from `server/` only an `action.ts` (`'use server'`) or types.
+- `shared/api` is imported only by `*/server/*` (`*/api/*` in the SPA) and `shared/auth`. The one
+  exception is a `model.ts` in `entity/` or `feature/`: it may `import type` from `shared/api` and
+  value-import the generated zod schemas (`shared/api/generated/zod.gen`), because a form schema
+  extends them and limits are never copied.
 - `no-restricted-syntax` forbids the `button`, `input`, `select` and `textarea` JSX elements
   outside `shared/ui`. `revalidatePath` and a bare `fetch(` are restricted outside `shared/api`.
+- `process.env` is read only in `shared/config/env.ts` (a `no-restricted-properties` rule). A
+  `fetch(` is restricted outside `shared/api`, and the `shared/ui` block keeps the network rule too.
 
 The seeded-violation test is rewritten for these rules: one violation and one allowed case per
-rule, through ESLint's Node API and the real config.
+rule, through ESLint's Node API and the real config. The file is
+`tests/unit/eslint-boundaries.test.ts` in both templates.
 
 The template's example slices are product-neutral, and a product replaces them: `entity/health/`
 (model, loader, a `HealthBadge`), `widget/system-status/`, `feature/refresh-health/`, and, when the
-server has auth, `feature/auth/` and `entity/user/`.
+server has auth, `feature/auth/`, `entity/user/`, `widget/account-menu`, `widget/guest-only`,
+`widget/sign-in`, `widget/sign-up` and `widget/profile`.
 
 Why five layers instead of ADR 0003's three: the eval hit both failure modes of noun features (the
 render slot, and the screen that needs another feature's card). `entity` gives product-specific
@@ -184,7 +193,13 @@ The generator accepts, as options and in the answers file under `answers.brand`:
 | `--theme` | `system`, `light`, `dark` |
 | `--density` | `comfortable`, `compact` |
 
-The defaults reproduce a neutral palette with today's blue as the primary.
+The defaults reproduce a neutral palette with today's blue as the primary: `--display-name` is
+the project name in title case (cut at a word boundary to 60 characters), `--brand-primary`
+`#1d4ed8`, `--brand-neutral` `#64748b` (a slate), `--radius md`, `--font system`, `--theme system`
+and `--density comfortable`. A display name is 1 to 60 characters of letters, digits, spaces and
+`. , : ! ? _ -`, starting with a letter or digit, with no two underscores in a row (they read as a
+placeholder); the generator refuses anything else, because the name is substituted into JSON,
+TSX and CSS.
 
 `tools/lib/theme.ts` is pure and unit-tested. It builds OKLCH scales from the two seeds, derives
 the light and dark value of every F2 token, and checks WCAG contrast: text pairs at least 4.5:1,
@@ -193,10 +208,17 @@ and fails generation, naming the pair, when a seed cannot pass.
 
 New generated placeholders: `PROJECT_DISPLAY_NAME` (the metadata title template, the header and
 the footer), `THEME_LIGHT` and `THEME_DARK` (the CSS declaration blocks placed into `globals.css`;
-placeholders work in `.css`), `THEME_RADIUS` and `THEME_DEFAULT`. The project slug stays for
-package names. `--font inter` uses `@fontsource-variable/inter` in both templates, so a build
-needs no network. `--density compact` sets the fine-pointer control heights and leaves touch
-sizing alone. Provenance records `answers.brand`, through optional fields in its schema.
+placeholders work in `.css`), `THEME_RADIUS` (`0.25rem`, `0.5rem` or `0.75rem` for `sm`, `md`, `lg`),
+`THEME_DEFAULT` (the theme), `THEME_DENSITY`, `THEME_FONT` and `THEME_FONT_STACK` (the full
+`font-family` value). A frontend's e2e config also gets `SERVER_START_COMMAND`,
+`SERVER_E2E_DB_COMMAND` and `SERVER_E2E_DATABASE_URL` (F12). The project slug stays for package
+names. Both templates always depend on `@fontsource-variable/inter` and import its `@font-face`
+CSS (a browser downloads only a font that is used, and a build needs no network);
+`THEME_FONT_STACK` carries the `font-family` value, `system` or `'Inter Variable'` first. The cost
+is one unused dependency in a `--font system` project. `--density compact` sets the fine-pointer
+control heights and leaves touch sizing alone. Provenance records the resolved brand (defaults
+filled in) under `answers.brand` whenever the plan has a frontend, through optional fields in its
+schema.
 
 Why the generator and not the product: the eval's colour seed was never applied, and a palette
 chosen by an agent at task time is not checked for contrast. A pure function with a test is.
@@ -209,8 +231,10 @@ its output is plain CSS, so a product can edit the values afterwards by plan.
 A frontend's marker selections gain `server:<name>` for each selection of the stack's server
 package, its flags and its capability kinds: `server:auth`, `server:database`. The names already
 pass the marker lexer. A template may declare `onlyWhen: { "server:auth": [paths] }`; those files
-are kept only while the selection is on. The frontend has no flag of its own named `auth`, so
-`--flag auth=...` stays unambiguous: it sets the server's flag.
+are kept only while the selection is on. A path may name a route group with parentheses
+(`src/app/(auth)`); `..`, `(..)`, `(...)`, absolute and backslash paths are refused. The frontend
+has no flag of its own named `auth`, so `--flag auth=...` stays unambiguous: it sets the server's
+flag.
 
 `validate`'s dry run covers the combinations: a frontend with an `auth=false` server, and a
 frontend generated alone, where every `server:*` selection is off. `docs/capabilities.md` and the
@@ -233,7 +257,8 @@ no runtime package beyond zod.
 
 - In Next it runs on the server with `API_URL` and the `Authorization: Bearer` header from the
   session. It sets no custom `fetch` (spike S1: the generated client builds its own `Request`) and
-  never uses the generated module-level singleton on the server. It forwards no `X-Forwarded-For`
+  never uses the generated module-level singleton on the server. By default it forwards no
+  `X-Forwarded-For`; the optional `CLIENT_IP_HEADER` turns on forwarding of the visitor's address
   (F14).
 - In the SPA it uses the relative `/api` and same-origin cookies, plus the refresh of F9.
 
@@ -241,7 +266,10 @@ A form schema extends the generated request schema, for example
 `zPublishClassBody.extend({ startsAt: zWallTime })`. Limits are never copied; the only extension
 is a UI coercion, such as a `datetime-local` string or a number input's text. The error body is
 typed, which replaces hand narrowing. Spike S1 also proved: a Server Action POST and a `proxy.ts`
-POST both work with a JSON body (v1's "expected non-null body source" crash does not occur);
+POST both work with a JSON body and a 2xx or 400 answer. The v1 "expected non-null body source"
+crash did reproduce later, on a 401: the fetch spec retries a request with ambient credentials, and
+Next's patched fetch cannot replay the body. `createApi` therefore sets `credentials: 'omit'` (the
+API takes explicit headers only), with a unit test;
 the generated zod extends under React Hook Form with `z.input` and `z.output` as the generics;
 and both servers' documents generate and type-check.
 
@@ -249,7 +277,12 @@ Notes the spike recorded and the template handles: `response` is optional in the
 network failure returns the thrown value typed as the error body, so `call` checks
 `response === undefined` first; generated names are path-derived, so features wrap them; the
 generated code is ignored by lint; `postProcess: ['prettier']` replaces the deprecated `format`;
-the servers' schemas carry no `format: email`, so a form adds `.email()` itself.
+Bun's OpenAPI has no `format: email` and Python's has it, so Hey API emits its own email check
+for Python, with zod's default message. Every form field with our copy therefore sets that copy
+itself, whatever the generated schema carries: the form runs the generated check plus a plain
+email check and words a failure once, and `shared/lib/zod-messages.ts` words the generated limits
+and formats for the browser resolver and the action's input schema alike. (A form that trusted
+the generated message showed zod's default text on the Python stack, which turned CI red.)
 
 Cost: Hey API is 0.x and minors can break output. It is pinned exactly and upgraded by plan, and
 generated code is larger than `openapi-typescript`'s. The gain is one generator for three outputs,
@@ -259,8 +292,11 @@ which ends copied limits and hand-written narrowing.
 
 In Next, `shared/lib/safe-action.ts` holds the action client (next-safe-action 8.7.3, exact):
 
-- `action`, `accountAction` (the middleware calls `requireAccount`) and `roleAction(role)`.
-  The middleware is the data access layer for actions, so no action can forget the check.
+- `action`, and, with `server:auth`, `accountAction` and `roleAction(role)`. The account
+  middleware reads the session (`readSession`, memoised per request) on every call and refuses with
+  an `ActionError` when there is none; `roleAction` adds the role check. The middleware is the data
+  access layer for actions, so no action can forget the check. Pages and loaders use
+  `requireAccount` and `requireRole`, which redirect.
 - `ActionError` carries copy we wrote, never the server's text. `handleServerError` returns an
   `ActionError`'s message, and logs anything else and returns a generic message. Spike S3 showed an
   error whose text held a secret reaching the log and not the client.
@@ -315,7 +351,8 @@ streams in, because the cache saves the API call, not the streaming hole. Uncach
 data outside Suspense fails the build, so a page is a synchronous component with its data in
 widgets.
 
-**SPA.** TanStack Query with Hey API's query options. A route loader calls `ensureQueryData`, a
+**SPA.** TanStack Query with Hey API's query options. A route loader calls `queryClient.query` (see
+"Decisions made while building"), a
 widget calls `useSuspenseQuery`, and a mutation invalidates its entities' query keys.
 
 Replicas: Next's default cache handler is per process, so past one frontend replica each instance
@@ -333,16 +370,22 @@ Present only when the server has auth (`server:auth`, F4).
 **Next.**
 
 - `shared/auth/session.ts` (server-only) has `readSession` (memoised with React `cache`),
-  `requireAccount()` (redirects to sign-in) and `requireRole(role)` (renders the forbidden state).
-  This follows Next's authentication guide: the proxy does optimistic redirects and token refresh,
-  and the data access layer does every real check.
+  `requireAccount()` (redirects to sign-in) and `requireRole(role)` (redirects an account with
+  another role to the `/forbidden` page; no experimental Next API such as `forbidden()`). This
+  follows Next's authentication guide in part: the proxy refreshes tokens, and the data access layer
+  does every real check. The template's proxy does not redirect, unlike the guide's optimistic
+  example.
 - `feature/auth/server/action.ts` has `signUp`, `signIn` and `signOut`. They call the API and set
   `access_token` and `refresh_token` as HttpOnly, `SameSite=Lax` cookies, `Secure` in production,
   on the Next origin, with the API's lifetimes.
 - `proxy.ts` refreshes an expired access token with the refresh token (request body
-  `refreshToken`), rotates both cookies, and redirects on failure. It never checks permissions.
+  `refreshToken`) and rotates both cookies. A refusal (400, 401, 403) clears both cookies and the
+  request continues; an outage or a rate limit changes nothing. It never redirects and never checks
+  permissions: access is decided only in the data access layer.
 - Route groups: `(auth)` holds sign-in and sign-up and sends a signed-in account away; `(site)`
-  carries the shell. `AGENTS.md` documents a `(site)/(staff)` group whose layout calls
+  carries the shell. `(site)` also holds the `/forbidden` page and a guarded `/profile` page, the
+  worked example of a signed-in screen (a page that renders a static shell and a widget that calls
+  `requireAccount`). `AGENTS.md` documents a `(site)/(staff)` group whose layout calls
   `requireRole('admin')`. Layouts do not re-run on client navigation, so every staff page and
   loader also calls `requireRole` (memoised, so free) and every staff action uses `roleAction`.
   The template ships no staff page, because no admin can be created yet.
@@ -358,7 +401,9 @@ header text beside a primary button.
 Cost: the template owns token handling that a product with a different scheme must replace. The
 client, token and verification model is recorded in the project's `.doc/architecture.md › Auth`
 and changes only by plan. The staff pattern cannot be exercised end to end until the server can
-create an admin.
+create an admin. A refresh response that never reaches the browser, replayed after the API's 30 s
+grace window, reads as reuse and signs the account out everywhere; `proxy.ts` refreshes at the
+start of a request to keep the window short.
 
 ### F10. Errors and loading
 
@@ -384,19 +429,23 @@ Cost: two dependencies. Temporal can replace them when Node and Safari both ship
 **Unit.** Vitest with React Testing Library. The template tests its own glue once, so products do
 not re-test primitives: the field bindings, the shell nav, `call`, the action client, theme
 toggling and the F9 helpers (session helpers; each action's success and failure paths: a taken
-email, 401, 429; refresh, including two concurrent 401s that cause one refresh; the forbidden
-render).
+email, 401, 429; refresh, including two concurrent 401s that cause one refresh; a wrong role
+redirected to `/forbidden`).
 
-**E2E server.** Playwright's `webServer` runs the production build: `next build` then `next start`
-on port 3000, or `vite build` then `vite preview` for the SPA. A build is slower to start, and in
-exchange "the image builds" is checked on every task. The SPA keeps `E2E_BASE_URL` for its
-container mode, and Next gains the same switch. Spike S3 notes that `next start` warns with
-`output: 'standalone'` and serves correctly.
+**E2E server.** Playwright's `webServer` runs the production build. Next: `scripts/e2e-server.mjs`
+runs `bun run build`, copies `.next/static` and `public/` into `.next/standalone` and runs
+`server.js` on port 3000, the server the image runs (`next start` would work but warns under
+`output: 'standalone'`, spikes S3 and S5). SPA: `vite build` then `vite preview`. A build is slower
+to start, and in exchange "the image builds" is checked on every task. The SPA keeps `E2E_BASE_URL`
+for its container mode, and Next gains the same switch.
 
 **E2E backend.** Playwright starts the backend fresh, with `reuseExistingServer: false`, from the
-server's start command. Its `env` sets `RATE_LIMIT_SCALE=100` (F13) and, with `server:database`,
-the provider's `e2e` URL (`app_e2e`). `globalSetup` runs the server's `e2eDb` command when
-`server:database` is on. The development database is never touched.
+server's `start` command (F13). Its `env` sets `RATE_LIMIT_SCALE=100` (F13) and, with
+`server:database`, the provider's `e2e` URL (`app_e2e`). With `server:database`, the API's web
+server command is `<server e2eDb> && <server start>`, so the database is created, migrated and
+truncated before the API connects. It is not a `globalSetup`: Playwright 1.64.1 starts its web
+servers before global setup. `E2E_DATABASE_URL` overrides the provider's `e2e` URL. The development
+database is never touched.
 
 **Projects.** `phone` (`devices['Pixel 7']`, touch) runs every journey with its axe scan.
 `desktop` (`devices['Desktop Chrome']`) runs the shell spec and the screens spec. `retries: 0`, and
@@ -416,17 +465,24 @@ shell and screens specs and by the reviewer, not by a journey.
 `bun-express` 2.4.0 and `python-fastapi` 1.2.0 change only what e2e and test output need; the
 server architecture is unchanged.
 
-- **`RATE_LIMIT_SCALE`:** a number of at least 1, default 1, read once in the env module and
+- **`RATE_LIMIT_SCALE`:** a number from 1 to 1000, default 1 (above 1000 the server refuses to boot,
+  so the scale cannot become a bypass), read once in the env module and
   documented in `.env.example`. It multiplies every limit in `RATE_LIMITS`. Production keeps the
   default. There is no bypass switch: a bypass is a production hole waiting for one wrong
   environment variable, while a scale keeps every limit real at a different size.
+- **`start`:** a new command name in the schema's `commands` enum. It runs the server with no
+  watcher (`bun run start`, `uv run python -m app.main`); a frontend's e2e starts the API with it,
+  so the suite does not depend on a dev server's reload or watcher.
 - **`e2eDb`:** a new command name in the schema's `commands` enum, present only with a database
   provider (an overlay `commands` entry). It creates the database named by the provider's `e2e`
   URL if it is missing, migrates it, and truncates every table except the migrations table. It
-  refuses any database whose name does not end in `_e2e`.
+  refuses any database whose name does not end in `_e2e`, refuses a URL with a `dbname` query
+  (libpq lets it override the path), and checks `current_database()` before it migrates.
+  `E2E_DATABASE_URL` overrides the provider URL; a blank value counts as unset.
 - **The provider's env contract** gains `e2e: postgres://app:app@127.0.0.1:5432/app_e2e`.
 - **Test logs.** Tests that raise errors on purpose capture or silence them (the eval's "boom",
-  pubsub and PostgresError output). A green run prints no stack trace.
+  pubsub and PostgresError output). A green run prints no stack trace. A test that expects an error
+  asserts it through an allow-list, and a log line outside the list fails the test.
 - **The Compose fragment** stops warning about unset app secrets on infra-only commands
   (`docker compose up -d --wait database`).
 
@@ -444,17 +500,83 @@ its last entry, reaches app code unchanged, and `x-real-ip` and `forwarded` are 
 visible to application code is out of the client's control, so the template cannot forward a
 trustworthy browser address to the API.
 
-The fallback applies: the Next client forwards no `X-Forwarded-For`. The API's per-IP limiter then
-sees the Next server's own address, one shared bucket for every user of that frontend, and the
-per-email limits are the effective ones. The Next `AGENTS.md › Deployment` documents this.
-Forwarding is safe only behind a deploy proxy that overwrites the header with the real client
-address; that is a deployment promise the template cannot verify, and it fails open when the proxy
-appends instead of overwriting, so it is documented and not templated. A custom Node server would
-expose the socket address but loses the standalone `server.js` path, and is not adopted.
+The fallback applies by default: the Next client forwards no `X-Forwarded-For`. The API's per-IP
+limiter then sees the Next server's own address, one shared bucket for every visitor, and the
+per-email limits are the effective ones. That is also a lock-out risk: sign-up is limited to 10
+per 15 minutes per IP, so one script could block every registration (a decision made while building the
+template).
 
-Cost: one shared per-IP bucket for a Next frontend, so a burst from many users can exhaust it. The
-limits are sized for the per-email case, and `RATE_LIMIT_SCALE` (F13) is the lever for a product
-that needs more.
+So the address is opt-in. `CLIENT_IP_HEADER` (optional, unset by default, a header name such as
+`x-forwarded-for` or `x-real-ip`, validated at startup) names the header that a proxy YOU control
+sets or appends with the visitor's address. When it is set, `createApi` forwards the rightmost
+entry of that header as `X-Forwarded-For` (a value that is not an IP address, or carries a zone
+id, is dropped), and the server's `TRUST_PROXY` must count the Next server as a hop. It is safe
+only while the container is not reachable directly: a visitor who can reach Next chooses the
+header. A production deployment behind a platform or reverse proxy must set it; the template
+cannot verify the proxy, so the Next `AGENTS.md › Deployment` states the condition. Public cached
+loaders never forward. A custom Node server would expose the socket address but loses the
+standalone `server.js` path, and is not adopted.
+
+Cost: without `CLIENT_IP_HEADER`, one shared per-IP bucket for a Next frontend, so a burst from
+many users can exhaust it and a script can lock out sign-up and sign-in. With it, correctness
+rests on a deployment promise. `RATE_LIMIT_SCALE` (F13) is a lever for sizing, not a fix for
+either case.
+
+### Decisions made while building
+
+The build changed or settled these; each is in the template's `AGENTS.md`.
+
+- The `(auth)` route group stays, so the generator accepts parentheses in `onlyWhen` and
+  `onlyPaths` (F4).
+- `proxy.ts` clears the cookies on a refusal and continues; it never redirects (F9).
+- `requireRole` redirects to a stable `/forbidden` page; the template sets no experimental Next
+  option (`forbidden()`, `authInterrupts`). Cost: a forbidden page answers 200 after a redirect,
+  not 403. Server Actions still refuse through `roleAction`.
+- A `model.ts` may value-import the generated zod schemas (F1, F5).
+- `createApi` sets `credentials: 'omit'` (F5).
+- Compact density applies only on a fine pointer, and the dialog and sheet close buttons are 44 px
+  on touch (F2).
+- Playwright's config takes `E2E_DATABASE_URL?.trim() ||` the default, and refuses at load any URL
+  whose database name does not end in `_e2e` (F12).
+- Generation fails closed when a planned server lacks `commands.start`, or when `server:database` is
+  on without `commands.e2eDb` or a provider `e2e` URL. There is no silent fallback (F12).
+- Next forms `reset()` after a successful sign-in or sign-up, because `cacheComponents` keeps
+  visited routes mounted (hidden) under React Activity.
+- Container-mode e2e (`E2E_BASE_URL`) against a long-lived stack runs at rate-limit scale 1. It can
+  run about once per 15 minutes per stack and leaves its users in that stack's `app` database. The
+  case runner does `up`, then `down -v` (F12).
+- SPA loaders call `queryClient.query(...)`, not `ensureQueryData`: the pinned TanStack Query
+  (5.104.2) deprecates `ensureQueryData` and `fetchQuery` in favour of `query`, and lint fails on
+  them. It has fetch semantics: data fresh within the 30 s `staleTime` is returned,
+  otherwise it fetches.
+- The no-flash theme script is a file, `public/theme-init.js`, not inline in `index.html`, because
+  every deployed SPA page carries `script-src 'self'`, which blocks an inline script.
+- `shared/api/session-hint.ts` is a `localStorage` flag, never a token. It is set after sign-in and
+  sign-up and cleared on sign-out and when a refresh answers 400, 401 or 403 (429, 5xx and network
+  errors keep it). Both servers answer a refresh with no cookie with 400, which is what an expired
+  refresh cookie produces, so 400 clears it too; Next treats the same three statuses as a refusal.
+  The client refreshes a 401 only when the hint is set; without one the page shows the signed-out
+  view, so a visitor's session probe does not spend the API's per-address refresh attempts. A user
+  who cleared storage but not cookies appears signed out until the next sign-in.
+- The Hey API react-query plugin runs with `infiniteQueryOptions: false` because the template has
+  no paginated endpoint to use them. Turn it on with the first one.
+- Without `CLIENT_IP_HEADER`, all Next visitors share one per-address budget (refresh 30 and sign-in
+  10 per 15 minutes), so a default deployment holds about 30 active signed-in visitors per 15
+  minutes; past that, sessions end and sign-in is refused. The recipe is a TLS proxy you control,
+  the Next port reachable only from it and `CLIENT_IP_HEADER` set (the Compose fragment passes it);
+  see the Next `AGENTS.md › Deployment`. Planned follow-up: the servers key the refresh limit on
+  the token, not the address.
+- A server field error whose path the form does not register (a server-only or renamed field)
+  becomes a toast with the error's message, so a submit never ends in silence.
+- The e2e projects select their specs by tag: a check for one project carries `@phone` or
+  `@desktop`, and the other project's `grepInvert` leaves it out; never by a runtime `test.skip`, which the harness's `verify` refuses in a diff.
+- A blank `E2E_BASE_URL` counts as unset, like a blank `E2E_DATABASE_URL`.
+- Next forms submit through a shared navigation-error helper: it ignores only Next's navigation
+  errors (redirect, not-found) and rethrows anything else. A redirecting action rejects its promise,
+  which `<form onSubmit>` would otherwise drop as an unhandled rejection.
+- The SPA's `noindex` is a client-side `<meta>` rendered by the page, so a crawler that does not
+  run JavaScript does not see it. This is a known limitation of a static shell; Next sets it in the
+  server-rendered head.
 
 ## Alternatives considered
 
@@ -481,7 +603,8 @@ that needs more.
 - **A rate-limit bypass for e2e, or a shared development database.** A bypass is a production
   switch; the shared database left 62 rows behind and made journeys depend on earlier runs.
 - **`app_e2e` in `db/init.sql`.** Misses every existing volume (F13).
-- **Forwarding the browser address to the API.** Spoofable (F14).
+- **Forwarding the address from the client's own header by default.** Spoofable (F14); forwarding
+  is opt-in through `CLIENT_IP_HEADER`.
 - **`loading` and `error` per segment.** The eval's files were copies of each other. A group's
   files cover its routes.
 - **`Intl`-based date conversion kept by hand, or Temporal.** The hand-rolled version was 80
@@ -547,8 +670,8 @@ or moves its files by plan. The server templates change additively (`bun-express
   risk; the answer is a worked example per library in the package's `AGENTS.md` and lint messages
   that name the right layer.
 - The e2e suite builds the app before it tests. Next's build cache and one build per run limit it.
-- A Next frontend shares one per-IP rate-limit bucket (F14), and a Next frontend with several
-  replicas has one cache per replica (F8).
+- A Next frontend without `CLIENT_IP_HEADER` shares one per-IP rate-limit bucket (F14), and a Next
+  frontend with several replicas has one cache per replica (F8).
 - The generator owns colour maths (F3) and cross-package selections (F4).
 
 **Versions.**
@@ -562,14 +685,16 @@ or moves its files by plan. The server templates change additively (`bun-express
 | Catalog | `v1.4.0` |
 
 Every schema change is an optional field (`answers.brand`, `onlyWhen`, the case fields for a
-frontend case to set its server's flags, the `e2eDb` command name, the provider's `e2e` URL), so
-`schemaVersion` stays 1 and the catalog release is a minor, as with ADR 0004.
+frontend case to set its server's flags, the `start` and `e2eDb` command names, the provider's `e2e`
+URL), so `schemaVersion` stays 1 and the catalog release is a minor, as with ADR 0004.
 
 **Pins** (checked against the registry on 2026-10-26, each at least 14 days old): `next-safe-action`
 8.7.3, `@next-safe-action/adapter-react-hook-form` 2.1.0, `react-hook-form` 7.90.0,
-`@hookform/resolvers` 5.9.1, `@hey-api/openapi-ts` 0.99.0. The other pins (shadcn CLI, the
-boundaries plugin, `date-fns`, `@date-fns/tz`, `next-themes`, TanStack Query, fonts) are set by the
-template tasks and recorded in each template's `CHANGELOG.md`.
+`@hookform/resolvers` 5.9.1, `@hey-api/openapi-ts` 0.99.0. Next's other pins, from
+`frontend/next/base/package.json`: shadcn CLI 4.21.4, `radix-ui` 1.8.0, `eslint-plugin-boundaries`
+7.2.0, `date-fns` 4.4.0, `@date-fns/tz` 1.5.0, `next-themes` 0.4.6, `@fontsource-variable/inter`
+5.3.0. TanStack Query and the SPA's pins are recorded in `frontend/react/CHANGELOG.md` once the SPA
+template lands; fill them in at the release task.
 
 ## Out of scope
 

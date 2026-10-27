@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -34,6 +34,39 @@ describe('SignUpForm', () => {
       password: 'correct horse',
       confirm: 'correct horse',
     })
+  })
+
+  it('clears the fields after success, so no typed password stays in a kept page', async () => {
+    vi.mocked(signUp).mockResolvedValue({})
+    render(<SignUpForm />)
+
+    await fill('a@b.co', 'correct horse', 'correct horse')
+
+    await waitFor(() => expect(screen.getByLabelText('Email')).toHaveValue(''))
+    expect(screen.getByLabelText('Password')).toHaveValue('')
+    expect(screen.getByLabelText('Confirm password')).toHaveValue('')
+  })
+
+  it('clears the fields when the action ends in a redirect, as a real sign-up does', async () => {
+    vi.mocked(signUp).mockRejectedValue(
+      Object.assign(new Error('NEXT_REDIRECT'), { digest: 'NEXT_REDIRECT;push;/;307;' }),
+    )
+    render(<SignUpForm />)
+
+    await fill('a@b.co', 'correct horse', 'correct horse')
+
+    await waitFor(() => expect(screen.getByLabelText('Email')).toHaveValue(''))
+    expect(screen.getByLabelText('Password')).toHaveValue('')
+    expect(screen.getByLabelText('Confirm password')).toHaveValue('')
+  })
+
+  it('labels the button while the action is pending', async () => {
+    vi.mocked(signUp).mockReturnValue(new Promise(() => undefined))
+    render(<SignUpForm />)
+
+    await fill('a@b.co', 'correct horse', 'correct horse')
+
+    expect(await screen.findByRole('button', { name: 'Creating account…' })).toBeDisabled()
   })
 
   it('shows a confirmation that differs on the confirmation field', async () => {
@@ -75,6 +108,19 @@ describe('SignUpForm', () => {
     expect(toast.error).toHaveBeenCalledWith(
       'Too many sign-up attempts. Wait a few minutes and try again.',
     )
+  })
+
+  it('toasts the message of an error for a field the form does not have', async () => {
+    vi.mocked(signUp).mockResolvedValue({
+      validationErrors: { nickname: { _errors: ['Pick another nickname.'] } } as never,
+    })
+    render(<SignUpForm />)
+
+    await fill('a@b.co', 'correct horse', 'correct horse')
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Pick another nickname.')
+    })
   })
 
   it('links to sign-in', () => {

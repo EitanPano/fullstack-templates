@@ -124,8 +124,9 @@ A frontend generated alone has every `server:*` selection off, and a server temp
     server:auth: [src/shared/auth, src/app/(auth)]
   ```
 
-  They are removed after the flags' `onlyPaths` and before the marker pass. `validate` fails on
-  a key that is not `server:<name>` of a declared flag or kind, on `onlyWhen` in a server
+  Parentheses are allowed in a path (a route group); `..`, `(..)`, `(...)`, absolute and backslash
+  paths fail validation. They are removed after the flags' `onlyPaths` and before the marker
+  pass. `validate` fails on a key that is not `server:<name>` of a declared flag or kind, on `onlyWhen` in a server
   template, and on a path missing from `base/`; its dry run applies every combination of the
   `server:*` selections (never one on without a server).
 - A frontend case sets the server's side with `server: { flags: { auth: false }, capabilities:

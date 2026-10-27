@@ -13,3 +13,7 @@ cases:
     deploy: single
     withApp: true
   - name: alone
+  - name: auth-off
+    stack: react-bun-express
+    deploy: single
+    server: { flags: { auth: false } }

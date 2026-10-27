@@ -2,12 +2,12 @@ schemaVersion: 1
 id: react
 kind: frontend
 name: React 19 SPA (Vite)
-version: 1.1.0
-summary: "Vite and React 19 single-page app with React Router data mode and a typed client generated from the server's contract"
-runtime: { language: typescript, platform: node, minVersion: '24' }
+version: 2.0.0
+summary: "Vite and React 19 single-page app on the frontend foundation: React Router data mode, shadcn/ui, TanStack Query and a client generated from the server's contract"
+runtime: { language: typescript, platform: node, minVersion: "24" }
 tools:
-  - { name: bun, min: '1.4' }
-  - { name: node, min: '24' }
+  - { name: bun, min: "1.4" }
+  - { name: node, min: "24" }
 placeholders: [PROJECT_NAME]
 dependencies: { manifest: package.json, adapter: npm }
 commands:
@@ -20,12 +20,44 @@ commands:
   test: bun run test
   testE2e: bun run test:e2e
   contract: bun run api:types
-contract: { consumes: '<server>/openapi.json' }
+contract: { consumes: "<server>/openapi.json" }
 http: { port: 5173, health: / }
 static: { out: dist }
 gitignore: [node]
 agents: AGENTS.md
 defaultStack: react-python-fastapi
+# The auth glue exists only while the stack's server has its auth flag on (the contract then has
+# /api/auth and /api/user). Lines inside shared files carry // @server:auth markers.
+onlyWhen:
+  server:auth:
+    - src/app/(auth)
+    - src/app/(site)/forbidden
+    - src/app/(site)/profile
+    - src/shared/api/session-hint.ts
+    - src/shared/auth
+    - src/shared/ui/pattern/auth-card.tsx
+    - src/entity/user
+    - src/feature/auth
+    - src/widget/account-menu
+    - src/widget/profile
+    - src/widget/sign-in
+    - src/widget/sign-up
+    - tests/e2e/auth-support.ts
+    - tests/e2e/auth.spec.ts
+    - tests/unit/account-menu.test.tsx
+    - tests/unit/api-client-refresh.test.ts
+    - tests/unit/auth-model.test.ts
+    - tests/unit/next-path.test.ts
+    - tests/unit/session-hint.test.ts
+    - tests/unit/auth-routes.test.tsx
+    - tests/unit/session.test.ts
+    - tests/unit/sign-in-form.test.tsx
+    - tests/unit/sign-up-form.test.tsx
+    - tests/unit/require-role.test.tsx
+    - tests/unit/sign-out.test.tsx
+  server:database:
+    - scripts/e2e-database-url.ts
+    - tests/unit/e2e-database-url.test.ts
 postGenerate:
   - install
   - contract
