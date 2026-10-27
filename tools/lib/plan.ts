@@ -87,6 +87,8 @@ export interface GenerationPlan {
   deploy: DeployMode | null
   // The resolved brand inputs and the placeholders built from them; null without a frontend.
   brand: PlanBrand | null
+  // The brand options given to a plan with no frontend, which has nowhere to apply them.
+  ignoredBrand: string[]
 }
 
 export interface PlanBrand {
@@ -480,6 +482,8 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
   // Only a plan with a frontend has a brand: a server-only plan must not fail on a display name
   // derived from its project name.
   const brand = frontend === undefined ? null : planBrand(input, projectName)
+  const ignoredBrand =
+    frontend === undefined ? Object.keys(mergeBrand(input.answers?.brand, input.brand)) : []
   return {
     out: input.out,
     projectName,
@@ -490,5 +494,6 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
     skipPostGenerate: input.skipPostGenerate,
     deploy,
     brand,
+    ignoredBrand,
   }
 }

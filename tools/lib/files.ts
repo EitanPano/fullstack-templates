@@ -1,6 +1,15 @@
 import { cpSync, readdirSync, rmSync, rmdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 
+// Hey API's output carries no catalog markers, but its comments can look like one (`// @ts-ignore`),
+// so the marker passes skip exactly the generated client directory. The path is relative to the
+// package; a `generated/` directory anywhere else is still scanned, so the skip cannot fail open.
+export const GENERATED_CLIENT_DIR = 'src/shared/api/generated/'
+
+export function inGeneratedDir(relativePath: string): boolean {
+  return relativePath.replaceAll('\\', '/').startsWith(GENERATED_CLIENT_DIR)
+}
+
 // Walks with the same predicate copyTree uses, so validation, the dry-run and copying see one tree.
 export function listFiles(dir: string): string[] {
   const found: string[] = []

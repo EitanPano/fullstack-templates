@@ -101,7 +101,8 @@ function defaultDeps(run: Runner, log: (message: string) => void, capture: Captu
 
 // The generated Compose file lists its secrets as a plain ${NAME} or ${NAME-} (empty when unset,
 // which keeps `docker compose` from warning): no default, so a shell that does not export them
-// cannot start the stack. The provider's entries get the value the compose network
+// cannot start the stack. An optional setting is ${NAME:-} or ${NAME:-default}: the runner never
+// generates it, and empty means unset. The provider's entries get the value the compose network
 // reaches it with; every other one gets 32 random bytes in base64, which satisfies the server's
 // secret rules (length, base64 key of 32 bytes) and differs between variables. Nothing is written
 // to disk; the values live in the child environment only.
@@ -115,9 +116,12 @@ export function appEnvironment(
   }
   // Comments may mention ${VAR} as an example; only the document's own references count.
   const code = composeText.replace(/(^|\s)#.*$/gm, '$1')
-  for (const match of code.matchAll(/\$\{([A-Za-z_][A-Za-z0-9_]*)-?\}/g)) {
+  for (const match of code.matchAll(/\$\{([A-Za-z_][A-Za-z0-9_]*)([^}]*)\}/g)) {
     const name = match[1]
-    if (name !== undefined && env[name] === undefined)
+    const operator = match[2] ?? ''
+    // Only a bare reference or the `-` form (no colon) names an app secret.
+    const isSecret = operator === '' || operator === '-'
+    if (isSecret && name !== undefined && env[name] === undefined)
       env[name] = randomBytes(32).toString('base64')
   }
   return env
