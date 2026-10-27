@@ -28,6 +28,9 @@ bun tools/validate.ts --pin <template>/<kind>/<provider>
 bun tools/generate.ts --stack <id> --out <dir> --name <name> \
   [--flag k=v] [--capability k=v] [--deploy single|split] [--answers <file>] \
   [--template <kind/id>] \
+  [--display-name <text>] [--brand-primary <hex>] [--brand-neutral <hex>] \
+  [--radius sm|md|lg] [--font system|inter] [--theme system|light|dark] \
+  [--density comfortable|compact] \
   [--skip-post-generate] [--keep-staging]
 bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] \
   [--with-services] [--with-app] [--keep]
@@ -43,6 +46,9 @@ bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] 
 - `generate` builds a project from a stack, or from one template with `--template`.
   `--skip-post-generate` leaves out install, contract and format; `--keep-staging` keeps the
   working directory for inspection.
+- The brand options (and `answers.brand`) apply to a frontend; `tools/lib/theme.ts` builds the OKLCH
+  tokens and fails, naming the pair, when a seed cannot pass the contrast checks. A server-only
+  plan ignores them.
 - `test-generated` generates each case from every template's `tests/cases.yaml` and runs
   its gates. `--list` prints the cases, `--case` runs one, `--e2e` adds the e2e suite (`--install-browsers` first installs Playwright's Chromium in each generated package that has one) and
   `--keep` keeps the output. `--with-services` starts a case's provider services with
@@ -150,13 +156,13 @@ below is what `validate` and the cases prove.
         the `(auth)` group, `shared/auth`, `feature/auth` and `entity/user`;
       - the example slices `entity/health`, `widget/system-status` and `feature/refresh-health`;
       - the `phone` and `desktop` projects in `playwright.config.ts` with
-        `reuseExistingServer: false`, `RATE_LIMIT_SCALE`, the `e2eDb` `globalSetup` and
-        `retries: 0`.
+        `reuseExistingServer: false`, `RATE_LIMIT_SCALE`, the API's command chained as
+        `e2eDb && start` (no `globalSetup`) and `retries: 0`.
 - [ ] The tests the template owns: the field bindings, the shell nav, `call`, the action client or
       the mutation helpers, theme toggling and (with auth) the session helpers, every auth action's
       success and failure paths and a refresh that two concurrent 401s trigger once; the e2e
       `shell.spec` and `screens.spec`, and the auth journeys.
-- [ ] The boundaries lint: `tests/unit/lint-zones.test.ts` lints one violation and one allowed
+- [ ] The boundaries lint: `tests/unit/eslint-boundaries.test.ts` lints one violation and one allowed
       case per rule through ESLint's Node API and the real `eslint.config.mjs`, and each message
       names the layer to use instead.
 - [ ] `static: { out: dist }` in `template.yaml`. Without it the server cannot serve the build and
@@ -171,7 +177,9 @@ below is what `validate` and the cases prove.
       `scale: 0` (no ports, no `depends_on`, no profile); the `split` variant is a
       `@nosingle-start` ... `@nosingle-end` block with `target: serve`, the ports and the `app`
       profile, and its `environment` and `depends_on` lines marked `@server` so a lone frontend has
-      none. `single` is a reserved selection, true only with a server in the plan and
+      none. In a fragment an app secret is `${NAME-}` (the runner generates it; the app refuses an
+      empty one); an optional setting is `${NAME:-}` or `${NAME:-default}` (the runner never
+      generates it; empty means unset). `single` is a reserved selection, true only with a server in the plan and
       `--deploy single`; `validate` dry-runs the file with it on and off.
 - [ ] `base/AGENTS.md` has the headings `Adding a feature`, `Styling`, `Errors`, `Tests` and
       `Deployment`, matched exactly; `validate` checks them in every frontend template. The layer
@@ -318,10 +326,14 @@ const sessions = null
 Placeholders are `__NAME__` tokens substituted in text files. A template declares its own
 in `placeholders` (usually `__PROJECT_NAME__`); the generator also provides
 `__PACKAGE_DIR__`, `__PORT__`, `__SERVER_DIR__`, `__SERVER_PORT__`, `__SERVER_DEV_COMMAND__` and
-`__FRONTEND_DIR__` (the frontend's directory, for a server's Compose fragment). A frontend also
-gets the brand placeholders `__PROJECT_DISPLAY_NAME__`, `__THEME_LIGHT__`, `__THEME_DARK__`,
-`__THEME_RADIUS__` and `__THEME_DEFAULT__` (the CSS blocks go into `globals.css`). A declared token
-left in the output fails the run; undeclared tokens such as `__dirname` are ignored.
+`__FRONTEND_DIR__` (the frontend's directory, for a server's Compose fragment). A frontend's e2e
+config also gets `__SERVER_START_COMMAND__` (the server's `start` command),
+`__SERVER_E2E_DB_COMMAND__` (its `e2eDb` command; empty without a database) and
+`__SERVER_E2E_DATABASE_URL__` (the provider's `e2e` URL; empty without one). A frontend also gets
+the brand placeholders `__PROJECT_DISPLAY_NAME__`, `__THEME_LIGHT__`, `__THEME_DARK__`,
+`__THEME_RADIUS__`, `__THEME_DEFAULT__`, `__THEME_DENSITY__`, `__THEME_FONT__` and
+`__THEME_FONT_STACK__` (the CSS blocks go into `globals.css`). A declared token left in the output
+fails the run; undeclared tokens such as `__dirname` are ignored.
 
 ## Refreshing `frontend/next/base`
 
@@ -349,7 +361,7 @@ When Next is bumped:
    against the previous copy: shadcn copies source, so an upgrade is a diff, not a version bump.
 7. Regenerate `src/shared/api/generated/` with the template's `contract` command (Hey API) from a
    server template's `openapi.json`, and commit it.
-8. Run `tests/unit/lint-zones.test.ts`. It lints one violation and one allowed case per rule
+8. Run `tests/unit/eslint-boundaries.test.ts`. It lints one violation and one allowed case per rule
    through the real `eslint.config.mjs`, so a new config block that overlaps a rule fails it.
 9. Run `next dev` once so Next refreshes its block in `AGENTS.md`.
 10. Run the production e2e for the Next cases:
@@ -379,10 +391,10 @@ When a dependency moves or the base is regenerated:
    adapting `Link` to `NavLink`; the Sheet is the phone nav.
 5. Run the `contract` command when the server's contract moved, and commit
    `src/shared/api/generated/`.
-6. Run `tests/unit/lint-zones.test.ts`. It lints one violation and one allowed case per boundaries
-   rule through the real `eslint.config.mjs`, so a new block that overlaps a rule fails it (ESLint
-   flat config replaces a rule's options for a file with those of the last block that matches it,
-   and does not merge them).
+6. Run `tests/unit/eslint-boundaries.test.ts`. It lints one violation and one allowed case per
+   boundaries rule through the real `eslint.config.mjs`, so a new block that overlaps a rule fails
+   it (ESLint flat config replaces a rule's options for a file with those of the last block that
+   matches it, and does not merge them).
 7. Bump `version` in `template.yaml` and `index.yaml`, add a `CHANGELOG.md` entry, and run
    `bun tools/validate.ts --readme`.
 8. Re-run the react cases with the container smoke:
@@ -395,15 +407,24 @@ When a dependency moves or the base is regenerated:
 A frontend's e2e suite never uses the development database. With a database provider (the
 frontend's `server:database` selection), the Playwright config starts the server fresh
 (`reuseExistingServer: false`) with the provider's `e2e` URL (`app_e2e`, in the provider's `env`
-contract) and `RATE_LIMIT_SCALE=100`, and its `globalSetup` runs the server's `e2eDb` command.
+contract) and `RATE_LIMIT_SCALE=100`. The API's web server command is `<e2eDb> && <start>` (the
+`__SERVER_E2E_DB_COMMAND__` and `__SERVER_START_COMMAND__` placeholders), because Playwright starts
+web servers before any `globalSetup`. `E2E_DATABASE_URL` overrides the URL; a blank value counts as
+unset, and the config refuses at load any URL whose database name does not end in `_e2e`.
+Generation fails closed when a planned server lacks `commands.start`, or when `server:database` is
+on without `commands.e2eDb` or a provider `e2e` URL; there is no silent fallback.
 
-- `e2eDb` is an overlay `commands` entry, so it exists only with a database provider. It creates
-  the database named by the `e2e` URL if it is missing, migrates it, and truncates every table
-  except the migrations table. It refuses a database whose name does not end in `_e2e`.
+- `e2eDb` is an overlay `commands` entry, so it exists only with a database provider. It creates the
+  database named by the `e2e` URL if it is missing, migrates it, and truncates every table except
+  the migrations table. It refuses a database whose name does not end in `_e2e`, refuses a URL with
+  a `dbname` query and checks `current_database()` before migrating.
 - The database is created on demand rather than in `db/init.sql`, which runs only on a fresh
   volume and so would miss existing ones.
-- `RATE_LIMIT_SCALE` multiplies every limit in `RATE_LIMITS`; production keeps 1. There is no
-  bypass switch.
+- `RATE_LIMIT_SCALE` (1 to 1000) multiplies every limit in `RATE_LIMITS`; production keeps 1; the
+  e2e suite uses 100. There is no bypass switch.
+- Container-mode e2e (`E2E_BASE_URL`, the case runner's Compose stack) starts nothing and runs at
+  rate-limit scale 1. Against a long-lived stack it can run about once per 15 minutes and leaves
+  its users in that stack's `app` database; the case runner does `up`, then `down -v`.
 - To prove it, start the provider (`docker compose up -d --wait database`) and run a stack case with
   `--with-services`. The cases publish host port 5432, so run them one at a time and check that
   nothing else holds it. The name guard is the last line of defence, not the first: never point

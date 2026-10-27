@@ -4,6 +4,8 @@ Status: accepted (2026-10-22)
 Owner: Eitan
 Repositories: `github.com/EitanPano/fullstack-templates` (this one, new) and
 `github.com/EitanPano/fullstack-dev-harness` (the consumer)
+Amended in part by ADR 0003 and ADR 0005: the frontend layer map (`feature/` only, `lib/api/`) is
+replaced by the five layers and `shared/api/`.
 
 ## Intent
 
