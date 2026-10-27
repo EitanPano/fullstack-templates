@@ -48,6 +48,12 @@ const encryptionKey = z.string().refine((value) => Buffer.from(value, 'base64').
 const databaseUrl = z.string().refine((value) => /^postgres(?:ql)?:\/\//.test(value), {
   message: 'must be a postgres:// or postgresql:// URL',
 })
+// The provider's e2e database: same server and credentials as the development one. A blank is
+// unset (Compose passes one), so a server that never uses it still boots.
+const e2eDatabaseUrl = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+  databaseUrl.default('postgres://app:app@127.0.0.1:5432/app_e2e'),
+)
 
 // @database:postgres-end
 // Express accepts a boolean, a hop count or a subnet/address list for `trust proxy`.
@@ -92,12 +98,19 @@ const schema = z
     OTP_SECRET: secret, // @auth
     ENCRYPTION_KEY: encryptionKey,
     DATABASE_URL: databaseUrl, // @database:postgres
+    // The e2e database `bun run db:e2e` prepares; the app itself never connects to it unless a
+    // run starts it with DATABASE_URL set to this value.
+    E2E_DATABASE_URL: e2eDatabaseUrl, // @database:postgres
     COOKIE_DOMAIN: z.string().trim().min(1).optional(), // @auth
     MAIL_PROVIDER: provider,
     SMS_PROVIDER: provider,
     WHATSAPP_PROVIDER: provider,
     MAIL_FROM: z.string().min(1).optional(),
     JOBS_ENABLED: booleanText.default(true),
+    // Multiplies every limit in RATE_LIMITS (middleware/rate-limit.ts). An e2e run sets it so a
+    // journey suite does not trip the limits; production keeps 1. At most 1000, so no value is a
+    // bypass.
+    RATE_LIMIT_SCALE: z.coerce.number().min(1).max(1000).default(1),
   })
   .transform((value, context) => {
     if (value.MAIL_PROVIDER !== 'console' && value.MAIL_FROM === undefined) {

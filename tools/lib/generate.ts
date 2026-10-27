@@ -21,7 +21,14 @@ import {
   type ProviderEnvWiring,
 } from './compose'
 import { applyDependencyChange, applyScripts } from './dependencies'
-import { copyTree, listFiles, pruneEmptyParents, removeTree, retryTransient } from './files'
+import {
+  copyTree,
+  inGeneratedDir,
+  listFiles,
+  pruneEmptyParents,
+  removeTree,
+  retryTransient,
+} from './files'
 import { mergeGitignore } from './gitignore'
 import { applyMarkers, commentSyntaxFor, findLeftoverMarker } from './markers'
 import {
@@ -39,7 +46,12 @@ import { UNPROCESSED_HINT, findUnprocessed } from './unprocessed'
 
 export const STAGING_DIR = '.fullstack-staging'
 
-const DEFAULT_SERVER = { dir: 'backend', port: '4000', devCommand: 'bun run dev' }
+const DEFAULT_SERVER = {
+  dir: 'backend',
+  port: '4000',
+  devCommand: 'bun run dev',
+  startCommand: 'bun run start',
+}
 
 export interface GenerateOptions {
   keepStaging?: boolean
@@ -66,6 +78,59 @@ export class GenerateError extends Error {
 
 type Log = (line: string) => void
 
+// The provider's browser-test URL; empty when the stack has no provider that declares one.
+function e2eDatabaseUrl(plan: GenerationPlan): string {
+  for (const provider of plan.providers) {
+    for (const entry of provider.manifest.env) if (entry.e2e !== undefined) return entry.e2e
+  }
+  return ''
+}
+
+// What a frontend's e2e starts: the server without a watcher, the command that prepares its
+// browser-test database (empty without a database) and that database's URL. With a server in the
+// plan these fail closed: a guessed command or an empty URL would only fail, or hit the
+// development database, when the e2e runs. The conventional fallback is for a frontend alone.
+function e2ePlaceholders(
+  plan: GenerationPlan,
+  pkg: PackagePlan,
+  server: PackagePlan | undefined,
+): Record<string, string> {
+  if (server === undefined || pkg.template.manifest.kind !== 'frontend') {
+    return {
+      SERVER_START_COMMAND: server?.commands.start ?? DEFAULT_SERVER.startCommand,
+      SERVER_E2E_DB_COMMAND: server?.commands.e2eDb ?? '',
+      SERVER_E2E_DATABASE_URL: e2eDatabaseUrl(plan),
+    }
+  }
+  const start = server.commands.start
+  if (start === undefined) {
+    throw new GenerateError(
+      `${server.dir}: the server declares no start command, which the frontend's e2e needs`,
+    )
+  }
+  const hasDatabase = plan.providers.some((provider) => provider.kind === 'database')
+  if (!hasDatabase) {
+    return { SERVER_START_COMMAND: start, SERVER_E2E_DB_COMMAND: '', SERVER_E2E_DATABASE_URL: '' }
+  }
+  const prepare = server.commands.e2eDb
+  if (prepare === undefined) {
+    throw new GenerateError(
+      `${server.dir}: the database has no e2eDb command, which the frontend's e2e needs`,
+    )
+  }
+  const url = e2eDatabaseUrl(plan)
+  if (url === '') {
+    throw new GenerateError(
+      "the database provider declares no e2e URL, which the frontend's e2e needs",
+    )
+  }
+  return {
+    SERVER_START_COMMAND: start,
+    SERVER_E2E_DB_COMMAND: prepare,
+    SERVER_E2E_DATABASE_URL: url,
+  }
+}
+
 export function packagePlaceholders(
   plan: GenerationPlan,
   pkg: PackagePlan,
@@ -77,6 +142,7 @@ export function packagePlaceholders(
     )
   }
   const http = pkg.template.manifest.http
+  const server = plan.packages.find((candidate) => candidate.dir === pkg.serverDir)
   return {
     ...placeholderValues(plan.projectName),
     // Absent without a frontend: a kept line that uses it fails in sweepPlaceholders, while the
@@ -87,6 +153,9 @@ export function packagePlaceholders(
     SERVER_DIR: pkg.serverDir ?? DEFAULT_SERVER.dir,
     SERVER_PORT: pkg.serverPort === null ? DEFAULT_SERVER.port : String(pkg.serverPort),
     SERVER_DEV_COMMAND: pkg.serverDevCommand ?? DEFAULT_SERVER.devCommand,
+    ...e2ePlaceholders(plan, pkg, server),
+    // Only a frontend takes the brand: no server file holds a theme.
+    ...(pkg.template.manifest.kind === 'frontend' ? (plan.brand?.placeholders ?? {}) : {}),
   }
 }
 
@@ -150,10 +219,18 @@ function removeOnlyPaths(pkg: PackagePlan, pkgStaging: string): void {
   }
 }
 
+// A selection that is off removes the template's onlyWhen paths for it (server:auth of a frontend).
+function removeOnlyWhen(pkg: PackagePlan, pkgStaging: string): void {
+  for (const [name, paths] of Object.entries(pkg.template.manifest.onlyWhen ?? {})) {
+    if (pkg.selections[name] === true) continue
+    for (const only of paths) removeOnlyPath(pkg, pkgStaging, only, `onlyWhen ${name}`)
+  }
+}
+
 function applyMarkerPass(pkg: PackagePlan, staging: string, pkgStaging: string): void {
   for (const file of textFiles(pkgStaging)) {
     const syntax = commentSyntaxFor(file)
-    if (syntax === undefined) continue
+    if (syntax === undefined || inGeneratedDir(path.relative(pkgStaging, file))) continue
     rewrite(file, (content) =>
       applyMarkers(content, syntax, toWhere(staging, file), pkg.selections),
     )
@@ -162,6 +239,7 @@ function applyMarkerPass(pkg: PackagePlan, staging: string, pkgStaging: string):
 
 function sweepMarkers(staging: string, pkgStaging: string): void {
   for (const file of textFiles(pkgStaging)) {
+    if (inGeneratedDir(path.relative(pkgStaging, file))) continue
     const lines = readFileSync(file, 'utf8').split('\n')
     const syntax = commentSyntaxFor(file)
     for (const [index, line] of lines.entries()) {
@@ -242,6 +320,13 @@ function appendEnvExample(
         entry.testOverride === undefined
           ? `# Tests (testDb) use ${entry.test}.`
           : `# Tests (testDb) use ${entry.test}; override with ${entry.testOverride}.`,
+        ...(entry.e2e === undefined
+          ? []
+          : [
+              entry.e2eOverride === undefined
+                ? `# Browser tests (e2eDb) use ${entry.e2e}.`
+                : `# Browser tests (e2eDb) use ${entry.e2e}; override with ${entry.e2eOverride}.`,
+            ]),
         `${entry.name}=${entry.local}`,
       ])
     }
@@ -268,6 +353,7 @@ function buildPackage(
   copyTree(path.join(pkg.template.dir, 'base'), pkgStaging)
   copyOverlays(pkg, pkgStaging)
   removeOnlyPaths(pkg, pkgStaging)
+  removeOnlyWhen(pkg, pkgStaging)
   applyMarkerPass(pkg, staging, pkgStaging)
   sweepMarkers(staging, pkgStaging)
   removeDependencies(pkg, pkgStaging)
@@ -637,6 +723,11 @@ export function generate(
     mkdirSync(plan.out, { recursive: true })
     if (!statSync(plan.out).isDirectory()) throw new GenerateError(`${plan.out} is not a directory`)
     checkPreconditions(plan, staging)
+    if (plan.ignoredBrand.length > 0) {
+      log(
+        `warning: no frontend in the plan, so these brand options are ignored: ${plan.ignoredBrand.join(', ')}`,
+      )
+    }
     log(`==> Staging in ${staging}`)
     const values = new Map(plan.packages.map((p) => [p.dir, packagePlaceholders(plan, p, log)]))
     for (const pkg of plan.packages) {

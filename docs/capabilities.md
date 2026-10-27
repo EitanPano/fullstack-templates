@@ -108,6 +108,34 @@ overlay file that only makes sense with a flag on belongs under one of that flag
 `onlyPaths`, or is listed in the capability's own `flags.<name>.onlyPaths`; `validate` fails
 on a flag the template does not declare and on a path the overlay does not contain.
 
+## Cross-package selections
+
+A frontend sees the stack's server package as `server:<name>` selections: one per flag and one
+per capability kind that any server template of the catalog declares (`server:auth`,
+`server:database`). Each is on when the server package has that flag on or that kind selected.
+A frontend generated alone has every `server:*` selection off, and a server template has none.
+
+- Markers use them like flags: `// @server:auth`, `// @noserver:auth`, and the `-start`/`-end`
+  block form (markers do not work in `.css` or `.json`).
+- A frontend template lists files that exist only while a selection is on under `onlyWhen`:
+
+  ```yaml
+  onlyWhen:
+    server:auth: [src/shared/auth, src/app/(auth)]
+  ```
+
+  Parentheses are allowed in a path (a route group); `..`, `(..)`, `(...)`, absolute and backslash
+  paths fail validation. They are removed after the flags' `onlyPaths` and before the marker
+  pass. `validate` fails on a key that is not `server:<name>` of a declared flag or kind, on `onlyWhen` in a server
+  template, and on a path missing from `base/`; its dry run applies every combination of the
+  `server:*` selections (never one on without a server).
+- A frontend case sets the server's side with `server: { flags: { auth: false }, capabilities:
+  { database: postgres } }`; the flags and capabilities must be declared by the stack's server
+  template, and the case needs a `stack`.
+
+A provider env entry may also carry `e2e` (the browser-test database URL) and `e2eOverride` (the
+variable that overrides it), written to the example env file beside the `test` URL.
+
 ## Root assembly
 
 The generator completes the project root from the provider, once per project:

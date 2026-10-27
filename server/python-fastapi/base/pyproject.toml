@@ -41,6 +41,7 @@ typecheck = "mypy src tests"
 test = "pytest"
 contract = "python -m app.openapi --write"
 test-db = "pytest -p tests.db.plugin"  # @database:postgres
+e2e-db = "python -m app.infra.scripts.e2e_db"  # @database:postgres
 migrate = "python -m app.infra.scripts.migrate"  # @database:postgres
 # PYTHONUTF8: without it, rich's legacy Windows renderer crashes on a NUL stdout.
 lint = [{ cmd = "ruff check" }, { cmd = "lint-imports", env = { PYTHONUTF8 = "1" } }]

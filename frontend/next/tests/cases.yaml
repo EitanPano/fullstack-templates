@@ -2,4 +2,14 @@ schemaVersion: 1
 cases:
   - name: default
     stack: next-bun-express
+  - name: auth-off
+    stack: next-bun-express
+    server: { flags: { auth: false } }
+  # The production e2e against a real database (app_e2e) and, with --with-app, against the image.
+  - name: stack-postgres
+    stack: next-bun-express
+    withApp: true
+    server: { capabilities: { database: postgres } }
+  - name: python
+    stack: next-python-fastapi
   - name: alone

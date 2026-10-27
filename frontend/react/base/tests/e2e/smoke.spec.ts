@@ -1,27 +1,24 @@
-import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
-import type { Page } from '@playwright/test'
 
-async function seriousViolations(page: Page) {
-  const results = await new AxeBuilder({ page }).analyze()
-  return results.violations.filter(
-    (violation) => violation.impact === 'serious' || violation.impact === 'critical',
-  )
-}
+import { expectNoSeriousViolations } from './support'
 
-test('home page reaches the API and has no serious accessibility violations', async ({ page }) => {
+test('home page reaches the API and shows its status', async ({ page }) => {
   await page.goto('/')
 
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await expect(page.getByRole('status')).toContainText('API v')
 
-  expect(await seriousViolations(page)).toEqual([])
+  await expectNoSeriousViolations(page)
 })
 
-test('an unknown path renders the not-found page, not a server error', async ({ page }) => {
-  await page.goto('/no/such/page')
+test('Refresh pings the API again and confirms with a toast', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('status')).toContainText('API v')
 
-  await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible()
+  await page.getByRole('button', { name: 'Refresh' }).click()
 
-  expect(await seriousViolations(page)).toEqual([])
+  await expect(page.getByText('Status refreshed')).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: 'API v' })).toBeVisible()
+
+  await expectNoSeriousViolations(page)
 })

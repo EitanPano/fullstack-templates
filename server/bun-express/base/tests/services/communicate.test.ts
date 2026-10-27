@@ -19,6 +19,7 @@ import { otpTemplate } from '../../src/services/communicate/templates/otp' // @a
 import { passwordResetTemplate } from '../../src/services/communicate/templates/password-reset' // @auth
 import { welcomeTemplate } from '../../src/services/communicate/templates/welcome' // @auth
 import { createLogger } from '../../src/services/logger'
+import { captureLogs } from '../logs'
 
 type Lines = string[]
 
@@ -213,13 +214,18 @@ describe('registerProvider', () => {
     registerProvider(channel, {
       send: () => Promise.reject(new Error('vendor down')),
     })
+    // The failure is logged on purpose; the line stays out of a green run, and any other fails it.
+    const logs = captureLogs([/^message delivery failed channel=whatsapp /])
     let failure: unknown
     try {
       await send({ channel, to: '+15550100', template: otp }) // @auth
       await send({ channel, to: '+15550100', template: sample }) // @noauth
     } catch (error) {
       failure = error
+    } finally {
+      logs.restore()
     }
+    expect(logs.lines).toHaveLength(1)
     expect(failure).toMatchObject({
       code: 'upstream_unavailable',
       message: 'message delivery failed',

@@ -1,14 +1,16 @@
 schemaVersion: 1
 kind: database
 provider: postgres
-summary: Postgres through Bun's built-in SQL client, SQL migrations and a separate test database
+summary: Postgres through Bun's built-in SQL client, SQL migrations, a separate test database and an e2e database
 scripts:
   db:migrate: bun run src/infra/scripts/migrate.ts
   test:db: bun test --preload ./tests/db/setup.ts
+  db:e2e: bun run src/infra/scripts/e2e-db.ts
 container:
   migrate: bun run src/infra/scripts/migrate.ts
 commands:
   testDb: bun run test:db
+  e2eDb: bun run db:e2e
   migrate: bun run db:migrate
 flags:
   auth:
@@ -18,5 +20,5 @@ pins:
   src/api/user/service.ts: eef9db383831644ce6daaca31a18b34829c833c8
   src/services/db.ts: d0cfb233b926d5658a8e49574b52793699eed9ac
   src/services/session.ts: 9de729a225440026ca51a0867e83506e9b89375d
-  tests/services/session.test.ts: 5de43e9fca8faa59af62aa21acdb429011053ceb
+  tests/services/session.test.ts: 38f7d3da3f70798f180ade758d24f8b0d469aca5
   tests/store.ts: 61a48b7bf7d36c6baad539d7404ffe44acc59897

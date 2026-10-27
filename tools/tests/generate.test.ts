@@ -252,6 +252,69 @@ describe('generate: edges', () => {
     expect(lines).toHaveLength(1)
   })
 
+  test('a frontend gets the server start command, the e2eDb command and the e2e database URL', () => {
+    const plain = resolveRequest(catalog, request(tempDir()))
+    const web = plain.packages.find((pkg) => pkg.dir === 'frontend')!
+    expect(packagePlaceholders(plain, web)).toMatchObject({
+      SERVER_START_COMMAND: 'bun ./ok.ts start',
+      SERVER_E2E_DB_COMMAND: '',
+      SERVER_E2E_DATABASE_URL: '',
+    })
+    const copy = catalog
+    const withDb = resolveRequest(copy, request(tempDir(), { capabilities: ['database=fake'] }))
+    const webDb = withDb.packages.find((pkg) => pkg.dir === 'frontend')!
+    expect(packagePlaceholders(withDb, webDb)).toMatchObject({
+      SERVER_START_COMMAND: 'bun ./ok.ts start',
+      SERVER_E2E_DB_COMMAND: 'bun run db:e2e',
+      SERVER_E2E_DATABASE_URL: 'fake://localhost:5432/app_e2e',
+    })
+  })
+
+  test('a frontend over a server without a start command is refused, not given the Bun one', () => {
+    const root = copyFixture('catalog')
+    const target = path.join(root, 'server/mini/template.yaml')
+    writeFileSync(target, readFileSync(target, 'utf8').replace(/^ *start:.*$/m, '# no start'))
+    const plan = resolveRequest(loadCatalog(root), request(tempDir()))
+    const web = plan.packages.find((pkg) => pkg.dir === 'frontend')!
+    expect(() => packagePlaceholders(plan, web)).toThrow(/no start command/)
+  })
+
+  test('a database without an e2eDb command or an e2e URL is refused for a frontend', () => {
+    const edit = (root: string, file: string, from: RegExp, to: string) => {
+      const target = path.join(root, file)
+      writeFileSync(target, readFileSync(target, 'utf8').replace(from, to))
+    }
+    const frontendOf = (root: string) => {
+      const plan = resolveRequest(
+        loadCatalog(root),
+        request(tempDir(), { capabilities: ['database=fake'] }),
+      )
+      return () =>
+        packagePlaceholders(
+          plan,
+          plan.packages.find((pkg) => pkg.dir === 'frontend')!,
+        )
+    }
+    const noCommand = copyFixture('catalog')
+    edit(noCommand, 'server/mini/capabilities/database/fake/capability.yaml', /^ *e2eDb:.*$/m, '')
+    expect(frontendOf(noCommand)).toThrow(/e2eDb/)
+
+    const noUrl = copyFixture('catalog')
+    edit(noUrl, 'shared/providers/database/fake/provider.yaml', /^ *e2e:.*$/m, '')
+    expect(frontendOf(noUrl)).toThrow(/e2e URL/)
+  })
+
+  test('without a server the start command falls back to the conventional one', () => {
+    const plan = resolveRequest(
+      catalog,
+      request(tempDir(), { stack: undefined, template: 'frontend/mini-ui' }),
+    )
+    expect(packagePlaceholders(plan, plan.packages[0]!)).toMatchObject({
+      SERVER_START_COMMAND: 'bun run start',
+      SERVER_E2E_DB_COMMAND: '',
+    })
+  })
+
   test('a lone frontend with a compose fragment logs the server assumption once', () => {
     const lines: string[] = []
     generate(
@@ -521,6 +584,7 @@ describe('generate with a capability', () => {
         '# database/fake provider',
         '# Connection string of the fake database',
         '# Tests (testDb) use fake://localhost:5432/app_test; override with TEST_DATABASE_URL.',
+        '# Browser tests (e2eDb) use fake://localhost:5432/app_e2e; override with E2E_DATABASE_URL.',
         'DATABASE_URL=fake://localhost:5432/app',
         '',
         '# database/fake provider',
@@ -551,7 +615,7 @@ describe('generate with a capability', () => {
     expect(compose.services.database.image).toBe('fake-db:1')
     expect(compose.volumes).toEqual({ 'database-data': {} })
     // a secret entry has no default; a plain one keeps its compose-network value
-    expect(compose.services.backend.environment.DATABASE_URL).toBe('${DATABASE_URL}')
+    expect(compose.services.backend.environment.DATABASE_URL).toBe('${DATABASE_URL-}')
     expect(compose.services.backend.environment.FAKE_POOL_SIZE).toBe('${FAKE_POOL_SIZE:-5}')
     expect(compose.services.backend.depends_on).toEqual({
       database: { condition: 'service_healthy' },

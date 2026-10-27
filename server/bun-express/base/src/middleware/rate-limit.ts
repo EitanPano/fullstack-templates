@@ -1,17 +1,24 @@
 // rate-limit.ts belongs: fixed-window request limiting per subject, mounted per endpoint
 // before validate. It does not belong: choosing limits (config/constants.ts RATE_LIMITS).
-// It is the only middleware allowed to import services/cache.ts.
+// It is the only middleware allowed to import services/cache.ts. It applies RATE_LIMIT_SCALE to
+// every limit, so no caller scales its own.
 import type { Request, RequestHandler } from 'express'
 import { isIPv4, isIPv6 } from 'node:net'
 
+import { env } from '../config/env'
 import { incr } from '../services/cache'
 import { sha256 } from '../services/security/crypto'
 import { AppError } from '../services/utils/error'
 import { parseDuration } from '../services/utils/time'
 
+// Same bounds as RATE_LIMIT_SCALE in config/env.ts: no value may disable limiting.
+const MAX_RATE_LIMIT_SCALE = 1000
+
 export type RateLimitOptions = {
   name: string
   limit: number
+  // Multiplies the limit; defaults to RATE_LIMIT_SCALE, which is 1 unless an e2e run raises it.
+  scale?: number
   // A duration string, e.g. RATE_LIMITS.loginPerIp.window. // @auth
   // A duration string, e.g. RATE_LIMITS.createPostPerIp.window. // @noauth
   window: string
@@ -19,8 +26,23 @@ export type RateLimitOptions = {
   key: (req: Request) => string | undefined
 }
 
-export function rateLimit({ name, limit, window, key }: RateLimitOptions): RequestHandler {
+// Rounded up so a scale never lowers a limit; the epsilon keeps 10 * 1.1 (11.000000000000002) at 11.
+export function scaledLimit(limit: number, scale: number): number {
+  if (!(scale >= 1 && scale <= MAX_RATE_LIMIT_SCALE)) {
+    throw new RangeError(`rate limit scale must be between 1 and ${String(MAX_RATE_LIMIT_SCALE)}`)
+  }
+  return Math.ceil(limit * scale - 1e-9)
+}
+
+export function rateLimit({
+  name,
+  limit,
+  scale = env.RATE_LIMIT_SCALE,
+  window,
+  key,
+}: RateLimitOptions): RequestHandler {
   const windowMs = parseDuration(window)
+  const max = scaledLimit(limit, scale)
   return async (req, res, next) => {
     const subject = key(req)
     if (subject === undefined) {
@@ -31,7 +53,7 @@ export function rateLimit({ name, limit, window, key }: RateLimitOptions): Reque
     // otherwise become a megabyte cache key) and the subject never sits in the cache in clear.
     try {
       const count = await incr(`rl:${name}:${sha256(subject)}`, windowMs)
-      if (count > limit) {
+      if (count > max) {
         // The window length is an upper bound: the window started at the first hit, not now.
         res.setHeader('Retry-After', String(Math.ceil(windowMs / 1000)))
         next(new AppError('rate_limited', 'too many requests'))

@@ -10,7 +10,16 @@ runtime:
 tools:
   - name: bun
     min: '1.4'
-placeholders: [PROJECT_NAME]
+placeholders:
+  - PROJECT_NAME
+  - PROJECT_DISPLAY_NAME
+  - THEME_LIGHT
+  - THEME_DARK
+  - THEME_RADIUS
+  - THEME_DEFAULT
+  - THEME_DENSITY
+  - THEME_FONT
+  - THEME_FONT_STACK
 dependencies:
   manifest: package.json
   adapter: npm
@@ -23,6 +32,8 @@ contract:
 http:
   port: 3000
   health: /
+onlyWhen:
+  server:auth: [src/session.ts]
 gitignore: [node]
 agents: AGENTS.md
 defaultStack: mini

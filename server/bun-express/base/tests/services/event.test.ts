@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import { drain, publish, subscribe } from '../../src/services/event'
+import { captureLogs } from '../logs'
 
 const cleanups: (() => void)[] = []
 afterEach(() => {
@@ -28,6 +29,8 @@ describe('event', () => {
 
   it('does not let a throwing subscriber block another', async () => {
     let ran = false
+    // The failure is logged on purpose; capture it so a green run prints no stack trace.
+    const logs = captureLogs([/^subscriber failed topic=\S+ reason=boom/])
     cleanups.push(
       subscribe('user.registered', () => { // @auth
       subscribe('module.created', () => { // @noauth
@@ -39,11 +42,16 @@ describe('event', () => {
       }),
     )
 
-    await publish('user.registered', { userId: 'u2' }) // @auth
-    await publish('module.created', { moduleId: 'm2' }) // @noauth
-    await drain()
+    try {
+      await publish('user.registered', { userId: 'u2' }) // @auth
+      await publish('module.created', { moduleId: 'm2' }) // @noauth
+      await drain()
+    } finally {
+      logs.restore()
+    }
 
     expect(ran).toBe(true)
+    expect(logs.lines).toHaveLength(1)
   })
 
   it('stops delivering after unsubscribe', async () => {

@@ -2,6 +2,8 @@ import {
   CAPABILITY_KINDS,
   DEFAULT_DIR_BY_KIND,
   DEPLOY_MODES,
+  SERVER_PREFIX,
+  serverSelectionNames,
   type Catalog,
   type CapabilitySpec,
   type CommandName,
@@ -10,14 +12,25 @@ import {
   type LoadedProvider,
   type LoadedTemplate,
 } from './catalog'
+import {
+  BRAND_KEYS,
+  BrandError,
+  brandPlaceholders,
+  resolveBrand,
+  type Brand,
+  type BrandInput,
+} from './brand'
 import { isKind } from './capability-kinds'
 import { migrateServiceName } from './compose'
 import { toProjectName } from './placeholders'
+import { ThemeError } from './theme'
 
 export interface Answers {
   projectName?: string
   // Validated in resolveRequest, so a bad value from a JSON file names the reason.
   deploy?: string
+  // The brand inputs of the frontend; the CLI options override them.
+  brand?: BrandInput
   packages?: Record<
     string,
     { flags?: Record<string, boolean>; capabilities?: Record<string, string> }
@@ -37,6 +50,8 @@ export interface RequestInput {
   skipPostGenerate: boolean
   // The --deploy value; overrides the answers file like a flag shorthand does.
   deploy?: string
+  // The brand options; each overrides the same key of answers.brand.
+  brand?: BrandInput
 }
 
 export interface PackagePlan {
@@ -70,6 +85,15 @@ export interface GenerationPlan {
   skipPostGenerate: boolean
   // Null unless the plan has both a server and a frontend: a lone package has no mode to choose.
   deploy: DeployMode | null
+  // The resolved brand inputs and the placeholders built from them; null without a frontend.
+  brand: PlanBrand | null
+  // The brand options given to a plan with no frontend, which has nowhere to apply them.
+  ignoredBrand: string[]
+}
+
+export interface PlanBrand {
+  inputs: Brand
+  placeholders: Record<string, string>
 }
 
 export const DIR_PATTERN = /^[a-z][a-z0-9-]*$/
@@ -185,19 +209,22 @@ export const SINGLE_SELECTION = 'single'
 
 // Shared by the plan and the marker dry-run so the two cannot drift: every flag, the reserved
 // server and single, then per declared kind `<kind>` (a provider is selected) and `<kind>:<provider>` for
-// each provider the template lists.
+// each provider the template lists. A frontend also gets `server:<name>` for each flag and
+// capability kind of the stack's server (`serverFacts`, keyed by the bare name).
 export function selectionsFor(
   template: LoadedTemplate,
   flags: Record<string, boolean>,
   hasServer: boolean,
   single: boolean,
   capabilities: Record<string, string>,
+  serverFacts: Readonly<Record<string, boolean>> = {},
 ): Record<string, boolean> {
   const selections: Record<string, boolean> = {
     ...flags,
     [SERVER_SELECTION]: hasServer,
     [SINGLE_SELECTION]: hasServer && single,
   }
+  for (const [name, on] of Object.entries(serverFacts)) selections[SERVER_PREFIX + name] = on
   for (const [kind, spec] of Object.entries(template.manifest.capabilities ?? {})) {
     selections[kind] = capabilities[kind] !== undefined
     for (const provider of spec.providers) {
@@ -284,6 +311,53 @@ function providersFor(catalog: Catalog, packages: PackagePlan[]): LoadedProvider
   )
 }
 
+// The flags and capability kinds of the server package as the frontend sees them: every name any
+// server of the catalog declares, off unless this server has it on. A plan without a server has
+// them all off.
+function serverFactsFor(
+  catalog: Catalog,
+  server: PackagePlan | undefined,
+): Record<string, boolean> {
+  const facts: Record<string, boolean> = {}
+  for (const name of serverSelectionNames(catalog.templates.values())) facts[name] = false
+  for (const [name, on] of Object.entries(server?.flags ?? {})) facts[name] = on
+  for (const kind of Object.keys(server?.capabilities ?? {})) facts[kind] = true
+  return facts
+}
+
+// answers.brand, then the options over it. An unknown key or a non-string names itself.
+function mergeBrand(fromAnswers: unknown, fromOptions: BrandInput | undefined): BrandInput {
+  const merged: Record<string, string> = {}
+  if (fromAnswers !== undefined) {
+    if (typeof fromAnswers !== 'object' || fromAnswers === null || Array.isArray(fromAnswers)) {
+      throw new PlanError('answers.brand must be an object')
+    }
+    for (const [key, value] of Object.entries(fromAnswers)) {
+      if (!(BRAND_KEYS as readonly string[]).includes(key)) {
+        throw new PlanError(`unknown answers.brand key: ${key} (known: ${BRAND_KEYS.join(', ')})`)
+      }
+      if (typeof value !== 'string') throw new PlanError(`answers.brand.${key} must be a string`)
+      merged[key] = value
+    }
+  }
+  for (const [key, value] of Object.entries(fromOptions ?? {})) {
+    if (value !== undefined) merged[key] = value
+  }
+  return merged
+}
+
+function planBrand(input: RequestInput, projectName: string): PlanBrand {
+  try {
+    const inputs = resolveBrand(mergeBrand(input.answers?.brand, input.brand), projectName)
+    return { inputs, placeholders: brandPlaceholders(inputs) }
+  } catch (error) {
+    if (error instanceof BrandError || error instanceof ThemeError) {
+      throw new PlanError(error.message)
+    }
+    throw error
+  }
+}
+
 export function resolveRequest(catalog: Catalog, input: RequestInput): GenerationPlan {
   const { members: declared, stackId } = resolveMembers(catalog, input)
   const members = orderForContract(declared)
@@ -327,7 +401,7 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
     const consumer =
       member.template.manifest.contract !== undefined &&
       'consumes' in member.template.manifest.contract
-    return {
+    const plan: PackagePlan = {
       dir: member.dir,
       template: member.template,
       flags,
@@ -351,7 +425,23 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
       serverDevCommand: null,
       contractSkipped: consumer && server === undefined,
     }
+    return plan
   })
+
+  // A frontend sees the server's flags and capabilities, so these selections wait until every
+  // package is planned: the order of the members decides nothing.
+  const serverPlan = packages.find((pkg) => pkg.dir === server?.dir)
+  for (const pkg of packages) {
+    if (pkg.template.manifest.kind === 'server') continue
+    pkg.selections = selectionsFor(
+      pkg.template,
+      pkg.flags,
+      server !== undefined,
+      deploy === 'single',
+      pkg.capabilities,
+      serverFactsFor(catalog, serverPlan),
+    )
+  }
 
   // The server's commands include its capabilities', so they are known only once every package is.
   const serverDevCommand = packages.find((pkg) => pkg.dir === server?.dir)?.commands.dev ?? null
@@ -388,14 +478,22 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
     }
   }
 
+  const projectName = toProjectName(input.answers?.projectName ?? input.name)
+  // Only a plan with a frontend has a brand: a server-only plan must not fail on a display name
+  // derived from its project name.
+  const brand = frontend === undefined ? null : planBrand(input, projectName)
+  const ignoredBrand =
+    frontend === undefined ? Object.keys(mergeBrand(input.answers?.brand, input.brand)) : []
   return {
     out: input.out,
-    projectName: toProjectName(input.answers?.projectName ?? input.name),
+    projectName,
     stackId,
     packages,
     providers,
     catalogVersion: input.catalogVersion,
     skipPostGenerate: input.skipPostGenerate,
     deploy,
+    brand,
+    ignoredBrand,
   }
 }

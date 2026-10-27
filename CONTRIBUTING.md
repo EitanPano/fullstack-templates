@@ -28,6 +28,9 @@ bun tools/validate.ts --pin <template>/<kind>/<provider>
 bun tools/generate.ts --stack <id> --out <dir> --name <name> \
   [--flag k=v] [--capability k=v] [--deploy single|split] [--answers <file>] \
   [--template <kind/id>] \
+  [--display-name <text>] [--brand-primary <hex>] [--brand-neutral <hex>] \
+  [--radius sm|md|lg] [--font system|inter] [--theme system|light|dark] \
+  [--density comfortable|compact] \
   [--skip-post-generate] [--keep-staging]
 bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] \
   [--with-services] [--with-app] [--keep]
@@ -43,6 +46,9 @@ bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] 
 - `generate` builds a project from a stack, or from one template with `--template`.
   `--skip-post-generate` leaves out install, contract and format; `--keep-staging` keeps the
   working directory for inspection.
+- The brand options (and `answers.brand`) apply to a frontend; `tools/lib/theme.ts` builds the OKLCH
+  tokens and fails, naming the pair, when a seed cannot pass the contrast checks. A server-only
+  plan ignores them.
 - `test-generated` generates each case from every template's `tests/cases.yaml` and runs
   its gates. `--list` prints the cases, `--case` runs one, `--e2e` adds the e2e suite (`--install-browsers` first installs Playwright's Chromium in each generated package that has one) and
   `--keep` keeps the output. `--with-services` starts a case's provider services with
@@ -50,7 +56,7 @@ bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] 
   `docker compose down -v`; without it a case with providers runs `check` only.
   `--with-app` runs the app smoke for a case that sets `withApp: true` in its
   `tests/cases.yaml` (`stack-postgres` in both server templates, and `default`, `split` and `bun`
-  in `frontend/react`), and skips it otherwise. A case's `deploy` field selects the deploy mode it
+  in `frontend/react`, and `stack-postgres` in `frontend/next`), and skips it otherwise. A case's `deploy` field selects the deploy mode it
   generates and is smoked in.
   It exports throwaway production secrets in the child environment only, runs
   `docker compose --profile app up --build --wait` (which builds the images and runs the
@@ -128,16 +134,37 @@ shell: no pipes, redirects, quoting, variables or command substitution (the sche
 [docs/conventions.md › Frontend, single-page app](docs/conventions.md) (ADR 0003, M5-1); the checklist
 below is what `validate` and the cases prove.
 
-- [ ] The contract: `src/app/` is routing only (`routes.tsx`, a root `layout` and `not-found`, and per
-      route segment a `page`, a `loading` and an `error`); `src/main.tsx` mounts the router and the
-      toaster and nothing else; `feature/<name>/{ui,api,model.ts}` with only `feature/*/api/`
-      importing the client; `src/env.ts` the only reader of `import.meta.env`; the API reached at
-      relative `/api` with no compiled-in URL and no CORS; the dev server proxies `/api` to the
-      server's port.
-- [ ] The UI baseline ([ADR 0004](docs/adr/0004-ui-baseline.md)): `shared/ui/app-shell`,
-      `shared/ui/button` and `app/nav` (the layout passes the entries to the shell as props),
-      token scales in `globals.css`, `tests/e2e/shell.spec` and the `phone` project in
-      `playwright.config.ts`.
+- [ ] The contract ([docs/conventions.md](docs/conventions.md),
+      [ADR 0005](docs/adr/0005-frontend-foundation.md)): `src/app/` is routing only (`routes.tsx`, a
+      root `layout` and `not-found`, and per route group a `loading` and an `error`);
+      `src/main.tsx` mounts the router, the theme provider, the query client and the toaster and
+      nothing else; the layers `widget/`, `feature/`, `entity/` and
+      `shared/` with `api/` as the data layer; `src/shared/config/env.ts` the only reader of
+      `import.meta.env`; the API reached at relative `/api` with no compiled-in URL and no CORS; the
+      dev server proxies `/api` to the server's port.
+- [ ] The foundation baseline files:
+      - `components.json` (`ui` to `@/shared/ui`, `utils` to `@/shared/lib/cn`), the shadcn
+        primitives in `shared/ui/`, the field bindings in `shared/ui/form/` and the patterns in
+        `shared/ui/pattern/` (`AppShell`, `Page`, `PageHeader`, `EmptyState`, `ErrorState`,
+        `AuthCard`, `UserMenu`, the skeletons);
+      - `globals.css` with the OKLCH tokens, `THEME_LIGHT` and `THEME_DARK` in `:root` and `.dark`,
+        and `@custom-variant dark`; a theme provider with a toggle in the `UserMenu`;
+      - `shared/api/generated/` from `contract` (committed, never edited), `shared/api/client.ts`
+        and `shared/api/call.ts`; the form schema extends the generated one;
+      - `shared/lib/date.ts`, `shared/lib/cn.ts` and the mutation helpers;
+      - `app/nav.ts`, the `(site)` route group, and with auth (`onlyWhen: { "server:auth": ... }`)
+        the `(auth)` group, `shared/auth`, `feature/auth` and `entity/user`;
+      - the example slices `entity/health`, `widget/system-status` and `feature/refresh-health`;
+      - the `phone` and `desktop` projects in `playwright.config.ts` with
+        `reuseExistingServer: false`, `RATE_LIMIT_SCALE`, the API's command chained as
+        `e2eDb && start` (no `globalSetup`) and `retries: 0`.
+- [ ] The tests the template owns: the field bindings, the shell nav, `call`, the action client or
+      the mutation helpers, theme toggling and (with auth) the session helpers, every auth action's
+      success and failure paths and a refresh that two concurrent 401s trigger once; the e2e
+      `shell.spec` and `screens.spec`, and the auth journeys.
+- [ ] The boundaries lint: `tests/unit/eslint-boundaries.test.ts` lints one violation and one allowed
+      case per rule through ESLint's Node API and the real `eslint.config.mjs`, and each message
+      names the layer to use instead.
 - [ ] `static: { out: dist }` in `template.yaml`. Without it the server cannot serve the build and
       `--deploy single` is refused for the template. The app smoke proves that the `dist` target
       holds an `index.html`.
@@ -150,7 +177,9 @@ below is what `validate` and the cases prove.
       `scale: 0` (no ports, no `depends_on`, no profile); the `split` variant is a
       `@nosingle-start` ... `@nosingle-end` block with `target: serve`, the ports and the `app`
       profile, and its `environment` and `depends_on` lines marked `@server` so a lone frontend has
-      none. `single` is a reserved selection, true only with a server in the plan and
+      none. In a fragment an app secret is `${NAME-}` (the runner generates it; the app refuses an
+      empty one); an optional setting is `${NAME:-}` or `${NAME:-default}` (the runner never
+      generates it; empty means unset). `single` is a reserved selection, true only with a server in the plan and
       `--deploy single`; `validate` dry-runs the file with it on and off.
 - [ ] `base/AGENTS.md` has the headings `Adding a feature`, `Styling`, `Errors`, `Tests` and
       `Deployment`, matched exactly; `validate` checks them in every frontend template. The layer
@@ -158,17 +187,19 @@ below is what `validate` and the cases prove.
 - [ ] `tests/cases.yaml`: `default` (the stack in its default mode), a case with `deploy: split`, a
       case per other server in the catalog, and `alone` (the frontend generated by itself, which
       has no server, so its e2e is skipped). Set `withApp: true` on the cases that build images.
-- [ ] A case that needs a capability lives in the server's `tests/cases.yaml`, because a frontend
-      case cannot select one: see `stack-react-postgres` in `server/python-fastapi`.
+- [ ] A case that needs a server flag or a capability sets it from the frontend's own case (the
+      `cases.schema.json` fields for the server's flags and capabilities): `stack-postgres`,
+      `python` and `auth-off` in `frontend/next/tests/cases.yaml` are the model. A `withApp` case
+      runs its production e2e against the image with `E2E_BASE_URL`.
 - [ ] A `.conf` file (the nginx config) may carry markers, in `#` comments, and placeholders. A new
       file type that needs markers is added to `tools/lib/markers.ts` only: `placeholders.ts`
       derives its text types from it. A marker or placeholder in a file of a type neither knows
       fails generation and `validate`, naming the file.
-- [ ] A stack in `stacks/` per server, an `index.yaml` entry, the README matrix
-      (`bun tools/validate.ts --readme`), and a lint-zones unit test that seeds one violation per
-      zone through ESLint's Node API.
+- [ ] A stack in `stacks/` per server, an `index.yaml` entry and the README matrix
+      (`bun tools/validate.ts --readme`).
 - [ ] Proof: `bun tools/test-generated.ts --case frontend/<id>/default --e2e --with-app`, and the
-      same for every other case that sets `withApp`.
+      same for every other case that sets `withApp`. A case with a database needs Postgres on host
+      port 5432: run those one at a time (see "The e2e database").
 
 ## Adding a provider
 
@@ -196,7 +227,7 @@ An overlay binds one provider to one template, in
 
 - [ ] `capability.yaml`, valid against `schemas/capability.schema.json`: `kind`, `provider`,
       `summary`, and as needed `dependencies`, `scripts` (lines for the package manifest;
-      a name the base already has is refused), `commands` (`testDb`, `migrate`),
+      a name the base already has is refused), `commands` (`testDb`, `migrate`, `e2eDb`),
       `container` and `pins`. In a `pyproject` template the dependencies and tasks are
       markers in `pyproject.toml` instead, so there is no `dependencies` or `scripts`.
 - [ ] `container.migrate` when the provider needs a schema (a database): the command the
@@ -274,6 +305,11 @@ Markers are written in the file's own comment syntax (`//`, `--` in `.sql`, `#` 
 - Names match `[a-z][a-z0-9-]*(:[a-z0-9-]+)?`; `@database` is true when any provider of the
   capability is selected and `@database:postgres` when that provider is; the `no` prefix
   negates either.
+- A frontend's selections include `server:<name>` for each flag and capability kind its stack's
+  server selected (`server:auth`, `server:database`), all off when the frontend is generated alone.
+  A template's `onlyWhen: { "server:auth": [paths] }` keeps those files only while it is on;
+  `validate` dry-runs a frontend with each server selection on and off. A frontend manifest cannot
+  declare a flag named `auth`, so `--flag auth=...` still means the server's.
 - `server` (the plan has a server package) and `single` (the plan deploys as one image, which
   needs a server) are reserved selections; a manifest cannot declare a flag of either name.
 - A name that no flag or capability declares fails validation, as does an unbalanced block
@@ -290,8 +326,14 @@ const sessions = null
 Placeholders are `__NAME__` tokens substituted in text files. A template declares its own
 in `placeholders` (usually `__PROJECT_NAME__`); the generator also provides
 `__PACKAGE_DIR__`, `__PORT__`, `__SERVER_DIR__`, `__SERVER_PORT__`, `__SERVER_DEV_COMMAND__` and
-`__FRONTEND_DIR__` (the frontend's directory, for a server's Compose fragment). A declared token
-left in the output fails the run; undeclared tokens such as `__dirname` are ignored.
+`__FRONTEND_DIR__` (the frontend's directory, for a server's Compose fragment). A frontend's e2e
+config also gets `__SERVER_START_COMMAND__` (the server's `start` command),
+`__SERVER_E2E_DB_COMMAND__` (its `e2eDb` command; empty without a database) and
+`__SERVER_E2E_DATABASE_URL__` (the provider's `e2e` URL; empty without one). A frontend also gets
+the brand placeholders `__PROJECT_DISPLAY_NAME__`, `__THEME_LIGHT__`, `__THEME_DARK__`,
+`__THEME_RADIUS__`, `__THEME_DEFAULT__`, `__THEME_DENSITY__`, `__THEME_FONT__` and
+`__THEME_FONT_STACK__` (the CSS blocks go into `globals.css`). A declared token left in the output
+fails the run; undeclared tokens such as `__dirname` are ignored.
 
 ## Refreshing `frontend/next/base`
 
@@ -306,35 +348,87 @@ When Next is bumped:
 
 2. Delete the boilerplate SVGs.
 3. Re-apply the overlay files and the placeholder edits from the current `base/`.
-4. Run `bun install`.
-5. Regenerate `src/lib/api/schema.d.ts`.
-6. Run `next dev` once so Next refreshes its block in `AGENTS.md`.
-7. Bump the template `version` in `template.yaml` and `index.yaml`, and add a CHANGELOG
-   entry.
+4. Check every pin against the registry (`npm view <pkg> time --json` and its peers; the latest
+   stable at least 14 days old). The foundation pins are `@hey-api/openapi-ts`, `next-safe-action`,
+   `@next-safe-action/adapter-react-hook-form`, `react-hook-form`, `@hookform/resolvers`, the
+   shadcn CLI, `eslint-plugin-boundaries`, `next-themes`, `date-fns` and `@date-fns/tz`.
+   `@hey-api/openapi-ts` is 0.x and a minor can change its output, so it moves only with a
+   regenerated `generated/` that is read in the diff. ESLint stays at 9 while a plugin peers it.
+5. Run `bun install` and commit `bun.lock`.
+6. Add or update shadcn components with `bunx shadcn@<pin> add <name>` run in a generated project's
+   package, never `shadcn init`; copy the result into `base/src/shared/ui/`, keep the
+   `components.json` aliases, and replace palette literals with tokens. Diff the copied source
+   against the previous copy: shadcn copies source, so an upgrade is a diff, not a version bump.
+7. Regenerate `src/shared/api/generated/` with the template's `contract` command (Hey API) from a
+   server template's `openapi.json`, and commit it.
+8. Run `tests/unit/eslint-boundaries.test.ts`. It lints one violation and one allowed case per rule
+   through the real `eslint.config.mjs`, so a new config block that overlaps a rule fails it.
+9. Run `next dev` once so Next refreshes its block in `AGENTS.md`.
+10. Run the production e2e for the Next cases:
+    `bun tools/test-generated.ts --case frontend/next/default --e2e`, then `stack-postgres` with
+    `--with-services --with-app`, `python` and `auth-off`. A Next build must pass with no API
+    running (the request-time hole of ADR 0005, F8).
+11. Bump the template `version` in `template.yaml` and `index.yaml`, and add a CHANGELOG
+    entry.
 
 ## Refreshing `frontend/react/base`
 
 When a dependency moves or the base is regenerated:
 
 1. Verify every version on the registry; never write one from memory. The set is listed in
-   [ADR 0003 › Versions](docs/adr/0003-spa-and-deploy-modes.md).
+   [ADR 0003 › Versions](docs/adr/0003-spa-and-deploy-modes.md) and, for the foundation, in
+   [ADR 0005 › Consequences](docs/adr/0005-frontend-foundation.md).
 2. Keep the exceptions to "latest" unless the reason is gone:
    - ESLint 9 and TypeScript 5.9: `eslint-plugin-jsx-a11y` peers ESLint up to 9, and
      typescript-eslint requires TypeScript below 6.1.0. This matches `next`.
    - React 19.3.0: the version `next` pins, so one React runs across the frontends.
    - `react-router` is pinned exactly (8.5.0).
+   - `@hey-api/openapi-ts` is pinned exactly (it is 0.x; a minor can change the generated output).
+     The SPA adds its react-query plugin and `@tanstack/react-query`.
 3. Run `bun install` and commit `bun.lock`; `bun tools/validate.ts --lockfiles` checks it with
    `--frozen-lockfile`.
-4. Run `bun run api:types` when the server's contract moved, and commit `src/lib/api/schema.d.ts`.
-5. Run `tests/unit/lint-zones.test.ts`. It lints a seeded violation per zone through the real
-   `eslint.config.mjs`, so a new block that overlaps a zone fails it (ESLint flat config replaces a
-   rule's options for a file with those of the last block that matches it, and does not merge them).
-6. Bump `version` in `template.yaml` and `index.yaml`, add a `CHANGELOG.md` entry, and run
+4. Add or update shadcn components with `bunx shadcn@<pin> add <name>`, as for Next (step 6 there),
+   adapting `Link` to `NavLink`; the Sheet is the phone nav.
+5. Run the `contract` command when the server's contract moved, and commit
+   `src/shared/api/generated/`.
+6. Run `tests/unit/eslint-boundaries.test.ts`. It lints one violation and one allowed case per
+   boundaries rule through the real `eslint.config.mjs`, so a new block that overlaps a rule fails
+   it (ESLint flat config replaces a rule's options for a file with those of the last block that
+   matches it, and does not merge them).
+7. Bump `version` in `template.yaml` and `index.yaml`, add a `CHANGELOG.md` entry, and run
    `bun tools/validate.ts --readme`.
-7. Re-run the react cases with the container smoke:
+8. Re-run the react cases with the container smoke:
    `bun tools/test-generated.ts --case frontend/react/default --e2e --with-app`, then `split` and
    `bun`, `alone` (no `--with-app`), and
    `--case server/python-fastapi/stack-react-postgres --with-services --with-app`.
+
+## The e2e database
+
+A frontend's e2e suite never uses the development database. With a database provider (the
+frontend's `server:database` selection), the Playwright config starts the server fresh
+(`reuseExistingServer: false`) with the provider's `e2e` URL (`app_e2e`, in the provider's `env`
+contract) and `RATE_LIMIT_SCALE=100`. The API's web server command is `<e2eDb> && <start>` (the
+`__SERVER_E2E_DB_COMMAND__` and `__SERVER_START_COMMAND__` placeholders), because Playwright starts
+web servers before any `globalSetup`. `E2E_DATABASE_URL` overrides the URL; a blank value counts as
+unset, and the config refuses at load any URL whose database name does not end in `_e2e`.
+Generation fails closed when a planned server lacks `commands.start`, or when `server:database` is
+on without `commands.e2eDb` or a provider `e2e` URL; there is no silent fallback.
+
+- `e2eDb` is an overlay `commands` entry, so it exists only with a database provider. It creates the
+  database named by the `e2e` URL if it is missing, migrates it, and truncates every table except
+  the migrations table. It refuses a database whose name does not end in `_e2e`, refuses a URL with
+  a `dbname` query and checks `current_database()` before migrating.
+- The database is created on demand rather than in `db/init.sql`, which runs only on a fresh
+  volume and so would miss existing ones.
+- `RATE_LIMIT_SCALE` (1 to 1000) multiplies every limit in `RATE_LIMITS`; production keeps 1; the
+  e2e suite uses 100. There is no bypass switch.
+- Container-mode e2e (`E2E_BASE_URL`, the case runner's Compose stack) starts nothing and runs at
+  rate-limit scale 1. Against a long-lived stack it can run about once per 15 minutes and leaves
+  its users in that stack's `app` database; the case runner does `up`, then `down -v`.
+- To prove it, start the provider (`docker compose up -d --wait database`) and run a stack case with
+  `--with-services`. The cases publish host port 5432, so run them one at a time and check that
+  nothing else holds it. The name guard is the last line of defence, not the first: never point
+  `e2eDb` at a database that is not yours.
 
 ## Lockfile policy
 
@@ -367,4 +461,13 @@ the lockfiles is still to be configured.
   the patch for fixes. `v0.x` tags are milestones before `v1.0.0`
   ([ADR 0001, D10](docs/adr/0001-catalog-architecture.md)).
 - Each template has its own `version` and `CHANGELOG.md`; its major bumps when the
-  generated layout changes in a way that would move files in an existing project.
+  generated layout changes in a way that would move files in an existing project. The frontend
+  foundation ([ADR 0005](docs/adr/0005-frontend-foundation.md)) moves every frontend file, so
+  `frontend/next` and `frontend/react` are 2.0.0.
+- An optional field in a manifest, answers file, provenance or case schema keeps
+  `schemaVersion: 1`: a file written before the field still validates. Only a change that makes an
+  existing file invalid bumps it. This release adds optional fields (`answers.brand`, `onlyWhen`,
+  the case fields for a server's flags, the `e2eDb` command, the provider's `e2e` URL).
+- This release is `v1.4.0`, a minor, with `frontend/next` 2.0.0, `frontend/react` 2.0.0,
+  `server/bun-express` 2.4.0 and `server/python-fastapi` 1.2.0. A template's `version` is bumped in
+  `template.yaml`, `index.yaml` and its `CHANGELOG.md` together.

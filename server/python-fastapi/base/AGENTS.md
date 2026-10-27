@@ -44,8 +44,9 @@ package with an `__init__.py`.
     $o = (Get-NetTCPConnection -LocalPort 8000 -State Listen).OwningProcess | Select-Object -Unique; Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -in $o -or $_.ParentProcessId -in $o } | ForEach-Object { Stop-Process -Id $_.ProcessId }
     ```
 <!-- @database:postgres-start -->
-- With the database, two more: `migrate` (`uv run poe migrate`) applies the SQL migrations, and
-  `testDb` (`uv run poe test-db`) runs the whole suite against the test database; `check` skips the
+- With the database, three more: `migrate` (`uv run poe migrate`) applies the SQL migrations,
+  `testDb` (`uv run poe test-db`) runs the whole suite against the test database, and `e2eDb`
+  (`uv run poe e2e-db`) prepares the e2e database for a browser suite; `check` skips the
   store-backed suites that `testDb` runs (see Adding the data layer).
 <!-- @database:postgres-end -->
 - Types are strict: `mypy` runs in strict mode with the pydantic plugin and `disallow_any_explicit`,
@@ -127,7 +128,7 @@ src/app/
     jobs/             one file per background job (an empty package until the first one) <!-- @noauth -->
     subscribers/      one file per event reaction (an empty package until the first one) <!-- @noauth -->
     migrations/       NNNN-<topic>.sql, the schema, applied in name order <!-- @database:postgres -->
-    scripts/          one-off commands: migrate.py (poe migrate); seed is reserved <!-- @database:postgres -->
+    scripts/          one-off commands: migrate.py (poe migrate), e2e_db.py (poe e2e-db); seed is reserved <!-- @database:postgres -->
                       (scripts/ arrives with the data layer) <!-- @nodatabase -->
 tests/                mirrors src/app/ (a package throughout, so two test_x.py cannot clash)
 openapi.json          the committed contract, written by the `contract` command
@@ -734,6 +735,14 @@ hand. `tests/db/plugin.py`, loaded by `test-db` (`pytest -p tests.db.plugin`, ne
 
 Never fake the database: a test that needs a result from Postgres runs against `app_test`.
 
+E2E database: `app_e2e` on the same service, for a browser suite. `uv run poe e2e-db` reads
+`E2E_DATABASE_URL` (default `postgres://app:app@127.0.0.1:5432/app_e2e`), creates the database when
+it is missing (through the server's `postgres` maintenance database, same credentials), applies the
+migrations and truncates every table except `schema_migration`. It refuses a name that does not
+end in `_e2e`. Run it before each e2e run; the server under test starts with `DATABASE_URL` set to
+the same URL. The script reads `E2E_DATABASE_URL` and sets `DATABASE_URL` itself before the first
+import that reads the environment, as the test plugin does; `config/env.py` never sees the e2e URL.
+
 Production: the server never migrates on boot. In the Compose stack the one-shot `__PACKAGE_DIR__-migrate`
 service (app profile) runs `python -m app.infra.scripts.migrate` from the backend's image with the
 same environment, and the backend waits for it to finish successfully: `docker compose --profile
@@ -838,6 +847,11 @@ A gated endpoint also tests its 401 and, where it checks a role, its 403. <!-- @
 - Messages are captured through a provider registered with `register_provider`: `capturing()` in
   `tests/auth_support.py` does it and resets the providers afterwards.
 <!-- @auth-end -->
+- `RATE_LIMIT_SCALE` (a number from 1 to 1000, default 1) multiplies every limit in `RATE_LIMITS`,
+  rounded up; `middleware/rate_limit.py` applies it. An e2e run raises it so a journey suite is not
+  limited; production keeps 1. There is no switch that turns limiting off.
+- Pytest captures what a test prints or logs, so a green run shows no stack trace for an error a
+  test raises on purpose; keep it that way (no `-s` or `--log-cli-level` in a gate command).
 - A suite that stores records, and any test that resets or inspects them, goes through the seam
   `tests/store.py`: the `store_backed` marker wraps the suite, `reset_store()` empties the store,
   `record_exists(collection, id)` and `delete_record(collection, id)` read and remove one record.

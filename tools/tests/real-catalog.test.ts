@@ -42,7 +42,7 @@ describe('generation from the real catalog', () => {
       expect(existsSync(path.join(out, 'backend', 'package.json'))).toBe(true)
       expect(existsSync(path.join(out, 'frontend', 'package.json'))).toBe(true)
       expect(Object.keys(composeOf(out).services)).not.toContain('backend-migrate')
-      expect(playwright(out)).toContain("command: 'bun run dev'")
+      expect(playwright(out)).toContain("command: 'bun run start'")
     })
   })
 
@@ -54,16 +54,17 @@ describe('generation from the real catalog', () => {
       expect(services.backend.depends_on['backend-migrate'].condition).toBe(
         'service_completed_successfully',
       )
-      expect(playwright(out)).toContain("command: 'bun run dev'")
+      expect(playwright(out)).toContain("command: 'bun run db:e2e && bun run start'")
+      expect(playwright(out)).toContain('app_e2e')
     })
   })
 
   test('next-python-fastapi with Postgres wires the uv command, port 8000 and the migrate service', () => {
     generated({ stack: 'next-python-fastapi', capabilities: ['database=postgres'] }, (out) => {
-      expect(playwright(out)).toContain("command: 'uv run python -m app.main --reload'")
+      expect(playwright(out)).toContain("command: 'uv run poe e2e-db && uv run python -m app.main'")
       const recorded = parse(readFileSync(path.join(out, '.fullstack', 'catalog.yaml'), 'utf8'))
       expect(recorded.packages.backend.http.port).toBe(8000)
-      expect(playwright(out)).toContain('http://localhost:8000/api/health')
+      expect(playwright(out)).toContain('http://127.0.0.1:8000/api/health')
       const { services } = composeOf(out)
       expect(services.backend.ports).toEqual(['127.0.0.1:8000:8000'])
       expect(services['backend-migrate'].command).toBe('python -m app.infra.scripts.migrate')
@@ -77,7 +78,7 @@ describe('generation from the real catalog', () => {
     generated({ template: 'frontend/next' }, (out) => {
       expect(existsSync(path.join(out, 'frontend', 'package.json'))).toBe(true)
       expect(existsSync(path.join(out, 'backend'))).toBe(false)
-      expect(playwright(out)).toContain("command: 'bun run dev'")
+      expect(playwright(out)).toContain("command: 'bun run start'")
       expect(playwright(out)).toContain("cwd: '../backend'")
     })
   })
@@ -107,5 +108,42 @@ describe('deploy modes in the real catalog', () => {
         deploy: 'single',
       }),
     ).toThrow(/frontend\/next.*static/)
+  })
+})
+
+// The safety properties of a generated e2e config: a fresh API, its database prepared before it
+// starts, the browser-test database and never the development one. Add a frontend's stacks here
+// when it adopts the same config.
+// The API is the first web server; a frontend's own command (vite build && preview) may chain.
+const apiCommand = (text: string) => /command: '([^']+)'/.exec(text)?.[1] ?? ''
+
+const E2E_STACKS = [
+  'next-bun-express',
+  'next-python-fastapi',
+  'react-bun-express',
+  'react-python-fastapi',
+]
+
+describe.each(E2E_STACKS)('the generated e2e config of %s', (stack) => {
+  test('with a database it prepares app_e2e before the API starts, and refuses another name', () => {
+    generated({ stack, capabilities: ['database=postgres'] }, (out) => {
+      const text = playwright(out)
+      expect(apiCommand(text)).toMatch(/ && /)
+      expect(text).toContain('/app_e2e')
+      expect(text).toContain('e2eDatabaseUrl(process.env.E2E_DATABASE_URL')
+      expect(text.match(/reuseExistingServer: false/g)).toHaveLength(2) // the API and the app
+      expect(existsSync(path.join(out, 'frontend', 'scripts', 'e2e-database-url.ts'))).toBe(true)
+    })
+  })
+
+  test('without a database it has no database URL, no chained command and no guard', () => {
+    generated({ stack }, (out) => {
+      const text = playwright(out)
+      expect(text).not.toContain('app_e2e')
+      expect(text).not.toContain('E2E_DATABASE_URL')
+      expect(apiCommand(text)).not.toContain('&&')
+      expect(text.match(/reuseExistingServer: false/g)).toHaveLength(2) // the API and the app
+      expect(existsSync(path.join(out, 'frontend', 'scripts', 'e2e-database-url.ts'))).toBe(false)
+    })
   })
 })

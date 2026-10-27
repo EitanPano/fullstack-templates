@@ -8,6 +8,8 @@ import { PlanError, resolveRequest, type Answers } from './lib/plan'
 const USAGE =
   'usage: bun tools/generate.ts (--stack <id> | --template <kind/id> [--dir <name>]) --out <dir> --name <name> ' +
   '[--flag k=v] [--capability k=v] [--deploy single|split] [--answers <json-file>] ' +
+  '[--display-name <text>] [--brand-primary <hex>] [--brand-neutral <hex>] [--radius sm|md|lg] ' +
+  '[--font system|inter] [--theme system|light|dark] [--density comfortable|compact] ' +
   '[--catalog <root>] [--catalog-version <tag>] [--skip-post-generate] [--keep-staging]'
 
 function readAnswers(file: string): Answers {
@@ -35,6 +37,13 @@ function run(argv: string[]): void {
       'deploy',
       'catalog',
       'catalog-version',
+      'display-name',
+      'brand-primary',
+      'brand-neutral',
+      'radius',
+      'font',
+      'theme',
+      'density',
     ],
     repeatable: ['flag', 'capability'],
     booleans: ['skip-post-generate', 'keep-staging'],
@@ -67,6 +76,15 @@ function run(argv: string[]): void {
     deploy,
     catalogVersion: version,
     skipPostGenerate: args.booleans['skip-post-generate'] as boolean,
+    brand: {
+      displayName: args.values['display-name'],
+      primary: args.values['brand-primary'],
+      neutral: args.values['brand-neutral'],
+      radius: args.values.radius,
+      font: args.values.font,
+      theme: args.values.theme,
+      density: args.values.density,
+    },
   })
   generate(loaded, plan, {
     keepStaging: args.booleans['keep-staging'],

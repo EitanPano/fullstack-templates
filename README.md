@@ -82,10 +82,10 @@ puts the frontend in front. Next.js stacks are always `split`. See
 <!-- matrix:start -->
 | Template | Kind | Version | Flags | Capabilities | Summary |
 | --- | --- | --- | --- | --- | --- |
-| `bun-express` | server | 2.3.1 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
-| `python-fastapi` | server | 1.1.1 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
-| `next` | frontend | 1.2.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
-| `react` | frontend | 1.1.0 | — | — | Vite and React 19 single-page app with React Router data mode and a typed client generated from the server's contract |
+| `bun-express` | server | 2.4.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
+| `python-fastapi` | server | 1.2.0 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
+| `next` | frontend | 2.0.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
+| `react` | frontend | 2.0.0 | — | — | Vite and React 19 single-page app on the frontend foundation: React Router data mode, shadcn/ui, TanStack Query and a client generated from the server's contract |
 
 | Stack | Packages | Summary |
 | --- | --- | --- |
@@ -147,6 +147,11 @@ template finds the same shape.
 - v1.3.0: the UI baseline ([ADR 0004](docs/adr/0004-ui-baseline.md)). `frontend/react` 1.1.0 and
   `frontend/next` 1.2.0 ship an app shell, a button, token scales and a `phone` e2e project;
   `python-fastapi` 1.1.1 and `bun-express` 2.3.1 key `by_ip` on the /64 network for IPv6.
+- v1.4.0: the frontend foundation ([ADR 0005](docs/adr/0005-frontend-foundation.md)).
+  `frontend/next` 2.0.0 and `frontend/react` 2.0.0 are breaking restructures: layers enforced by
+  lint, a shadcn/ui design system, a Hey API client, safe mutations and forms, the auth screens
+  and an e2e suite against a fresh API and its own database. `generate` gains the brand options;
+  `bun-express` 2.4.0 and `python-fastapi` 1.2.0 add `start`, `RATE_LIMIT_SCALE` and `e2eDb`.
 - Next: mongodb, redis, and a worker with rabbitmq.
 
 The design is in [ADR 0001](docs/adr/0001-catalog-architecture.md).

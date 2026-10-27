@@ -240,6 +240,7 @@ describe('loadCatalog', () => {
     expect(overlay?.overlayDir).toBe(path.join(overlay?.dir ?? '', 'overlay'))
     expect(overlay?.manifest.commands).toEqual({
       testDb: 'bun run test:db',
+      e2eDb: 'bun run db:e2e',
       migrate: 'bun run db:migrate',
     })
     expect(overlay?.manifest.scripts?.['test:db']).toBe('bun ./ok.ts')
@@ -254,6 +255,9 @@ describe('loadCatalog', () => {
       text.replace('providers: [fake]', 'providers: []'),
     )
     edit(root, 'server/mini/tests/cases.yaml', (text) =>
+      text.slice(0, text.indexOf('  - name: fake')),
+    )
+    edit(root, 'frontend/mini-ui/tests/cases.yaml', (text) =>
       text.slice(0, text.indexOf('  - name: fake')),
     )
     expect(loadCatalog(root).providers.size).toBe(0)
