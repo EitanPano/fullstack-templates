@@ -15,5 +15,12 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["vite.config.ts", "vitest.config.mts", "playwright.config.ts", "eslint.config.mjs"]
+  "include": [
+    "vite.config.ts",
+    "vitest.config.mts",
+    "playwright.config.ts",
+    "eslint.config.mjs",
+    "openapi-ts.config.ts",
+    "scripts"
+  ]
 }
