@@ -1,4 +1,4 @@
-import { buildTheme, hexToOklch, renderTokens } from './theme'
+import { buildTheme, formatOklch, hexToOklch, oklchToHex, renderTokens } from './theme'
 
 // The brand inputs of a frontend: the CLI options and answers.brand carry these names.
 export interface BrandInput {
@@ -158,4 +158,24 @@ export function brandPlaceholders(brand: Brand): Record<string, string> {
     THEME_FONT: brand.font,
     THEME_FONT_STACK: FONT_STACK[brand.font],
   }
+}
+
+// One line per mode in which the theme builder moved the primary's lightness so it reads as link
+// text (4.5:1 on the page, cards and popovers). The dark baseline is the lighter step it starts from.
+export function brandNotes(brand: Brand): string[] {
+  const seed = hexToOklch(brand.primary)
+  const theme = buildTheme({ primary: brand.primary, neutral: brand.neutral })
+  const notes: string[] = []
+  for (const [mode, from] of [
+    ['light', seed.l],
+    ['dark', Math.max(seed.l, 0.62)],
+  ] as const) {
+    const shipped = theme[mode].primary
+    if (Math.abs(shipped.l - from) <= 0.0015) continue
+    notes.push(
+      `note: --brand-primary ${brand.primary} ships as ${formatOklch(shipped)} in ${mode} mode (${oklchToHex(shipped)}): ` +
+        "the button's link variant paints the primary as text, which needs 4.5:1 on the page, cards and popovers",
+    )
+  }
+  return notes
 }
