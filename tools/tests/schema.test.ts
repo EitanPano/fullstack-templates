@@ -156,7 +156,7 @@ describe('validateAgainst negatives', () => {
   })
   test('rejects an unknown template property', () => {
     const errors = validateAgainst('template', { ...template, extra: true })
-    expect(errors).toContainEqual('/ must NOT have additional properties')
+    expect(errors).toContainEqual('/ must NOT have additional properties (extra)')
   })
   test('rejects an out-of-range http port', () => {
     const errors = validateAgainst('template', {
