@@ -1,6 +1,14 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { expectNoSeriousViolations, isPhone } from './support'
+import { expectNoSeriousViolations, isPhone, settled } from './support'
+
+async function openPhoneMenu(page: Page) {
+  await page.getByRole('button', { name: 'Open menu' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Menu' })
+  await expect(sheet).toBeVisible()
+  await settled(sheet)
+  return sheet
+}
 
 // The inline nav shows from `md`; on the phone project the same entries sit behind the menu.
 async function openNavigation(page: Page) {
@@ -101,11 +109,8 @@ test('compact density does not shrink touch targets on the phone project', { tag
     expect(size.height, size.text).toBeGreaterThanOrEqual(44)
   }
 
-  await page.getByRole('button', { name: 'Open menu' }).click()
-  const close = await page
-    .getByRole('dialog', { name: 'Menu' })
-    .getByRole('button', { name: 'Close' })
-    .boundingBox()
+  const sheet = await openPhoneMenu(page)
+  const close = await sheet.getByRole('button', { name: 'Close' }).boundingBox()
   expect(close?.width).toBeGreaterThanOrEqual(44)
   expect(close?.height).toBeGreaterThanOrEqual(44)
 })
@@ -113,9 +118,7 @@ test('compact density does not shrink touch targets on the phone project', { tag
 test('the phone menu and its Close button are 44 px targets', { tag: '@phone' }, async ({ page }) => {
   await page.goto('/')
 
-  await page.getByRole('button', { name: 'Open menu' }).click()
-  const sheet = page.getByRole('dialog', { name: 'Menu' })
-  await expect(sheet).toBeVisible()
+  const sheet = await openPhoneMenu(page)
   for (const target of [
     sheet.getByRole('button', { name: 'Close' }),
     ...(await sheet.getByRole('link').all()),
@@ -131,17 +134,35 @@ test('the phone menu and its Close button are 44 px targets', { tag: '@phone' },
 test('controls keep the shadcn densities on the desktop project', { tag: '@desktop' }, async ({ page }) => {
   await page.goto('/')
 
-  const refresh = await page.getByRole('button', { name: 'Refresh' }).boundingBox()
-  const account = await page.getByRole('button', { name: 'Account menu' }).boundingBox()
-  expect(refresh?.height).toBe(36)
-  expect(account?.width).toBe(36)
-  expect(account?.height).toBe(36)
+  // The generated density is not the test's business: clear it for the comfortable sizes, then set
+  // compact, as the phone test does. Polled because the control sizes animate.
+  const size = (name: string, dimension: 'width' | 'height') => async () =>
+    (await page.getByRole('button', { name }).boundingBox())?.[dimension]
+
+  await page.evaluate(() => {
+    document.documentElement.removeAttribute('data-density')
+  })
+  await expect.poll(size('Refresh', 'height')).toBe(36)
+  await expect.poll(size('Account menu', 'width')).toBe(36)
+  await expect.poll(size('Account menu', 'height')).toBe(36)
+
+  await page.evaluate(() => {
+    document.documentElement.setAttribute('data-density', 'compact')
+  })
+  await expect.poll(size('Refresh', 'height')).toBe(32)
+  await expect.poll(size('Account menu', 'width')).toBe(36)
+  await expect.poll(size('Account menu', 'height')).toBe(36)
 
   await expectNoSeriousViolations(page)
 })
 
 test('the theme menu switches to dark and the choice survives a reload', async ({ page }) => {
   await page.goto('/')
+
+  // Start from light, whatever theme was generated as the default, so the switch is observable.
+  await page.getByRole('button', { name: 'Account menu' }).click()
+  await page.getByRole('menuitemradio', { name: 'Light' }).click()
+  await expect(page.locator('html')).not.toHaveClass(/dark/)
 
   await page.getByRole('button', { name: 'Account menu' }).click()
   await page.getByRole('menuitemradio', { name: 'Dark' }).click()
