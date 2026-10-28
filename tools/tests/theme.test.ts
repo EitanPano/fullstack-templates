@@ -49,6 +49,12 @@ describe('colour maths', () => {
   })
 })
 
+// Hue is an angle: 359.9 and 0.1 are 0.2 degrees apart.
+const hueDistance = (a: number, b: number) => {
+  const d = Math.abs(a - b) % 360
+  return Math.min(d, 360 - d)
+}
+
 describe('buildTheme', () => {
   const theme = buildTheme(DEFAULT_SEEDS)
 
@@ -92,6 +98,9 @@ describe('buildTheme', () => {
     expect(names).toContain('muted-foreground/card')
     expect(names).toContain('muted-foreground/popover')
     expect(names).toContain('primary-foreground/primary')
+    expect(names).toContain('primary/background')
+    expect(names).toContain('primary/card')
+    expect(names).toContain('primary/popover')
     expect(names).toContain('info-foreground/info')
     expect(NON_TEXT_PAIRS.map(([fg, bg]) => `${fg}/${bg}`)).toEqual([
       'input/background',
@@ -130,6 +139,32 @@ describe('buildTheme', () => {
     expect(message).toContain('primary-foreground on primary')
     expect(message).toContain('light')
     expect(message).toContain('4.5:1')
+  })
+
+  test('moves a primary that is too pale to read as text on the page, keeping its hue', () => {
+    const seed = hexToOklch('#ea580c')
+    const built = buildTheme({ primary: '#ea580c', neutral: '#64748b' })
+    for (const [name, mode] of [
+      ['light', built.light],
+      ['dark', built.dark],
+    ] as const) {
+      for (const surface of ['background', 'card', 'popover'] as const) {
+        expect(contrastRatio(mode.primary, mode[surface])).toBeGreaterThanOrEqual(4.5)
+      }
+      expect(hueDistance(mode.primary.h, seed.h)).toBeLessThanOrEqual(1)
+      if (name === 'light') expect(mode.primary.l).toBeLessThan(seed.l)
+    }
+  })
+
+  test('lightens a dark-mode primary that is too dark for the dark page, keeping its hue', () => {
+    // v1.4.0 shipped this seed's dark primary at 4.30:1 on the card.
+    const seed = hexToOklch('#9900cc')
+    const { dark } = buildTheme({ primary: '#9900cc', neutral: '#64748b' })
+    for (const surface of ['background', 'card', 'popover'] as const) {
+      expect(contrastRatio(dark.primary, dark[surface])).toBeGreaterThanOrEqual(4.5)
+    }
+    expect(dark.primary.l).toBeGreaterThan(0.62)
+    expect(hueDistance(dark.primary.h, seed.h)).toBeLessThanOrEqual(1)
   })
 
   test('refuses an invalid seed, naming it', () => {

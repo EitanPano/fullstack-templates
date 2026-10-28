@@ -62,6 +62,10 @@ export const TEXT_PAIRS: readonly Pair[] = [
   ['card-foreground', 'card'],
   ['popover-foreground', 'popover'],
   ['primary-foreground', 'primary'],
+  // The link variant of the button paints primary text on the page, cards and popovers.
+  ['primary', 'background'],
+  ['primary', 'card'],
+  ['primary', 'popover'],
   ['secondary-foreground', 'secondary'],
   ['muted-foreground', 'muted'],
   ['muted-foreground', 'background'],
@@ -213,6 +217,8 @@ const NEUTRAL_MAX_CHROMA = 0.03
 
 type Mode = 'light' | 'dark'
 
+const isPair = (pair: Pair | readonly Pair[]): pair is Pair => typeof pair[0] === 'string'
+
 class Builder {
   constructor(private readonly mode: Mode) {}
 
@@ -230,39 +236,60 @@ class Builder {
   }
 
   // Moves `movable` in lightness, away from what it must contrast with, until every background
-  // gives `min`. `shiftLimit` bounds the move so a brand colour stays recognisable.
+  // gives `min`. `shiftLimit` bounds the move so a brand colour stays recognisable. `pair` is
+  // one pair, or one per background (same order) so a failure names the surface that fails.
   adjust(
     movable: Oklch,
     against: readonly Oklch[],
     min: number,
     direction: -1 | 1,
     shiftLimit: number,
-    pair: Pair,
+    pair: Pair | readonly Pair[],
   ): Oklch {
     const worst = (c: Oklch) => Math.min(...against.map((other) => contrastRatio(c, other)))
-    for (let shift = 0; ; shift += STEP) {
+    const failing = (c: Oklch): Pair => {
+      if (isPair(pair)) return pair
+      const ratios = against.map((other) => contrastRatio(c, other))
+      return pair[ratios.indexOf(Math.min(...ratios))] as Pair
+    }
+    // A colour that already passes ships as it is, not re-rounded.
+    if (worst(movable) >= min) return movable
+    for (let shift = STEP; ; shift += STEP) {
       const current = withLightness(movable, movable.l + direction * shift)
       if (worst(current) >= min) return current
       const atEdge = direction === -1 ? current.l <= 0 : current.l >= 1
-      if (shift + STEP > shiftLimit + 1e-9 || atEdge) this.fail(pair, worst(current), min)
+      if (shift + STEP > shiftLimit + 1e-9 || atEdge)
+        this.fail(failing(current), worst(current), min)
     }
   }
 
   // The better of two foreground candidates for a surface; when neither passes, the surface moves.
+  // `fixed` pins that move's direction (a surface that must keep reading as text on the page
+  // may only move away from it) and so the candidate that works with it.
   surfaceWithForeground(
     surface: Oklch,
     candidates: readonly [Oklch, Oklch],
     pair: Pair,
     shiftLimit: number,
+    fixed?: -1 | 1,
   ): { surface: Oklch; foreground: Oklch } {
     for (const foreground of candidates) {
       if (contrastRatio(foreground, surface) >= TEXT_MIN) return { surface, foreground }
     }
-    const best = [...candidates].sort(
+    const byContrast = [...candidates].sort(
       (a, b) => contrastRatio(b, surface) - contrastRatio(a, surface),
-    )[0] as Oklch
+    )
+    // Darkening a surface needs the lighter ink, lightening it the darker one.
+    const best =
+      fixed === undefined
+        ? (byContrast[0] as Oklch)
+        : candidates.find((c) => (c.l > surface.l ? -1 : 1) === fixed)
+    // The inks straddle every surface a brand primary can reach: the light one is above it and
+    // the dark one below it.
+    if (best === undefined)
+      throw new Error(`theme: no ink works with moving ${pair[1]} away from the page`)
     // A light foreground needs a darker surface, and the other way round.
-    const direction = best.l > surface.l ? -1 : 1
+    const direction = fixed ?? (best.l > surface.l ? -1 : 1)
     return {
       surface: this.adjust(surface, [best], TEXT_MIN, direction, shiftLimit, pair),
       foreground: best,
@@ -283,20 +310,35 @@ function buildMode(
   const background = n(dark ? 0.145 : 1)
   const foreground = n(dark ? 0.985 : 0.145)
   const card = dark ? n(0.205) : background
+  const popover = card
   const surfaceInk = dark ? n(0.985) : n(0.205)
   const lightInk = n(0.985)
   const darkInk = n(0.145)
   // Light mode prefers light text on a saturated surface, dark mode the opposite.
   const inks: readonly [Oklch, Oklch] = dark ? [darkInk, lightInk] : [lightInk, darkInk]
 
-  const solid = (surface: Oklch, pair: Pair, shiftLimit: number) =>
-    b.surfaceWithForeground(surface, inks, pair, shiftLimit)
+  const solid = (surface: Oklch, pair: Pair, shiftLimit: number, fixed?: -1 | 1) =>
+    b.surfaceWithForeground(surface, inks, pair, shiftLimit, fixed)
 
   // Brand colours: the seed in light mode, a lighter step in dark mode.
   const primarySurface = dark
     ? color(Math.max(primarySeed.l, 0.62), primarySeed.c, primarySeed.h)
     : color(primarySeed.l, primarySeed.c, primarySeed.h)
-  const primary = solid(primarySurface, ['primary-foreground', 'primary'], maxShift)
+  // Primary is also text (the link button): its lightness moves, uncapped, until it reads on the
+  // page, cards and popovers. Hue and chroma stay; maxShift only bounds the foreground fix below.
+  const primaryText = b.adjust(
+    primarySurface,
+    [background, card, popover],
+    TEXT_MIN,
+    dark ? 1 : -1,
+    1,
+    [
+      ['primary', 'background'],
+      ['primary', 'card'],
+      ['primary', 'popover'],
+    ],
+  )
+  const primary = solid(primaryText, ['primary-foreground', 'primary'], maxShift, dark ? 1 : -1)
 
   const semantic = (l: number, chroma: number, hue: number, name: ThemeToken) => {
     const pair: Pair = [`${name}-foreground` as ThemeToken, name]
@@ -337,7 +379,7 @@ function buildMode(
     foreground,
     card,
     'card-foreground': foreground,
-    popover: card,
+    popover,
     'popover-foreground': foreground,
     primary: primary.surface,
     'primary-foreground': primary.foreground,

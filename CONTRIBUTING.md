@@ -191,6 +191,9 @@ below is what `validate` and the cases prove.
       `cases.schema.json` fields for the server's flags and capabilities): `stack-postgres`,
       `python` and `auth-off` in `frontend/next/tests/cases.yaml` are the model. A `withApp` case
       runs its production e2e against the image with `E2E_BASE_URL`.
+- [ ] A `brand` case (non-default `answers.brand` values, as the `brand` case of each frontend sets
+      them) runs every gate: the default-brand cases cannot catch a brand value that breaks a test
+      or a contrast check.
 - [ ] A `.conf` file (the nginx config) may carry markers, in `#` comments, and placeholders. A new
       file type that needs markers is added to `tools/lib/markers.ts` only: `placeholders.ts`
       derives its text types from it. A marker or placeholder in a file of a type neither knows
@@ -466,8 +469,10 @@ the lockfiles is still to be configured.
   `frontend/next` and `frontend/react` are 2.0.0.
 - An optional field in a manifest, answers file, provenance or case schema keeps
   `schemaVersion: 1`: a file written before the field still validates. Only a change that makes an
-  existing file invalid bumps it. This release adds optional fields (`answers.brand`, `onlyWhen`,
-  the case fields for a server's flags, the `e2eDb` command, the provider's `e2e` URL).
-- This release is `v1.4.0`, a minor, with `frontend/next` 2.0.0, `frontend/react` 2.0.0,
-  `server/bun-express` 2.4.0 and `server/python-fastapi` 1.2.0. A template's `version` is bumped in
+  existing file invalid bumps it. v1.4.0 added optional fields (`answers.brand`, `onlyWhen`, the case
+  fields for a server's flags, the `e2eDb` command, the provider's `e2e` URL); v1.4.1 adds the case
+  field `brand`.
+- This release is `v1.4.1`, a patch, with `frontend/next` 2.0.1, `frontend/react` 2.0.1 (a brand fix in
+  the theme generator and in each frontend's tests), `server/bun-express` 2.4.0 and
+  `server/python-fastapi` 1.2.0. A template's `version` is bumped in
   `template.yaml`, `index.yaml` and its `CHANGELOG.md` together.

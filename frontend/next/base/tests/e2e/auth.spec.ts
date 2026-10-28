@@ -101,6 +101,8 @@ test('a guarded page sends a visitor to sign-in and back after signing in', asyn
   await page.goto('/profile')
 
   await expect(page).toHaveURL(/\/sign-in\?next=%2Fprofile$/)
+  // The URL changes before the sign-in page has replaced the redirecting document.
+  await expect(page.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible()
   await expectNoSeriousViolations(page)
 
   await fillSignIn(page, email)

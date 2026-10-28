@@ -21,6 +21,20 @@
           "capabilities": { "type": "object", "additionalProperties": { "type": "string" } },
           "withApp": { "type": "boolean" },
           "deploy": { "enum": ["single", "split"] },
+          "brand": {
+            "type": "object",
+            "description": "A frontend case only: the brand inputs, as answers.brand takes them.",
+            "additionalProperties": false,
+            "properties": {
+              "displayName": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "primary": { "type": "string", "pattern": "^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$" },
+              "neutral": { "type": "string", "pattern": "^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$" },
+              "radius": { "enum": ["sm", "md", "lg"] },
+              "font": { "enum": ["system", "inter"] },
+              "theme": { "enum": ["system", "light", "dark"] },
+              "density": { "enum": ["comfortable", "compact"] }
+            }
+          },
           "server": {
             "type": "object",
             "description": "A frontend case only: the flags and capabilities of the stack's server package.",

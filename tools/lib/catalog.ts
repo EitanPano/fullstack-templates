@@ -7,6 +7,7 @@ import {
   loadOverlays,
   loadProviders,
 } from './capabilities'
+import type { BrandInput } from './brand'
 import { CAPABILITY_KINDS, isKind, type CapabilityKind } from './capability-kinds'
 import { readChecked, subdirectories } from './read-checked'
 
@@ -189,6 +190,8 @@ export interface CasesFile {
     withApp?: boolean
     // The deploy mode the case generates with; the Compose smoke of T2 reads it.
     deploy?: DeployMode
+    // A frontend case only: the brand inputs, as answers.brand takes them.
+    brand?: BrandInput
     // A frontend case only: the flags and capabilities of the stack's server package.
     server?: { flags?: Record<string, boolean>; capabilities?: Record<string, string> }
   }>
@@ -445,6 +448,12 @@ function checkCaseCoverage(template: LoadedTemplate, problems: string[]): void {
   if (!cases.some((testCase) => testCase.name === 'default')) {
     problems.push(`${template.path}: tests/cases.yaml has no case named "default"`)
   }
+  // The default-brand cases cannot catch a brand value that breaks a gate (v1.4.0 shipped three).
+  if (template.manifest.kind === 'frontend' && !cases.some((c) => c.brand !== undefined)) {
+    problems.push(
+      `${template.path}: no case sets a brand; add one with non-default brand values in tests/cases.yaml`,
+    )
+  }
   for (const [name, spec] of Object.entries(template.manifest.flags ?? {})) {
     if (!cases.some((testCase) => testCase.flags?.[name] === !spec.default)) {
       problems.push(
@@ -554,6 +563,11 @@ function checkCrossReferences(
     checkCaseCoverage(template, problems)
     checkCapabilityCases(template, problems)
     for (const testCase of template.cases.cases) {
+      if (testCase.brand !== undefined && manifest.kind === 'server') {
+        problems.push(
+          `${template.path}: case "${testCase.name}" has a brand, which only a frontend case takes`,
+        )
+      }
       checkServerSettings(template, testCase, stacks, templates, problems)
       for (const flag of Object.keys(testCase.flags ?? {})) {
         if (!declared.has(flag)) {

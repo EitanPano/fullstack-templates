@@ -57,7 +57,9 @@ export function validateAgainst(schema: SchemaName, data: unknown): string[] {
   if (!validate) throw new Error(`Unknown schema: ${schema}`)
   validate(data)
   const errors = (validate.errors ?? []).map(
-    (e) => `${e.instancePath || '/'} ${e.message ?? 'is invalid'}`,
+    (e) =>
+      `${e.instancePath || '/'} ${e.message ?? 'is invalid'}` +
+      (e.keyword === 'additionalProperties' ? ` (${String(e.params.additionalProperty)})` : ''),
   )
   if (schema === 'cases') errors.push(...duplicateCaseNames(data))
   return errors

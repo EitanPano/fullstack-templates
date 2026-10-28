@@ -15,6 +15,7 @@ import {
 import {
   BRAND_KEYS,
   BrandError,
+  brandNotes,
   brandPlaceholders,
   resolveBrand,
   type Brand,
@@ -94,6 +95,8 @@ export interface GenerationPlan {
 export interface PlanBrand {
   inputs: Brand
   placeholders: Record<string, string>
+  // Notes for the log: what the theme builder changed from the inputs.
+  notes: string[]
 }
 
 export const DIR_PATTERN = /^[a-z][a-z0-9-]*$/
@@ -349,7 +352,7 @@ function mergeBrand(fromAnswers: unknown, fromOptions: BrandInput | undefined): 
 function planBrand(input: RequestInput, projectName: string): PlanBrand {
   try {
     const inputs = resolveBrand(mergeBrand(input.answers?.brand, input.brand), projectName)
-    return { inputs, placeholders: brandPlaceholders(inputs) }
+    return { inputs, placeholders: brandPlaceholders(inputs), notes: brandNotes(inputs) }
   } catch (error) {
     if (error instanceof BrandError || error instanceof ThemeError) {
       throw new PlanError(error.message)

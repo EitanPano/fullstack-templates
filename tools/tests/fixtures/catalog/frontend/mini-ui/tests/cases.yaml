@@ -8,6 +8,13 @@ cases:
     server:
       flags:
         auth: false
+  - name: brand
+    stack: mini
+    brand:
+      primary: '#ea580c'
+      radius: sm
+      theme: dark
+      density: compact
   - name: fake
     stack: mini
     server:

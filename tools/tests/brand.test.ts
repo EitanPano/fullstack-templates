@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { BrandError, BRAND_DEFAULTS, brandPlaceholders, resolveBrand } from '../lib/brand'
+import {
+  BrandError,
+  BRAND_DEFAULTS,
+  brandNotes,
+  brandPlaceholders,
+  resolveBrand,
+} from '../lib/brand'
 import { THEME_TOKENS } from '../lib/theme'
 
 describe('resolveBrand', () => {
@@ -131,5 +137,22 @@ describe('THEME_FONT_STACK', () => {
     expect(stack).toBe(
       "'Inter Variable', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'",
     )
+  })
+})
+
+describe('brandNotes', () => {
+  test('says nothing for the defaults or a primary that already reads', () => {
+    expect(brandNotes(resolveBrand({}, 'demo'))).toEqual([])
+    expect(brandNotes(resolveBrand({ primary: '#1e3a8a' }, 'demo'))).toEqual([])
+  })
+  test('names the seed, the colour it ships and the mode when the primary moved', () => {
+    const notes = brandNotes(resolveBrand({ primary: '#facc15' }, 'demo'))
+    expect(notes).toHaveLength(1)
+    expect(notes[0]).toMatch(/^note: --brand-primary #facc15 .* in light mode \(#[0-9a-f]{6}\)/)
+    expect(notes[0]).toContain('4.5:1')
+  })
+  test('a dark-mode move is named as dark', () => {
+    const notes = brandNotes(resolveBrand({ primary: '#9900cc' }, 'demo'))
+    expect(notes.some((note) => note.includes('dark mode'))).toBe(true)
   })
 })
