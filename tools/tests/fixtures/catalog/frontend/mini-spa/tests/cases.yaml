@@ -3,3 +3,7 @@ cases:
   - name: default
     stack: mini-spa
   - name: alone
+  - name: brand
+    stack: mini-spa
+    brand:
+      primary: '#ea580c'

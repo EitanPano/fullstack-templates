@@ -1,3 +1,4 @@
+import type { BrandInput } from './brand'
 import type { Catalog, DeployMode, LoadedTemplate } from './catalog'
 import type { RequestInput } from './plan'
 
@@ -19,6 +20,8 @@ export interface GenerationCase {
   withApp: boolean
   // The deploy mode the case asks for; null leaves the plan's default.
   deploy: DeployMode | null
+  // The brand inputs the case generates with; null leaves the defaults.
+  brand: BrandInput | null
 }
 
 function serverDirOf(catalog: Catalog, stack: string | undefined): string | null {
@@ -54,6 +57,7 @@ export function listCases(catalog: Catalog): GenerationCase[] {
         capabilities: entry.capabilities ?? {},
         withApp: entry.withApp === true,
         deploy: entry.deploy ?? null,
+        brand: entry.brand ?? null,
       })
     }
   }
@@ -71,6 +75,7 @@ export function requestFor(c: GenerationCase, out: string): RequestInput {
     return {
       ...base,
       template: c.template.path,
+      ...(c.brand === null ? {} : { answers: { brand: c.brand } }),
       flags: Object.entries(c.flags).map(([k, v]) => `${k}=${v}`),
       capabilities: Object.entries(c.capabilities).map(([k, v]) => `${k}=${v}`),
     }
@@ -81,6 +86,7 @@ export function requestFor(c: GenerationCase, out: string): RequestInput {
     flags: [],
     capabilities: [],
     answers: {
+      ...(c.brand === null ? {} : { brand: c.brand }),
       packages: {
         [c.packageDir]: { flags: c.flags, capabilities: c.capabilities },
         // Only a case that sets the server adds its entry, so other answers stay as they were.

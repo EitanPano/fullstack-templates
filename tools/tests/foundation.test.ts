@@ -567,6 +567,18 @@ describe('generated code and ignored brand options', () => {
     expect(lines.some((line) => /warning.*brand.*primary, density/.test(line))).toBe(true)
   })
 
+  test('prints one note when the generator moved the primary for contrast, none otherwise', () => {
+    const run = (brand: Record<string, string>) => {
+      const lines: string[] = []
+      generate(catalog, resolveRequest(catalog, { ...request(tempDir()), brand }), {
+        log: (line) => lines.push(line),
+      })
+      return lines.filter((line) => line.startsWith('note:'))
+    }
+    expect(run({ primary: '#facc15' })).toHaveLength(1)
+    expect(run({})).toEqual([])
+  })
+
   test('a plan with a frontend ignores nothing, and no option means no warning', () => {
     const withBrand = resolveRequest(catalog, {
       ...request(tempDir()),

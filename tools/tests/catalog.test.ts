@@ -19,6 +19,27 @@ function problems(root: string): string {
   throw new Error('expected a CatalogError')
 }
 
+describe('brand cases', () => {
+  test('a frontend with no brand case is refused, naming the template', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'frontend/mini-spa/tests/cases.yaml', (t) =>
+      t.slice(0, t.indexOf('  - name: brand')),
+    )
+    const message = problems(root)
+    expect(message).toContain('frontend/mini-spa: no case sets a brand')
+    expect(message).not.toContain('frontend/mini-ui: no case sets a brand')
+  })
+  test('a server case that sets a brand is refused, naming the case', () => {
+    const root = copyFixture('catalog')
+    edit(root, 'server/mini/tests/cases.yaml', (t) =>
+      t.replace('  - name: fake\n', '  - name: fake\n    brand:\n      radius: sm\n'),
+    )
+    expect(problems(root)).toContain(
+      'server/mini: case "fake" has a brand, which only a frontend case takes',
+    )
+  })
+})
+
 describe('loadCatalog', () => {
   test('loads templates and stacks keyed by path and id', () => {
     const catalog = loadCatalog(FIXTURE)

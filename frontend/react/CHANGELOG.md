@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.0.1 — 2026-10-28
+
+Fixes for projects generated with non-default brand values; the default brand was unaffected.
+
+### Fixed
+
+- `tests/unit/theme-provider.test.tsx` used `toTheme('__THEME_DEFAULT__')` as its "anything else" value; the generator substituted the placeholder, so `--theme dark` or `--theme light` made `check` fail. It now uses `sepia`.
+- The desktop test "controls keep the shadcn densities on the desktop project" expected 36 px controls, so `--density compact` (32 px Refresh button, as the CSS intends) failed `testE2e`. It now clears `data-density` for the comfortable sizes and sets `compact` for the compact ones, whatever the project was generated with.
+- The generator now keeps the primary readable as text (4.5:1) on the page, cards and popovers, because the button's `link` variant paints `text-primary` there. A pale primary such as `--brand-primary '#ea580c'` (3.55:1 on white) made the auth screens fail the axe `color-contrast` check; its lightness now moves until it passes.
+- The generator prints a `note:` line when it moves the primary's lightness for contrast (seed, shipped colour, mode), and the theme builder now checks the dark-mode primary against the page, cards and popovers the same way.
+- "The theme menu switches to dark and the choice survives a reload" starts from Light, so it proves something when the project was generated with `--theme dark`.
+- E2E timing race, threshold unchanged: the phone sheet is measured after its slide-in animation settles (a mid-slide read gave 43.99998 px).
+
 ## 2.0.0 — 2026-10-27
 
 The frontend foundation for the single-page app (plan 013). A breaking restructure: a project generated from 1.x does not upgrade in place.

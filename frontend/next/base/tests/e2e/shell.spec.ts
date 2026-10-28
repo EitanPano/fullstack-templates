@@ -1,10 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { expectNoSeriousViolations, isPhone, openMenu } from './support'
+import { expectNoSeriousViolations, isPhone, openMenu, settled } from './support'
 
 async function openPhoneMenu(page: Page) {
   const sheet = page.getByRole('dialog', { name: 'Menu' })
   await openMenu(page.getByRole('button', { name: 'Open menu' }), sheet)
+  await settled(sheet)
   return sheet
 }
 
@@ -147,11 +148,24 @@ test(
   async ({ page }) => {
     await page.goto('/')
 
-    const refresh = await page.getByRole('button', { name: 'Refresh' }).boundingBox()
-    const account = await page.getByRole('button', { name: 'Account menu' }).boundingBox()
-    expect(refresh?.height).toBe(36)
-    expect(account?.width).toBe(36)
-    expect(account?.height).toBe(36)
+    // The generated density is not the test's business: clear it for the comfortable sizes, then set
+    // compact, as the phone test does. Polled because the control sizes animate.
+    const size = (name: string, dimension: 'width' | 'height') => async () =>
+      (await page.getByRole('button', { name }).boundingBox())?.[dimension]
+
+    await page.evaluate(() => {
+      document.documentElement.removeAttribute('data-density')
+    })
+    await expect.poll(size('Refresh', 'height')).toBe(36)
+    await expect.poll(size('Account menu', 'width')).toBe(36)
+    await expect.poll(size('Account menu', 'height')).toBe(36)
+
+    await page.evaluate(() => {
+      document.documentElement.setAttribute('data-density', 'compact')
+    })
+    await expect.poll(size('Refresh', 'height')).toBe(32)
+    await expect.poll(size('Account menu', 'width')).toBe(36)
+    await expect.poll(size('Account menu', 'height')).toBe(36)
 
     await expectNoSeriousViolations(page)
   },
@@ -159,6 +173,12 @@ test(
 
 test('the theme menu switches to dark and the choice survives a reload', async ({ page }) => {
   await page.goto('/')
+
+  // Start from light, whatever theme was generated as the default, so the switch is observable.
+  const light = page.getByRole('menuitemradio', { name: 'Light' })
+  await openMenu(page.getByRole('button', { name: 'Account menu' }), light)
+  await light.click()
+  await expect(page.locator('html')).not.toHaveClass(/dark/)
 
   const dark = page.getByRole('menuitemradio', { name: 'Dark' })
   await openMenu(page.getByRole('button', { name: 'Account menu' }), dark)

@@ -728,6 +728,7 @@ export function generate(
         `warning: no frontend in the plan, so these brand options are ignored: ${plan.ignoredBrand.join(', ')}`,
       )
     }
+    for (const note of plan.brand?.notes ?? []) log(note)
     log(`==> Staging in ${staging}`)
     const values = new Map(plan.packages.map((p) => [p.dir, packagePlaceholders(plan, p, log)]))
     for (const pkg of plan.packages) {

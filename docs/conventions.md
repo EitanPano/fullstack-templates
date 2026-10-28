@@ -167,7 +167,9 @@ The contract of every frontend, server-rendered or SPA. The rationale and the tr
 - **Brand.** The generator takes `--display-name`, `--brand-primary`, `--brand-neutral`, `--radius`,
   `--font`, `--theme` and `--density`, recorded in provenance under `answers.brand`. Defaults: the
   project name in title case, `#1d4ed8` on a `#64748b` neutral, `md`, `system`, `system`,
-  `comfortable`. The generator fails, naming the pair, when a seed cannot pass the contrast checks.
+  `comfortable`. The generator fails, naming the pair, when a seed cannot pass the contrast checks. The primary is
+  also link text, so it must read at 4.5:1 on the page, cards and popovers: the generator moves its
+  lightness (hue and chroma kept) until it does, and prints a `note:` line saying so.
 - **Cross-package selections.** A frontend template may gate files on the server's flags and
   capabilities with `onlyWhen: { "server:<name>": [paths] }`; every `server:*` selection is off
   when the frontend is generated alone ([capabilities](capabilities.md)).

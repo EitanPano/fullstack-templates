@@ -13,3 +13,14 @@ cases:
   - name: python
     stack: next-python-fastapi
   - name: alone
+  # Non-default brand values through every gate: the cases above all generate the default brand.
+  - name: brand
+    stack: next-bun-express
+    brand:
+      displayName: Brand Case
+      primary: '#facc15'
+      neutral: '#78716c'
+      radius: lg
+      font: inter
+      theme: dark
+      density: compact

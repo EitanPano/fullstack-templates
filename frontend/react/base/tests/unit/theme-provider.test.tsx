@@ -152,7 +152,7 @@ describe('ThemeProvider', () => {
     expect(toTheme('dark')).toBe('dark')
     expect(toTheme('light')).toBe('light')
     expect(toTheme('')).toBe('system')
-    expect(toTheme('__THEME_DEFAULT__')).toBe('system')
+    expect(toTheme('sepia')).toBe('system')
   })
 
   it('needs a provider', () => {

@@ -17,3 +17,14 @@ cases:
     stack: react-bun-express
     deploy: single
     server: { flags: { auth: false } }
+  # Non-default brand values through every gate: the cases above all generate the default brand.
+  - name: brand
+    stack: react-bun-express
+    deploy: single
+    brand:
+      primary: '#ea580c'
+      neutral: '#64748b'
+      radius: sm
+      font: inter
+      theme: light
+      density: compact
