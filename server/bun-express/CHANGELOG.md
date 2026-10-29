@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.1 — 2026-10-29
+
+Documentation only.
+
+- `AGENTS.md` keeps a `withTransaction` example in the text and stops pointing at the reference module once it is dropped (copy your first module instead).
+- `AGENTS.md › Authentication` says what to update when a product renames the roles `user` and `admin`.
+
 ## 2.4.0 — 2026-10-26
 
 - New command `start` (`bun run start`): the server without a watcher or reloader, which a frontend's e2e starts.

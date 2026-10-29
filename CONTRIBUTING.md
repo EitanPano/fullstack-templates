@@ -460,7 +460,8 @@ the lockfiles is still to be configured.
 
 - Conventional Commits: `type(scope): summary`, imperative, one intent per commit.
 - Catalog releases are tags `vMAJOR.MINOR.PATCH`: the major bumps when a manifest
-  `schemaVersion` changes, the minor when a template, provider or capability is added,
+  `schemaVersion` changes, the minor when a template, provider or capability is added or a template gains a feature
+  (a template's own minor),
   the patch for fixes. `v0.x` tags are milestones before `v1.0.0`
   ([ADR 0001, D10](docs/adr/0001-catalog-architecture.md)).
 - Each template has its own `version` and `CHANGELOG.md`; its major bumps when the
@@ -471,8 +472,8 @@ the lockfiles is still to be configured.
   `schemaVersion: 1`: a file written before the field still validates. Only a change that makes an
   existing file invalid bumps it. v1.4.0 added optional fields (`answers.brand`, `onlyWhen`, the case
   fields for a server's flags, the `e2eDb` command, the provider's `e2e` URL); v1.4.1 adds the case
-  field `brand`.
-- This release is `v1.4.1`, a patch, with `frontend/next` 2.0.1, `frontend/react` 2.0.1 (a brand fix in
-  the theme generator and in each frontend's tests), `server/bun-express` 2.4.0 and
-  `server/python-fastapi` 1.2.0. A template's `version` is bumped in
+  field `brand`; v1.5.0 adds none.
+- This release is `v1.5.0`, a minor (a feature release of existing templates), with `frontend/next` 2.1.0, `frontend/react` 2.1.0 (axe,
+  overflow and one-`h1` checks on every screen in both themes, the signed-in screens list, and a
+  compact icon button), `server/bun-express` 2.4.1 and `server/python-fastapi` 1.2.1 (documentation). A template's `version` is bumped in
   `template.yaml`, `index.yaml` and its `CHANGELOG.md` together.

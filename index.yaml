@@ -3,22 +3,22 @@ templates:
   - id: bun-express
     kind: server
     path: server/bun-express
-    version: 2.4.0
+    version: 2.4.1
     summary: "Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus"
   - id: python-fastapi
     kind: server
     path: server/python-fastapi
-    version: 1.2.0
+    version: 1.2.1
     summary: "Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope"
   - id: next
     kind: frontend
     path: frontend/next
-    version: 2.0.1
+    version: 2.1.0
     summary: "Next.js 16 App Router with a typed client generated from the server's contract"
   - id: react
     kind: frontend
     path: frontend/react
-    version: 2.0.1
+    version: 2.1.0
     summary: "Vite and React 19 single-page app on the frontend foundation: React Router data mode, shadcn/ui, TanStack Query and a client generated from the server's contract"
 stacks:
   - id: next-bun-express
