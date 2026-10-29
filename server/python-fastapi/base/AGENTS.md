@@ -425,6 +425,14 @@ changes only by plan.
   call take no caller and are named system operations: `create_user`, `find_user_by_email`,
   `find_user_by_target`, `get_active_user`, `mark_verified`, `set_user_role`. There is no admin
   bootstrap: a seed script calls `set_user_role`.
+- **Renaming the roles.** The template's roles are `user` and `admin`. A product that renames them
+  changes these together, then runs the `contract` command: the `UserRole` enum
+  (`models/user/enums.py`), `UserRoleName` (`api/user/schema.py`), the wire mapping in
+  `api/user/controller.py` and the `role` column or check in the migrations; the `require_role(...)`
+  and `_assert_role(...)` gates in `api/user/` and `api/module/`; the seed or first-staff path that
+  calls `set_user_role`; the summaries that say "admin" (`routes.py` of both modules, and so
+  `openapi.json`); the tests that use the role; this file. The frontend's role type guard and gates
+  follow (its `AGENTS.md`).
 - Gates: `middleware/auth.py` (`authenticate` never rejects, `require_auth` answers 401,
   `require_caller` gives a handler the caller) and `middleware/role.py` (`require_role`) are
   dependencies in a route's `dependencies=[...]`; they read the token only through
@@ -495,9 +503,24 @@ query function in a module's `service.py` takes an optional last keyword, `db: E
 None`. Without it the query takes its own connection from the pool and commits when it is done;
 with it the query runs on the connection given, in whatever transaction that connection is in. A
 controller cannot import `services/db.py`, so a module that must write two things together exports
-`with_transaction(work)` from its `service.py` (`api/module/service.py` is the example): the
-controller opens it and passes the connection it receives to each query as `db=`. A service
-function never opens a transaction, and a transaction never spans modules.
+`with_transaction(work)` from its `service.py`: the controller opens it and passes the connection
+it receives to each query as `db=`. A service function never opens a transaction, and a transaction
+never spans modules. The helper is the same in every module (`api/module/service.py` has it until
+that module is dropped):
+
+```python
+async def with_transaction[T](work: Callable[[Executor], Awaitable[T]]) -> T:
+    async with get_db() as connection, connection.transaction():  # commit on return, roll back on raise
+        return await work(connection)
+
+# In the controller: both writes commit together or not at all.
+async def place(order: Order) -> None:
+    async def work(db: Executor) -> None:
+        await create_order(order, db=db)
+        await reserve_stock(order.items, db=db)
+
+    await with_transaction(work)
+```
 
 A statement is a literal with `%s` placeholders and its values travel as parameters, never inside
 the text; a table or column name that is not fixed is built with `psycopg.sql.Identifier`, never
@@ -550,7 +573,7 @@ comments and constants: `module` to `<name>`, `Module` to `<Name>`, `MODULE` to 
 docstring of each file says what belongs there and what does not. Drop the reference module (both
 directories, its line in `config/routes.py`, its names in `COMPONENTS`, `MODULE_CREATED` and
 `ModuleCreated` in `services/event.py`, `RATE_LIMITS.create_post_per_ip` in `config/constants.py`,
-`tests/test_module.py`) once a real one exists, then regenerate `openapi.json` with the `contract`
+`tests/test_module.py`) once a real one exists (copy your first module for the next one), then regenerate `openapi.json` with the `contract`
 command.
 
 - One declaration, one validator: the handler's parameters are typed from `schema.py`, so FastAPI
@@ -659,7 +682,8 @@ The data layer is in place: this project was generated with `database/postgres`.
   task.
 - `services/db.py`: the seam (`get_db()`, `Executor`, `fetch_one`, `fetch_all`, `execute`; see The
   engine seam).
-- Every module's `service.py` in SQL. `api/module/service.py` is the reference: a row dataclass,
+- Every module's `service.py` in SQL. `api/module/service.py` is the reference until it is dropped,
+  then your first module is: a row dataclass,
   one `_to_record` mapping from snake_case columns to the record, `with_transaction`, and cursor
   pagination over `(created_at, id)`. `model.py` stays unused. <!-- @noauth -->
   pagination over `(created_at, id)`. `api/user/service.py` and `services/session.py` are in SQL <!-- @auth -->
