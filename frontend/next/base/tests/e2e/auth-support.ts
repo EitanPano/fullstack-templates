@@ -20,22 +20,22 @@ export function uniqueEmail(): string {
 // screen's form (the sign-up password inputs sit beside the sign-in ones). That is framework
 // behaviour, not a stale stream. A label alone is then ambiguous; the visible field is the one
 // a user types into, and there must be exactly one.
-async function field(page: Page, label: string, exact = false): Promise<Locator> {
+export async function visibleField(page: Page, label: string, exact = false): Promise<Locator> {
   const visible = page.getByLabel(label, { exact }).filter({ visible: true })
   await expect(visible).toHaveCount(1)
   return visible
 }
 
 export async function fillSignUp(page: Page, email: string, password = PASSWORD) {
-  await (await field(page, 'Email')).fill(email)
-  await (await field(page, 'Password', true)).fill(password)
-  await (await field(page, 'Confirm password')).fill(password)
+  await (await visibleField(page, 'Email')).fill(email)
+  await (await visibleField(page, 'Password', true)).fill(password)
+  await (await visibleField(page, 'Confirm password')).fill(password)
   await page.getByRole('button', { name: 'Create account' }).click()
 }
 
 export async function fillSignIn(page: Page, email: string, password = PASSWORD) {
-  await (await field(page, 'Email')).fill(email)
-  await (await field(page, 'Password', true)).fill(password)
+  await (await visibleField(page, 'Email')).fill(email)
+  await (await visibleField(page, 'Password', true)).fill(password)
   await page.getByRole('button', { name: 'Sign in' }).click()
 }
 

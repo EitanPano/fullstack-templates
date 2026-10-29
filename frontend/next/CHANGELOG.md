@@ -13,6 +13,7 @@ The screens spec checks what it captures, and signed-in screens join it (plan 01
 
 ### Fixed
 
+- The auth test "a taken email is shown on its field" resolved `getByLabel('Email')` to two elements when `cacheComponents` still held the sign-in form hidden; it now uses the exported `visibleField` of `auth-support.ts`, the visible field, exactly one.
 - The Account menu icon button stayed 36 px under `--density compact`; `size="icon"` and the trigger's skeleton now follow the density (32 px on a fine pointer, still 44 px on touch), and the desktop densities test expects it.
 
 ## 2.0.1 — 2026-10-28
