@@ -208,6 +208,12 @@ returnTo?)` throws a redirect to `/sign-in?next=…`; `requireRole(queryClient, 
 - **Staff pages.** Put them under a pathless route whose loader calls `requireRole(queryClient,
 'admin')`, and give every staff loader the same call. The template ships no staff page: no
   route creates an admin yet.
+- **Renaming the roles.** The template's roles are `user` and `admin`. A product that renames them
+  changes the role type guard in `shared/auth/session.ts` (it accepts only those two values, so
+  an account with another role reads as signed out), every `requireRole(...)` call, the role-gated layout
+  or staff group, the unit tests that use a role, and this file, after the server's roles and
+  the `contract` command (the generated types carry the role names). A role-gated route also
+  needs a setup in the e2e screens list (Tests).
 - The account slot of the shell is `widget/account-menu`. The email is in the menu, never header
   text beside a primary button.
 
@@ -232,7 +238,7 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
   `script-src 'self'`. Keep the two in step (storage key `theme`, same default). Do not add a
   `prefers-color-scheme` block.
 - **Sizing.** Controls use the shadcn density on a fine pointer and 44 px under touch:
-  `h-9 pointer-coarse:h-11`, icon buttons `size-9 pointer-coarse:size-11`. The density set at
+  `h-9 pointer-coarse:h-11`, icon buttons `size-9 pointer-coarse:size-11`, and `compact:` takes both to 32 px (`h-8`, `size-8`), above the 24 px minimum of WCAG 2.2 SC 2.5.8. The density set at
   generation (`data-density` on `<html>`) changes the fine-pointer height only: the `compact:`
   variant is wrapped in `@media (pointer: fine)`, because it ties with `pointer-coarse:` on
   specificity and would otherwise win on touch (`tests/unit/density.test.ts` compiles it). A new
@@ -336,6 +342,27 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
   and the guarded redirect. `screens.spec.ts` captures every `nav.ts` route (and, with the
   server's auth, sign-in and sign-up) in phone and desktop, light and dark, to `test-results/screens/<route>-<viewport>-
 <theme>.png`; QA reads them.
+- Each screen in `screens.spec.ts` is also checked, per route, theme and project: no axe violation of
+  the WCAG A and AA tags (in dark this is the contrast measurement), no horizontal scroll, and exactly
+  one `h1`. A failure names the route, theme and project and lists the rule ids and targets
+  (`screenProblems` in `support.ts`).
+<!-- @server:auth-start -->
+- The signed-in screens are `SIGNED_IN_ROUTES` in the same spec (`/profile`, `/forbidden`), captured and
+  checked the same way after signing up through the form; entries without a `setup` share one account
+  per project. A role-gated route is an entry with a `setup(account)`, which the project writes in its own
+  e2e support file (for example promoting `account.email` to the role) and the entry gets its own
+  account. Only `account.databaseUrl` may be written to: it is the browser-test database
+  (`E2E_DATABASE_URL`, refused unless its name ends in `_e2e`, the same guard `playwright.config.ts`
+  applies). Against a running stack (`E2E_BASE_URL` set) the entries with a `setup` are left out when
+  the tests are collected, with no registration spent: the one exclusion of container-mode e2e, so
+  a setup never reaches a development or production database. A setup that reads another connection
+  string breaks that rule. After a `setup` the spec signs out and signs in again through the form
+  before capturing, because the role is a claim in the session's token and the registration's
+  session carries the old one. Each signed-in test sets its own timeout from its number of
+  captures (the registration's 15 s included); a `storageState` setup project is not used.
+  A project without a database has nothing to promote (its setup receives `never`), and a setup never
+  reads a connection string from the environment itself (`DATABASE_URL` is the development one).
+<!-- @server:auth-end -->
 - The data rule: a journey creates its data through the API or the UI with a name unique per run,
   and never takes the database's contents as a precondition.
 - Every new behaviour gets a test for the happy path and at least one for a failure or empty

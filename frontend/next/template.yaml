@@ -2,7 +2,7 @@ schemaVersion: 1
 id: next
 kind: frontend
 name: Next.js 16 App Router
-version: 2.0.1
+version: 2.1.0
 summary: "Next.js 16 App Router with a typed client generated from the server's contract"
 runtime: { language: typescript, platform: node, minVersion: '24' }
 tools:

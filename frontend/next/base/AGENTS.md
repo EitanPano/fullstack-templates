@@ -241,6 +241,12 @@ token in JavaScript.
 - **Staff pages.** Put them in a `(site)/(staff)` group whose `layout.tsx` calls
   `requireRole('admin')`, and call it again in every page and loader. The template ships no staff
   page: no route creates an admin yet.
+- **Renaming the roles.** The template's roles are `user` and `admin`. A product that renames them
+  changes the role type guard in `shared/auth/session.ts` (it accepts only those two values, so
+  an account with another role reads as signed out), every `requireRole(...)` and `roleAction(...)` call, the role-gated layout
+  or staff group, the unit tests that use a role, and this file, after the server's roles and
+  the `contract` command (the generated types carry the role names). A role-gated route also
+  needs a setup in the e2e screens list (Tests).
 - The account slot of the shell is `widget/account-menu` (a request-time hole). The email is in the
   menu, never header text beside a primary button.
 
@@ -261,7 +267,7 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
 - **Theming.** `next-themes` (`attribute="class"`, default from the brief) sets `dark` on
   `<html>`; the toggle is in the `UserMenu`. Do not add a `prefers-color-scheme` block.
 - **Sizing.** Controls use the shadcn density on a fine pointer and 44 px under touch:
-  `h-9 pointer-coarse:h-11`, icon buttons `size-9 pointer-coarse:size-11`. The density set at
+  `h-9 pointer-coarse:h-11`, icon buttons `size-9 pointer-coarse:size-11`, and `compact:` takes both to 32 px (`h-8`, `size-8`), above the 24 px minimum of WCAG 2.2 SC 2.5.8. The density set at
   generation (`data-density` on `<html>`) changes the fine-pointer height only: the `compact:`
   variant is wrapped in `@media (pointer: fine)`, because it ties with `pointer-coarse:` on
   specificity and would otherwise win on touch (`tests/unit/density.test.ts` compiles it). A new control
@@ -365,8 +371,8 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
 - `E2E_BASE_URL` set (a blank value counts as unset): nothing is started and the tests target that origin (the catalog's case runner
   sets it against the Compose stack, `withApp`). There the API is the production one, with its normal
   rate limits and its own database, so the journeys register few accounts. The limit is 10 registrations
-  per 15 minutes for the one shared per-IP bucket, and a run sends six: run it once per 15 minutes per
-  stack. It leaves six users in that stack's `app` database.
+  per 15 minutes for the one shared per-IP bucket, and a run sends eight: run it once per 15 minutes per
+  stack. It leaves eight users in that stack's `app` database.
 - Playwright has two projects: `phone` (`Pixel 7`, touch) runs every spec, so every journey and its axe
   scan run on the phone; `desktop` (`Desktop Chrome`) runs `shell.spec.ts` and `screens.spec.ts` only.
   A check for one project carries a `@phone` or `@desktop` tag and the other project filters it out
@@ -379,7 +385,28 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
   the sign-in and sign-up screens when the server has auth, to
   `test-results/screens/<route>-<viewport>-<theme>.png` (`phone` and `desktop`, `light` and `dark`; the
   home route is `home`). QA reads them as the evidence of how the product looks. A route added to
-  `nav.ts` is captured without touching the spec; a screen that is not in the nav is added to its `ROUTES`.
+  `nav.ts` is captured without touching the spec, unless it is also in `SIGNED_IN_ROUTES` (then only signed in); a screen that is not in the nav is added to its `ROUTES`.
+- Each screen in `screens.spec.ts` is also checked, per route, theme and project: no axe violation of
+  the WCAG A and AA tags (in dark this is the contrast measurement), no horizontal scroll, and exactly
+  one `h1`. A failure names the route, theme and project and lists the rule ids and targets
+  (`screenProblems` in `support.ts`).
+<!-- @server:auth-start -->
+- The signed-in screens are `SIGNED_IN_ROUTES` in the same spec (`/profile`, `/forbidden`), captured and
+  checked the same way after signing up through the form; entries without a `setup` share one account
+  per project. A role-gated route is an entry with a `setup(account)`, which the project writes in its own
+  e2e support file (for example promoting `account.email` to the role) and the entry gets its own
+  account. Only `account.databaseUrl` may be written to: it is the browser-test database
+  (`E2E_DATABASE_URL`, refused unless its name ends in `_e2e`, the same guard `playwright.config.ts`
+  applies). Against a running stack (`E2E_BASE_URL` set) the entries with a `setup` are left out when
+  the tests are collected, with no registration spent: the one exclusion of container-mode e2e, so
+  a setup never reaches a development or production database. A setup that reads another connection
+  string breaks that rule. After a `setup` the spec signs out and signs in again through the form
+  before capturing, because the role is a claim in the session's token and the registration's
+  session carries the old one. Each signed-in test sets its own timeout from its number of
+  captures (the registration's 15 s included); a `storageState` setup project is not used.
+  A project without a database has nothing to promote (its setup receives `never`), and a setup never
+  reads a connection string from the environment itself (`DATABASE_URL` is the development one).
+<!-- @server:auth-end -->
 - `tests/unit/eslint-boundaries.test.ts` is the lint test (see the import rules above).
 - A journey creates its data through the UI with an email unique to the run (`uniqueEmail()`), and
   never takes the database's contents as a precondition.
