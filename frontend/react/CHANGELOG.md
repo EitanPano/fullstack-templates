@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.1 — 2026-10-29
+
+### Fixed
+
+- The root `.gitignore` no longer lists `.next/` and `next-env.d.ts`: they moved out of the shared `node` section into a `next` section that only `frontend/next` declares.
+
 ## 2.1.0 — 2026-10-29
 
 The screens spec checks what it captures, and signed-in screens join it (plan 016 of the harness).

@@ -2,7 +2,7 @@ schemaVersion: 1
 id: next
 kind: frontend
 name: Next.js 16 App Router
-version: 2.1.0
+version: 2.1.1
 summary: "Next.js 16 App Router with a typed client generated from the server's contract"
 runtime: { language: typescript, platform: node, minVersion: '24' }
 tools:
@@ -22,7 +22,7 @@ commands:
   contract: bun run api:types
 contract: { consumes: '<server>/openapi.json' }
 http: { port: 3000, health: / }
-gitignore: [node]
+gitignore: [node, next]
 # The auth glue exists only while the stack's server has its auth flag on (the contract then has
 # /api/auth and /api/user). Lines inside shared files carry // @server:auth markers.
 onlyWhen:

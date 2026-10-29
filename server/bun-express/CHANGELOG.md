@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.2 — 2026-10-29
+
+### Fixed
+
+- The root `.gitignore` no longer lists `.next/` and `next-env.d.ts`: they moved out of the shared `node` section into a `next` section that only `frontend/next` declares.
+
 ## 2.4.1 — 2026-10-29
 
 Documentation only.
