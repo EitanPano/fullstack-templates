@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.1 — 2026-10-29
+
+### Fixed
+
+- The root `.gitignore` keeps `.next/` and `next-env.d.ts` in a new `next` section (`shared/gitignore/next.gitignore`), which this template declares beside `node`. Generated output is otherwise unchanged.
+
 ## 2.1.0 — 2026-10-29
 
 The screens spec checks what it captures, and signed-in screens join it (plan 016 of the harness).

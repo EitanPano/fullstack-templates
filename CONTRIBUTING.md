@@ -472,8 +472,8 @@ the lockfiles is still to be configured.
   `schemaVersion: 1`: a file written before the field still validates. Only a change that makes an
   existing file invalid bumps it. v1.4.0 added optional fields (`answers.brand`, `onlyWhen`, the case
   fields for a server's flags, the `e2eDb` command, the provider's `e2e` URL); v1.4.1 adds the case
-  field `brand`; v1.5.0 adds none.
-- This release is `v1.5.0`, a minor (a feature release of existing templates), with `frontend/next` 2.1.0, `frontend/react` 2.1.0 (axe,
+  field `brand`; v1.5.0 and v1.5.1 add none.
+- This release is `v1.5.1`, a patch (a `.gitignore` fix: the Next-only lines moved to a `next` section), with `frontend/next` 2.1.1, `frontend/react` 2.1.1 and `server/bun-express` 2.4.2. The previous release, `v1.5.0`, a minor (a feature release of existing templates), had `frontend/next` 2.1.0, `frontend/react` 2.1.0 (axe,
   overflow and one-`h1` checks on every screen in both themes, the signed-in screens list, and a
   compact icon button), `server/bun-express` 2.4.1 and `server/python-fastapi` 1.2.1 (documentation). A template's `version` is bumped in
   `template.yaml`, `index.yaml` and its `CHANGELOG.md` together.
