@@ -17,6 +17,10 @@ cases:
     stack: react-bun-express
     deploy: single
     server: { flags: { auth: false } }
+  - name: auth-off-postgres
+    stack: react-bun-express
+    deploy: single
+    server: { flags: { auth: false }, capabilities: { database: postgres } }
   # Non-default brand values through every gate: the cases above all generate the default brand.
   - name: brand
     stack: react-bun-express

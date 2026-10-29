@@ -150,8 +150,8 @@ test('controls keep the shadcn densities on the desktop project', { tag: '@deskt
     document.documentElement.setAttribute('data-density', 'compact')
   })
   await expect.poll(size('Refresh', 'height')).toBe(32)
-  await expect.poll(size('Account menu', 'width')).toBe(36)
-  await expect.poll(size('Account menu', 'height')).toBe(36)
+  await expect.poll(size('Account menu', 'width')).toBe(32)
+  await expect.poll(size('Account menu', 'height')).toBe(32)
 
   await expectNoSeriousViolations(page)
 })
