@@ -10,6 +10,9 @@ cases:
     stack: next-bun-express
     withApp: true
     server: { capabilities: { database: postgres } }
+  - name: auth-off-postgres
+    stack: next-bun-express
+    server: { flags: { auth: false }, capabilities: { database: postgres } }
   - name: python
     stack: next-python-fastapi
   - name: alone

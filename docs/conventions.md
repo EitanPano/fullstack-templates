@@ -160,7 +160,9 @@ The contract of every frontend, server-rendered or SPA. The rationale and the tr
   shadcn densities on the desktop project and that `data-density="compact"` does not shrink a touch
   target. `tests/e2e/screens.spec.ts` captures every `nav.ts` route, plus sign-in and sign-up when
   auth is on, on phone and desktop in light and dark, to
-  `test-results/screens/<route>-<viewport>-<theme>.png`. A journey creates its data through the API
+  `test-results/screens/<route>-<viewport>-<theme>.png`, and checks each screen (no axe violation of
+  the WCAG A and AA tags, no horizontal scroll, one `h1`); `SIGNED_IN_ROUTES` adds the screens only an
+  account sees. A journey creates its data through the API
   with a name unique per run and removes it through the API once the product has a delete endpoint.
 - **Unit tests** are Vitest with React Testing Library. The template tests its own glue once (the
   field bindings, the shell nav, `call`, the action client, theme toggling, the auth helpers).

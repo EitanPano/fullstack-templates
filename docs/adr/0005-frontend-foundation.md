@@ -771,3 +771,32 @@ export function BookButton({ classId, name }: { classId: string; name: string })
 
 (`ctx.api` and the `call` signature are illustrative; the template's `AGENTS.md` shows the
 shipped form.)
+
+## Amendments (v1.4.1)
+
+- F3, the primary's lightness move. The button's `link` variant paints the primary as text, so
+  `tools/lib/theme.ts` keeps it readable (4.5:1) on the page, cards and popovers. In each mode it
+  starts from the seed (dark mode: the seed, or lightness 0.62 when that is lower) and moves the
+  lightness away from the page, darker in light mode and lighter in dark mode, in 0.005 steps until
+  all three surfaces pass. That move is **uncapped**: it may cross the whole lightness range, unlike
+  the foreground and surface fixes, which are held to `maxShift` (0.12), so a pale seed such as
+  `#ea580c` (3.55:1 on white) is darkened as far as it takes. Hue and chroma stay (the chroma is
+  clamped to what sRGB holds at the new lightness), and the only failure is reaching black or white
+  without passing, which names the pair. `primary-foreground` is then fixed against that
+  primary, moving only the primary-surface, away from the page, within `maxShift`. Why uncapped:
+  a cap would turn a legible brand colour into a failed generation or an axe `color-contrast`
+  violation on the auth screens. Cost: a pale brand colour ships noticeably darker (or, in dark
+  mode, lighter) than its seed; the generator prints a `note:` line for each mode it moved
+  (`brandNotes` in `tools/lib/brand.ts`), and a product that wants the exact seed edits the CSS
+  values by plan.
+
+## Amendments (v1.5.0)
+
+- F12, the screens spec checks what it captures. For every route, theme and project, and for the
+  signed-in screens (`SIGNED_IN_ROUTES`, captured after signing up through the form), it also
+  asserts no axe violation of the WCAG A and AA tags (in dark mode this is the contrast
+  measurement), no horizontal scroll and exactly one `h1`. A failure names the route, theme and
+  project and lists the rule ids and targets. A role-gated screen is an entry with a `setup`
+  function the project supplies; it receives only the browser-test database URL, which must end in
+  `_e2e`, and is refused when `E2E_BASE_URL` points at a running stack. A container-mode run now
+  registers eight accounts (it was six).

@@ -345,6 +345,12 @@ invalid or expired token.
   call take no caller and are named system operations: `createUser`, `findUserByEmail`,
   `findUserByTarget`, `getActiveUser`, `markVerified`, `setUserRole`. There is no admin
   bootstrap: the seed script calls `setUserRole`.
+- **Renaming the roles.** The template's roles are `user` and `admin`. A product that renames them
+  changes these together, then runs `openapi` and the frontend's `contract`: the `UserRole` enum
+  (`models/user/enum.ts`) and the `role` column or check in the migrations; the `requireRole(...)` and
+  `assertRole(...)` gates in `api/user/` and `api/module/`; the seed or first-staff path that calls
+  `setUserRole`; the summaries that say "admin" (`schema.ts` of both modules); the tests that use the
+  role; this file. The frontend's role type guard and gates follow (its `AGENTS.md`).
 <!-- @auth-end -->
 <!-- @noauth-start -->
 ## Authentication
@@ -382,10 +388,22 @@ import it; ESLint refuses it in `routes.ts`, `controller.ts` and `schema.ts`. Ev
 function in a module's `service.ts` takes an optional last parameter, `db: Executor = getDb()`.
 Without it the query takes its own connection from the pool; with it the query runs on the
 handle given. A controller cannot import `services/db.ts`, so a module that must write two
-things together exports `withTransaction(work)` from its `service.ts`
-(`api/module/service.ts` is the example): the controller opens it and passes the handle it
-receives to each query as the last argument. A service function never opens a transaction,
-and a transaction never spans modules.
+things together exports `withTransaction(work)` from its `service.ts`: the controller opens
+it and passes the handle it receives to each query as the last argument. A service function
+never opens a transaction, and a transaction never spans modules. The helper is the same in
+every module (`api/module/service.ts` has it until that module is dropped):
+
+```ts
+export function withTransaction<T>(work: (tx: Executor) => Promise<T>): Promise<T> {
+  return getDb().begin(async (tx) => work(tx)) // commit when it resolves, roll back when it throws
+}
+
+// In the controller: both writes commit together or not at all.
+await withTransaction(async (tx) => {
+  await createOrder(order, tx)
+  await reserveStock(order.items, tx)
+})
+```
 
 `services/cache.ts` is still on `infra/memory.ts`. The cache task rewrites `cache.ts`, adds
 `infra/redis.ts` and gives `infra/pubsub.ts` its adapter (see Adding the data layer). Until
@@ -413,7 +431,7 @@ Work in this order, test first.
 Start by copying `api/module/` and `models/module/`, renaming in directories, files,
 identifiers, comments and constants: `module` to `<name>`, `Module` to `<Name>`, `MODULE` to
 `<NAME>`. Drop the reference module (both directories, its lines in `config/routes.ts` and
-`openapi.ts`, `tests/module.test.ts`) once a real one exists.
+`openapi.ts`, `tests/module.test.ts`) once a real one exists (copy your first module for the next one).
 
 - One request object, two readers: `validate(<operation>Request)` in `routes.ts` and
   `readInput(res, <operation>Request)` in the handler, so the types follow the schemas.
@@ -500,8 +518,8 @@ The data layer is in place: this project was generated with `database/postgres`.
 - `infra/postgres.ts`: the `Resource` over Bun's built-in `SQL` (a pool; nothing connects at
   import), in `dependencies` beside `memory`, which stays as the cache until the cache task.
 - `services/db.ts`: the seam (`getDb()`, `Executor`; see The engine seam).
-- Every module's `service.ts` in SQL. `api/module/service.ts` is the reference: a row type,
-  one `toRecord` mapping from snake_case columns to the camelCase record, `withTransaction`,
+- Every module's `service.ts` in SQL. `api/module/service.ts` is the reference until it is dropped,
+  then your first module is: a row type, one `toRecord` mapping from snake_case columns to the camelCase record, `withTransaction`,
   and cursor pagination over `(created_at, id)`. `model.ts` stays unused. <!-- @noauth -->
   and cursor pagination over `(created_at, id)`. `api/user/service.ts` and <!-- @auth -->
   `services/session.ts` are in SQL too. `model.ts` stays unused. <!-- @auth -->

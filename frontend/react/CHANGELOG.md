@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.1.0 — 2026-10-29
+
+The screens spec checks what it captures, and signed-in screens join it (plan 016 of the harness).
+
+### Added
+
+- `tests/e2e/screens.spec.ts` runs three checks on every route, theme and project, beside the screenshots (their names are unchanged): no axe violation of the `wcag2a`, `wcag2aa`, `wcag21a` and `wcag21aa` tags (in dark mode this is the contrast measurement), no horizontal scroll, and exactly one `h1`; before scanning, `screenProblems` waits for `networkidle`. A failure names the route, theme and project and lists the rule ids and targets (`screenProblems` in `tests/e2e/support.ts`).
+- `SIGNED_IN_ROUTES` beside `ROUTES` (with the server's auth): `/profile` and `/forbidden`, captured and checked after signing up through the form. An entry may carry a `setup(account)` for a role-gated route; it receives only the browser-test database URL (a name ending in `_e2e`); against a running stack (`E2E_BASE_URL` set) the entries with a `setup` are left out when the tests are collected, with no registration spent. After a `setup` the spec signs out and signs in again so the session carries the promoted role, and each signed-in test sets its timeout from its number of captures. A route in both `NAV` and `SIGNED_IN_ROUTES` is captured only signed in. `AGENTS.md › Tests` documents it. A container-mode run now registers eight accounts, not six.
+- `AGENTS.md › Auth` says what to update when a product renames the roles `user` and `admin`.
+- A role setup's `account.databaseUrl` is a required string and the database guard is loaded only when the server has a database, so a project without one offers no setup surface and `auth` off with `database` on lints clean.
+
+### Fixed
+
+- The Account menu icon button stayed 36 px under `--density compact`; `size="icon"` and the trigger's skeleton now follow the density (32 px on a fine pointer, still 44 px on touch), and the desktop densities test expects it.
+
 ## 2.0.1 — 2026-10-28
 
 Fixes for projects generated with non-default brand values; the default brand was unaffected.

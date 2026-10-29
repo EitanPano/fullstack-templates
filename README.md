@@ -82,10 +82,10 @@ puts the frontend in front. Next.js stacks are always `split`. See
 <!-- matrix:start -->
 | Template | Kind | Version | Flags | Capabilities | Summary |
 | --- | --- | --- | --- | --- | --- |
-| `bun-express` | server | 2.4.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
-| `python-fastapi` | server | 1.2.0 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
-| `next` | frontend | 2.0.1 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
-| `react` | frontend | 2.0.1 | — | — | Vite and React 19 single-page app on the frontend foundation: React Router data mode, shadcn/ui, TanStack Query and a client generated from the server's contract |
+| `bun-express` | server | 2.4.1 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
+| `python-fastapi` | server | 1.2.1 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
+| `next` | frontend | 2.1.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
+| `react` | frontend | 2.1.0 | — | — | Vite and React 19 single-page app on the frontend foundation: React Router data mode, shadcn/ui, TanStack Query and a client generated from the server's contract |
 
 | Stack | Packages | Summary |
 | --- | --- | --- |
@@ -152,6 +152,10 @@ template finds the same shape.
   lint, a shadcn/ui design system, a Hey API client, safe mutations and forms, the auth screens
   and an e2e suite against a fresh API and its own database. `generate` gains the brand options;
   `bun-express` 2.4.0 and `python-fastapi` 1.2.0 add `start`, `RATE_LIMIT_SCALE` and `e2eDb`.
+- v1.5.0: the screens spec of `frontend/next` and `frontend/react` 2.1.0 checks every screen
+  in both themes (axe, no horizontal scroll, one `h1`) and covers the signed-in screens; the
+  servers' `AGENTS.md` (`bun-express` 2.4.1, `python-fastapi` 1.2.1) gain a `withTransaction`
+  example and the role-renaming list.
 - Next: mongodb, redis, and a worker with rabbitmq.
 
 The design is in [ADR 0001](docs/adr/0001-catalog-architecture.md).

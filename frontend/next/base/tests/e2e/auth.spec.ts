@@ -10,6 +10,7 @@ import {
   registerThroughUi,
   signOutThroughUi,
   uniqueEmail,
+  visibleField,
 } from './auth-support'
 import { expectNoSeriousViolations } from './support'
 
@@ -78,7 +79,7 @@ test('a taken email is shown on its field and not as a toast', async ({ page }) 
   await page.goto('/sign-up')
   await fillSignUp(page, email)
 
-  const field = page.getByLabel('Email')
+  const field = await visibleField(page, 'Email')
   await expect(field).toHaveAttribute('aria-invalid', 'true')
   await expect(page.getByRole('alert').filter({ hasText: 'already registered' })).toBeVisible()
   await expect(page.locator('[data-sonner-toast]')).toHaveCount(0)
