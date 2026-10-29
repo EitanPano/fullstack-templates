@@ -147,3 +147,28 @@ describe.each(E2E_STACKS)('the generated e2e config of %s', (stack) => {
     })
   })
 })
+
+describe('the generated .gitignore', () => {
+  const ignore = (out: string) => readFileSync(path.join(out, '.gitignore'), 'utf8')
+  const count = (text: string, line: string) => text.split(/\r?\n/).filter((l) => l === line).length
+
+  test.each(['react-bun-express', 'react-python-fastapi'])(
+    '%s has neither Next-only line',
+    (stack) => {
+      generated({ stack }, (out) => {
+        expect(count(ignore(out), '.next/')).toBe(0)
+        expect(count(ignore(out), 'next-env.d.ts')).toBe(0)
+      })
+    },
+  )
+
+  test.each(['next-bun-express', 'next-python-fastapi'])(
+    '%s has each Next-only line exactly once',
+    (stack) => {
+      generated({ stack }, (out) => {
+        expect(count(ignore(out), '.next/')).toBe(1)
+        expect(count(ignore(out), 'next-env.d.ts')).toBe(1)
+      })
+    },
+  )
+})

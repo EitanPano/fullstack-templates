@@ -82,10 +82,10 @@ puts the frontend in front. Next.js stacks are always `split`. See
 <!-- matrix:start -->
 | Template | Kind | Version | Flags | Capabilities | Summary |
 | --- | --- | --- | --- | --- | --- |
-| `bun-express` | server | 2.4.1 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
+| `bun-express` | server | 2.4.2 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
 | `python-fastapi` | server | 1.2.1 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
-| `next` | frontend | 2.1.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
-| `react` | frontend | 2.1.0 | — | — | Vite and React 19 single-page app on the frontend foundation: React Router data mode, shadcn/ui, TanStack Query and a client generated from the server's contract |
+| `next` | frontend | 2.1.1 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
+| `react` | frontend | 2.1.1 | — | — | Vite and React 19 single-page app on the frontend foundation: React Router data mode, shadcn/ui, TanStack Query and a client generated from the server's contract |
 
 | Stack | Packages | Summary |
 | --- | --- | --- |
@@ -156,6 +156,9 @@ template finds the same shape.
   in both themes (axe, no horizontal scroll, one `h1`) and covers the signed-in screens; the
   servers' `AGENTS.md` (`bun-express` 2.4.1, `python-fastapi` 1.2.1) gain a `withTransaction`
   example and the role-renaming list.
+- v1.5.1: the root `.gitignore` of a React or Bun-only project no longer lists `.next/` and
+  `next-env.d.ts`; they live in a `next` section that only `frontend/next` 2.1.1 declares
+  (`frontend/react` 2.1.1 and `server/bun-express` 2.4.2 pick up the smaller `node` section).
 - Next: mongodb, redis, and a worker with rabbitmq.
 
 The design is in [ADR 0001](docs/adr/0001-catalog-architecture.md).
