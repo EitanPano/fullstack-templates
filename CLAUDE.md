@@ -25,6 +25,9 @@ from searches or its copies of `base/` will shadow the real ones.
 
 ## The consumer: fullstack-dev-harness
 
+A request to create a project from this catalog means the harness: follow its README, Start a
+project. Never start a user's project by running `tools/generate.ts` directly.
+
 This catalog is consumed by `github.com/EitanPano/fullstack-dev-harness` (ADR 0001 D8, D9). Its
 bootstrap pins a release tag in `catalog.lock`, shallow-clones it, runs `tools/generate.ts`, and
 its agents then work from the generated project alone. What the harness depends on, and so what
