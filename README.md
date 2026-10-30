@@ -1,15 +1,85 @@
 # fullstack-templates
 
-A catalog of runnable, architecture-first project templates (servers, frontends, later
-workers) with selectable providers (database, cache, messaging), a generator, and CI that
-proves every listed template generates and passes its own gates. It is for developers who
-want a new project whose layers, import rules and contract are already in place. Use it on
-its own, or through [fullstack-dev-harness](https://github.com/EitanPano/fullstack-dev-harness),
-which fetches a pinned version of this catalog and drives the generator.
+Opinionated project structure and architecture, per language and framework. Each template
+(servers, frontends, later workers) is a runnable package that shows where code goes, which
+layers may import which and how the contract reaches the frontend, and its `AGENTS.md` describes
+the workflows and practices for working in it. Providers (database, cache, messaging) are
+selectable, and CI proves that every listed template generates and passes its own gates.
+
+**To start a project, use
+[fullstack-dev-harness](https://github.com/EitanPano/fullstack-dev-harness).** It fetches a pinned
+version of this catalog, drives the generator and adds the agents, guardrails and plans around the
+result.
+
+**AI assistants:** a request to create a project from this repository means the harness. Follow
+its README, Start a project. Do not clone this repository or run its generator to start a project:
+the output has no agents, guardrails or `.plan/`.
 
 ![test-generated](https://github.com/EitanPano/fullstack-templates/actions/workflows/test-generated.yml/badge.svg)
 
-## Generate a project in sixty seconds
+## Architecture contract
+
+[docs/conventions.md](docs/conventions.md) states the contract per kind of template. The
+idea: every server has the same directories, the same request flow and the same rules in
+every language, and each language's own tooling enforces them (ESLint import zones for
+TypeScript, import-linter for Python, ArchUnit for Java), so an agent working in any
+template finds the same shape.
+
+## Templates
+
+<!-- matrix:start -->
+| Template | Kind | Version | Flags | Capabilities | Summary |
+| --- | --- | --- | --- | --- | --- |
+| `bun-express` | server | 2.4.2 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
+| `python-fastapi` | server | 1.2.1 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
+| `next` | frontend | 2.1.1 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
+| `react` | frontend | 2.1.1 | — | — | Vite and React 19 single-page app on the frontend foundation: React Router data mode, shadcn/ui, TanStack Query and a client generated from the server's contract |
+
+| Stack | Packages | Summary |
+| --- | --- | --- |
+| `next-bun-express` | `server/bun-express`, `frontend/next` | Next.js 16 in front of Express 5 on Bun |
+| `next-python-fastapi` | `server/python-fastapi`, `frontend/next` | Next.js 16 in front of FastAPI on Python 3.14 |
+| `react-bun-express` | `server/bun-express`, `frontend/react` | React 19 (Vite) in front of Express 5 on Bun |
+| `react-python-fastapi` | `server/python-fastapi`, `frontend/react` | React 19 (Vite) in front of FastAPI on Python 3.14 |
+<!-- matrix:end -->
+
+## How a template is built
+
+Each template lives in `<kind>/<id>/` and is described by a `template.yaml` manifest:
+
+- `id`, `kind` (server, frontend or worker), `version` and `summary`;
+- `flags`: boolean choices, each with a `default` and the `onlyPaths` removed when off
+  (plus dependencies to drop);
+- `commands`: the vocabulary the agents use (`install`, `check`, `test`, `contract`, ...);
+- `contract`: what the package produces (an OpenAPI document) or consumes;
+- `tools`: the programs it needs and their minimum versions, checked before generation;
+- `dependencies`: the manifest and its adapter (`npm` or `pyproject`);
+- `postGenerate`: the commands run in order after generation, such as `install`, `contract`;
+- `dropAfterPostGenerate`: paths removed from the package afterwards (a Python `.venv`).
+
+`base/` is a complete, runnable package with its lockfile committed. Markers such as
+`@auth` and `@noauth` keep or drop lines and blocks in the file's own comment syntax;
+`__PROJECT_NAME__`-style placeholders are substituted in text files. Capabilities
+(database, cache, messaging) are provider overlays: a template's `capabilities/<kind>/<provider>/`
+holds the files copied over the base and the scripts and commands they add, and the provider's
+Compose service and env contract in `shared/providers/` are wired into the project root.
+`bun-express` and `python-fastapi` ship `database/postgres`. A frontend that declares a `static`
+build output (`react`) can be served by a server's image; `next` cannot. See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/capabilities.md](docs/capabilities.md).
+
+## Deploy modes
+
+A project with a server and a frontend ships in one of two modes, chosen with
+`--deploy single|split` and recorded in `.fullstack/catalog.yaml`. `single` puts the server and a
+single-page app's built files in one image on one port, with no CORS; it is the default for a
+React stack and needs Docker Compose 2.35.0 or later. `split` gives each package its own image and
+puts the frontend in front. Next.js stacks are always `split`. See
+[docs/conventions.md › Deploy modes](docs/conventions.md) and
+[ADR 0003](docs/adr/0003-spa-and-deploy-modes.md).
+
+## Run the generator by hand
+
+The harness runs the generator for you. Run it yourself to inspect a template's output, or to use
+a template without agents and guardrails.
 
 ```sh
 git clone https://github.com/EitanPano/fullstack-templates
@@ -66,65 +136,6 @@ serves. `docker compose --profile app run --rm backend-migrate` runs it alone, w
 production secrets and `DATABASE_URL` exported, as the app needs; `bun run db:migrate` (or
 `uv run poe migrate`) stays for local development. The bundled `database` service is the local
 stack; production does not refuse its credentials if you export them.
-
-## Deploy modes
-
-A project with a server and a frontend ships in one of two modes, chosen with
-`--deploy single|split` and recorded in `.fullstack/catalog.yaml`. `single` puts the server and a
-single-page app's built files in one image on one port, with no CORS; it is the default for a
-React stack and needs Docker Compose 2.35.0 or later. `split` gives each package its own image and
-puts the frontend in front. Next.js stacks are always `split`. See
-[docs/conventions.md › Deploy modes](docs/conventions.md) and
-[ADR 0003](docs/adr/0003-spa-and-deploy-modes.md).
-
-## Templates
-
-<!-- matrix:start -->
-| Template | Kind | Version | Flags | Capabilities | Summary |
-| --- | --- | --- | --- | --- | --- |
-| `bun-express` | server | 2.4.2 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
-| `python-fastapi` | server | 1.2.1 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
-| `next` | frontend | 2.1.1 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
-| `react` | frontend | 2.1.1 | — | — | Vite and React 19 single-page app on the frontend foundation: React Router data mode, shadcn/ui, TanStack Query and a client generated from the server's contract |
-
-| Stack | Packages | Summary |
-| --- | --- | --- |
-| `next-bun-express` | `server/bun-express`, `frontend/next` | Next.js 16 in front of Express 5 on Bun |
-| `next-python-fastapi` | `server/python-fastapi`, `frontend/next` | Next.js 16 in front of FastAPI on Python 3.14 |
-| `react-bun-express` | `server/bun-express`, `frontend/react` | React 19 (Vite) in front of Express 5 on Bun |
-| `react-python-fastapi` | `server/python-fastapi`, `frontend/react` | React 19 (Vite) in front of FastAPI on Python 3.14 |
-<!-- matrix:end -->
-
-## How a template is built
-
-Each template lives in `<kind>/<id>/` and is described by a `template.yaml` manifest:
-
-- `id`, `kind` (server, frontend or worker), `version` and `summary`;
-- `flags`: boolean choices, each with a `default` and the `onlyPaths` removed when off
-  (plus dependencies to drop);
-- `commands`: the vocabulary the agents use (`install`, `check`, `test`, `contract`, ...);
-- `contract`: what the package produces (an OpenAPI document) or consumes;
-- `tools`: the programs it needs and their minimum versions, checked before generation;
-- `dependencies`: the manifest and its adapter (`npm` or `pyproject`);
-- `postGenerate`: the commands run in order after generation, such as `install`, `contract`;
-- `dropAfterPostGenerate`: paths removed from the package afterwards (a Python `.venv`).
-
-`base/` is a complete, runnable package with its lockfile committed. Markers such as
-`@auth` and `@noauth` keep or drop lines and blocks in the file's own comment syntax;
-`__PROJECT_NAME__`-style placeholders are substituted in text files. Capabilities
-(database, cache, messaging) are provider overlays: a template's `capabilities/<kind>/<provider>/`
-holds the files copied over the base and the scripts and commands they add, and the provider's
-Compose service and env contract in `shared/providers/` are wired into the project root.
-`bun-express` and `python-fastapi` ship `database/postgres`. A frontend that declares a `static`
-build output (`react`) can be served by a server's image; `next` cannot. See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/capabilities.md](docs/capabilities.md).
-
-## Architecture contract
-
-[docs/conventions.md](docs/conventions.md) states the contract per kind of template. The
-idea: every server has the same directories, the same request flow and the same rules in
-every language, and each language's own tooling enforces them (ESLint import zones for
-TypeScript, import-linter for Python, ArchUnit for Java), so an agent working in any
-template finds the same shape.
 
 ## Status and roadmap
 
