@@ -95,66 +95,78 @@ test('touch targets are 44 px on the phone project only', { tag: '@phone' }, asy
 // `--density compact` sets data-density on <html> at generation; setting it here exercises the
 // same CSS without a second build (the generator's emission of the attribute is covered by the
 // catalog's generator tests). Compact shrinks fine-pointer controls only.
-test('compact density does not shrink touch targets on the phone project', { tag: '@phone' }, async ({ page }) => {
-  await page.goto('/')
-  await expect(page.getByRole('button', { name: 'Refresh' })).toBeVisible()
-  await page.evaluate(() => {
-    document.documentElement.setAttribute('data-density', 'compact')
-  })
+test(
+  'compact density does not shrink touch targets on the phone project',
+  { tag: '@phone' },
+  async ({ page }) => {
+    await page.goto('/')
+    await expect(page.getByRole('button', { name: 'Refresh' })).toBeVisible()
+    await page.evaluate(() => {
+      document.documentElement.setAttribute('data-density', 'compact')
+    })
 
-  const sizes = await touchTargetSizes(page)
-  expect(sizes.length).toBeGreaterThanOrEqual(4)
-  for (const size of sizes) {
-    expect(size.width, size.text).toBeGreaterThanOrEqual(44)
-    expect(size.height, size.text).toBeGreaterThanOrEqual(44)
-  }
+    const sizes = await touchTargetSizes(page)
+    expect(sizes.length).toBeGreaterThanOrEqual(4)
+    for (const size of sizes) {
+      expect(size.width, size.text).toBeGreaterThanOrEqual(44)
+      expect(size.height, size.text).toBeGreaterThanOrEqual(44)
+    }
 
-  const sheet = await openPhoneMenu(page)
-  const close = await sheet.getByRole('button', { name: 'Close' }).boundingBox()
-  expect(close?.width).toBeGreaterThanOrEqual(44)
-  expect(close?.height).toBeGreaterThanOrEqual(44)
-})
+    const sheet = await openPhoneMenu(page)
+    const close = await sheet.getByRole('button', { name: 'Close' }).boundingBox()
+    expect(close?.width).toBeGreaterThanOrEqual(44)
+    expect(close?.height).toBeGreaterThanOrEqual(44)
+  },
+)
 
-test('the phone menu and its Close button are 44 px targets', { tag: '@phone' }, async ({ page }) => {
-  await page.goto('/')
+test(
+  'the phone menu and its Close button are 44 px targets',
+  { tag: '@phone' },
+  async ({ page }) => {
+    await page.goto('/')
 
-  const sheet = await openPhoneMenu(page)
-  for (const target of [
-    sheet.getByRole('button', { name: 'Close' }),
-    ...(await sheet.getByRole('link').all()),
-  ]) {
-    const box = await target.boundingBox()
-    expect(box?.width).toBeGreaterThanOrEqual(44)
-    expect(box?.height).toBeGreaterThanOrEqual(44)
-  }
+    const sheet = await openPhoneMenu(page)
+    for (const target of [
+      sheet.getByRole('button', { name: 'Close' }),
+      ...(await sheet.getByRole('link').all()),
+    ]) {
+      const box = await target.boundingBox()
+      expect(box?.width).toBeGreaterThanOrEqual(44)
+      expect(box?.height).toBeGreaterThanOrEqual(44)
+    }
 
-  await expectNoSeriousViolations(page)
-})
+    await expectNoSeriousViolations(page)
+  },
+)
 
-test('controls keep the shadcn densities on the desktop project', { tag: '@desktop' }, async ({ page }) => {
-  await page.goto('/')
+test(
+  'controls keep the desktop densities on the desktop project',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    await page.goto('/')
 
-  // The generated density is not the test's business: clear it for the comfortable sizes, then set
-  // compact, as the phone test does. Polled because the control sizes animate.
-  const size = (name: string, dimension: 'width' | 'height') => async () =>
-    (await page.getByRole('button', { name }).boundingBox())?.[dimension]
+    // The generated density is not the test's business: clear it for the comfortable sizes, then set
+    // compact, as the phone test does. Polled because the control sizes animate.
+    const size = (name: string, dimension: 'width' | 'height') => async () =>
+      (await page.getByRole('button', { name }).boundingBox())?.[dimension]
 
-  await page.evaluate(() => {
-    document.documentElement.removeAttribute('data-density')
-  })
-  await expect.poll(size('Refresh', 'height')).toBe(36)
-  await expect.poll(size('Account menu', 'width')).toBe(36)
-  await expect.poll(size('Account menu', 'height')).toBe(36)
+    await page.evaluate(() => {
+      document.documentElement.removeAttribute('data-density')
+    })
+    await expect.poll(size('Refresh', 'height')).toBe(36)
+    await expect.poll(size('Account menu', 'width')).toBe(36)
+    await expect.poll(size('Account menu', 'height')).toBe(36)
 
-  await page.evaluate(() => {
-    document.documentElement.setAttribute('data-density', 'compact')
-  })
-  await expect.poll(size('Refresh', 'height')).toBe(32)
-  await expect.poll(size('Account menu', 'width')).toBe(32)
-  await expect.poll(size('Account menu', 'height')).toBe(32)
+    await page.evaluate(() => {
+      document.documentElement.setAttribute('data-density', 'compact')
+    })
+    await expect.poll(size('Refresh', 'height')).toBe(32)
+    await expect.poll(size('Account menu', 'width')).toBe(32)
+    await expect.poll(size('Account menu', 'height')).toBe(32)
 
-  await expectNoSeriousViolations(page)
-})
+    await expectNoSeriousViolations(page)
+  },
+)
 
 test('the theme menu switches to dark and the choice survives a reload', async ({ page }) => {
   await page.goto('/')
@@ -162,14 +174,14 @@ test('the theme menu switches to dark and the choice survives a reload', async (
   // Start from light, whatever theme was generated as the default, so the switch is observable.
   await page.getByRole('button', { name: 'Account menu' }).click()
   await page.getByRole('menuitemradio', { name: 'Light' }).click()
-  await expect(page.locator('html')).not.toHaveClass(/dark/)
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
 
   await page.getByRole('button', { name: 'Account menu' }).click()
   await page.getByRole('menuitemradio', { name: 'Dark' }).click()
-  await expect(page.locator('html')).toHaveClass(/dark/)
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
 
   await page.reload()
-  await expect(page.locator('html')).toHaveClass(/dark/)
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   await expectNoSeriousViolations(page)
 })
 
