@@ -80,6 +80,8 @@ async function touchTargetSizes(page: Page) {
 test('touch targets are 44 px on the phone project only', { tag: '@phone' }, async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('button', { name: 'Refresh' })).toBeVisible()
+  // The account slot renders a skeleton until the session read answers; measure after it settles.
+  await expect(page.getByRole('button', { name: /^Account menu/ })).toBeVisible()
 
   const sizes = await touchTargetSizes(page)
   // The menu button, the brand, the account menu and Refresh are all on the page.
@@ -101,6 +103,7 @@ test(
   async ({ page }) => {
     await page.goto('/')
     await expect(page.getByRole('button', { name: 'Refresh' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Account menu/ })).toBeVisible()
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-density', 'compact')
     })
