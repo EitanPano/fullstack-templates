@@ -76,7 +76,8 @@ describe('the route table', () => {
     // The refresh fails: the entry now holds an error next to its old, still fresh, timestamp.
     healthy = false
     await userEvent.click(screen.getByRole('button', { name: 'Refresh' }))
-    await screen.findByText(/unavailable right now/i)
+    // The card's alert, not the toast the button raises with the same copy (it mounts a tick later).
+    expect(await screen.findByRole('alert')).toHaveTextContent(/unavailable right now/i)
 
     await act(() => router.navigate('/no/such/page'))
     await screen.findByRole('heading', { name: 'Page not found' })
