@@ -1,5 +1,5 @@
 import type { HealthView } from '@/models/health'
-import { api } from '@/services/api'
+import { api, refetchIfRejected } from '@/services/api'
 import { call } from '@/services/call'
 import { getApiHealth } from '@/services/generated/sdk.gen'
 
@@ -9,6 +9,7 @@ export const healthApi = api.injectEndpoints({
   endpoints: (build) => ({
     getHealth: build.query<HealthView, void>({
       queryFn: () => call(getApiHealth()),
+      forceRefetch: refetchIfRejected,
       providesTags: ['Health'],
     }),
     refreshHealth: build.mutation<HealthView, void>({

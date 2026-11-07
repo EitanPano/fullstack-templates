@@ -14,6 +14,12 @@ import { readStoredTheme, toTheme } from '@/core/theme/theme'
 import { createStore } from '@/store'
 import { themeRestored } from '@/store/theme.slice'
 
+// After a redeploy, an open tab asks for a chunk the new image no longer has and the dynamic import
+// fails. Reloading picks up the new index and its chunk names.
+window.addEventListener('vite:preloadError', () => {
+  window.location.reload()
+})
+
 const root = document.getElementById('root')
 if (!root) throw new Error('index.html has no #root element')
 

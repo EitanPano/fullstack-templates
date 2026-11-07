@@ -1,5 +1,6 @@
 import { combineReducers, configureStore } from '@reduxjs/toolkit'
 
+import { env } from '@/core/config/env'
 import { api } from '@/services/api'
 import { createListeners } from '@/store/listeners'
 import { themeSlice } from '@/store/theme.slice'
@@ -20,6 +21,9 @@ export function createStore(preloaded?: Partial<RootState>) {
     reducer: rootReducer,
     middleware: (getDefault) => getDefault().prepend(listeners.middleware).concat(api.middleware),
     preloadedState: preloaded,
+    // The DevTools extension would otherwise see every action's arguments, a sign-in password
+    // included; only a development build connects to it.
+    devTools: env.MODE !== 'production',
   })
 }
 

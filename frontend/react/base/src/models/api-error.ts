@@ -12,6 +12,8 @@ export type ApiError = {
   // Maps a form field path to its message when the failure belongs to a field.
   fieldErrors?: Record<string, string>
   requestId?: string
+  // The envelope's `error.details`, raw, so a product's `discriminator` can read it. Serialisable.
+  details?: unknown
 }
 
 export function isApiError(value: unknown): value is ApiError {
@@ -25,19 +27,31 @@ export function isApiError(value: unknown): value is ApiError {
   )
 }
 
-// A feature's copy table: `code`, or `validation_failed:<field>` for one field of a form.
+// A feature's copy table: `code`, `code:second-key` when the product's contract adds a
+// discriminator (see `WithCopyOptions`), or `validation_failed:<field>` for one field of a form.
 export type CopyTable = Partial<Record<string, string>>
 
-// Words an error in a feature's own copy. The data layer returns the default copy; the feature
-// that shows the error knows its situation (a wrong password, a taken email), so it applies its
-// table here and says which codes belong to a form field (`{ conflict: 'email' }`). Pure: the
-// error it is given is not changed.
+export type WithCopyOptions = {
+  // Codes that belong to one field of the form: `{ conflict: 'email' }`.
+  fields?: Partial<Record<ErrorCode, string>>
+  // A second key into the table, read from the error (usually from `details`).
+  discriminator?: (error: ApiError) => string | undefined
+}
+
+// Words an error in a feature's own copy; this is the one home of error copy beyond the defaults
+// in `services/call.ts`. The feature that shows the error knows its situation (a wrong password,
+// a taken email), so it applies its table here and says which codes belong to a form field. Pure:
+// the error it is given is not changed.
 export function withCopy(
   error: ApiError,
   copy: CopyTable,
-  fields: Partial<Record<ErrorCode, string>> = {},
+  { fields = {}, discriminator }: WithCopyOptions = {},
 ): ApiError {
-  const message = copy[error.code] ?? error.message
+  const second = discriminator?.(error)
+  const message =
+    (second === undefined ? undefined : copy[`${error.code}:${second}`]) ??
+    copy[error.code] ??
+    error.message
   const fieldErrors = new Map(
     Object.entries(error.fieldErrors ?? {}).map(([path, text]) => [
       path,

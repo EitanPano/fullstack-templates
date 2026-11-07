@@ -79,7 +79,7 @@ describe('login and register', () => {
       withCopy(
         error as never,
         { conflict: 'That email is already registered. Sign in instead.' },
-        { conflict: 'email' },
+        { fields: { conflict: 'email' } },
       ).fieldErrors,
     ).toEqual({ email: 'That email is already registered. Sign in instead.' })
   })

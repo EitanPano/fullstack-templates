@@ -1,5 +1,5 @@
 import type { User } from '@/models/user'
-import { api } from '@/services/api'
+import { api, refetchIfRejected } from '@/services/api'
 import { call } from '@/services/call'
 import { getApiUserMe } from '@/services/generated/sdk.gen'
 
@@ -15,6 +15,7 @@ export const userApi = api.injectEndpoints({
         if ('error' in result && result.error.code === 'unauthenticated') return { data: null }
         return result
       },
+      forceRefetch: refetchIfRejected,
       providesTags: ['User'],
     }),
   }),

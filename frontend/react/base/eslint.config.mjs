@@ -27,6 +27,9 @@ const ALL = [
 ]
 const except = (...types) => ALL.filter((type) => !types.includes(type))
 
+const GUARDS_MESSAGE =
+  'guards are the wiring above services and the leaves: import them from app/ or a feature'
+
 // Later policies override earlier ones, so each forbidden edge comes first and its exceptions after.
 const policies = [
   {
@@ -101,6 +104,13 @@ const policies = [
     from: { element: { type: 'services' } },
     disallow: { to: { element: { type: 'core', captured: { area: 'theme' } } } },
     message: 'services/ imports core/config and core/auth only: the theme is the UI concern',
+  },
+  {
+    // The guards wire the loaders to the store and the data layer; nothing below them imports them.
+    from: { element: { type: ['services', 'core'] } },
+    disallow: { to: { file: { categories: 'guards' } } },
+    message:
+      'guards are the wiring above services and the leaves: import them from app/ or a feature',
   },
   {
     from: { element: { type: 'core' } },
@@ -242,7 +252,8 @@ export default defineConfig([
       },
       'boundaries/include': ['src/**/*'],
       // A test file is the consumer the layers exist for: it may import any of them.
-      'boundaries/ignore': ['src/**/*.test.{ts,tsx}'],
+      // Tests, the styles tree (not code) and the Vite type shim sit outside the layers.
+      'boundaries/ignore': ['src/**/*.test.{ts,tsx}', 'src/styles/**', 'src/vite-env.d.ts'],
       // A file matches every element that fits, so the nested generated folder stops the search.
       // The guards file is a category, not an element: elements are folders.
       'boundaries/files': [
@@ -269,6 +280,10 @@ export default defineConfig([
     },
     rules: {
       'boundaries/dependencies': ['error', { default: 'allow', policies }],
+      // A file in a directory no layer claims (src/hooks, src/lib, src/utils, a stray file under
+      // src/) is an error, and so is importing one: put it in a layer from AGENTS.md › Layers.
+      'boundaries/no-unknown-files': 'error',
+      'boundaries/no-unknown-dependencies': 'error',
       ...onlyServices(
         '@/services/generated',
         '@/services/generated/**',
@@ -339,8 +354,28 @@ export default defineConfig([
   {
     // This test drives the generated SDK itself: it asserts what the client's fetch wrapper does
     // to a raw request, below the data layer's endpoints.
-    files: ['src/core/config/api-client-refresh.test.ts'],
+    files: ['src/core/config/api-client.test.ts', 'src/core/config/api-client-refresh.test.ts'],
     rules: { 'no-restricted-imports': 'off' },
+  },
+  {
+    // The hint shares the guards' folder, so the boundary rule sees one element and cannot tell
+    // them apart; this file is a leaf and must not import the wiring beside it.
+    files: ['src/core/auth/session-hint.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            { group: ['@/core/auth/guards', './guards'], message: GUARDS_MESSAGE },
+            {
+              group: ['**/services/generated', '**/services/generated/**'],
+              message: RUNTIME_MESSAGE,
+              allowTypeImports: true,
+            },
+          ],
+        },
+      ],
+    },
   },
   {
     files: ['**/*.mjs', '**/*.mts', '*.config.ts'],

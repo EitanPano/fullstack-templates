@@ -6,10 +6,6 @@ import type { ErrorBody } from '@/services/generated/types.gen'
 // the envelope's `code`, never the server's text. The cause (status, code, request id) is logged
 // and goes no further.
 
-// A feature's copy table: `code`, or `code:second-key` when the product's contract adds a
-// discriminator the `discriminator` option reads, or `validation_failed:<field>` for one field.
-export type ErrorCopy = Partial<Record<string, string>>
-
 export const DEFAULT_COPY: Record<ErrorCode | 'network', string> = {
   validation_failed: 'Check the form and try again.',
   unauthenticated: 'Your session has expired. Sign in again.',
@@ -29,14 +25,6 @@ type ApiResult = { data?: unknown; error?: unknown; response?: Response }
 type Data<R> = R extends { error?: undefined; data: infer D } ? D : never
 
 export type CallResult<R extends ApiResult> = { data: Data<R> } | { error: ApiError }
-
-export type CallOptions = {
-  // Codes that belong to one field of the form: `{ conflict: 'email' }`. The error then carries
-  // `fieldErrors`, and a 400 with details does too (one entry per path).
-  fields?: Partial<Record<ErrorCode, string>>
-  // A second key into the copy table, read from the envelope (the product's own discriminator).
-  discriminator?: (body: ErrorBody) => string | undefined
-}
 
 const CODES = new Set<string>(Object.keys(DEFAULT_COPY))
 
@@ -89,11 +77,7 @@ const unreachable = (): { error: ApiError } => ({
   error: { code: 'network', message: DEFAULT_COPY.network },
 })
 
-export async function call<R extends ApiResult>(
-  request: Promise<R>,
-  copy: ErrorCopy = {},
-  options: CallOptions = {},
-): Promise<CallResult<R>> {
+export async function call<R extends ApiResult>(request: Promise<R>): Promise<CallResult<R>> {
   let result: R
   try {
     result = await request
@@ -121,29 +105,22 @@ export async function call<R extends ApiResult>(
     })
   }
 
-  const second = body ? options.discriminator?.(body) : undefined
-  const message = (key: string) => copy[key]
-  const resolved =
-    (second === undefined ? undefined : message(`${code}:${second}`)) ??
-    message(code) ??
-    DEFAULT_COPY[code]
-
+  const message = DEFAULT_COPY[code]
+  // A 400's details name the fields; the feature words them (`withCopy`), here they carry the
+  // default copy.
   const fieldErrors = new Map<string, string>()
-  const field = options.fields?.[code]
-  if (field !== undefined) fieldErrors.set(field, resolved)
   if (code === 'validation_failed') {
-    for (const path of detailPaths(body)) {
-      fieldErrors.set(path, message(`validation_failed:${path}`) ?? resolved)
-    }
+    for (const path of detailPaths(body)) fieldErrors.set(path, message)
   }
 
   return {
     error: {
       code,
       status: response.status,
-      message: resolved,
+      message,
       ...(fieldErrors.size > 0 ? { fieldErrors: Object.fromEntries(fieldErrors) } : {}),
       ...(body === undefined ? {} : { requestId: body.requestId }),
+      ...(body?.error.details === undefined ? {} : { details: body.error.details }),
     },
   }
 }

@@ -56,7 +56,7 @@ src/
 │   ├── config/
 │   │   ├── env.ts                  # the only reader of import.meta.env (zod); VITE_* values are public
 │   │   ├── api-client.ts           # the generated client's runtime config: origin, credentials, fetch with the 401 refresh (@server:auth lines)
-│   │   └── constants.ts            # SIGN_IN_PATH, FORBIDDEN_PATH, STORAGE_KEYS, SESSION_STALE_S
+│   │   └── constants.ts            # SIGN_IN_PATH, FORBIDDEN_PATH (@server:auth), STORAGE_KEYS
 │   ├── auth/                       # (@server:auth)
 │   │   ├── session-hint.ts         # the localStorage flag "this browser signed in"; never a token
 │   │   └── guards.ts               # loader guards over the store: readSession, requireAccount, requireRole, redirectIfSignedIn, returnToOf
@@ -136,14 +136,15 @@ src/
     │   ├── _light.scss             # product tokens beyond the generated set, light values
     │   └── _dark.scss              # the same keys, dark values
     ├── basics/{_helpers,_base,_layout}.scss
-    ├── components/_index.scss + one partial per shared and layout component (_button, _controls, _header, _user-menu, _sheet, _menu, ...)
+    ├── components/_index.scss + one partial per shared and layout component (_button, _controls, _header, _user-menu, _sheet, _dropdown-menu, ...)
     └── views/_index.scss + {_home,_sign-in,_sign-up,_profile,_forbidden,_not-found}.scss
 
 public/theme-init.js                # sets data-theme (resolved) before first paint; a file, never inline (CSP script-src 'self')
 tests/
 ├── e2e/{shell,screens,smoke,auth}.spec.ts, screen-routes.ts (ROUTES helper and SIGNED_IN_ROUTES ▲), support.ts, auth-support.ts
-└── unit/                           # tooling checks only: eslint-boundaries, restricted-elements, playwright-config, e2e-database-url, main-imports,
-                                    #   styles-tree (no stylesheet import or style attribute outside main.tsx), density (the compiled CSS), zod-config
+└── unit/                           # tooling checks only: eslint-boundaries (one violation and one allowed case per rule and restriction),
+                                    #   styles-tree (no stylesheet import or style attribute outside main.tsx), density (the compiled CSS),
+                                    #   main-imports, zod-config, playwright-config, e2e-database-url, screen-routes
 scripts/e2e-database-url.ts
 index.html, vite.config.ts, vitest.config.mts, vitest.setup.ts, tsconfig*.json, eslint.config.mjs, openapi-ts.config.ts, playwright.config.ts,
 package.json, bun.lock, Dockerfile, nginx/{default.conf,security-headers.conf}, .dockerignore, .prettierrc, .prettierignore, .env.example
@@ -512,7 +513,7 @@ Proposed backlog lines: `- [ ] react: i18n flag (en/he, RTL) on the SCSS tree`,
 
 The recipe text under `Adding a feature`; the exact SCSS partial list and the BEM names; the Radix
 data-attribute selectors per component; the `renderRoutes` and `stubApi` signatures; the
-`restricted-elements` mechanism (the 2.x `no-restricted-syntax` selectors, extended with `style`);
+raw-control restriction (the 2.x `no-restricted-syntax` selectors, extended with `style`);
 the `styles-tree` scan; the health page's composition against the `ui-design` rubric; the
 `.env.example` content (unchanged in meaning); the changelog text.
 
@@ -612,6 +613,34 @@ Rulings from C2 to C4 (2026-11-07):
 - **`refetchOnMountOrArgChange: 30`** is set once on `createApi`, not per endpoint; `themeRestored`
   is the boot action (no persistence), `themeChanged` the user's. `ErrorState`'s button reads
   "Try again".
+
+Rulings from the Opus review of the branch (2026-11-07):
+
+- **DevTools off in production.** `configureStore` left `devTools` on, and a mutation's action
+  carries its `originalArgs` (the login form's email and password) to the extension on a shared
+  browser. `devTools: env.MODE !== 'production'`, the first reader of `core/config/env.ts`.
+- **Unknown files are lint errors.** A file in a directory that matches no boundaries element
+  (`src/hooks/`, `src/lib/`, a stray file under `src/`) escaped every policy;
+  `boundaries/no-unknown-files` and `no-unknown` now refuse it, with `main.tsx`, `vite-env.d.ts`,
+  the styles tree and the tests ignored. The services and the core leaves may not import the
+  guards file (a `services → guards → services` cycle was possible).
+- **One home for copy.** `call(request)` takes no copy, fields or discriminator (the 2.x
+  parameters were unused); `ApiError.details` carries the envelope's raw `details`, and
+  `withCopy(error, table, { fields?, discriminator? })` is the feature's one wording step, with the
+  discriminator reading `details` to form `code:second`. `ErrorCopy` and `CallOptions` are gone.
+- **A rejected entry that once succeeded is refetched.** It keeps its `fulfilledTimeStamp`, so for
+  30 s the loader's `initiate()` was skipped and `unwrap()` rethrew the cached error, leaving
+  "Try again" inert. `forceRefetch: refetchIfRejected` (exported by `services/api.ts`) on every
+  query endpoint; the recipe says so.
+- **Chunk reloads.** Pages are their own chunks, so after a redeploy an open tab can ask for a
+  file the new image no longer has; `main.tsx` listens for `vite:preloadError` and reloads.
+- **A failed sign-out is told.** `logout` resolves `{ revoked }`; when the API could not revoke,
+  the handler still signs out locally and toasts that the session may be open elsewhere.
+- **Restored and recorded.** The 2.x client-config test (origin, `same-origin`, no
+  `Authorization`) is back as `core/config/api-client.test.ts`, outside `onlyWhen`. The changelog
+  names what 3.0.0 dropped or renamed: `RequireRole`, `ThemeToggle` → `ThemeMenu`, the shadcn
+  `Field` family → `FieldFrame`, eager pages → lazy chunks, `SESSION_STALE_MS` → the client's
+  `refetchOnMountOrArgChange`.
 - **Test helpers that only exist with auth** (`src/testing/auth-fixtures.ts`,
   `render-in-router.tsx`) are listed under `onlyWhen`, as are the auth partials
   (`_account-menu`, `_auth-card`, `_auth-layout`, the four views).

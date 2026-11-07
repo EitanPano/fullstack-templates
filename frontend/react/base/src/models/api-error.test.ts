@@ -24,13 +24,13 @@ describe('withCopy', () => {
   it('does not change the error it is given', () => {
     const before = structuredClone(conflict)
 
-    withCopy(conflict, { conflict: 'Taken.' }, { conflict: 'email' })
+    withCopy(conflict, { conflict: 'Taken.' }, { fields: { conflict: 'email' } })
 
     expect(conflict).toEqual(before)
   })
 
   it('puts a code on its field, with the table copy', () => {
-    const result = withCopy(conflict, { conflict: 'Taken.' }, { conflict: 'email' })
+    const result = withCopy(conflict, { conflict: 'Taken.' }, { fields: { conflict: 'email' } })
 
     expect(result.fieldErrors).toEqual({ email: 'Taken.' })
     expect(result.message).toBe('Taken.')
@@ -39,7 +39,7 @@ describe('withCopy', () => {
   it('leaves other codes without fields', () => {
     const limited: ApiError = { code: 'rate_limited', message: 'm' }
 
-    expect(withCopy(limited, {}, { conflict: 'email' }).fieldErrors).toBeUndefined()
+    expect(withCopy(limited, {}, { fields: { conflict: 'email' } }).fieldErrors).toBeUndefined()
   })
 
   it('rewords the fields the server named, per field first and then per code', () => {
@@ -58,5 +58,16 @@ describe('withCopy', () => {
       email: 'Enter a valid email address',
       password: 'Fix the form.',
     })
+  })
+
+  it('prefers a second-key entry when the product passes a discriminator', () => {
+    const copy = { conflict: 'Conflict.', 'conflict:slot_taken': 'That slot is taken.' }
+    const discriminator = (error: ApiError) =>
+      (error.details as { reason?: string } | undefined)?.reason
+
+    expect(
+      withCopy({ ...conflict, details: { reason: 'slot_taken' } }, copy, { discriminator }).message,
+    ).toBe('That slot is taken.')
+    expect(withCopy(conflict, copy, { discriminator }).message).toBe('Conflict.')
   })
 })

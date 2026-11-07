@@ -13,8 +13,16 @@ generated from 2.x does not upgrade in place.
   per server module or screen group, with its routes file, pages, components, form schemas and
   copy), `store/` (Redux Toolkit slices, the listener middleware, the typed hooks), `services/`
   (the RTK Query API, one endpoints file per server module, over the generated SDK), `shared/`
-  (components, hooks, utils), `models/` (one file per noun) and `styles/` (the global SCSS tree).
+  (components, utils), `models/` (one file per noun) and `styles/` (the global SCSS tree).
   `widget/`, `feature/<action>/`, `entity/` and the Next-style `app/(group)/page.tsx` files are gone.
+- Pages are loaded with React Router's `lazy`, each its own chunk; after a redeploy an open tab
+  that asks for a chunk the new image no longer has reloads itself (`vite:preloadError`).
+- Removed without replacement: the `RequireRole` component (a staff route uses the `requireRole`
+  loader guard; a control hidden by role is a product decision). Renamed: `ThemeToggle` is
+  `ThemeMenu` in `layout/components/`; the shadcn `Field` family is `FieldFrame` in
+  `shared/components/form/`; the session's 30 s staleness is the client's
+  `refetchOnMountOrArgChange`, not a `SESSION_STALE_MS` constant. The `antialiased` body class is
+  gone with Tailwind.
 - Data: Redux Toolkit with RTK Query (`fakeBaseQuery` over the generated SDK, tags per server
   module, the route loader prefetches through the store) replaces TanStack Query and the generated
   query options. `call` returns `{ data } | { error: ApiError }` (a plain, serialisable object)

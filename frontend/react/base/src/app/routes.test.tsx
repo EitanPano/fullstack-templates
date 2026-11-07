@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -61,6 +61,36 @@ describe('the route table', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('API v1.2.3')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(fetchMock.mock.calls.filter(([request]) => isHealth(request))).toHaveLength(2)
+  })
+
+  it('refetches a rejected read inside the cache window, so Try again can recover', async () => {
+    let healthy = true
+    const fetchMock = stubApi({
+      'GET /api/health': () => (healthy ? Response.json(HEALTH) : unavailable()),
+    })
+    const { router } = renderRoutes()
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('API v1.2.3')
+    })
+
+    // The refresh fails: the entry now holds an error next to its old, still fresh, timestamp.
+    healthy = false
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    await screen.findByText(/unavailable right now/i)
+
+    await act(() => router.navigate('/no/such/page'))
+    await screen.findByRole('heading', { name: 'Page not found' })
+    await act(() => router.navigate('/'))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/unavailable right now/i)
+
+    healthy = true
+    const before = fetchMock.mock.calls.length
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('API v1.2.3')
+    })
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(before)
   })
 
   it('renders Page not found inside the shell for an unknown URL', async () => {

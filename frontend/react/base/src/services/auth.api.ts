@@ -16,7 +16,7 @@ export type Credentials = { email: string; password: string }
 // default copy; the form words it for its own situation (`withCopy`).
 // The cache writes of a success happen inside `queryFn`, before it returns, so every `unwrap()`
 // caller sees them: the next loader (the page the visitor was sent back to) must find the account
-// and not the visitor the root loader cached. `onQueryStarted` would run after the caller.
+// and not the visitor an earlier guard cached. `onQueryStarted` would run after the caller.
 function signedIn(name: 'login' | 'register') {
   return async (
     body: Credentials,
@@ -42,14 +42,16 @@ export const authApi = api.injectEndpoints({
     // asked to sign out is signed out here even if the server session lives on until it expires.
     // The caller resets the API state after the await: a reset inside the running mutation aborts
     // the request that is still settling.
-    logout: build.mutation<void, void>({
+    // `revoked` is false when the API call failed, so the caller can say the session may live on.
+    logout: build.mutation<{ revoked: boolean }, void>({
       queryFn: async () => {
         const result = await call(postApiAuthLogout({ body: {} }))
-        if ('error' in result) {
+        const revoked = !('error' in result)
+        if (!revoked) {
           console.error('[auth] sign-out could not revoke the session', result.error)
         }
         clearSessionHint()
-        return { data: undefined }
+        return { data: { revoked } }
       },
     }),
   }),

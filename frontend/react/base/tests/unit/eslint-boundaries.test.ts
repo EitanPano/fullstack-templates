@@ -269,6 +269,35 @@ const violations: Violation[] = [
     BOUNDARY,
     'models/ imports models/ and the generated contract types',
   ],
+  // The guards are the wiring above services and the leaves.
+  [
+    'services → guards',
+    'src/services/x.ts',
+    "import '@/core/auth/guards'",
+    BOUNDARY,
+    'guards are the wiring above services and the leaves',
+  ],
+  [
+    'core/config → guards',
+    'src/core/config/x.ts',
+    "import '@/core/auth/guards'",
+    BOUNDARY,
+    'guards are the wiring above services and the leaves',
+  ],
+  [
+    'core/auth/session-hint → guards',
+    'src/core/auth/session-hint.ts',
+    "import '@/core/auth/guards'",
+    IMPORTS,
+    'guards are the wiring above services and the leaves',
+  ],
+  [
+    'core/theme → guards',
+    'src/core/theme/x.ts',
+    "import '@/core/auth/guards'",
+    BOUNDARY,
+    'guards are the wiring above services and the leaves',
+  ],
   [
     'shared → services',
     'src/shared/components/x.tsx',
@@ -687,6 +716,24 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   ],
   ['a className in a feature', FEATURE_PAGE, 'export const x = <p className="a" />', SYNTAX],
 ]
+
+const UNKNOWN_FILES = 'boundaries/no-unknown-files'
+
+describe('files outside every layer', { timeout: 60_000 }, () => {
+  it.each(['src/hooks/use-thing.ts', 'src/lib/format.ts', 'src/utils/format.ts', 'src/stray.ts'])(
+    '%s is refused',
+    async (file) => {
+      expect(await messagesFor(file, 'export {}', UNKNOWN_FILES)).toHaveLength(1)
+    },
+  )
+
+  it.each(['src/main.tsx', 'src/vite-env.d.ts', 'src/shared/utils/x.ts', 'src/models/x.ts'])(
+    '%s is allowed',
+    async (file) => {
+      expect(await messagesFor(file, 'export {}', UNKNOWN_FILES)).toEqual([])
+    },
+  )
+})
 
 // The first lint loads the whole config (type-aware presets, plugins), which can take seconds.
 describe('lint rules', { timeout: 60_000 }, () => {

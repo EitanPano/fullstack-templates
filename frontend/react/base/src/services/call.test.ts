@@ -88,27 +88,10 @@ describe('call', () => {
     expect(result).toMatchObject({ error: { code: 'conflict', status: 400 } })
   })
 
-  it('prefers the feature copy table over the default, keyed by code', async () => {
-    const result = await call(failure(409, envelope('conflict')), {
-      conflict: 'That email is already registered.',
-    })
+  it('carries the envelope details, raw, for a product discriminator', async () => {
+    const result = await call(failure(409, envelope('conflict', 'x', { reason: 'slot_taken' })))
 
-    expect(result).toMatchObject({ error: { message: 'That email is already registered.' } })
-  })
-
-  it('prefers a second-key entry when the product passes a discriminator', async () => {
-    const copy = { conflict: 'Conflict.', 'conflict:slot_taken': 'That slot is taken.' }
-    const discriminator = (body: { error: { details?: unknown } }) =>
-      (body.error.details as { reason?: string } | undefined)?.reason
-
-    expect(
-      await call(failure(409, envelope('conflict', 'x', { reason: 'slot_taken' })), copy, {
-        discriminator,
-      }),
-    ).toMatchObject({ error: { message: 'That slot is taken.' } })
-    expect(await call(failure(409, envelope('conflict')), copy, { discriminator })).toMatchObject({
-      error: { message: 'Conflict.' },
-    })
+    expect(result).toMatchObject({ error: { details: { reason: 'slot_taken' } } })
   })
 
   it('logs a 5xx with its request id and returns a generic message', async () => {
@@ -163,28 +146,10 @@ describe('call and form fields', () => {
     expect(result).toMatchObject({
       error: { fieldErrors: { email: DEFAULT_COPY.validation_failed } },
     })
-    expect(JSON.stringify(result)).not.toContain('hunter2')
-  })
-
-  it('uses a per-field entry of the copy table when there is one', async () => {
-    const result = await call(
-      failure(400, envelope('validation_failed', 'bad', [{ path: 'password', message: 'x' }])),
-      { 'validation_failed:password': 'Use a longer password.' },
-    )
-
-    expect(result).toMatchObject({ error: { fieldErrors: { password: 'Use a longer password.' } } })
-  })
-
-  it('puts a mapped code on its field and keeps the message', async () => {
-    const result = await call(
-      failure(409, envelope('conflict')),
-      { conflict: 'Already registered.' },
-      { fields: { conflict: 'email' } },
-    )
-
-    expect(result).toMatchObject({
-      error: { message: 'Already registered.', fieldErrors: { email: 'Already registered.' } },
-    })
+    // The raw details ride along for a discriminator; the copy the UI shows never includes them.
+    expect(
+      'error' in result && JSON.stringify([result.error.message, result.error.fieldErrors]),
+    ).not.toContain('hunter2')
   })
 
   it('ignores a server-supplied path that would reach the prototype', async () => {

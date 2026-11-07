@@ -30,7 +30,9 @@ export function SignUpForm({ next }: { next?: string }) {
     } catch (error) {
       reportFailure(
         form,
-        isApiError(error) ? withCopy(error, SIGN_UP_COPY, { conflict: 'email' }) : error,
+        isApiError(error)
+          ? withCopy(error, SIGN_UP_COPY, { fields: { conflict: 'email' } })
+          : error,
       )
       return
     }

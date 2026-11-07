@@ -10,7 +10,11 @@ import { USER, envelope } from '@/testing/auth-fixtures'
 import { renderInRouter } from '@/testing/render-in-router'
 import { stubApi } from '@/testing/stub-api'
 
+vi.mock('sonner', () => ({ toast: { warning: vi.fn(), error: vi.fn(), success: vi.fn() } }))
+const { toast } = await import('sonner')
+
 beforeEach(() => {
+  vi.mocked(toast.warning).mockClear()
   vi.spyOn(console, 'error').mockImplementation(() => undefined)
 })
 afterEach(() => {
@@ -74,6 +78,7 @@ describe('AccountMenu', () => {
       expect((fetchMock.mock.calls[0]?.[0] as Request).url).toContain('/api/auth/logout')
       expect(userApi.endpoints.getMe.select()(store.getState()).data).toBeUndefined()
       expect(hasSessionHint()).toBe(false)
+      expect(toast.warning).not.toHaveBeenCalled()
     })
 
     it('signs out here even when the API refuses to revoke', async () => {
@@ -86,6 +91,9 @@ describe('AccountMenu', () => {
       })
       expect(userApi.endpoints.getMe.select()(store.getState()).data).toBeUndefined()
       expect(hasSessionHint()).toBe(false)
+      expect(toast.warning).toHaveBeenCalledWith(
+        'Signed out here. The server could not be reached, so the session may still be open elsewhere.',
+      )
     })
   })
 })

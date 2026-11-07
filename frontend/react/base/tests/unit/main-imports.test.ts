@@ -15,6 +15,12 @@ describe('main.tsx', () => {
     expect(imports[0]).toBe("import '@/shared/utils/zod-messages'")
   })
 
+  it('reloads the page when a chunk is gone after a redeploy', () => {
+    expect(source).toMatch(
+      /window\.addEventListener\('vite:preloadError', \(\) => \{\s*window\.location\.reload\(\)\s*\}\)/,
+    )
+  })
+
   it('imports the font, then brand.css, then styles.scss', () => {
     const styles = imports.filter((line) => /\.s?css'|fontsource/.test(line))
 

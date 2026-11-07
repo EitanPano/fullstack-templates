@@ -14,14 +14,10 @@ const email = z.string().superRefine((value, ctx) => {
   }
 })
 
-export const signInSchema = zPostApiAuthLoginBody.extend({
-  email,
-  // Where to go after signing in: the page passes it through safeNextPath, and so does the form.
-  next: z.string().optional(),
-})
+export const signInSchema = zPostApiAuthLoginBody.extend({ email })
 
 export const signUpSchema = zPostApiAuthRegisterBody
-  .extend({ email, confirm: z.string(), next: z.string().optional() })
+  .extend({ email, confirm: z.string() })
   .refine((value) => value.password === value.confirm, {
     path: ['confirm'],
     error: 'Passwords do not match',
