@@ -64,12 +64,14 @@ The invariants kept, numbered so the harness can cite them:
    `--brand-neutral`, `--radius`, `--font`, `--theme`, `--density`), its contrast checks and its
    OKLCH token names are the one semantic set across frontends. Light values in `:root`, dark values
    under a selector the template declares (`.dark` or `[data-theme="dark"]`). Light, dark and system,
-   the default from the brand input, a toggle in the user menu. The no-flash theme script is a file,
-   never inline: the deployed pages carry `script-src 'self'`.
+   the default from the brand input, a theme toggle in the shell (the user menu or the header, as the
+   template's `AGENTS.md › Styling` says). The no-flash theme script is a file, never inline: the
+   deployed pages carry `script-src 'self'`.
 7. **Auth glue**, only with `server:auth`. Guards for account and role; `/forbidden` for a wrong
    role; a 401 becomes one refresh and a retry, and concurrent refreshes collapse into one; the
    session hint is a `localStorage` flag that is never a token, set after sign-in and cleared on
-   sign-out and on a refresh 400, 401 or 403; a user menu with avatar, email, theme and sign out.
+   sign-out and on a refresh 400, 401 or 403; a user menu with avatar, email and sign out; the
+   theme toggle sits in the shell where the template's `AGENTS.md › Styling` puts it.
 8. **Gates.** typecheck, lint, format and unit tests, without Docker. E2E on `phone` (`Pixel 7`,
    touch) and `desktop` (`Desktop Chrome`): `shell.spec` (landmarks, skip link, overflow, targets),
    `screens.spec` (every nav route plus the auth screens, both themes, axe WCAG A and AA, no
@@ -195,7 +197,7 @@ src/
 │   │   │   ├── translate.pipe.ts          # ▲ `t`, impure, over Translator
 │   │   │   ├── relative-time.pipe.ts
 │   │   │   └── phone.pipe.ts
-│   │   ├── validators/                    # zodValidator(schema) ▲, phone, password, match
+│   │   ├── validators/                    # zodValidator(schema) ▲, match (no phone, no password: the generated schema)
 │   │   └── utils/                         # time.ts, http-params.ts; pure, no DI
 │   └── models/
 │       ├── api/response.ts                # ApiError, Paginated<T> over the generated envelope types ▲
@@ -227,8 +229,8 @@ tests/
                                            #   no-component-styles, translation-parity, restricted-elements
 scripts/{e2e-static.mjs ▲, e2e-database-url.ts}
 proxy.conf.json                            # /api → http://localhost:__SERVER_PORT__
-ngsw-config.json                           # app shell prefetch, assets lazy, /i18n/** performance, /api/** freshness
-                                           #   with a short maxAge, never /api/auth/**
+ngsw-config.json                           # app shell prefetch, assets and /i18n/** lazy+prefetch (versioned with the app),
+                                           #   data group: /api/health freshness only (R36), no negation
 angular.json, openapi-ts.config.ts, eslint.config.mjs, playwright.config.ts, tsconfig*.json, package.json, bun.lock,
 Dockerfile, nginx/{default.conf,security-headers.conf}, .dockerignore, .prettierrc, .prettierignore, .env.example
 ```
@@ -311,12 +313,13 @@ one violation and one allowed case per row.
 | `store/` | services, models, `core/providers`, `core/config` |
 | `services/` | models, `core/config`, `services/generated` |
 | `core/guards`, `core/interceptors`, `core/initializers` | store, services, core, shared, models (they are the wiring) |
-| `core/config`, `core/providers`, `core/i18n`, `core/errors` | shared, models |
+| `core/config`, `core/providers`, `core/i18n`, `core/errors` | shared, models, and each other (the leaf `core` directories) |
 | `shared/` | shared, models |
 | `models/` | the generated types and zod schemas, `import type` only |
 
-Also lint-enforced: `@angular/common/http` is imported only in `services/`, `core/interceptors`
-and `core/config`; `services/generated` runtime only in `services/`; `<button>`, `<input>`,
+Also lint-enforced: `@angular/common/http` is imported only in `services/`, `core/interceptors`,
+`core/config` and the named loader `core/i18n/transloco-http.loader.ts`; `services/generated` runtime
+only in `services/` and `core/config/api-client.provider.ts`; `<button>`, `<input>`,
 `<select>` and `<textarea>` elements only inside `shared/components/` (invariant 5; the mechanism is
 the builder's: an angular-eslint template rule if one fits, else the `restricted-elements` scan in
 `tests/unit/`).
@@ -379,7 +382,8 @@ one in-flight `authStore.refresh()` and replays the request once; the refresh re
 carries an `HttpContext` token that exempts it. A refresh 400, 401 or 403 clears the hint and
 routes to `/auth/login` with the attempted path (`next`). `auth.guard` is `canMatch` and returns a
 `RedirectCommand`; `role.guard` reads `data.roles` and redirects to `/forbidden`. The user menu in
-the header carries avatar, email, the theme toggle and sign out (invariant 7). The e2e auth journey
+the header carries avatar, email and sign out (invariant 7; the theme toggle stays in the header
+for everyone, per invariant 6). The e2e auth journey
 is `react`'s: register, sign in, see the profile, sign out, and a refresh that two concurrent 401s
 trigger once.
 
@@ -514,7 +518,8 @@ rule in the servers' static middleware. Dropping `@angular/service-worker` when 
 ## Spikes (throwaway, before the plan's build steps)
 
 - **S1. The client.** `@hey-api/openapi-ts` 0.99 with `@hey-api/client-angular`, the flat SDK and
-  zod 4 against `bun-express`'s `openapi.json` under Angular 22: it generates, compiles under
+  zod 4 against a server's `openapi.json` (the build used `python-fastapi`'s committed one, R35)
+  under Angular 22: it generates, compiles under
   `strictTemplates`, and a request passes through a functional interceptor. Record the SDK's return
   type (Observable or Promise). Fallback if it fails: `@hey-api/client-fetch` wrapped by the facades
   with `from()`, and the auth, error and loading behaviours as fetch-client interceptors, as
@@ -537,17 +542,165 @@ component; the health page's composition against the `ui-design` rubric; the tra
 the Hebrew copy; the `.env.example` content (the package reads no runtime environment); the
 `angular` gitignore section if needed; the manifest and icon set for the `pwa` flag.
 
-## Versions (registry, 2026-11-06; re-verify at build, never from memory)
+## Decisions made while building
+
+Rulings taken during plan 019 that changed or sharpened the text above (the plan's ledger in the
+harness holds the full record). The A2.1 table is amended in place where a ruling moved a row;
+this section holds the reasons.
+
+- **The translator is built first.** `shared/i18n/translator.ts`, the `t` pipe, `translator.provider.ts`
+  (with the static `@noi18n` reader) and `en.json` arrive with the shell, not with the `i18n`
+  flag, so no template ever holds a literal string. The flag adds only the Transloco side.
+- **`throwOnError: true`.** The Hey API client throws, a facade returns the SDK call's
+  `data`, and a failed call rejects with the `ApiError` the error interceptor built; the store
+  method that awaited it maps it through its copy table. One error path, no `{ data, error }`
+  tuples through the stores.
+- **No `@angular/pwa`.** A schematic package adds nothing a template ships; the manifest,
+  icons and `ngsw-config.json` are written by hand and `@angular/service-worker` is the runtime.
+- **`typecheck` is `ngc`.** `ngc -p tsconfig.app.json --noEmit && ngc -p tsconfig.spec.json
+  --noEmit` (2.4 s) catches template errors under `strictTemplates`; `tsc -b` does not.
+- **Names.** File and class suffixes follow the pasted tree (`*.component.ts`, `*.service.ts`,
+  `*.store.ts`, `*.guard.ts`, `*.interceptor.ts`, `*.pipe.ts`, `*.directive.ts`), not Angular 20's
+  suffix-less style. Templates are external `.component.html` files, because angular-eslint's
+  template rules, Prettier's `angular` parser and the restricted-elements scan all read `.html`.
+  Cross-layer imports use the `@app/*` alias.
+- **Form controls are components.** `input`, `select`, `textarea` and `checkbox` are shared
+  `ControlValueAccessor` components bound with `formControlName`; `form-field` wires label, hint,
+  error and the aria attributes around the projected control. The restricted-elements rule (raw
+  controls only in `shared/components/`) leaves no other way to render a control.
+- **`core/config/api-client.ts`.** It holds the generated client's configuration
+  (origin, `withCredentials`) with type-only imports; `core/config/api-client.provider.ts` is the
+  one runtime allowance to import `services/generated`, because `app/` may not import `services/`
+  and the generated `client.gen.ts` imports `createClientConfig` back from the config file (a
+  cycle if the config imported `client`).
+- **No `shared/validators/password.ts`.** A validation limit is never copied from the server
+  (invariant 1); the generated zod schema validates passwords through `zodValidator`. Only `match`
+  stays; `phone.ts` went in the fix wave (R37, below).
+- **A named HTTP allowance.** `core/i18n/transloco-http.loader.ts` may import
+  `@angular/common/http`: it is Transloco's standard loader and sets the `BACKGROUND` context so
+  copy loads do not drive the loading counter.
+- **Manifest colours are fixed.** `theme_color` and `background_color` are `#ffffff`: no
+  brand hex placeholder exists and a CSS block cannot go into JSON.
+- **Icons.** `icon.svg` plus PNGs (192, 512, maskable 512, apple-touch 180), written once
+  by a dependency-free script; a project replaces them.
+- **`ROLES` lives in a file.** The token is declared in `shared/directives/has-role.directive.ts`
+  with a root factory `signal([])`; `app.config.ts` overrides it from the auth store behind
+  `// @server:auth`, so the side-nav's role filter needs no marker.
+- **The theme toggle stays in the header.** A visitor has no user menu and needs the toggle;
+  the menu holds avatar, email, profile and sign out. Invariant 6 allows either place; here the
+  one control sits in the header for everyone.
+- **Leaf `core` directories import each other.** `config`, `providers`, `i18n` and `errors`
+  share constants, storage and the logger; only the wiring directories reach `store/` and
+  `services/`. The A2.1 row is amended in place.
+- **Brand tokens live in `themes/brand.css`.** A bare `__THEME_LIGHT__` line is not valid
+  Sass, so the base would neither build nor test in place. `brand.css` is first in
+  `angular.json` `styles` and holds both token blocks with `--radius` and `color-scheme`;
+  `_index.scss` holds only its `@use` lines. The generated output is the same; the cost is two
+  esbuild warnings in in-place runs. This is spike S3's named fallback.
+- **Nav through DI.** `NavEntry` lives in `models/nav/` and `app.config.ts` provides
+  `app/nav.ts`'s table as `NAV_ENTRIES` (`core/config/`), which the side-nav injects: A2.1
+  forbids `layout/` importing `app/`. `tests/e2e/screen-routes.ts` still reads `app/nav.ts`.
+- **`provideHttp()`.** `core/interceptors/http.provider.ts` registers the interceptors in
+  order `[loading, error, auth]`, because `app.config.ts` may not import `@angular/common/http`.
+  The SDK passes no `HttpContext`, so the auth calls are exempted from the refresh by URL.
+- **The refused refresh redirects.** The interceptor sends the visitor to
+  `/auth/login?next=<current url>`, except while the store is restoring the session (the startup
+  `/api/user/me` probe on a public page must not bounce a visitor), on a login URL, or after a
+  network or 5xx failure. `next` passes `safeNextPath`.
+- **Three defects the e2e run found.** The production build inlined critical CSS with an inline
+  script that `script-src 'self'` blocks, so `optimization.styles.inlineCritical` is `false`. The
+  skip link `href="#main"` navigated to `/#main` under `<base href="/">` on nested routes, so a
+  `SkipLinkDirective` focuses `#main` instead. Axe reported `label-content-name-mismatch` on the
+  account-menu trigger; the avatar initials are now rendered as CSS content from `data-initials`,
+  so the accessible name is the label alone.
+- **Choices made in the e2e and nginx setup.** The API `webServer` command joins the two
+  placeholders with `filter(Boolean)` (twin marked lines made a duplicate key); `screen-routes.ts`
+  carries a `// @server:auth` marker per element. The nginx immutable rule matches Angular's
+  hashes, `^/(main|polyfills|chunk|styles)-[A-Za-z0-9_-]{8}\.(js|css)$`. The refresh-collapse e2e
+  simulates two concurrent 401s on `/api/health` by route interception.
+
+Spike results (S1 to S5, 2026-11-06):
+
+- **S1 passed.** `@hey-api/openapi-ts` 0.99.0 bundles the Angular client (there is no separate
+  client package); the flat SDK and the zod 4 plugin generate 17 files, compile under `strict`
+  and `strictTemplates`, and a request passes a functional `HttpInterceptorFn`. SDK calls return
+  `Promise<{ data, error, request, response }>`, not Observables. Pitfalls: `runtimeConfigPath`
+  takes no `.ts`; `provideHeyApiClient` is imported from the generated `client/client.gen`; `ng
+  new --package-manager=bun` fails its install on Windows (`--skip-install`, then `bun install`);
+  `ng new` writes neither `strict` nor `strictTemplates`; a spec yields one microtask before
+  `expectOne`. The fallback was not taken.
+- **S2 passed.** Bun drives `ng` with no workaround. `ng test --no-watch` runs `src/**/*.spec.ts`
+  and `tests/unit/*.spec.ts` through `include: ["../tests/unit/**/*.spec.ts"]` (relative to `src`,
+  with `tsconfig.spec.json` covering `tests/**/*.ts`). Warm: build 2.7 s, test 3 s, typecheck
+  2.4 s, lint 1.8 s; cold: install 37 s, first build 15 s. `dist/index.html`, `main-*.js` and
+  `styles-*.css` sit at the root. `eslint-import-resolver-typescript` is mandatory or boundary
+  violations are silently missed. The Linux leg is the CI run (no Docker on the build machine).
+- **S3 passed.** The generator substitutes `.scss`; sass 1.104.1 (the version `@angular/build`
+  pins) compiles the result; the contrast checks read no selector, so `[data-theme="dark"]` is
+  free. A whole-line SCSS comment `// @word` is read as a marker and fails generation.
+- **S4 passed.** `//` and `/* */` comments in `angular.json` are accepted by `ng build` and `ng
+  test` (not tested through `ng add` or `ng generate`). The backlog line (move `serviceWorker`
+  behind a marker) stands.
+- **S5.** Signal Forms are stable (`@publicApi 22.0`) and `validateStandardSchema` accepts the
+  generated zod 4 schemas. 1.0.0 stays on reactive forms; a 1.x minor may adopt Signal Forms.
+
+
+Fix wave after the final review (R35 to R37 and what they touched):
+
+- **R35. The committed client is `python-fastapi`'s contract.** `bun-express` writes its
+  `openapi.json` only at generation, so the Angular base commits the client generated from
+  `python-fastapi`'s committed file (spike S1 said `bun-express`'s). A generated project
+  regenerates from its own server (`bun run api:types`); the `alone` case keeps the committed
+  output. The e-mail-pattern specs are contract-neutral because `bun-express`'s contract has no
+  e-mail pattern.
+- **R36. The service worker caches public reads only.** Angular's `dataGroups[].urls` has no `!`
+  negation (a `!` pattern is a literal path), so the former `/api/**` plus `!/api/auth/**` cached
+  account GETs (`/api/user/me`, `/api/user`) across sign-out. The `api` group is an allowlist,
+  `/api/health` and `/api/health/**` (both: the glob alone does not match the bare path), strategy
+  `freshness`, `maxAge` 10 s, `timeout` 3 s. A spec rejects any `!` entry and asserts that
+  `/api/user/**` and `/api/auth/**` match no group. Offline reads of account data are given up.
+- **`/i18n/**` is an asset group** (`installMode: lazy`, `updateMode: prefetch`), not a data
+  group: data caches are keyed by the config version and outlive an app update, so new copy keys
+  rendered raw for up to a day after a deploy.
+- **R37. The profile form derives from the generated schema.** `user.form.ts` validates with
+  `zodValidator` over `zUpdateMeBody.shape.phone.or(z.literal(''))` (an empty control means "remove
+  the number"); `shared/validators/phone.ts` and its spec are deleted, and the failure copy is
+  `errors.pattern`. The `phone` display pipe stays: it formats, it does not validate.
+- **Account data is cleared on sign-out.** `UserStore` has `reset()` and clears itself with an
+  `effect` on `AuthStore.isLoggedIn()` (store-to-store imports are inside one boundary element, so
+  the lint needed no allowance); `load()` also drops the previous profile before it calls, and an
+  answer that arrives after sign-out is discarded. A store added later for account data does the
+  same.
+- **The auth interceptor is scoped** to the app's own `/api/` (same origin): `withCredentials` and
+  the refresh-and-replay never touch a third-party URL.
+- **`restoreSession` never clears the hint itself**; only a refused refresh does, so a refresh lost
+  to the network keeps it. The session initializer waits at most 5 s for the API, then starts as a
+  visitor (logged once; the hint stays).
+- **The iOS install hint can be dismissed** (remembered under `STORAGE_KEYS.iosHint`);
+  `activateUpdate()` failures are logged and do not reload.
+- **`.angular/` joins the generator's copy excludes** (`tools/lib/files.ts`), with a test row.
+
+Statements above that the build corrected: S1's "separate `client-angular` package" (bundled); the
+generated client lives in `services/generated/`, not `shared/api/generated/` (S1's scratch path);
+`@angular/pwa` is not a dependency; `@angular/compiler-cli` is 22.2.4 (22.2.6 does not exist on
+the registry); the proxy target is `http://127.0.0.1:__SERVER_PORT__`, as `react`'s, because
+`localhost` can resolve to `::1` on Windows.
+
+## Versions (registry, 2026-11-06; corrected to what the lock resolved; re-verify at build, never from memory)
 
 | Package | Version | Note |
 | --- | --- | --- |
-| `@angular/core`, `@angular/service-worker` | 22.2.4 | peers TypeScript `>=6.0 <6.1` |
-| `@angular/cli`, `@angular/build`, `@angular/cdk`, `@angular/pwa` | 22.2.6 | |
-| TypeScript | 6.0.x | typescript-eslint peers `<6.1.0` |
-| ESLint | 10.x | angular-eslint 22.6.0 peers `^9 \|\| ^10`; eslint-plugin-boundaries 7.4.2 peers `>=6` |
+| `@angular/core`, `compiler-cli`, `service-worker` | 22.2.4 | peers TypeScript `>=6.0 <6.1`; no `compiler-cli` 22.2.6 |
+| `@angular/cli`, `@angular/build`, `@angular/cdk` | 22.2.6 | `@angular/pwa` is not used |
+| TypeScript | 6.0.3 (`~6.0.2`) | typescript-eslint peers `<6.1.0`; latest 7.0.2 is out of range |
+| `typescript-eslint` | 8.72.1 | |
+| `eslint-import-resolver-typescript` | 4.4.5 | mandatory, or violations are missed |
+| ESLint | 10.14.0 | angular-eslint 22.6.0 peers `^9 \|\| ^10`; boundaries 7.4.2 peers `>=6` |
 | `@ngrx/signals` | 22.0.1 | peers `@angular/core ^22` |
 | `@jsverse/transloco` | 8.4.0 | peers `@angular/core >=16` |
 | `@hey-api/openapi-ts` | 0.99.0, pinned exactly | 0.x; the Angular client is a bundled plugin, beta |
 | `zod` | 4.6.x | |
 | `@playwright/test` | 1.65.0 | |
-| Vitest, jsdom | as `ng new` 22.2 pins them | |
+| Vitest, jsdom | 5.1.0, 30.1.3 | `ng new` pins them; Vitest is under 14 days old |
+| sass | 1.104.1 | pinned by `@angular/build`; no direct dependency |
+| Prettier | 3.9.10 | |

@@ -48,6 +48,10 @@ Each decision lists what it costs.
 
 ### F1. Layers: one home for every addition
 
+Amended by [ADR 0006](0006-per-framework-frontends-and-angular.md): the five layers are the shape
+of `react` and `next` only, now written in their `AGENTS.md` rather than in
+`docs/conventions.md`; each framework has its own layout.
+
 Both templates use five layers under `src/`:
 
 ```
@@ -132,6 +136,10 @@ Cost: more directories for a small app. In exchange, each addition has one obvio
 makes the map mechanical, which is what made the server template work.
 
 ### F2. The design system
+
+Amended by [ADR 0006](0006-per-framework-frontends-and-angular.md): shadcn on Tailwind is the
+design system of `react` and `next` only. The conventions keep the tokens' names and contrast
+checks (invariant 6), and a SPA template may style from a global SCSS tree (`angular`).
 
 Primitives are shadcn/ui on Radix, with `cva` variants and `tailwind-merge` through `cn`, copied
 into `shared/ui/`. `components.json` maps `ui` to `@/shared/ui` and `utils` to `@/shared/lib/cn`.
