@@ -1,0 +1,15 @@
+<div class="modal">
+  <header class="modal__header">
+    <h2 class="modal__title" [id]="frame.titleId">{{ frame.titleKey | t }}</h2>
+    <app-button variant="ghost" size="icon" [ariaLabel]="'modal.close' | t" (click)="close()">
+      <app-icon name="close" />
+    </app-button>
+  </header>
+  <div class="modal__body">
+    @if (template; as outlet) {
+      <ng-container *ngTemplateOutlet="outlet; context: templateContext" />
+    } @else if (component; as type) {
+      <ng-container *ngComponentOutlet="type; injector: injector" />
+    }
+  </div>
+</div>

@@ -1,0 +1,30 @@
+<app-auth-card
+  [heading]="'auth.otp.title' | t"
+  [description]="'auth.otp.description' | t: { email: store.user()?.email ?? '' }"
+>
+  @if (!sent()) {
+    <app-button class="verify-otp__send" [loading]="store.loading()" (click)="sendCode()">{{
+      'auth.otp.send' | t
+    }}</app-button>
+  } @else {
+    <form class="verify-otp__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <app-form-field [label]="'auth.otp.code' | t" [hint]="'auth.otp.hint' | t">
+        <app-input
+          formControlName="code"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          placeholder="123456"
+        />
+      </app-form-field>
+      <app-form-actions submitKey="auth.otp.verify" [pending]="store.loading()" />
+    </form>
+  }
+  <p footer class="verify-otp__alt">
+    @if (sent()) {
+      <app-button variant="ghost" size="sm" [disabled]="store.loading()" (click)="sendCode()">{{
+        'auth.otp.resend' | t
+      }}</app-button>
+    }
+    <app-button variant="ghost" size="sm" link="/profile">{{ 'auth.otp.back' | t }}</app-button>
+  </p>
+</app-auth-card>

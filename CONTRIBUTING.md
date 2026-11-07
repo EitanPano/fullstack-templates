@@ -128,46 +128,39 @@ A manifest `commands` entry is a program plus whitespace-separated arguments, ru
 shell: no pipes, redirects, quoting, variables or command substitution (the schema rejects
 `& | ; < > ' " $` and backticks). Put anything more elaborate in a script and call that.
 
-### Adding an SPA template
+### Adding a frontend template
 
-`frontend/react` is the model. The contract is
-[docs/conventions.md › Frontend, single-page app](docs/conventions.md) (ADR 0003, M5-1); the checklist
-below is what `validate` and the cases prove.
+The contract is the ten invariants of [docs/conventions.md › Frontend](docs/conventions.md) (and
+`› Frontend, single-page app` for an SPA), decided in
+[ADR 0006](docs/adr/0006-per-framework-frontends-and-angular.md). A template's layers, import rules,
+state, forms and design system are its own, written in its `base/AGENTS.md`; the catalog does not
+prescribe them. Two models: `frontend/react` (an SPA on shadcn and Tailwind) and `frontend/angular`
+(an SPA on the global SCSS tree, signal stores and Hey API's Angular client). Take the nearer one.
+The checklist is what `validate` and the cases prove.
 
-- [ ] The contract ([docs/conventions.md](docs/conventions.md),
-      [ADR 0005](docs/adr/0005-frontend-foundation.md)): `src/app/` is routing only (`routes.tsx`, a
-      root `layout` and `not-found`, and per route group a `loading` and an `error`);
-      `src/main.tsx` mounts the router, the theme provider, the query client and the toaster and
-      nothing else; the layers `widget/`, `feature/`, `entity/` and
-      `shared/` with `api/` as the data layer; `src/shared/config/env.ts` the only reader of
-      `import.meta.env`; the API reached at relative `/api` with no compiled-in URL and no CORS; the
-      dev server proxies `/api` to the server's port.
-- [ ] The foundation baseline files:
-      - `components.json` (`ui` to `@/shared/ui`, `utils` to `@/shared/lib/cn`), the shadcn
-        primitives in `shared/ui/`, the field bindings in `shared/ui/form/` and the patterns in
-        `shared/ui/pattern/` (`AppShell`, `Page`, `PageHeader`, `EmptyState`, `ErrorState`,
-        `AuthCard`, `UserMenu`, the skeletons);
-      - `globals.css` with the OKLCH tokens, `THEME_LIGHT` and `THEME_DARK` in `:root` and `.dark`,
-        and `@custom-variant dark`; a theme provider with a toggle in the `UserMenu`;
-      - `shared/api/generated/` from `contract` (committed, never edited), `shared/api/client.ts`
-        and `shared/api/call.ts`; the form schema extends the generated one;
-      - `shared/lib/date.ts`, `shared/lib/cn.ts` and the mutation helpers;
-      - `app/nav.ts`, the `(site)` route group, and with auth (`onlyWhen: { "server:auth": ... }`)
-        the `(auth)` group, `shared/auth`, `feature/auth` and `entity/user`;
-      - the example slices `entity/health`, `widget/system-status` and `feature/refresh-health`;
-      - the `phone` and `desktop` projects in `playwright.config.ts` with
-        `reuseExistingServer: false`, `RATE_LIMIT_SCALE`, the API's command chained as
-        `e2eDb && start` (no `globalSetup`) and `retries: 0`.
-- [ ] The tests the template owns: the field bindings, the shell nav, `call`, the action client or
-      the mutation helpers, theme toggling and (with auth) the session helpers, every auth action's
-      success and failure paths and a refresh that two concurrent 401s trigger once; the e2e
-      `shell.spec` and `screens.spec`, and the auth journeys.
-- [ ] The boundaries lint: `tests/unit/eslint-boundaries.test.ts` lints one violation and one allowed
-      case per rule through ESLint's Node API and the real `eslint.config.mjs`, and each message
-      names the layer to use instead.
-- [ ] `static: { out: dist }` in `template.yaml`. Without it the server cannot serve the build and
-      `--deploy single` is refused for the template. The app smoke proves that the `dist` target
-      holds an `index.html`.
+- [ ] `template.yaml`: `kind: frontend`, `commands` for the fixed vocabulary, `http: { port, health }`,
+      `placeholders`, `defaultStack`, and `onlyWhen: { "server:auth": [...],
+      "server:database": [...] }` for the files that follow the server's flags.
+      A frontend declares no `auth` flag of its own.
+- [ ] The invariants hold in the template's own terms: the generated client in a committed directory
+      the agents file names; the API at relative `/api` with no compiled-in URL, no CORS and a dev
+      proxy; one env module; the shell landmarks built from one nav table; the brand placeholders
+      (`__THEME_LIGHT__`, `__THEME_DARK__`, `__THEME_RADIUS__`, `__THEME_FONT_STACK__`,
+      `__THEME_DENSITY__`, `__PROJECT_DISPLAY_NAME__`) in the files that carry the tokens, with the
+      dark selector the template declares; `theme-init.js` a file, never inline; with auth, the guards,
+      `/forbidden`, the 401 refresh that collapses and the session hint.
+- [ ] The tests the template owns: its own glue once (the shell nav, the error mapping, theme
+      toggling, form bindings and, with auth, the session helpers, every auth action's success and
+      failure and a refresh that two concurrent 401s trigger once); the e2e `shell.spec`,
+      `screens.spec`, `smoke.spec` and the auth journeys on the `phone` and `desktop` projects, with
+      `reuseExistingServer: false`, `RATE_LIMIT_SCALE`, the API's command chained as `e2eDb && start`
+      (no `globalSetup`), `E2E_BASE_URL` and `retries: 0`.
+- [ ] The boundaries test: a spec in `tests/unit/` lints one violation and one allowed case per import
+      rule through ESLint's Node API and the real `eslint.config.mjs`, and each message names the
+      layer to use instead.
+- [ ] `static: { out: dist }` in `template.yaml`, `index.html` at that root and content-hashed files.
+      Without it the server cannot serve the build and `--deploy single` is refused for the template.
+      The app smoke proves that the `dist` target holds an `index.html`.
 - [ ] A `Dockerfile` with two targets: `dist` (`FROM scratch`, the built files at `/dist`) for the
       server's image to copy in `single`, and `serve`, the last and so the default target, the
       static server of `split`. The nginx config, its security-header snippet and a
@@ -183,10 +176,12 @@ below is what `validate` and the cases prove.
       `--deploy single`; `validate` dry-runs the file with it on and off.
 - [ ] `base/AGENTS.md` has the headings `Adding a feature`, `Styling`, `Errors`, `Tests` and
       `Deployment`, matched exactly; `validate` checks them in every frontend template. The layer
-      map is required by the contract but is not a checked heading.
+      map, the import rules and, under `Adding a feature`, the recipe for a new module are
+      required by the contract but are not checked headings.
 - [ ] `tests/cases.yaml`: `default` (the stack in its default mode), a case with `deploy: split`, a
-      case per other server in the catalog, and `alone` (the frontend generated by itself, which
-      has no server, so its e2e is skipped). Set `withApp: true` on the cases that build images.
+      case per other server in the catalog, `alone` (the frontend generated by itself, which has no
+      server, so its e2e is skipped) and a case per flag turned off. Set `withApp: true` on the cases
+      that build images.
 - [ ] A case that needs a server flag or a capability sets it from the frontend's own case (the
       `cases.schema.json` fields for the server's flags and capabilities): `stack-postgres`,
       `python` and `auth-off` in `frontend/next/tests/cases.yaml` are the model. A `withApp` case
@@ -196,8 +191,10 @@ below is what `validate` and the cases prove.
       or a contrast check.
 - [ ] A `.conf` file (the nginx config) may carry markers, in `#` comments, and placeholders. A new
       file type that needs markers is added to `tools/lib/markers.ts` only: `placeholders.ts`
-      derives its text types from it. A marker or placeholder in a file of a type neither knows
-      fails generation and `validate`, naming the file.
+      derives its text types from it (a `.webmanifest` is a text type for placeholders only, as JSON
+      has no comment syntax). A marker or placeholder in a file of a type neither knows
+      fails generation and `validate`, naming the file. In SCSS a whole-line `// @word` comment is
+      read as a marker: never write one.
 - [ ] A stack in `stacks/` per server, an `index.yaml` entry and the README matrix
       (`bun tools/validate.ts --readme`).
 - [ ] Proof: `bun tools/test-generated.ts --case frontend/<id>/default --e2e --with-app`, and the
@@ -405,6 +402,49 @@ When a dependency moves or the base is regenerated:
    `bun`, `alone` (no `--with-app`), and
    `--case server/python-fastapi/stack-react-postgres --with-services --with-app`.
 
+## Refreshing `frontend/angular/base`
+
+When Angular is bumped or the base is regenerated:
+
+1. Scaffold a clean app with the new version, only to compare against the base:
+
+   ```sh
+   bun x @angular/cli@<version> new app --style=scss --ssr=false --skip-git --skip-install \
+     --package-manager=bun --defaults
+   ```
+
+   `--skip-install` is required: `--package-manager=bun` fails its own install on Windows. Run
+   `bun install` afterwards. The CLI writes neither `strict` nor `strictTemplates`, and its
+   `main.ts` fails the strict lint until `err` is `unknown`; keep the base's settings. Take no
+   welcome page, `app.scss`, `.gitignore` or `.vscode/`, and keep `.editorconfig` in LF.
+2. Verify every version on the registry (`npm view <pkg> time --json` and its peers; the latest
+   stable at least 14 days old, an exception recorded in the CHANGELOG). The table of the set is
+   [ADR 0006 › Versions](docs/adr/0006-per-framework-frontends-and-angular.md), corrected there to
+   what the lock resolved. Re-verify the pins that move together:
+   - `@angular/core` and the packages that peer it; `@angular/compiler-cli` is the version the
+     registry has for the same release (it may lag the CLI).
+   - TypeScript stays inside Angular's peer range (`~6.0.x` for Angular 22), not the latest.
+   - ESLint 10 with `angular-eslint`, `typescript-eslint` and `eslint-plugin-boundaries`; keep
+     `eslint-import-resolver-typescript`, without which a boundary violation is silently missed.
+   - `@hey-api/openapi-ts` is pinned exactly (0.x; a minor can change the generated output, and the
+     Angular client is a bundled plugin); `@playwright/test` is pinned exactly.
+3. Run `bun install` and commit `bun.lock`; `bun tools/validate.ts --lockfiles` checks it with
+   `--frozen-lockfile`.
+4. Regenerate `src/app/services/generated/` with the `contract` command (`bun run api:types`) from
+   a server template's `openapi.json` and commit it; read the diff. `runtimeConfigPath` takes no
+   `.ts` extension and `provideHeyApiClient` is imported from the generated client.
+5. Run `tests/unit/eslint-boundaries.spec.ts`. It lints one violation and one allowed case per row
+   of ADR 0006 › A2.1 through the real `eslint.config.mjs`, so a new block that overlaps a rule
+   fails it. Add a case with any new allowance.
+6. Run `bun run check` in `base/`: `typecheck` is `ngc` on the app and spec configs (it catches
+   template errors under `strictTemplates`; `tsc -b` does not), then lint, Prettier and `ng test`.
+7. Bump `version` in `template.yaml` and `index.yaml`, add a `CHANGELOG.md` entry, and run
+   `bun tools/validate.ts --readme`.
+8. Re-run the cases, the container smoke included:
+   `bun tools/test-generated.ts --case frontend/angular/default --e2e --with-app`, then `split`,
+   `python`, `auth-off`, `i18n-off`, `pwa-off`, `flags-off` and `brand`, `alone` (no
+   `--with-app`), and `postgres` with `--with-services --with-app`.
+
 ## The e2e database
 
 A frontend's e2e suite never uses the development database. With a database provider (the
@@ -473,7 +513,16 @@ the lockfiles is still to be configured.
   existing file invalid bumps it. v1.4.0 added optional fields (`answers.brand`, `onlyWhen`, the case
   fields for a server's flags, the `e2eDb` command, the provider's `e2e` URL); v1.4.1 adds the case
   field `brand`; v1.5.0 and v1.5.1 add none.
-- This release is `v1.5.1`, a patch (a `.gitignore` fix: the Next-only lines moved to a `next` section), with `frontend/next` 2.1.1, `frontend/react` 2.1.1 and `server/bun-express` 2.4.2. The previous release, `v1.5.0`, a minor (a feature release of existing templates), had `frontend/next` 2.1.0, `frontend/react` 2.1.0 (axe,
+- This release is `v1.6.0`, a minor: a template added (`frontend/angular` 1.0.0, with the stacks
+  `angular-bun-express` and `angular-python-fastapi`) and the frontend contract split into
+  invariants ([ADR 0006](docs/adr/0006-per-framework-frontends-and-angular.md)). It carries
+  `frontend/next` 2.1.2 (two rules moved into its `AGENTS.md`), `frontend/react` 2.1.1,
+  `server/bun-express` 2.4.3 and `server/python-fastapi` 1.2.2 (both servers cache a frontend's
+  hashed build output immutable whatever its layout). `schemaVersion` is unchanged; the
+  `.webmanifest` text type (placeholders only) is a tool change, not a schema change. The previous
+  release, `v1.5.1`, a patch (a `.gitignore` fix), had `frontend/next` 2.1.1. `v1.5.0`, a minor (a
+  feature release of existing templates), had `frontend/next` 2.1.0, `frontend/react` 2.1.0 (axe,
   overflow and one-`h1` checks on every screen in both themes, the signed-in screens list, and a
-  compact icon button), `server/bun-express` 2.4.1 and `server/python-fastapi` 1.2.1 (documentation). A template's `version` is bumped in
-  `template.yaml`, `index.yaml` and its `CHANGELOG.md` together.
+  compact icon button), `server/bun-express` 2.4.1 and `server/python-fastapi` 1.2.1
+  (documentation). A template's `version` is bumped in `template.yaml`, `index.yaml` and its
+  `CHANGELOG.md` together.

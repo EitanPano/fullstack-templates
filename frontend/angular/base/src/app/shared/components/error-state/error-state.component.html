@@ -1,0 +1,8 @@
+<div class="error-state" role="alert">
+  <span class="error-state__icon"><app-icon name="alert-circle" [large]="true" /></span>
+  <h2>{{ heading() ?? ('errors.title' | t) }}</h2>
+  <p class="error-state__description">{{ description() ?? ('errors.description' | t) }}</p>
+  @if (retryable()) {
+    <app-button variant="secondary" (click)="retry.emit()">{{ 'actions.retry' | t }}</app-button>
+  }
+</div>

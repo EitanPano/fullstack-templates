@@ -1,0 +1,5 @@
+<div class="skeleton" [class.skeleton--text]="variant() === 'text'" aria-hidden="true">
+  @for (item of items(); track item) {
+    <div [class]="itemClass()"></div>
+  }
+</div>

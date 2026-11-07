@@ -50,6 +50,11 @@ The numbers follow plan 010. Each decision lists the alternatives that were reje
 
 Written in `docs/conventions.md › Frontend, single-page app`. Every SPA template satisfies it.
 
+Amended by [ADR 0006](0006-per-framework-frontends-and-angular.md): the contract shrinks to the
+SPA specifics of invariants 2, 8 and 9 (no proxy, the static build, the e2e serving). The route
+table, mount file, TanStack and layer lines moved to each template's `AGENTS.md`, and "Vue and
+Angular later" became React and Angular.
+
 - **`src/app/` is routing only.**
   - `routes.tsx` is the route table.
   - The root has `layout.tsx` and `not-found.tsx`.
@@ -181,7 +186,7 @@ Rejected:
 
   | Request | Response |
   | --- | --- |
-  | GET or HEAD of an existing file | The file. `assets/*` gets `Cache-Control: public, max-age=31536000, immutable`; every other file, `index.html` included, gets `no-cache`. |
+  | GET or HEAD of an existing file | The file. `assets/*`, `media/*` and the root bundles `main-`, `polyfills-`, `chunk-` and `styles-` plus an eight-character hash (`.js`, `.css`) get `Cache-Control: public, max-age=31536000, immutable`; every other file, `index.html` included, gets `no-cache`. |
   | GET or HEAD of an extension-less path outside `/api` | `index.html`, `no-cache`. The SPA's router renders it, its own not-found included. |
   | A path with an extension and no file | The 404 envelope. |
   | `/api/*` with no route | The 404 envelope, unchanged. |

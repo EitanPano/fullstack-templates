@@ -61,165 +61,115 @@ The per-language equivalents (the table every new server template is written aga
 
 **Frontend**
 
-The contract of every frontend, server-rendered or SPA. The rationale and the tradeoffs are in
-[ADR 0005](adr/0005-frontend-foundation.md); the shell and phone-project rules of
+What every frontend satisfies, whatever its framework. These ten invariants are numbered so the
+harness can cite them. Folders, state, forms, the design system and the import graph are the
+template's own: each template's `AGENTS.md` holds its layer map, its import rules with the lint
+that enforces them, and where an addition goes. The rationale is in
+[ADR 0006](adr/0006-per-framework-frontends-and-angular.md), which amends
+[ADR 0005](adr/0005-frontend-foundation.md); the shell and phone rules of
 [ADR 0004](adr/0004-ui-baseline.md) that it keeps are marked below.
 
-- **Layers.** Under `src/`: `app/` is routing only (route groups, layouts, pages, `loading` and
-  `error` per group, `nav.ts`). `widget/<section>/` is a page section: it reads data and composes
-  entities and features (`ui/<section>` and `ui/<section>-skeleton`). `feature/<action>/` is one
-  user action (a glossary verb, or `auth`): `model.ts` (the form schema and its copy), the data
-  layer, and `ui/`. `entity/<noun>/` is one glossary noun: `model.ts`, the read loaders, and
-  presentational `ui/`. `shared/` is product-agnostic: `ui/` (shadcn primitives), `ui/form/`,
-  `ui/pattern/`, `lib/`, `api/`, `auth/` and `config/env.ts`. The data layer is `server/` for a
-  server-rendered framework and `api/` otherwise.
-- **Import direction.** `app` imports widget, feature, entity, shared; `widget` imports feature,
-  entity, shared; `feature` imports entity, shared; `entity` imports shared; `shared` imports
-  shared. An entity imports another entity only with `import type` from its `model.ts`. No slice
-  imports a sibling slice in its own layer. A `'use client'` file imports from `server/` only an
-  `action.ts`. `shared/api` is imported only by a data layer and `shared/auth`, plus the types and
-  generated zod schemas a `model.ts` extends. The language's tool enforces it (ESLint with
-  `eslint-plugin-boundaries`), and each message names the layer to use instead.
-- **Where an addition goes.** A domain object's type, mapper, label or card: `entity/<noun>/`. A
-  read: the entity's data layer. A mutation and the control that runs it: `feature/<action>/`. A
-  section that combines reads and actions: `widget/<section>/`. A route and its layout: `app/`. A
-  primitive: `shared/ui/`, added with `shadcn add`. A layout pattern: `shared/ui/pattern/`. A
-  form field binding: `shared/ui/form/`. Date and time helpers: `shared/lib/`. An environment
-  variable: `shared/config/env.ts` and `.env.example`. A navigation entry: `app/nav.ts`.
-- **Design system.** shadcn/ui on Radix, copied into `shared/ui/` (`components.json` maps `ui` to
-  `@/shared/ui` and `utils` to `@/shared/lib/cn`). The CLI is pinned; `shadcn add <name>` is the
-  one scaffolder an agent may run, and `shadcn init` is not. The `button`, `input`, `select` and
-  `textarea` JSX elements are an error outside `shared/ui`. One toast library and one icon set per
-  template; the same icon for the same concept. A toast fires from the handler after the await,
-  never from an effect.
-- **Tokens.** shadcn's semantic set in OKLCH plus `success`, `warning` and `info`, each with its
-  `-foreground`, and `border`, `input`, `ring` and `radius`. Light values in `:root`, dark values
-  in `.dark`, with `@custom-variant dark`. Components use the utilities, never a literal. Spacing
-  is a 4 px base (Tailwind's default multiplier; steps 1, 2, 3, 4, 6, 8, 12, 16) and a template
-  never adds a `--spacing-N` key (ADR 0004, U2). The generator derives the values from the brand
-  inputs and checks their contrast.
-- **Theme.** A class-based dark mode (`next-themes` in a server-rendered framework, a
-  `ThemeProvider` in an SPA) with the default from the brand input and a toggle in the `UserMenu`.
-- **Shell** (ADR 0004, U1; its path moved). `AppShell` in `shared/ui/pattern/` is composed by the
-  root layout in `app/`: a skip link to `#main`, `<header>` with the display name linking to `/`
-  and `<nav aria-label="Primary">` built from `app/nav.ts` (`NavEntry { to | href, label }`: `to`
-  in react-router, `href` in `next/link`), an account slot, the page's one `<main id="main">`, and
-  `<footer>`. The nav is inline from `md` and a Sheet on phones. A feature adds a nav entry and
-  renders inside `main`; it never adds a second landmark set. The root layout passes the entries
-  to the shell as props, so `shared/` never imports `app/`.
-- **Mobile first.** Unprefixed utilities are the phone layout; `sm`, `md`, `lg` widen it; their
-  pixel values are in the template's `AGENTS.md › Styling`. No horizontal overflow at any
-  viewport. Controls are `h-11` under `pointer-coarse` (at least 44 x 44 px, an icon button
-  included) and take the shadcn density on a fine pointer.
-- **Contract client.** `contract` generates types, a fetch client and zod schemas into
-  `shared/api/generated/` (committed, never edited). A form schema extends the generated request
-  schema; a validation limit is never copied. The Next client runs on the server and never uses the
-  generated singleton. It forwards no `X-Forwarded-For` unless the optional `CLIENT_IP_HEADER` names
-  a header a trusted proxy sets ([ADR 0005](adr/0005-frontend-foundation.md), F14).
-- **Mutations.** One action client with `action`, `accountAction` and `roleAction(role)`, and one
-  `call` helper that maps an API result to data or to an `ActionError` through the feature's copy
-  table, keyed by the envelope's `code`. Copy is ours; the server's text never reaches the user. A
-  mutation names the entities it changes (`updateTag`, or a query key); `revalidatePath` is not
-  used. In a SPA, `useMutation` with the same `call` and copy tables.
-- **Forms.** React Hook Form with `zodResolver`; `shared/ui/form/` holds the field bindings. A
-  field error shows on its field with `aria-invalid` and `aria-describedby`; the toast reports the
-  outcome and never repeats it. A server field error for a path the form does not register becomes
-  a toast. A Next form's submit ignores only Next's navigation errors (redirect, not-found) through
-  a shared helper and rethrows anything else.
-- **Reads.** A server-rendered framework caches a public read, tags it by entity and renders a
-  data widget as a request-time hole (an async component in Suspense that awaits the request, then
-  the cached loader); a per-user read is dynamic. A cached loader throws on failure and the widget
-  renders `ErrorState`. An SPA reads with TanStack Query: loaders prefetch, widgets suspend,
-  mutations invalidate.
-- **Auth** (only when the server has auth). A data access layer (`readSession`, `requireAccount`,
-  `requireRole`) does every real check; a Next proxy only refreshes tokens (it never redirects), and
-  `requireRole` sends a wrong role to `/forbidden`. The `(auth)` and `(site)` route groups; a staff
-  group guards its layout, its pages, its loaders and its actions. The `UserMenu` (avatar, email,
-  theme, sign out) sits in the shell's account slot.
-- **Errors and loading.** Every route has a `loading` and an `error` state, its own or its
-  group's; every widget has a skeleton that matches its layout. A server-rendered framework adds
-  a global error boundary.
-- **Dates.** `shared/lib/date` converts a wall time to an instant and back in a named zone,
-  computes day keys and formats dates. A time in a DST gap is refused and an ambiguous time takes
-  the earlier instant.
-- **Gates:** typecheck, lint, format, unit tests; e2e with an accessibility scan and no axe
-  exclusion.
-- **E2E** (ADR 0004, U4; amended). Playwright serves the production build (Next:
-  `scripts/e2e-server.mjs`, which builds and runs the standalone `server.js`; SPA: `vite build` and
-  `vite preview`) and starts the server fresh with `reuseExistingServer: false`,
-  `RATE_LIMIT_SCALE=100` and the server's `start` command. With a database, the provider's `e2e` URL
-  (`app_e2e`) goes to the server and the server's web server command is `e2eDb && start` (not a
-  `globalSetup`: Playwright starts web servers first). `E2E_DATABASE_URL` overrides the URL, and the
-  config refuses at load any URL whose database name does not end in `_e2e`. Generation fails closed
-  without a server start command or, with a database, an `e2eDb` command and an `e2e` URL
-  (CONTRIBUTING). With `E2E_BASE_URL` set (a blank value counts as unset) nothing is started (CONTRIBUTING). A check for one project carries `@phone` or `@desktop`, and the other project's `grepInvert` leaves it out; never a runtime `test.skip`. The development
-  database is never touched. The `phone` project (`devices['Pixel 7']`, touch) runs every journey
-  with its accessibility scan; the `desktop` project (`devices['Desktop Chrome']`) runs `shell.spec`
-  and `screens.spec`. `retries: 0`, and a trace on failure. `tests/e2e/shell.spec.ts` asserts the
-  landmarks, the skip link, no horizontal overflow, the 44 px targets on the touch project, the
-  shadcn densities on the desktop project and that `data-density="compact"` does not shrink a touch
-  target. `tests/e2e/screens.spec.ts` captures every `nav.ts` route, plus sign-in and sign-up when
-  auth is on, on phone and desktop in light and dark, to
-  `test-results/screens/<route>-<viewport>-<theme>.png`, and checks each screen (no axe violation of
-  the WCAG A and AA tags, no horizontal scroll, one `h1`); `SIGNED_IN_ROUTES` adds the screens only an
-  account sees. A journey creates its data through the API
-  with a name unique per run and removes it through the API once the product has a delete endpoint.
-- **Unit tests** are Vitest with React Testing Library. The template tests its own glue once (the
-  field bindings, the shell nav, `call`, the action client, theme toggling, the auth helpers).
-- **Brand.** The generator takes `--display-name`, `--brand-primary`, `--brand-neutral`, `--radius`,
-  `--font`, `--theme` and `--density`, recorded in provenance under `answers.brand`. Defaults: the
-  project name in title case, `#1d4ed8` on a `#64748b` neutral, `md`, `system`, `system`,
-  `comfortable`. The generator fails, naming the pair, when a seed cannot pass the contrast checks. The primary is
-  also link text, so it must read at 4.5:1 on the page, cards and popovers: the generator moves its
-  lightness (hue and chroma kept) until it does, and prints a `note:` line saying so.
-- **Cross-package selections.** A frontend template may gate files on the server's flags and
-  capabilities with `onlyWhen: { "server:<name>": [paths] }`; every `server:*` selection is off
-  when the frontend is generated alone ([capabilities](capabilities.md)).
+1. **Contract types.** `contract` generates the types, the client and the zod schemas into a
+   committed, never-edited directory the agents file names. No hand-written API types. A form
+   schema derives from the generated request schema and never copies a validation limit.
+2. **One origin.** The API is reached at relative `/api/*` on the page's origin in every deploy
+   mode; the dev server proxies it; no API URL is compiled in; CORS stays off. One env module is
+   the only reader of build-time environment, browser-visible values only, never a secret. A
+   server-rendered frontend forwards no `X-Forwarded-For` unless the optional `CLIENT_IP_HEADER`
+   names a header a trusted proxy sets ([ADR 0005](adr/0005-frontend-foundation.md), F14).
+3. **Errors and loading.** The envelope's `code` maps through the template's copy tables; the
+   server's text never reaches the user; a toast fires from the handler after the await, never
+   from an effect or an interceptor. Every route has a loading and an error state; every data
+   section has a skeleton that matches its layout.
+4. **Shell** (ADR 0004, U1). A skip link to `#main`, first in the tab order; `<header>` with the
+   display name linking to `/`; `<nav aria-label="Primary">` built from one nav table; the page's
+   one `<main id="main">`; `<footer>`. A feature adds a nav entry and renders inside `main`, never
+   a second landmark set.
+5. **Mobile first.** No horizontal overflow at any viewport. Controls are at least 44 x 44 px on
+   a coarse pointer, icon buttons included; one component is the one place for a button.
+6. **Brand and theme.** The generator's inputs (`--display-name`, `--brand-primary`,
+   `--brand-neutral`, `--radius`, `--font`, `--theme`, `--density`), its contrast checks and its
+   OKLCH token names are the one semantic set across frontends. Light values in `:root`, dark
+   values under a selector the template declares (`.dark` or `[data-theme="dark"]`). Light, dark
+   and system, the default from the brand input, a theme toggle in the shell (the user menu or
+   the header, as the template's `AGENTS.md › Styling` says). The no-flash theme script is a file,
+   never inline: the deployed pages carry `script-src 'self'`. Spacing is a 4 px base and a
+   template never adds a `--spacing-N` key (ADR 0004, U2). The inputs are recorded in
+   provenance under `answers.brand`; defaults: the project name in title case, `#1d4ed8` on a
+   `#64748b` neutral, `md`, `system`, `system`, `comfortable`. The generator fails, naming the
+   pair, when a seed cannot pass the contrast checks; the primary is also link text, so it must
+   read at 4.5:1 on the page, cards and popovers: the generator moves its lightness (hue and
+   chroma kept) until it does and prints a `note:` line.
+7. **Auth glue**, only with `server:auth`. Guards for account and role; `/forbidden` for a wrong
+   role; a 401 becomes one refresh and a retry, and concurrent refreshes collapse into one; the
+   session hint is a `localStorage` flag that is never a token, set after sign-in and cleared on
+   sign-out and on a refresh 400, 401 or 403; a user menu with avatar, email and sign out; the
+   theme toggle sits in the shell where the template's `AGENTS.md › Styling` puts it.
+8. **Gates.** typecheck, lint, format and unit tests, without Docker. E2E on `phone` (`Pixel 7`,
+   touch) and `desktop` (`Desktop Chrome`): `shell.spec` (landmarks, skip link, overflow,
+   targets), `screens.spec` (every nav route plus the auth screens, both themes, axe WCAG A and
+   AA, no horizontal scroll, one `h1`, `SIGNED_IN_ROUTES`), the auth journeys, `E2E_BASE_URL`,
+   the `e2eDb && start` chain, `RATE_LIMIT_SCALE=100`, `retries: 0`. Unit tests of the template's
+   own glue. A boundaries test that lints one violation and one allowed case per import rule
+   through the real ESLint config, each message naming the layer to use instead. The e2e details
+   are under **E2E** below.
+9. **Shipping.** `static: { out }` with `index.html` at that root and content-hashed files; a
+   Dockerfile with the `dist` and `serve` targets; the nginx config and its security-header
+   snippet; a `compose.yaml` fragment per deploy mode; `onlyWhen` for the server's selections. A
+   frontend template may gate files on the server's flags and capabilities with
+   `onlyWhen: { "server:<name>": [paths] }`; every `server:*` selection is off when the frontend
+   is generated alone ([capabilities](capabilities.md)).
+10. **The agents file.** The headings `Adding a feature`, `Styling`, `Errors`, `Tests` and
+    `Deployment`; the layer map; the import rules with the lint that enforces them; and under
+    `Adding a feature` the recipe for a new module, file by file. The recipe is documentation, as
+    the server's `Adding a module` is; a template never ships placeholder code. `validate` checks
+    the five headings; the layer map is not a checked heading.
+
+**E2E** (ADR 0004, U4; amended). Playwright serves the production build and starts the server
+fresh with `reuseExistingServer: false`, `RATE_LIMIT_SCALE=100` and the server's `start` command.
+With a database, the provider's `e2e` URL (`app_e2e`) goes to the server and the server's web
+server command is `e2eDb && start` (not a `globalSetup`: Playwright starts web servers first).
+`E2E_DATABASE_URL` overrides the URL, and the config refuses at load any URL whose database name
+does not end in `_e2e`. Generation fails closed without a server start command or, with a
+database, an `e2eDb` command and an `e2e` URL (CONTRIBUTING). With `E2E_BASE_URL` set (a blank
+value counts as unset) nothing is started (CONTRIBUTING). A check for one project carries
+`@phone` or `@desktop`, and the other project's `grepInvert` leaves it out; never a runtime
+`test.skip`. The development database is never touched. The `phone` project runs every journey
+with its accessibility scan; the `desktop` project runs `shell.spec` and `screens.spec`.
+`tests/e2e/shell.spec.ts` asserts the landmarks, the skip link, no horizontal overflow, the 44 px
+targets on the touch project, the density on the desktop project and that `data-density="compact"`
+does not shrink a touch target. `tests/e2e/screens.spec.ts` captures every nav route, plus sign-in
+and sign-up when auth is on, on phone and desktop in light and dark, to
+`test-results/screens/<route>-<viewport>-<theme>.png`, and checks each screen (no axe violation of
+the WCAG A and AA tags, no horizontal scroll, one `h1`); `SIGNED_IN_ROUTES` adds the screens only
+an account sees. A journey creates its data through the API with a name unique per run and removes
+it through the API once the product has a delete endpoint.
 
 **Frontend, single-page app**
 
-The shape every SPA template (React now, Vue and Angular later) satisfies, on top of the
-frontend contract above. The rationale is in [ADR 0003](adr/0003-spa-and-deploy-modes.md), with the
-layers amended by [ADR 0005](adr/0005-frontend-foundation.md).
+The SPA specifics of invariants 2, 8 and 9, for every SPA template (React and Angular; a
+template's `AGENTS.md` holds its layer map). The rationale is in
+[ADR 0003](adr/0003-spa-and-deploy-modes.md), with the layers moved to each template by
+[ADR 0006](adr/0006-per-framework-frontends-and-angular.md).
 
-- `src/app/` is routing only: `routes.tsx` (the route table), a root `layout` and `not-found`,
-  and per route group a `loading` (the hydrate and pending fallback) and an `error` (the route's
-  error boundary). `src/main.tsx` mounts the router, the theme provider, the query client and the
-  toaster and nothing else.
-- The layers are the frontend's above, with `api/` as the data layer: `entity/<noun>/api/` holds
-  query options and `feature/<action>/api/` holds mutation hooks. Only a data layer and
-  `shared/auth` import `shared/api`; lint enforces it.
-- There is no proxy. Route loaders guard routes (`requireAccount`, `requireRole`) and a
-  `RequireRole` component hides controls. The client turns a 401 into one refresh and a retry, and
-  concurrent refreshes collapse into one.
-- Route loaders call `queryClient.query(...)` (fetch semantics, 30 s `staleTime`), never
-  `ensureQueryData`, which the pinned TanStack Query deprecates.
+- There is no proxy. Route guards run in the client (account and role), and the client turns a 401
+  into one refresh and a retry; concurrent refreshes collapse into one.
 - The no-flash theme script is the file `public/theme-init.js`, not an inline script: the deployed
   pages carry `script-src 'self'`.
-- `shared/api/session-hint.ts` is a `localStorage` flag, never a token: set after sign-in, cleared
-  on sign-out and on a refresh 400, 401 or 403 (a refresh without a cookie answers 400). The client refreshes only when it is set; without it the
-  page shows the signed-out view.
-- The generated query options are produced with `infiniteQueryOptions: false`: the template has no
-  paginated endpoint.
+- The session hint is a `localStorage` flag, never a token: set after sign-in, cleared on sign-out
+  and on a refresh 400, 401 or 403 (a refresh without a cookie answers 400). The client refreshes
+  only when it is set; without it the page shows the signed-out view.
 - A client-side `noindex` is a known limitation: a crawler without JavaScript does not see it.
-- The API is reached at relative `/api/*` on the page's own origin in every deploy mode. The dev
-  server proxies `/api` to the server's port. No API URL is compiled into the bundle and CORS stays
-  off. The client resolves the origin explicitly (`baseUrl: window.location.origin`). The client
-  address is the browser's own (the dev proxy, nginx or the server sees it), so `CLIENT_IP_HEADER`
-  does not apply to an SPA.
-- `src/shared/config/env.ts` is the only reader of `import.meta.env` (lint), browser-visible
-  values only, never a secret.
-- `build` writes `dist/`: `index.html` at its root, hashed files under `dist/assets/`. The
-  manifest declares `static: { out: dist }`; a frontend without `static` cannot be served by the
-  server (`single`).
+- The dev server proxies `/api` to the server's port. The client address is the browser's own (the
+  dev proxy, nginx or the server sees it), so `CLIENT_IP_HEADER` does not apply to an SPA.
+- `build` writes `dist/`: `index.html` at its root, content-hashed files beside it or under
+  `dist/assets/`. The manifest declares `static: { out: dist }`; a frontend without `static`
+  cannot be served by the server (`single`).
 - E2E: with `E2E_BASE_URL` set, Playwright tests that URL and starts no web server; otherwise it
-  builds and previews the app (`vite build`, `vite preview`) and starts the server fresh, with the
-  same `e2eDb && start` chain as above.
+  serves the production build with the template's own static server and starts the server fresh,
+  with the same `e2eDb && start` chain as above.
 - The Dockerfile has two targets: `dist` (the built files only, at `/dist`) and the default
   `serve` (the `split` static server).
-- The agents file has the layer map and the headings `Adding a feature`, `Styling`, `Errors`,
-  `Tests` and `Deployment`. `validate` checks these five headings, in any frontend template and
-  not only an SPA; the layer map is not a checked heading.
 
 **Deploy modes**
 

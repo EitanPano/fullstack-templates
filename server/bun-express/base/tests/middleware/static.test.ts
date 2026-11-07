@@ -55,6 +55,21 @@ function listen(app: ReturnType<typeof createApp>): Promise<Server> {
 
 const INDEX = '<!doctype html><title>spa</title>'
 const IMMUTABLE = 'public, max-age=31536000, immutable'
+// Angular's hashed bundles sit at the root, its media under media/; nothing else is hashed.
+const IMMUTABLE_FILES = [
+  'main-DZ3OMSGX.js',
+  'chunk-B2NTA-yl.js',
+  'styles-JAGCROLU.css',
+  'media/logo-AbCdEfGh.svg',
+  'assets/index-AbC12345.js',
+]
+const REVALIDATED_FILES = [
+  'ngsw-worker.js',
+  'theme-init.js',
+  'icons/apple-touch-icon.png',
+  'hero-mountain.jpg',
+  'main.js',
+]
 let root: string
 let dist: string
 let server: Server
@@ -81,8 +96,11 @@ beforeAll(async () => {
   mkdirSync(join(dist, 'assets'), { recursive: true })
   mkdirSync(join(dist, '.git'), { recursive: true })
   mkdirSync(join(dist, 'sub'), { recursive: true })
+  mkdirSync(join(dist, 'media'), { recursive: true })
+  mkdirSync(join(dist, 'icons'), { recursive: true })
   writeFileSync(join(dist, 'index.html'), INDEX)
   writeFileSync(join(dist, 'assets', 'app-abc123.js'), 'console.log(1)')
+  for (const file of [...IMMUTABLE_FILES, ...REVALIDATED_FILES]) writeFileSync(join(dist, file), 'x')
   writeFileSync(join(dist, 'favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>')
   writeFileSync(join(dist, 'sub', 'page.html'), '<p>sub</p>')
   writeFileSync(join(dist, '.env'), 'SECRET=1')
@@ -140,6 +158,24 @@ describe('static: existing file', () => {
     expect(res.status).toBe(200)
     expect(res.headers['cache-control']).toBe('no-cache')
     expectCommonHeaders(res)
+  })
+
+  it('caches hashed build output immutable whatever the layout', async () => {
+    for (const file of IMMUTABLE_FILES) {
+      const res = await raw(server, 'GET', `/${file}`)
+
+      expect(res.status).toBe(200)
+      expect(res.headers['cache-control']).toBe(IMMUTABLE)
+    }
+  })
+
+  it('revalidates every other file, hashed-looking names included', async () => {
+    for (const file of REVALIDATED_FILES) {
+      const res = await raw(server, 'GET', `/${file}`)
+
+      expect(res.status).toBe(200)
+      expect(res.headers['cache-control']).toBe('no-cache')
+    }
   })
 
   it('does not compress, even when the client accepts it', async () => {

@@ -26,6 +26,21 @@ from app.server import create_app
 
 INDEX = "<!doctype html><title>spa</title>"
 IMMUTABLE = "public, max-age=31536000, immutable"
+# Angular's hashed bundles sit at the root, its media under media/; nothing else is hashed.
+IMMUTABLE_FILES = [
+    "main-DZ3OMSGX.js",
+    "chunk-B2NTA-yl.js",
+    "styles-JAGCROLU.css",
+    "media/logo-AbCdEfGh.svg",
+    "assets/index-AbC12345.js",
+]
+REVALIDATED_FILES = [
+    "ngsw-worker.js",
+    "theme-init.js",
+    "icons/apple-touch-icon.png",
+    "hero-mountain.jpg",
+    "main.js",
+]
 
 
 @dataclass(frozen=True)
@@ -100,6 +115,10 @@ def tree(tmp_path_factory: pytest.TempPathFactory) -> Path:
     (dist / "assets").mkdir(parents=True)
     (dist / ".git").mkdir()
     (dist / "sub").mkdir()
+    (dist / "media").mkdir()
+    (dist / "icons").mkdir()
+    for file in [*IMMUTABLE_FILES, *REVALIDATED_FILES]:
+        (dist / file).write_text("x")
     (dist / "index.html").write_text(INDEX)
     (dist / "assets" / "app-abc123.js").write_text("console.log(1)")
     (dist / "favicon.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg"/>')
@@ -141,6 +160,24 @@ def assert_common_headers(res: Reply) -> None:
 
 
 class TestExistingFile:
+    @pytest.mark.parametrize("file", IMMUTABLE_FILES)
+    def test_hashed_build_output_is_immutable_whatever_the_layout(
+        self, port: int, file: str
+    ) -> None:
+        res = raw(port, "GET", f"/{file}")
+
+        assert res.status == 200
+        assert res.headers["cache-control"] == IMMUTABLE
+
+    @pytest.mark.parametrize("file", REVALIDATED_FILES)
+    def test_every_other_file_revalidates_hashed_looking_names_included(
+        self, port: int, file: str
+    ) -> None:
+        res = raw(port, "GET", f"/{file}")
+
+        assert res.status == 200
+        assert res.headers["cache-control"] == "no-cache"
+
     def test_get_serves_an_asset_with_the_immutable_cache_header(self, port: int) -> None:
         res = raw(port, "GET", "/assets/app-abc123.js")
 

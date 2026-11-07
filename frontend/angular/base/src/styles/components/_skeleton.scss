@@ -1,0 +1,42 @@
+@use '../setup/functions';
+
+.skeleton {
+  display: grid;
+  gap: functions.space(2);
+}
+
+.skeleton__item {
+  block-size: 1rem;
+  border-radius: var(--radius);
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base) 25%,
+    var(--skeleton-shine) 50%,
+    var(--skeleton-base) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shine 1.4s ease-in-out infinite;
+}
+
+.skeleton__item--sm {
+  block-size: 2rem;
+}
+
+.skeleton__item--md {
+  block-size: 6rem;
+}
+
+.skeleton__item--lg {
+  block-size: 12rem;
+}
+
+// The last line of a text skeleton is shorter, as a paragraph ends.
+.skeleton--text .skeleton__item:last-child:not(:only-child) {
+  inline-size: 60%;
+}
+
+@keyframes skeleton-shine {
+  to {
+    background-position-x: -200%;
+  }
+}

@@ -1,0 +1,117 @@
+<header class="header">
+  <div class="header__inner container">
+    <app-button
+      class="header__nav-toggle"
+      variant="ghost"
+      size="icon"
+      [ariaLabel]="(navOpen() ? 'nav.close' : 'nav.open') | t"
+      [ariaExpanded]="navOpen()"
+      ariaControls="side-nav"
+      (click)="navToggle.emit()"
+    >
+      <app-icon [name]="navOpen() ? 'close' : 'menu'" />
+    </app-button>
+    <a class="header__brand" routerLink="/">{{ name }}</a>
+    <div class="header__tools">
+      <span class="header__status" aria-live="polite">
+        @if (!network.online()) {
+          <span class="badge badge--warning">
+            <app-icon name="wifi-off" />
+            {{ 'shell.offline' | t }}
+          </span>
+        }
+      </span>
+      <!-- @i18n-start -->
+      <app-button
+        class="header__language"
+        variant="ghost"
+        size="sm"
+        [ariaLabel]="'language.toggle' | t: { name: nextName() | t }"
+        (click)="switchLanguage()"
+      >
+        {{ nextName() | t }}
+      </app-button>
+      <span class="visually-hidden" role="status">
+        {{ 'language.current' | t: { name: currentName() | t } }}
+      </span>
+      <!-- @i18n-end -->
+      <!-- @pwa-start -->
+      @if (install.canInstall()) {
+        <app-button class="header__install" variant="ghost" size="sm" (click)="installApp()">
+          {{ 'pwa.install' | t }}
+        </app-button>
+      }
+      <!-- @pwa-end -->
+      <app-button
+        class="header__theme"
+        variant="ghost"
+        size="icon"
+        [ariaLabel]="'theme.toggle' | t: { current: current() | t, next: next() | t }"
+        (click)="theme.cycle()"
+      >
+        <app-icon [name]="themeIcon()" />
+      </app-button>
+      <span class="visually-hidden" role="status">
+        {{ 'theme.current' | t: { current: current() | t } }}
+      </span>
+      <!-- @server:auth-start -->
+      @if (auth.isLoggedIn()) {
+        <div
+          #userMenu
+          class="user-menu"
+          role="presentation"
+          (keydown.escape)="escapeMenu()"
+          (focusout)="leaveMenu($event)"
+        >
+          <app-button
+            class="user-menu__trigger"
+            variant="ghost"
+            size="icon"
+            [ariaLabel]="'auth.menu.label' | t"
+            [ariaExpanded]="menuOpen()"
+            ariaControls="user-menu"
+            (click)="toggleMenu()"
+          >
+            <span class="avatar" aria-hidden="true" [attr.data-initials]="initials()"></span>
+          </app-button>
+          @if (menuOpen()) {
+            <div
+              id="user-menu"
+              class="user-menu__panel"
+              role="group"
+              [attr.aria-label]="'auth.menu.label' | t"
+            >
+              <p class="user-menu__email">{{ auth.user()?.email }}</p>
+              <app-button link="/profile" variant="ghost" size="sm" (click)="closeMenu()">{{
+                'auth.menu.profile' | t
+              }}</app-button>
+              <app-button variant="ghost" size="sm" (click)="signOut()">{{
+                'auth.menu.signOut' | t
+              }}</app-button>
+            </div>
+          }
+        </div>
+      } @else {
+        <app-button class="header__sign-in" link="/auth/login" variant="ghost" size="sm">{{
+          'auth.menu.signIn' | t
+        }}</app-button>
+      }
+      <!-- @server:auth-end -->
+    </div>
+  </div>
+  <!-- @pwa-start -->
+  @if (install.showIosHint()) {
+    <div class="header__hint container">
+      <p>{{ 'pwa.iosHint' | t }}</p>
+      <app-button
+        variant="ghost"
+        size="icon"
+        [ariaLabel]="'actions.dismiss' | t"
+        (click)="install.dismissIosHint()"
+      >
+        <app-icon name="close" />
+      </app-button>
+    </div>
+  }
+  <!-- @pwa-end -->
+</header>

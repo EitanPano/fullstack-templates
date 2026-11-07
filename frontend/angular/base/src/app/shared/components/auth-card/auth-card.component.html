@@ -1,0 +1,10 @@
+<section class="auth-card">
+  <div class="auth-card__header">
+    <h1 class="auth-card__title">{{ heading() }}</h1>
+    @if (description(); as text) {
+      <p class="auth-card__description">{{ text }}</p>
+    }
+  </div>
+  <div class="auth-card__content"><ng-content /></div>
+  <div class="auth-card__footer"><ng-content select="[footer]" /></div>
+</section>

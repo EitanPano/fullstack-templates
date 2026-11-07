@@ -1,0 +1,21 @@
+<div class="control control--textarea">
+  <textarea
+    class="control__field"
+    [id]="controlId"
+    [rows]="rows()"
+    [value]="value()"
+    [disabled]="disabled()"
+    [readOnly]="readonly()"
+    [attr.maxlength]="maxlength()"
+    [attr.placeholder]="placeholder()"
+    [attr.aria-invalid]="invalid() ? 'true' : null"
+    [attr.aria-describedby]="describedByAll()"
+    (input)="onInput($event)"
+    (blur)="touch()"
+  ></textarea>
+  @if (remaining() !== null) {
+    <p class="control__counter" [id]="counterId">
+      {{ 'form.charactersLeft' | t: { count: remaining() ?? 0 } }}
+    </p>
+  }
+</div>

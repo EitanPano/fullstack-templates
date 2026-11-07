@@ -1,0 +1,8 @@
+<a class="skip-link" appSkipLink href="#main">{{ 'app.skipToContent' | t }}</a>
+<div class="auth-layout">
+  <a class="auth-layout__brand" routerLink="/">{{ name }}</a>
+  <main id="main" class="auth-layout__main" tabindex="-1">
+    <router-outlet />
+  </main>
+  <app-footer />
+</div>

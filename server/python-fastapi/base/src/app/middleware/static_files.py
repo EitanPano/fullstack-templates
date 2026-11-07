@@ -21,6 +21,9 @@ from starlette.routing import Match, Mount
 from starlette.staticfiles import NotModifiedResponse, StaticFiles
 from starlette.types import Scope
 
+# Angular's root bundles: a prefix and an eight-character hash. Spelled out so a user file such as
+# `hero-mountain.jpg` is never cached.
+_ANGULAR_BUNDLE = re.compile(r"(?:main|polyfills|chunk|styles)-[A-Za-z0-9_-]{8}\.(?:js|css)")
 ASSETS_CACHE = "public, max-age=31536000, immutable"
 SHELL_CACHE = "no-cache"
 
@@ -53,6 +56,14 @@ def _is_unsafe(request_path: str) -> bool:
     return any(
         part == ".." or (len(part) > 1 and part.startswith(".")) for part in request_path.split("/")
     )
+
+
+def is_immutable(name: str) -> bool:
+    """Hashed build output: Vite's `assets/`, Angular's `media/` and its root bundles.
+
+    The nginx edge of each frontend uses the same rule, so `single` and `split` agree.
+    """
+    return name.startswith(("assets/", "media/")) or _ANGULAR_BUNDLE.fullmatch(name) is not None
 
 
 class SpaFiles(StaticFiles):
@@ -101,7 +112,7 @@ class SpaFiles(StaticFiles):
     ) -> Response:
         name = Path(full_path).relative_to(self._root).as_posix()
         # Only hashed build output is cached; any other file revalidates, as in the other servers.
-        headers = {"cache-control": ASSETS_CACHE if name.startswith("assets/") else SHELL_CACHE}
+        headers = {"cache-control": ASSETS_CACHE if is_immutable(name) else SHELL_CACHE}
         response = FileResponse(
             full_path, status_code=status_code, headers=headers, stat_result=stat_result
         )

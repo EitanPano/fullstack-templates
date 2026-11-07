@@ -1,0 +1,30 @@
+<div class="control control--input">
+  <input
+    class="control__field"
+    [id]="controlId"
+    [type]="nativeType()"
+    [value]="value() ?? ''"
+    [disabled]="disabled()"
+    [readOnly]="readonly()"
+    [attr.autocomplete]="autocomplete()"
+    [attr.inputmode]="inputmode()"
+    [attr.placeholder]="placeholder()"
+    [attr.aria-invalid]="invalid() ? 'true' : null"
+    [attr.aria-describedby]="describedBy()"
+    (input)="onInput($event)"
+    (blur)="touch()"
+  />
+  @if (type() === 'password') {
+    <span class="control__toggle">
+      <app-button
+        variant="ghost"
+        size="icon"
+        [disabled]="disabled()"
+        [ariaLabel]="(revealed() ? 'form.hidePassword' : 'form.showPassword') | t"
+        (click)="toggleReveal()"
+      >
+        <app-icon [name]="revealed() ? 'eye-off' : 'eye'" />
+      </app-button>
+    </span>
+  }
+</div>

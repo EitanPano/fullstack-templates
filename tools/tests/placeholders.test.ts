@@ -40,6 +40,8 @@ describe('isTextFile', () => {
     expect(isTextFile('a/default.conf')).toBe(true)
     expect(isTextFile('a/.env.example')).toBe(true)
     expect(isTextFile('a/logo.png')).toBe(false)
+    // A web manifest carries the product name, so it takes placeholders (JSON has no marker syntax).
+    expect(isTextFile('a/manifest.webmanifest')).toBe(true)
     expect(isTextFile('a/bun.lock')).toBe(true)
   })
 

@@ -1,0 +1,7 @@
+@forward 'not-found';
+@forward 'health-status';
+@forward 'login'; // @server:auth
+@forward 'register'; // @server:auth
+@forward 'verify-otp'; // @server:auth
+@forward 'profile'; // @server:auth
+@forward 'forbidden'; // @server:auth

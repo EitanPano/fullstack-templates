@@ -1,0 +1,7 @@
+<p class="modal__message">{{ data.messageKey | t }}</p>
+<div class="modal__actions">
+  <app-button variant="secondary" (click)="answer(false)">{{ 'modal.cancel' | t }}</app-button>
+  <app-button [variant]="data.danger ? 'danger' : 'primary'" (click)="answer(true)">{{
+    data.confirmKey | t
+  }}</app-button>
+</div>

@@ -1,0 +1,10 @@
+<div class="form-actions">
+  <app-button type="submit" [loading]="pending()" [disabled]="disabled()">{{
+    submitKey() | t
+  }}</app-button>
+  @if (cancellable()) {
+    <app-button variant="secondary" [disabled]="pending()" (click)="cancelled.emit()">{{
+      cancelKey() | t
+    }}</app-button>
+  }
+</div>

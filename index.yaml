@@ -3,17 +3,22 @@ templates:
   - id: bun-express
     kind: server
     path: server/bun-express
-    version: 2.4.2
+    version: 2.4.3
     summary: "Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus"
   - id: python-fastapi
     kind: server
     path: server/python-fastapi
-    version: 1.2.1
+    version: 1.2.2
     summary: "Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope"
+  - id: angular
+    kind: frontend
+    path: frontend/angular
+    version: 1.0.0
+    summary: "Angular 22 single-page app on standalone components and signals, @ngrx/signals stores, global SCSS and Hey API's Angular client, with Transloco and the service worker behind flags"
   - id: next
     kind: frontend
     path: frontend/next
-    version: 2.1.1
+    version: 2.1.2
     summary: "Next.js 16 App Router with a typed client generated from the server's contract"
   - id: react
     kind: frontend
@@ -21,6 +26,12 @@ templates:
     version: 2.1.1
     summary: "Vite and React 19 single-page app on the frontend foundation: React Router data mode, shadcn/ui, TanStack Query and a client generated from the server's contract"
 stacks:
+  - id: angular-bun-express
+    path: stacks/angular-bun-express
+    summary: Angular 22 in front of Express 5 on Bun
+  - id: angular-python-fastapi
+    path: stacks/angular-python-fastapi
+    summary: Angular 22 in front of FastAPI on Python 3.14
   - id: next-bun-express
     path: stacks/next-bun-express
     summary: Next.js 16 in front of Express 5 on Bun
