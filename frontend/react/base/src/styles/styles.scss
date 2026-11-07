@@ -1,4 +1,13 @@
 // The one stylesheet entry (main.tsx imports it after themes/brand.css). Order is the cascade:
-// the theme tokens first, then the base rules that read them.
+// setup first (tokens and tools), the themes, then basics, components and views.
+@use 'setup/variables';
+@use 'setup/breakpoints';
+@use 'setup/functions';
+@use 'setup/mixins';
+@use 'setup/typography';
 @use 'themes';
+@use 'basics/helpers';
 @use 'basics/base';
+@use 'basics/layout';
+@use 'components';
+@use 'views';

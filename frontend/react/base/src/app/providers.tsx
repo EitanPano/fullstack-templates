@@ -1,14 +1,15 @@
-import { Tooltip } from 'radix-ui'
 import type { ReactNode } from 'react'
 import { Provider } from 'react-redux'
 
 import { Toaster } from '@/shared/components/toaster'
+import { TooltipProvider } from '@/shared/components/tooltip'
 import type { AppStore } from '@/store'
 import { useAppSelector } from '@/store/hooks'
 import { selectTheme } from '@/store/theme.slice'
 
-// The toaster follows the theme slice, so it sits inside the store provider.
-function ThemedToaster() {
+// The toaster follows the theme slice, so it sits inside the store provider; shared/ gets the
+// choice as a prop and never reads the store.
+function ConnectedToaster() {
   return <Toaster theme={useAppSelector(selectTheme)} />
 }
 
@@ -16,8 +17,10 @@ function ThemedToaster() {
 export function AppProviders({ store, children }: { store: AppStore; children: ReactNode }) {
   return (
     <Provider store={store}>
-      <Tooltip.Provider>{children}</Tooltip.Provider>
-      <ThemedToaster />
+      <TooltipProvider>
+        {children}
+        <ConnectedToaster />
+      </TooltipProvider>
     </Provider>
   )
 }

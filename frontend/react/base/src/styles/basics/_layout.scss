@@ -1,0 +1,24 @@
+@use '../setup/breakpoints';
+@use '../setup/functions';
+@use '../setup/variables';
+
+// The shell is a column: header, main, footer. There is no side navigation; the primary
+// navigation sits in the header from md and in a sheet below it.
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100dvh;
+}
+
+.main {
+  flex: 1;
+  inline-size: 100%;
+  max-inline-size: variables.$container-max;
+  margin-inline: auto;
+  padding-block: functions.space(6);
+  padding-inline: functions.space(4);
+
+  @include breakpoints.up(md) {
+    padding-inline: functions.space(8);
+  }
+}

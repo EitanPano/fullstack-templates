@@ -50,7 +50,7 @@ describe('the route table', () => {
     await screen.findByRole('alert')
 
     healthy = true
-    await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
 
     expect(await screen.findByText(/1\.2\.3/)).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()

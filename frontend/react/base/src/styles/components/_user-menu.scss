@@ -1,0 +1,16 @@
+@use '../setup/functions';
+
+// The avatar trigger is a ghost icon button, so it takes the control sizes from _button.
+.user-menu__trigger {
+  border-radius: 999px;
+}
+
+// The email is the first line of the menu, never in the header.
+.user-menu__email {
+  max-inline-size: 16rem;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-weight: var(--weight-normal);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

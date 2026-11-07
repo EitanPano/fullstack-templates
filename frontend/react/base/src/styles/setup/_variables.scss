@@ -1,0 +1,35 @@
+@use 'sass:map';
+
+// Spacing scale on a 4 px base; the key is the multiple of 4 px (`space(4)` is 16 px).
+$spacing: (
+  0: 0,
+  1: 4px,
+  2: 8px,
+  3: 12px,
+  4: 16px,
+  5: 20px,
+  6: 24px,
+  8: 32px,
+  10: 40px,
+  12: 48px,
+  16: 64px,
+);
+
+// Stacking order, lowest first; read it with `z(header)`.
+$z-index: (
+  base: 0,
+  header: 100,
+  drawer-backdrop: 200,
+  drawer: 210,
+  overlay: 1000,
+  toast: 1100,
+  skip-link: 1200,
+);
+
+// The smallest touch target on a coarse pointer (WCAG 2.5.8 asks 24 px, this template holds 44 px).
+$touch-target: 44px;
+// Controls: 36 px on a fine pointer, 32 px under compact density, 44 px on a coarse pointer.
+$control-height: 2.25rem;
+$control-height-compact: 2rem;
+$header-height: 3.5rem;
+$container-max: 64rem;
