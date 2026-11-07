@@ -78,6 +78,7 @@ src/
 │       ├── footer.tsx
 │       ├── user-menu.tsx           # avatar trigger "Account menu", email line, items slot, the theme radio items
 │       ├── theme-menu.tsx          # Light / Dark / System menuitemradio over the theme slice
+│       ├── account-slot.tsx        # the one file the generator resolves: <AccountMenu /> with the server's auth, <UserMenu /> without
 │       └── account-menu.tsx        # (@server:auth) useGetMeQuery: skeleton · "Sign in" link + UserMenu for a visitor · avatar menu with "Sign out"
 ├── features/                       # one directory per server module or screen group ▲; a feature never imports another
 │   ├── health/
@@ -118,14 +119,14 @@ src/
 │   │   │   form-actions.tsx, confirm-dialog.tsx, auth-card.tsx (@server:auth)
 │   │   └── form/                   # React Hook Form bindings: form.tsx, field-frame.tsx, use-field.ts, text-field.tsx, textarea-field.tsx,
 │   │                               #   number-field.tsx, select-field.tsx, checkbox-field.tsx, password-field.tsx, date-time-field.tsx, report-failure.ts
-│   ├── hooks/                      # use-media-query.ts and other DOM hooks with no product meaning
 │   └── utils/                      # cn.ts (clsx), date.ts (zone-aware), next-path.ts (safeNextPath), storage.ts (safe localStorage), zod-messages.ts
 ├── models/                         # one file per glossary noun: the contract's types re-exported, UI-only shapes, pure helpers ▲
 │   ├── api-error.ts                # ApiError (a plain object), ErrorCode, isApiError
 │   ├── health.ts                   # HealthView
 │   ├── nav.ts                      # NavEntry
 │   └── user.ts                     # (@server:auth) User (= PublicUser), Role, initials()
-├── testing/                        # test-only helpers: render-routes.tsx (a memory router over createRoutes with a fresh store), stub-api.ts
+├── testing/                        # test-only helpers: render-routes.tsx (a memory router over createRoutes with a fresh store), stub-api.ts,
+│                                   #   render-in-router.tsx and auth-fixtures.ts (@server:auth)
 └── styles/                         # the only home of CSS; a component file carries no stylesheet import and no style attribute
     ├── styles.scss                 # @use setup → themes → basics → components → views
     ├── setup/{_variables,_breakpoints,_functions,_mixins,_typography}.scss
@@ -266,8 +267,8 @@ Component → RTK Query hook (`services/<module>.api.ts`) or a slice selector �
 - **Failure.** `call` maps a non-ok response to `{ error: ApiError }` with our copy and logs a 5xx,
   a missing envelope or an unreachable API with the request id first; the hook exposes it as
   `error`, the loader's `unwrap()` rejects with it and the group's boundary renders `ErrorState`.
-  Retry dispatches `api.util.resetApiState()` and revalidates (S1 records whether the reset is
-  needed for a rejected entry). The root loader never throws for a visitor.
+  Retry revalidates (S1 found that a rejected entry with no subscriber is refetched, so no reset
+  is needed; see "Decisions made while building").
 - **Tags.** One tag per server module (`Health`, `User`); a mutation invalidates the tags of the
   entities it changes, so every subscribed widget refetches.
 
@@ -575,6 +576,55 @@ Rulings from C1 (the scaffold, 2026-11-07):
   cases run the full `check`.
 - **`ApiError.code` is `ErrorCode | 'network'`**, and `requestId` is set whenever an envelope was
   present. The playwright-config test accepts `__PORT__` for the unsubstituted base.
+
+Rulings from C2 to C4 (2026-11-07):
+
+- **The feature words the error, not the service.** `services/` may not import `features/`, so a
+  mutation resolves or rejects with the raw `ApiError` carrying the default copy, and the feature
+  applies its table with `withCopy(error, table, fields?)` from `models/api-error.ts` before
+  `reportFailure`: the message becomes `table[code] ?? error.message`, each field error
+  `table['code:field'] ?? table[code] ?? existing`, and `fields[code]` turns a code into a field
+  error (`{ conflict: 'email' }` for sign-up). `call`'s `CallOptions` keep handling the server's
+  `validation_failed` details. R2 and R6's wording of "the feature's copy table" means this.
+- **`getMe` resolves a 401 to `null`.** A rejected cache entry is refetched when the header's
+  hook mounts, so a visitor cost two `GET /api/user/me` per load; a cached `null` account costs
+  one, and the account menu has no error state for a visitor. Any other failure stays an
+  `ApiError` and the guards fail closed to `null`. R6's "a 401 … returns null" is this.
+- **The account slot has two returns.** `layout/components/account-slot.tsx` returns
+  `<AccountMenu />` on a `// @server:auth` line and `<UserMenu />` on a `// @noserver:auth` line;
+  the generator keeps one, the base keeps both (valid TypeScript; `no-unreachable` is off for that
+  file). Twin declarations of one name (`const account = …` twice, as 2.x had) would not parse in
+  place, and the base's unit tests run in place.
+- **No root loader.** A root `loader: readSession` with a `HydrateFallback` held the whole shell
+  (skip link included) until `/api/user/me` answered, and the shell e2e's first Tab landed on
+  nothing. The shell renders synchronously; the header's `useGetMeQuery` is the shell's session
+  read and RTK Query deduplicates it with a guard's `initiate()` for the same key, so a visitor
+  still costs one request. R6's "the root route's loader calls `readSession` once" is withdrawn.
+- **A mutation writes its caches inside `queryFn`**, before it returns, so every `unwrap()` caller
+  sees them: `login` and `register` set the hint and `upsertQueryData('getMe', …)` there, and
+  `logout` clears the hint there. The `onQueryStarted` variant ran its upsert a microtask after
+  `unwrap()` resolved, and the profile loader's `requireAccount` then read the visitor's cached
+  `null` and bounced the fresh account back to sign-in (the generated case's auth e2e caught it).
+  `api.util.resetApiState()` cannot run inside the running `logout` mutation (it aborts its own
+  request), so `SignOutItem` dispatches it after `await logout().unwrap()` and before `navigate`;
+  a route test signs out from `/profile` and asserts the sign-in screen, not home. R3's and R6's
+  `onQueryStarted` sentences mean this.
+- **`refetchOnMountOrArgChange: 30`** is set once on `createApi`, not per endpoint; `themeRestored`
+  is the boot action (no persistence), `themeChanged` the user's. `ErrorState`'s button reads
+  "Try again".
+- **Test helpers that only exist with auth** (`src/testing/auth-fixtures.ts`,
+  `render-in-router.tsx`) are listed under `onlyWhen`, as are the auth partials
+  (`_account-menu`, `_auth-card`, `_auth-layout`, the four views).
+- **The field error line is a live region first.** `FieldFrame` always renders its error `<p>`
+  with `role="alert"` and collapses it without `display: none`, so the region exists before its
+  text; mixed known and unknown field paths show the known ones and toast the rest; the first
+  server error takes focus. `ConfirmDialog` requires its verb. The sticky `FormActions` reads
+  `--page-gutter` from `.main`.
+- **In place**, `bun run test`, `eslint src tests/unit` and `prettier --check src tests/unit` are
+  green (421 tests); `tsc -b` and `eslint .` fail only on `tests/e2e/screens.spec.ts`'s twin
+  `setupAccount` signatures (`@server:database` and its `@no` form), which parse only after
+  generation, as in 2.x. `tests/e2e/screen-routes.ts` avoids twins (the database-only field is one
+  marked line inside the type) so its unit test runs in place.
 
 ## Versions (registry, 2026-11-07; re-verify at build, never from memory)
 
