@@ -40,6 +40,32 @@ describe('the compiled styles tree', () => {
     expect(coarse).toMatch(/\.button\s*\{[^}]*min-inline-size:\s*(44px|2\.75rem)/)
   })
 
+  it.each(['.button--sm', '.header__brand', '.nav-links__link'])(
+    'floors %s at 44 px under a coarse pointer',
+    (selector) => {
+      const own = new RegExp(
+        String.raw`${selector.replace('.', String.raw`\.`)}\s*\{[^}]*min-block-size:\s*(44px|2\.75rem)`,
+      )
+
+      expect(media('(pointer: coarse)')).toMatch(own)
+    },
+  )
+
+  // .button--icon sets no height of its own: it is a .button, which carries the floor.
+  it('floors an icon button through .button under a coarse pointer', () => {
+    expect(media('(pointer: coarse)')).toMatch(
+      /\.button\s*\{[^}]*min-inline-size:\s*(44px|2\.75rem)/,
+    )
+    expect(topLevel).not.toMatch(/\.button--icon\s*\{[^}]*min-block-size/)
+  })
+
+  it('makes an icon button 2.25rem square, 2rem under compact on a fine pointer', () => {
+    expect(topLevel).toMatch(/\.button--icon\s*\{[^}]*inline-size:\s*2\.25rem/)
+    expect(media('(pointer: fine)')).toMatch(
+      /\[data-density=['"]?compact['"]?\] \.button--icon\s*\{[^}]*inline-size:\s*2rem/,
+    )
+  })
+
   it('applies compact density to a fine pointer only', () => {
     expect(topLevel).not.toMatch(/\[data-density=['"]?compact['"]?\] \.button/)
   })

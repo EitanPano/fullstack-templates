@@ -8,7 +8,8 @@ import { cn } from '@/shared/utils/cn'
 export const Sheet = SheetPrimitive.Root
 export const SheetTrigger = SheetPrimitive.Trigger
 
-// A side panel from the inline start: Radix Dialog with the overlay and a Close button inside.
+// A side panel from the inline start: Radix Dialog with the overlay and a Close button inside, first so the tab order
+// matches the visual order.
 // Give it a SheetTitle (it names the dialog) and a SheetDescription (visually hidden if unwanted).
 export function SheetContent({
   className,
@@ -19,12 +20,12 @@ export function SheetContent({
     <SheetPrimitive.Portal>
       <SheetPrimitive.Overlay className="sheet__overlay" />
       <SheetPrimitive.Content className={cn('sheet', className)} {...props}>
-        {children}
         <SheetPrimitive.Close asChild>
           <Button variant="ghost" size="icon" aria-label="Close" className="sheet__close">
             <XIcon aria-hidden="true" className="icon" />
           </Button>
         </SheetPrimitive.Close>
+        {children}
       </SheetPrimitive.Content>
     </SheetPrimitive.Portal>
   )

@@ -24,6 +24,7 @@
   text-decoration: none;
   translate: 0 -200%;
 
+  &:focus,
   &:focus-visible {
     translate: 0;
   }

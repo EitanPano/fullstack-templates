@@ -21,8 +21,10 @@
 .header__brand {
   display: inline-flex;
   align-items: center;
+  min-inline-size: 0;
   padding-inline: functions.space(2);
   border-radius: var(--radius);
+  overflow-wrap: anywhere;
   color: var(--foreground);
   font-weight: var(--weight-semibold);
   text-decoration: none;

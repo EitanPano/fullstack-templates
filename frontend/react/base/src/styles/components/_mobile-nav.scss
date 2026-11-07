@@ -15,6 +15,8 @@
   gap: functions.space(1);
 
   .nav-links__link {
+    display: flex;
+    inline-size: 100%;
     min-block-size: 2.75rem;
     font-size: var(--text-base);
   }

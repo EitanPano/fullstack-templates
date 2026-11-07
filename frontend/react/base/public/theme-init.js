@@ -4,9 +4,15 @@
 // same default, and the OS preference followed while the choice is system.
 ;(function () {
   try {
-    var valid = { light: 1, dark: 1, system: 1 }
+    var isTheme = function (value) {
+      return value === 'light' || value === 'dark' || value === 'system'
+    }
     var stored = localStorage.getItem('theme')
-    var theme = valid[stored] ? stored : valid['__THEME_DEFAULT__'] ? '__THEME_DEFAULT__' : 'system'
+    var theme = isTheme(stored)
+      ? stored
+      : isTheme('__THEME_DEFAULT__')
+        ? '__THEME_DEFAULT__'
+        : 'system'
     var dark =
       theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
     document.documentElement.dataset.theme = dark ? 'dark' : 'light'

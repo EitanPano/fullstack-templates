@@ -51,6 +51,24 @@ describe('MainLayout', () => {
     expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveFocus()
   })
 
+  it('renders the account slot inside the banner', () => {
+    setup()
+
+    expect(
+      within(screen.getByRole('banner')).getByRole('button', { name: /^Account menu/ }),
+    ).toBeInTheDocument()
+  })
+
+  // jsdom does not follow a fragment link, so this asserts the link target and that main can take
+  // focus; the e2e moves it for real.
+  it('points the skip link at a focusable main', () => {
+    setup()
+
+    expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveAttribute('href', '#main')
+    expect(screen.getByRole('main')).toHaveAttribute('id', 'main')
+    expect(screen.getByRole('main')).toHaveAttribute('tabindex', '-1')
+  })
+
   it('lists the nav prop in the primary navigation and marks the current page', () => {
     setup()
 
