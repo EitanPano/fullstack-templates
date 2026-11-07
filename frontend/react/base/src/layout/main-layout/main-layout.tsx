@@ -1,8 +1,8 @@
 import { Outlet } from 'react-router'
 
 import { Footer } from '@/layout/components/footer'
+import { AccountSlot } from '@/layout/components/account-slot'
 import { Header } from '@/layout/components/header'
-import { UserMenu } from '@/layout/components/user-menu'
 import type { NavEntry } from '@/models/nav'
 
 // The shell every page sits in: skip link, header with the primary navigation and the account
@@ -14,7 +14,7 @@ export function MainLayout({ nav }: { nav: NavEntry[] }) {
       <a href="#main" className="skip-link">
         Skip to content
       </a>
-      <Header nav={nav} account={<UserMenu />} />
+      <Header nav={nav} account={<AccountSlot />} />
       <main id="main" tabIndex={-1} className="main">
         <Outlet />
       </main>

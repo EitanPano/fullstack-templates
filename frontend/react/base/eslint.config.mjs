@@ -331,6 +331,18 @@ export default defineConfig([
     rules: { '@typescript-eslint/only-throw-error': 'off' },
   },
   {
+    // The generator keeps one of the two returns (the account menu or the theme menu alone), so in
+    // place the second is unreachable on purpose.
+    files: ['src/layout/components/account-slot.tsx'],
+    rules: { 'no-unreachable': 'off' },
+  },
+  {
+    // This test drives the generated SDK itself: it asserts what the client's fetch wrapper does
+    // to a raw request, below the data layer's endpoints.
+    files: ['src/core/config/api-client-refresh.test.ts'],
+    rules: { 'no-restricted-imports': 'off' },
+  },
+  {
     files: ['**/*.mjs', '**/*.mts', '*.config.ts'],
     extends: [tseslint.configs.disableTypeChecked],
   },

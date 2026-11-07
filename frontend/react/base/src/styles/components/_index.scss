@@ -29,3 +29,6 @@
 @forward 'select';
 @forward 'dialog';
 @forward 'tabs';
+@forward 'account-menu'; // @server:auth
+@forward 'auth-card'; // @server:auth
+@forward 'auth-layout'; // @server:auth

@@ -12,6 +12,8 @@ const unavailable = () =>
     { status: 503 },
   )
 
+const isHealth = (request: Request) => new URL(request.url).pathname === '/api/health'
+
 beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => undefined)
 })
@@ -31,7 +33,8 @@ describe('the route table', () => {
     // The page header is a <header> too, so the shell is checked by its navigation.
     expect(screen.getByRole('navigation', { name: 'Primary' })).toBeVisible()
     await new Promise((resolve) => setTimeout(resolve, 50))
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    // The session read, when the server has auth, is a different request.
+    expect(fetchMock.mock.calls.filter(([request]) => isHealth(request))).toHaveLength(1)
   })
 
   it('renders the group boundary on a 503, inside the shell, without the server text', async () => {
@@ -57,7 +60,7 @@ describe('the route table', () => {
 
     expect(await screen.findByRole('status')).toHaveTextContent('API v1.2.3')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls.filter(([request]) => isHealth(request))).toHaveLength(2)
   })
 
   it('renders Page not found inside the shell for an unknown URL', async () => {

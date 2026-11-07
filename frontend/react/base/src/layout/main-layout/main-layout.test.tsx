@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest'
 import { MainLayout } from '@/layout/main-layout/main-layout'
 import type { NavEntry } from '@/models/nav'
 import { createStore } from '@/store'
+import { stubApi } from '@/testing/stub-api'
 
 const NAV: NavEntry[] = [
   { to: '/', label: 'Home' },
@@ -15,6 +16,12 @@ const NAV: NavEntry[] = [
 ]
 
 function setup() {
+  // With auth the account slot reads the session; a visitor's 401 is the quietest answer. Without
+  // auth nothing asks, and the stub is unused.
+  stubApi({
+    'GET /api/user/me': () =>
+      Response.json({ error: { code: 'unauthenticated', message: 'x' } }, { status: 401 }),
+  })
   const router = createMemoryRouter(
     [
       {
@@ -51,11 +58,11 @@ describe('MainLayout', () => {
     expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveFocus()
   })
 
-  it('renders the account slot inside the banner', () => {
+  it('renders the account slot inside the banner', async () => {
     setup()
 
     expect(
-      within(screen.getByRole('banner')).getByRole('button', { name: /^Account menu/ }),
+      await within(screen.getByRole('banner')).findByRole('button', { name: /^Account menu/ }),
     ).toBeInTheDocument()
   })
 

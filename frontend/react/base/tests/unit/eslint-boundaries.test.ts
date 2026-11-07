@@ -38,6 +38,8 @@ const FILES = [
   'src/store/theme.slice.ts',
   'src/services/api.ts',
   'src/services/health.api.ts',
+  'src/services/auth.api.ts',
+  'src/services/user.api.ts',
   'src/services/generated/types.gen.ts',
   'src/services/generated/sdk.gen.ts',
   'src/services/generated/zod.gen.ts',
@@ -51,6 +53,7 @@ const FILES = [
   'src/shared/components/button.tsx',
   'src/models/health.ts',
   'src/models/api-error.ts',
+  'src/models/user.ts',
   'src/testing/render-routes.tsx',
 ]
 for (const file of FILES) {
@@ -251,6 +254,20 @@ const violations: Violation[] = [
     "import '@/core/config/constants'",
     BOUNDARY,
     'shared/ is product-agnostic',
+  ],
+  [
+    'shared → core/auth',
+    'src/shared/components/x.tsx',
+    "import '@/core/auth/session-hint'",
+    BOUNDARY,
+    'shared/ is product-agnostic',
+  ],
+  [
+    'models → core',
+    'src/models/x.ts',
+    "import '@/core/config/constants'",
+    BOUNDARY,
+    'models/ imports models/ and the generated contract types',
   ],
   [
     'shared → services',
@@ -578,6 +595,30 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     'core/auth/guards → core/config',
     'src/core/auth/guards.ts',
     "import '@/core/config/constants'",
+    BOUNDARY,
+  ],
+  [
+    'core/auth/guards → services (user.api)',
+    'src/core/auth/guards.ts',
+    "import '@/services/user.api'",
+    BOUNDARY,
+  ],
+  [
+    'feature → core/auth',
+    'src/features/health/health.routes.tsx',
+    "import '@/core/auth/session-hint'",
+    BOUNDARY,
+  ],
+  [
+    'layout → services (account hooks)',
+    'src/layout/components/x.tsx',
+    "import '@/services/user.api'",
+    BOUNDARY,
+  ],
+  [
+    'services → core/auth (user.api → session-hint)',
+    'src/services/auth.api.ts',
+    "import '@/core/auth/session-hint'",
     BOUNDARY,
   ],
   ['core/auth/guards → models', 'src/core/auth/guards.ts', "import '@/models/health'", BOUNDARY],
