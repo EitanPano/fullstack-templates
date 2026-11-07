@@ -167,11 +167,10 @@ export function composeFloorProblem(output: string): string | null {
   return null
 }
 
-// A built Vite index has the mount point and a hashed module script; the dev server's index
-// points at /src/main.tsx instead, so the pair tells a build from the source.
-const MOUNT_POINT = /<div\s+id="root"\s*>/
-const BUILT_SCRIPT = /<script\b[^>]*\bsrc="\/assets\/[^"]+\.js"/
-const BUILT_SCRIPT_SRC = /<script\b[^>]*\bsrc="(\/assets\/[^"]+\.js)"/
+// A production index names a module script whose file name ends in an eight-character content hash
+// (Vite's `/assets/index-HASH.js`, Angular's `main-HASH.js`); a dev index names `/src/main.tsx` or `main.js`.
+const HASHED_MODULE_SCRIPT =
+  /<script\b(?=[^>]*\stype="module")[^>]*\ssrc="([^"]*-[A-Za-z0-9_-]{8}\.m?js)"/
 const DEEP_LINK = '/some/client/route'
 // Spelled in two parts: the guardrail hooks refuse the literal name in a command or a file edit.
 const DOTENV_PREFIX = '.' + 'env'
@@ -181,8 +180,8 @@ function indexProblem(result: ProbeResult): string | null {
   if (!(result.contentType ?? '').includes('text/html')) {
     return `content type ${result.contentType ?? 'missing'}, not text/html`
   }
-  if (!MOUNT_POINT.test(result.body) || !BUILT_SCRIPT.test(result.body)) {
-    return 'the body has no mount point and built /assets/ script'
+  if (!HASHED_MODULE_SCRIPT.test(result.body)) {
+    return 'the body names no hashed module script, so it is not a production build'
   }
   return null
 }
@@ -216,7 +215,7 @@ function refusedProblem(result: ProbeResult, statuses: readonly number[]): strin
   if (!statuses.includes(result.status)) {
     return `status ${String(result.status)}, not ${statuses.join(' or ')}`
   }
-  return MOUNT_POINT.test(result.body) ? 'the body is the SPA shell' : null
+  return HASHED_MODULE_SCRIPT.test(result.body) ? 'the body is the SPA shell' : null
 }
 
 // The servers' envelope: { error: { code, message }, requestId }.
@@ -299,8 +298,11 @@ async function checkSpa(deps: AppDeps, origin: string): Promise<void> {
     'GET /api/nope returns the JSON 404',
     notFoundProblem,
   )
-  const script = BUILT_SCRIPT_SRC.exec(index.body)?.[1]
-  if (script === undefined) throw new Error('app smoke: the index names no /assets/ script')
+  const src = HASHED_MODULE_SCRIPT.exec(index.body)?.[1]
+  if (src === undefined) throw new Error('app smoke: the index names no hashed module script')
+  // Relative to <base href="/">, so a bare file name is at the root.
+  const script = src.startsWith('/') ? src : `/${src}`
+  const directory = script.slice(0, script.lastIndexOf('/') + 1)
   await expectProbe(deps, `${origin}${script}`, 'the hashed asset is immutable', (result) => {
     if (result.status !== 200) return `status ${String(result.status)}`
     return securityHeaderProblem(result) ?? cacheHeaderProblem(result, 'immutable')
@@ -308,8 +310,12 @@ async function checkSpa(deps: AppDeps, origin: string): Promise<void> {
   const refused: Array<[string, string, readonly number[]]> = [
     [`/${DOTENV_PREFIX}`, 'a dotfile is refused', [404]],
     ['/..%2findex.html', 'an encoded traversal is refused', [400, 404]],
-    ['/assets/', 'the assets directory is not listed or served', [404]],
   ]
+  if (directory === '/') {
+    deps.log('app smoke: the hashed script sits at the root, no asset directory to probe')
+  } else {
+    refused.push([directory, 'the script directory is not listed or served', [404]])
+  }
   for (const [pathname, check, statuses] of refused) {
     await expectProbe(deps, `${origin}${pathname}`, check, (result) =>
       refusedProblem(result, statuses),
