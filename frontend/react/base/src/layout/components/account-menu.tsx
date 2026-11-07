@@ -4,11 +4,13 @@ import { Link, useNavigate } from 'react-router'
 import { SIGN_IN_PATH } from '@/core/config/constants'
 import { UserMenu } from '@/layout/components/user-menu'
 import { initials } from '@/models/user'
+import { api } from '@/services/api'
 import { useLogoutMutation } from '@/services/auth.api'
 import { useGetMeQuery } from '@/services/user.api'
 import { Button } from '@/shared/components/button'
 import { DropdownMenuItem } from '@/shared/components/dropdown-menu'
 import { Skeleton } from '@/shared/components/skeleton'
+import { useAppDispatch } from '@/store/hooks'
 
 // The size of the avatar trigger, so the header does not shift when the account arrives. It
 // carries no role: the page's own status regions stay the only ones announced.
@@ -16,17 +18,22 @@ function AccountMenuSkeleton() {
   return <Skeleton className="account-menu__skeleton" />
 }
 
-// Sign-out revokes the session and clears the cache whatever the API said; this handler then
-// sends the visitor to sign-in, after the await.
+// Sign-out asks the API to revoke the session (the mutation also drops the hint), then forgets
+// everything this browser cached about the account whatever the API said, and only then goes to sign-in: a visitor who asked to sign
+// out is signed out here even if the server session lives on until it expires.
 function SignOutItem() {
   const [logout] = useLogoutMutation()
+  const dispatch = useAppDispatch()
   const navigate = useNavigate()
   return (
     <DropdownMenuItem
       onSelect={() => {
         void logout()
           .unwrap()
-          .then(() => navigate(SIGN_IN_PATH))
+          .then(async () => {
+            dispatch(api.util.resetApiState())
+            await navigate(SIGN_IN_PATH)
+          })
       }}
     >
       <LogOutIcon aria-hidden="true" className="icon" />

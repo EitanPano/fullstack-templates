@@ -8,7 +8,10 @@ import type { ApiError } from '@/models/api-error'
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fakeBaseQuery<ApiError>(),
-  tagTypes: ['Health', 'User'],
+  tagTypes: [
+    'Health',
+    'User', // @server:auth
+  ],
   endpoints: () => ({}),
   refetchOnMountOrArgChange: 30,
 })

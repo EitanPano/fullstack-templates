@@ -2,7 +2,6 @@ import { Outlet, type RouteObject } from 'react-router'
 
 import { NAV } from '@/app/nav'
 import RootError from '@/app/root-error'
-import { readSession } from '@/core/auth/guards' // @server:auth
 import { authRoutes } from '@/features/auth/auth.routes' // @server:auth
 import { forbiddenRoutes } from '@/features/forbidden/forbidden.routes' // @server:auth
 import { healthRoutes } from '@/features/health/health.routes'
@@ -26,13 +25,6 @@ export function createRoutes(store: AppStore): RouteObject[] {
       path: '/',
       Component: Outlet,
       ErrorBoundary: RootError,
-      // @server:auth-start
-      // Reads the session once per visit, so the header's hook finds the entry in the cache and a
-      // visitor costs one 401 rather than one per screen. It never throws for a visitor. While it
-      // runs nothing below it can render, so the root shows the neutral card placeholder.
-      loader: () => readSession(store),
-      HydrateFallback: AuthLoading,
-      // @server:auth-end
       children: [
         {
           element: <MainLayout nav={NAV} />,

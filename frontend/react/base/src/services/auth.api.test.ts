@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { clearSessionHint, hasSessionHint, setSessionHint } from '@/core/auth/session-hint'
 import { withCopy } from '@/models/api-error'
-import { api } from '@/services/api'
 import { authApi } from '@/services/auth.api'
 import { userApi } from '@/services/user.api'
 import { createStore } from '@/store'
@@ -37,10 +36,8 @@ describe('login and register', () => {
 
       expect(user).toEqual(USER)
       expect(hasSessionHint()).toBe(true)
-      // The cache write follows the mutation settling by a microtask or two.
-      await vi.waitFor(() => {
-        expect(cachedAccount(store).data).toEqual(USER)
-      })
+      // Already there when unwrap() resolves: the next loader must not see the visitor.
+      expect(cachedAccount(store).data).toEqual(USER)
       expect(fetchMock).toHaveBeenCalledTimes(1)
     },
   )
@@ -89,37 +86,26 @@ describe('login and register', () => {
 })
 
 describe('logout', () => {
-  async function signedInStore() {
+  it('calls the API, clears the hint and resolves', async () => {
     setSessionHint()
-    const store = createStore()
-    await store.dispatch(userApi.util.upsertQueryData('getMe', undefined, USER))
-    expect(cachedAccount(store).data).toEqual(USER)
-    return store
-  }
-
-  it('revokes the session, clears the hint and resets the API state', async () => {
     const fetchMock = stubApi({ 'POST /api/auth/logout': new Response(null, { status: 204 }) })
-    const store = await signedInStore()
 
-    await store.dispatch(authApi.endpoints.logout.initiate()).unwrap()
+    await createStore().dispatch(authApi.endpoints.logout.initiate()).unwrap()
 
-    expect((fetchMock.mock.calls[0]?.[0] as Request).url).toContain('/api/auth/logout')
     expect(hasSessionHint()).toBe(false)
-    expect(cachedAccount(store).status).toBe('uninitialized')
-    expect(Object.keys(store.getState()[api.reducerPath].queries)).toHaveLength(0)
+    expect((fetchMock.mock.calls[0]?.[0] as Request).url).toContain('/api/auth/logout')
   })
 
-  it('still clears everything, and resolves, when the API refuses to revoke', async () => {
+  it('still resolves, and logs, when the API refuses to revoke', async () => {
+    setSessionHint()
     stubApi({ 'POST /api/auth/logout': () => envelope('internal', 500) })
-    const store = await signedInStore()
 
-    await store.dispatch(authApi.endpoints.logout.initiate()).unwrap()
+    await createStore().dispatch(authApi.endpoints.logout.initiate()).unwrap()
 
+    expect(hasSessionHint()).toBe(false)
     expect(console.error).toHaveBeenCalledWith(
       '[auth] sign-out could not revoke the session',
       expect.anything(),
     )
-    expect(hasSessionHint()).toBe(false)
-    expect(cachedAccount(store).status).toBe('uninitialized')
   })
 })

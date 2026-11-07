@@ -18,6 +18,7 @@ export function safeNextPath(value: unknown): string {
     return '/'
   }
   if (UNSAFE.test(decoded) || decoded.startsWith('//')) return '/'
-  if (AUTH_SCREENS.test(value)) return '/'
+  // Matched on the decoded, lowercased path too, so `/Sign-In` and `/%73ign-in` are the screen.
+  if (AUTH_SCREENS.test(value) || AUTH_SCREENS.test(decoded.toLowerCase())) return '/'
   return value
 }

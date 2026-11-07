@@ -10,10 +10,10 @@ import type { AppStore } from '@/store'
 // decides on every call; a guard only keeps a visitor off a screen. A guard redirects by throwing
 // React Router's `redirect()` Response, which is the loader contract.
 
-// Who the cookies belong to, as the API says: the `getMe` cache entry, fetched if it is missing or
-// stale. Null for a visitor (the API's 401 is cached as null, not an error) and, failing closed and
-// logged, for an API that cannot answer. The subscription is released at once; the entry stays cached for the
-// account menu's hook to find.
+// Who the cookies belong to, as the API says: the `getMe` cache entry, fetched if it is missing
+// or stale. Null for a visitor (the API's 401 is cached as null, not an error) and, failing
+// closed, for an API that cannot answer; that failure is logged. The subscription is released at
+// once; the entry stays cached for the account menu's hook to find.
 export async function readSession(store: AppStore): Promise<User | null> {
   const subscription = store.dispatch(userApi.endpoints.getMe.initiate())
   try {

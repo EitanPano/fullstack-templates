@@ -75,6 +75,54 @@ describe('the 401 refresh', () => {
     for (const result of results) expect(result.response?.status).toBe(200)
   })
 
+  it('retries a request with a body, sending the same body again', async () => {
+    const bodies: unknown[] = []
+    let attempts = 0
+    vi.stubGlobal('fetch', async (input: Request) => {
+      if (new URL(input.url).pathname === '/api/auth/refresh') return Response.json({})
+      bodies.push(await input.json())
+      attempts += 1
+      return attempts === 1 ? unauthorized() : Response.json({ ok: true })
+    })
+
+    const { response } = await postApiAuthLogout({ body: { all: true } })
+
+    expect(response?.status).toBe(200)
+    expect(bodies).toEqual([{ all: true }, { all: true }])
+  })
+
+  it('shares one refused refresh among concurrent callers: one call, three 401s, hint cleared', async () => {
+    let refreshes = 0
+    vi.stubGlobal('fetch', (input: Request) => {
+      if (new URL(input.url).pathname === '/api/auth/refresh') {
+        refreshes += 1
+        return new Promise<Response>((resolve) =>
+          setTimeout(() => {
+            resolve(Response.json({}, { status: 403 }))
+          }, 20),
+        )
+      }
+      return Promise.resolve(unauthorized())
+    })
+
+    const results = await Promise.all([getApiHealth(), getApiHealth(), getApiHealth()])
+
+    expect(refreshes).toBe(1)
+    for (const result of results) expect(result.response?.status).toBe(401)
+    expect(hasSessionHint()).toBe(false)
+  })
+
+  it('leaves a 401 from another origin alone: no refresh, no retry', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(unauthorized())
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { response } = await getApiHealth({ baseUrl: 'https://other.example' })
+
+    expect(response?.status).toBe(401)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(hasSessionHint()).toBe(true)
+  })
+
   it('returns the 401 when the refresh is refused', async () => {
     const fetchMock = vi
       .fn()

@@ -24,6 +24,8 @@ describe('safeNextPath', () => {
     ['the sign-in screen', '/sign-in'],
     ['the sign-up screen with a query', '/sign-up?x=1'],
     ['the sign-in screen with a hash', '/sign-in#x'],
+    ['the sign-in screen in capitals', '/Sign-In'],
+    ['the sign-in screen with an encoded letter', '/%73ign-in'],
     ['a malformed escape', '/%zz'],
   ])('sends %s home', (_what, value) => {
     expect(safeNextPath(value)).toBe('/')

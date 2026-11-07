@@ -61,7 +61,11 @@ const fetchWithRefresh: typeof fetch = async (input, init) => {
   const retry = request.clone()
   const response = await globalThis.fetch(request)
   if (response.status !== 401) return response
-  if (EXEMPT.has(new URL(request.url).pathname) || !hasSessionHint()) return response
+  // Only the app's own API is refreshed: a 401 from another origin says nothing about our session.
+  const url = new URL(request.url)
+  if (url.origin !== window.location.origin || EXEMPT.has(url.pathname) || !hasSessionHint()) {
+    return response
+  }
   return (await refreshSession()) ? globalThis.fetch(retry) : response
 }
 // @server:auth-end
