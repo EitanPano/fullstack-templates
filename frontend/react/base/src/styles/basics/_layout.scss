@@ -11,14 +11,16 @@
 }
 
 .main {
+  --page-gutter: #{functions.space(4)};
+
   flex: 1;
   inline-size: 100%;
   max-inline-size: variables.$container-max;
   margin-inline: auto;
   padding-block: functions.space(6);
-  padding-inline: functions.space(4);
+  padding-inline: var(--page-gutter);
 
   @include breakpoints.up(md) {
-    padding-inline: functions.space(8);
+    --page-gutter: #{functions.space(8)};
   }
 }

@@ -52,7 +52,7 @@ describe('Select', () => {
     await screen.findByRole('listbox')
     await userEvent.keyboard('{ArrowDown}{Enter}')
 
-    expect(screen.getByRole('status')).not.toBeEmptyDOMElement()
+    expect(screen.getByRole('status')).toHaveTextContent('pro')
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })
 })

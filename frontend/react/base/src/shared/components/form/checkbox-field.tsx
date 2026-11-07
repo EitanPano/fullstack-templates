@@ -14,6 +14,9 @@ export function CheckboxField({ name, label, description }: FieldProps) {
     <FieldFrame {...field} label={label} description={description} orientation="horizontal">
       <Checkbox
         id={field.id}
+        ref={(element) => {
+          control.ref(element)
+        }}
         checked={control.value === true}
         onCheckedChange={(checked) => {
           control.onChange(checked === true)

@@ -27,6 +27,22 @@ function Harness({
     <Form form={form} onSubmit={form.handleSubmit(onValid)}>
       <DateTimeField name="startsAt" label="Starts" timeZone="Europe/London" />
       <button type="submit">Save</button>
+      <button
+        type="button"
+        onClick={() => {
+          form.reset({ startsAt: '2026-07-15T08:30:00.000Z' })
+        }}
+      >
+        Reset to value
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          form.reset()
+        }}
+      >
+        Reset
+      </button>
     </Form>
   )
 }
@@ -86,10 +102,32 @@ describe('DateTimeField', () => {
     render(<Harness />)
 
     type('2026-03-29T01:30')
-    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent("doesn't exist")
     type('2026-03-29T02:30')
 
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toBeEmptyDOMElement()
     expect(screen.getByLabelText('Starts')).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('drops a stale refusal and the typed text when the form is reset', async () => {
+    render(<Harness />)
+    type('2026-03-29T01:30')
+    expect(screen.getByRole('alert')).toHaveTextContent("doesn't exist")
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reset' }))
+
+    expect(screen.getByRole('alert')).toBeEmptyDOMElement()
+    expect(screen.getByLabelText('Starts')).toHaveValue('')
+    expect(screen.getByLabelText('Starts')).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('shows a value the form is reset to as wall time and clears the refusal', async () => {
+    render(<Harness />)
+    type('2026-03-29T01:30')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reset to value' }))
+
+    expect(screen.getByRole('alert')).toBeEmptyDOMElement()
+    expect(screen.getByLabelText('Starts')).toHaveValue('2026-07-15T09:30')
   })
 })

@@ -29,7 +29,14 @@ export function SelectField({
         value={typeof control.value === 'string' ? control.value : ''}
         onValueChange={control.onChange}
       >
-        <SelectTrigger id={field.id} onBlur={control.onBlur} {...field.aria()}>
+        <SelectTrigger
+          id={field.id}
+          ref={(element) => {
+            control.ref(element)
+          }}
+          onBlur={control.onBlur}
+          {...field.aria()}
+        >
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>

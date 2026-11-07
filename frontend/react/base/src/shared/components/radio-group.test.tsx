@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
@@ -32,9 +32,7 @@ describe('RadioGroup', () => {
     await userEvent.keyboard('{ArrowDown}')
 
     // Arrows move focus (roving tabindex); Space selects. jsdom skips the select-on-focus click.
-    await waitFor(() => {
-      expect(screen.getByRole('radio', { name: 'Medium' })).toHaveFocus()
-    })
+    expect(screen.getByRole('radio', { name: 'Medium' })).toHaveFocus()
     await userEvent.keyboard(' ')
     expect(screen.getByRole('radio', { name: 'Medium' })).toBeChecked()
   })

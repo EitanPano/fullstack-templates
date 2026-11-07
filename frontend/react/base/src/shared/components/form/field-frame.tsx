@@ -4,8 +4,8 @@ import { Label } from '@/shared/components/label'
 import { cn } from '@/shared/utils/cn'
 
 // The label, control slot, description and error of one field. The error line always exists, so
-// it takes no room when empty (`:empty`); it carries `role="alert"` only while it has text, which
-// announces the message once as it appears. The toast never repeats it.
+// it is a live region that exists before its text and announces the message as it appears. It is
+// collapsed by CSS while empty, not removed. The toast never repeats it.
 export function FieldFrame({
   id,
   label,
@@ -39,7 +39,7 @@ export function FieldFrame({
           {description}
         </p>
       ) : null}
-      <p id={errorId} className="form-field__error" role={message ? 'alert' : undefined}>
+      <p id={errorId} className="form-field__error" role="alert">
         {message}
       </p>
     </div>

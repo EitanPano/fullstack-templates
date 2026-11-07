@@ -9,6 +9,7 @@ import { Button } from '@/shared/components/button'
 import { CheckboxField } from '@/shared/components/form/checkbox-field'
 import { Form } from '@/shared/components/form/form'
 import { NumberField } from '@/shared/components/form/number-field'
+import { reportFailure } from '@/shared/components/form/report-failure'
 import { PasswordField } from '@/shared/components/form/password-field'
 import { SelectField } from '@/shared/components/form/select-field'
 import { TextField } from '@/shared/components/form/text-field'
@@ -68,7 +69,8 @@ describe('form field bindings', () => {
     expect(screen.getByLabelText('Note')).toBeInTheDocument()
     expect(screen.getByLabelText('Seats')).toHaveAttribute('type', 'number')
     expect(screen.getByRole('checkbox', { name: 'I accept the terms' })).toBeInTheDocument()
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    // Every error line exists before its text; none has any yet.
+    for (const alert of screen.getAllByRole('alert')) expect(alert).toBeEmptyDOMElement()
   })
 
   it('shows an error under its field with aria-invalid and aria-describedby, announced', async () => {
@@ -131,7 +133,8 @@ describe('form field bindings', () => {
     expect(screen.getByLabelText('Password')).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByText('Pick a plan')).toHaveAttribute('role', 'alert')
     expect(screen.getByText('Accept the terms')).toHaveAttribute('role', 'alert')
-    expect(screen.getAllByRole('alert')).toHaveLength(5)
+    const filled = screen.getAllByRole('alert').filter((alert) => alert.textContent !== '')
+    expect(filled).toHaveLength(5)
   })
 
   it('submits typed values: a number for the number field, a boolean for the checkbox', async () => {
@@ -168,7 +171,7 @@ describe('form field bindings', () => {
     expect(screen.getByLabelText('Seats')).toHaveAttribute('aria-invalid', 'true')
   })
 
-  it('shows an error the server put on a field', async () => {
+  it('shows an error the server put on a field', () => {
     let setError: ((name: 'email', message: string) => void) | undefined
     render(
       <Harness
@@ -180,9 +183,6 @@ describe('form field bindings', () => {
       />,
     )
 
-    await vi.waitFor(() => {
-      expect(setError).toBeDefined()
-    })
     act(() => setError?.('email', 'That email is already registered.'))
 
     expect(screen.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'true')
@@ -212,5 +212,28 @@ describe('form field bindings', () => {
     await userEvent.keyboard('{ArrowDown}{Enter}')
 
     expect(screen.getByRole('combobox', { name: 'Plan' })).toHaveTextContent(/Free|Pro/)
+  })
+
+  it('focuses the select trigger when a server error lands on it', () => {
+    let target: ReturnType<typeof useForm<Values, unknown, z.output<typeof schema>>> | undefined
+    render(
+      <Harness
+        setup={(form) => {
+          target = form
+        }}
+      />,
+    )
+
+    act(() => {
+      if (target === undefined) throw new Error('form not captured')
+      reportFailure(target, {
+        code: 'validation_failed',
+        message: 'Check the form.',
+        fieldErrors: { plan: 'Pick another plan.' },
+      })
+    })
+
+    expect(screen.getByRole('combobox', { name: 'Plan' })).toHaveFocus()
+    expect(screen.getByText('Pick another plan.')).toHaveAttribute('role', 'alert')
   })
 })

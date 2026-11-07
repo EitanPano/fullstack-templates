@@ -19,14 +19,15 @@ export function ConfirmDialog({
   trigger,
   title,
   description,
-  confirmLabel = 'Confirm',
+  confirmLabel,
   destructive = false,
   onConfirm,
 }: {
   trigger: ReactNode
   title: string
   description: string
-  confirmLabel?: string
+  // The verb and its object ("Delete plant"), never a bare "Confirm".
+  confirmLabel: string
   destructive?: boolean
   onConfirm: () => void | Promise<void>
 }) {

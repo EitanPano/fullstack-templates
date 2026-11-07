@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useController } from 'react-hook-form'
+import { useEffect, useState } from 'react'
+import { useController, useFormContext } from 'react-hook-form'
 
 import { Input } from '@/shared/components/input'
 import { instantToWallTime, wallTimeToInstant } from '@/shared/utils/date'
@@ -24,6 +24,21 @@ export function DateTimeField({
   const [typed, setTyped] = useState<{ text: string; emitted: string } | null>(null)
   const [refusal, setRefusal] = useState<string | null>(null)
   const field = useField(name, true)
+  const { watch } = useFormContext()
+
+  // A form reset names no field; it makes what was typed and any refusal stale, even when the
+  // value goes back to '' and so looks unchanged from here.
+  useEffect(() => {
+    const subscription = watch((_values, info) => {
+      if (info.name === undefined) {
+        setTyped(null)
+        setRefusal(null)
+      }
+    })
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [watch])
 
   const value = typeof control.value === 'string' ? control.value : ''
   // What the person typed wins while the form still holds what that produced; a value set from
@@ -51,6 +66,9 @@ export function DateTimeField({
     <FieldFrame {...field} message={message} label={label} description={hint}>
       <Input
         id={field.id}
+        ref={(element) => {
+          control.ref(element)
+        }}
         type="datetime-local"
         value={text}
         onChange={(event) => {
