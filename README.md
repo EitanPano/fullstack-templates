@@ -30,8 +30,8 @@ template finds the same shape.
 <!-- matrix:start -->
 | Template | Kind | Version | Flags | Capabilities | Summary |
 | --- | --- | --- | --- | --- | --- |
-| `bun-express` | server | 2.4.2 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
-| `python-fastapi` | server | 1.2.1 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
+| `bun-express` | server | 2.4.3 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
+| `python-fastapi` | server | 1.2.2 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
 | `angular` | frontend | 1.0.0 | i18n, pwa | — | Angular 22 single-page app on standalone components and signals, @ngrx/signals stores, global SCSS and Hey API's Angular client, with Transloco and the service worker behind flags |
 | `next` | frontend | 2.1.2 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
 | `react` | frontend | 2.1.1 | — | — | Vite and React 19 single-page app on the frontend foundation: React Router data mode, shadcn/ui, TanStack Query and a client generated from the server's contract |
@@ -187,7 +187,8 @@ stack; production does not refuse its credentials if you export them.
   `frontend/angular` 1.0.0 with the `i18n` and `pwa` flags and the stacks `angular-bun-express` and
   `angular-python-fastapi`; the frontend contract split into framework-neutral invariants;
   `frontend/next` 2.1.2 (two rules moved into its `AGENTS.md`); `.webmanifest` placeholders and the
-  `.angular/` copy exclude in the generator.
+  `.angular/` copy exclude in the generator; `server/bun-express` 2.4.3 and `server/python-fastapi`
+  1.2.2 cache a frontend's hashed build output immutable whatever its layout.
 - Next: mongodb, redis, and a worker with rabbitmq.
 
 The design is in [ADR 0001](docs/adr/0001-catalog-architecture.md).

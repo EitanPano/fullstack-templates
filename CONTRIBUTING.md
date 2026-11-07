@@ -516,12 +516,13 @@ the lockfiles is still to be configured.
 - This release is `v1.6.0`, a minor: a template added (`frontend/angular` 1.0.0, with the stacks
   `angular-bun-express` and `angular-python-fastapi`) and the frontend contract split into
   invariants ([ADR 0006](docs/adr/0006-per-framework-frontends-and-angular.md)). It carries
-  `frontend/next` 2.1.2 (two rules moved into its `AGENTS.md`), `frontend/react` 2.1.1 and
-  `server/bun-express` 2.4.2. `schemaVersion` is unchanged; the `.webmanifest` text type
-  (placeholders only) is a tool change, not a schema change. The previous release, `v1.5.1`, a
-  patch (a `.gitignore` fix), had `frontend/next` 2.1.1. `v1.5.0`, a minor (a feature release of
-  existing templates), had `frontend/next` 2.1.0, `frontend/react` 2.1.0 (axe, overflow and
-  one-`h1` checks on every screen in both themes, the signed-in screens list, and a compact icon
-  button), `server/bun-express` 2.4.1 and `server/python-fastapi` 1.2.1 (documentation). A
-  template's `version` is bumped in
-  `template.yaml`, `index.yaml` and its `CHANGELOG.md` together.
+  `frontend/next` 2.1.2 (two rules moved into its `AGENTS.md`), `frontend/react` 2.1.1,
+  `server/bun-express` 2.4.3 and `server/python-fastapi` 1.2.2 (both servers cache a frontend's
+  hashed build output immutable whatever its layout). `schemaVersion` is unchanged; the
+  `.webmanifest` text type (placeholders only) is a tool change, not a schema change. The previous
+  release, `v1.5.1`, a patch (a `.gitignore` fix), had `frontend/next` 2.1.1. `v1.5.0`, a minor (a
+  feature release of existing templates), had `frontend/next` 2.1.0, `frontend/react` 2.1.0 (axe,
+  overflow and one-`h1` checks on every screen in both themes, the signed-in screens list, and a
+  compact icon button), `server/bun-express` 2.4.1 and `server/python-fastapi` 1.2.1
+  (documentation). A template's `version` is bumped in `template.yaml`, `index.yaml` and its
+  `CHANGELOG.md` together.

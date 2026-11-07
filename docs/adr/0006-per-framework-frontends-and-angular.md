@@ -417,8 +417,9 @@ The theme for a screen is forced through the `theme` key in `localStorage` befor
 - Angular emits hashed files at the `dist` root (`main-HASH.js`, `chunk-HASH.js`,
   `styles-HASH.css`) and `media/`. The nginx config caches those immutable and keeps `index.html`,
   `ngsw.json`, `ngsw-worker.js` and the manifest revalidated. In `single` mode both servers' static
-  middleware marks only `assets/` immutable, so Angular's bundles get the shell policy: correct, a
-  revalidation per load. A hash-pattern rule in both servers is a follow-up minor.
+  middleware gives the same three classes (`assets/`, `media/` and those root bundles) the
+  immutable policy, so the modes agree; shipped in this release as `server/bun-express` 2.4.3 and
+  `server/python-fastapi` 1.2.2, no longer a follow-up.
 - `Dockerfile`: a `node:24-alpine` build stage with the `bun` binary copied from
   `oven/bun:1.4-alpine` (the Angular CLI runs on Node; `bun install --frozen-lockfile` and
   `bun run build` drive it), then `dist` (`FROM scratch`) and `serve` (nginx-unprivileged) as in

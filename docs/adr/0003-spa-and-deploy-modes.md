@@ -186,7 +186,7 @@ Rejected:
 
   | Request | Response |
   | --- | --- |
-  | GET or HEAD of an existing file | The file. `assets/*` gets `Cache-Control: public, max-age=31536000, immutable`; every other file, `index.html` included, gets `no-cache`. |
+  | GET or HEAD of an existing file | The file. `assets/*`, `media/*` and the root bundles `main-`, `polyfills-`, `chunk-` and `styles-` plus an eight-character hash (`.js`, `.css`) get `Cache-Control: public, max-age=31536000, immutable`; every other file, `index.html` included, gets `no-cache`. |
   | GET or HEAD of an extension-less path outside `/api` | `index.html`, `no-cache`. The SPA's router renders it, its own not-found included. |
   | A path with an extension and no file | The 404 envelope. |
   | `/api/*` with no route | The 404 envelope, unchanged. |
