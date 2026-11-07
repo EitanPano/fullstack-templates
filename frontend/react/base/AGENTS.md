@@ -52,8 +52,8 @@ loading and error files).
   (`useAppDispatch`, `useAppSelector`), `theme.slice.ts` (`themeChanged`, `themeRestored`,
   `selectTheme`), `listeners.ts` (`createListeners`).
 - `services/`: the data layer, the only importer of the generated runtime. `api.ts` (the one
-  `createApi`, its `tagTypes`), `call.ts` (`call`, `DEFAULT_COPY`), `health.api.ts`,
-  `generated/` (Hey API output; committed, lint-ignored).
+  `createApi`, its `tagTypes`), `call.ts` (`call`, `DEFAULT_COPY`), `refetchIfRejected` in `api.ts`, `health.api.ts`,
+  `generated/` (Hey API output; committed, never edited).
 
 <!-- @server:auth-start -->
 
@@ -93,7 +93,7 @@ loading and error files).
 
 <!-- @server:auth-end -->
 
-- `styles/`: the only home of CSS (see Styling); `styles.scss` is the entry.
+- `styles/`: the only home of CSS (see Styling).
 
 **Where does X go**
 
@@ -116,20 +116,20 @@ loading and error files).
 **Import rules** (`eslint-plugin-boundaries`; each lint message names the layer to use instead). A
 feature never imports another feature; `shared/` never imports `core/`, `store/` or `services/`.
 
-| From                                                     | May import                                                                    |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `app/`                                                   | layout, features (`*.routes.tsx` only), core, store, shared, models           |
-| `main.tsx` (the `entry` category)                        | app, store, core, shared, models                                              |
-| `layout/`                                                | core, store, services (the hooks), shared, models                             |
-| `features/<f>/`                                          | core, store, services (the hooks), shared, models; its own feature            |
-| `features/<f>/*.form.ts`                                 | shared, models, the generated zod schemas (`@/services/generated/zod.gen`)    |
-| `store/`                                                 | services (reducer, middleware, matchers), `core/theme`, `core/config`, models |
-| `services/`                                              | `services/generated`, `core/config`, `core/auth`, models                      |
-| `core/auth/guards.ts` (the `guards` files category)      | store, services, `core/config`, `core/auth`, models (the wiring)              |
-| `core/config`, `core/auth/session-hint.ts`, `core/theme` | shared, models, and each other (the leaves)                                   |
-| `shared/`                                                | shared, models                                                                |
-| `models/`                                                | models; the generated types and zod schemas, `import type` only               |
-| `testing/`                                               | anything; nothing outside `*.test.ts(x)` imports it (tests are lint-ignored)  |
+| From                                                     | May import                                                                         |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `app/`                                                   | layout, features (`*.routes.tsx` only), core, store, shared, models                |
+| `main.tsx` (the `entry` category)                        | app, store, core, shared, models                                                   |
+| `layout/`                                                | core, store, services (the hooks), shared, models                                  |
+| `features/<f>/`                                          | core, store, services (the hooks), shared, models; its own feature                 |
+| `features/<f>/*.form.ts`                                 | shared, models, the generated zod schemas (`@/services/generated/zod.gen`)         |
+| `store/`                                                 | services (reducer, middleware, matchers), `core/theme`, `core/config`, models      |
+| `services/`                                              | `services/generated`, `core/config`, `core/auth` (not the guards), models          |
+| `core/auth/guards.ts` (the `guards` files category)      | store, services, `core/config`, `core/auth`, models (the wiring)                   |
+| `core/config`, `core/auth/session-hint.ts`, `core/theme` | shared, models, and each other (the leaves; never the guards or the runtime)       |
+| `shared/`                                                | shared, models                                                                     |
+| `models/`                                                | models; the generated types and zod schemas, `import type` only                    |
+| `testing/`                                               | anything; nothing outside `*.test.ts(x)` imports it (tests are boundaries-ignored) |
 
 Also lint-enforced:
 
@@ -139,14 +139,17 @@ Also lint-enforced:
   `import.meta` only in `core/config/env.ts`.
 - `button`, `input`, `select`, `textarea` JSX elements only in `shared/components/`; the `style`
   JSX attribute nowhere; a `.css` or `.scss` import nowhere but `main.tsx`.
-- `eslint-import-resolver-typescript` reads the `@/*` alias from `tsconfig.app.json`; keep it, the
-  boundary rule is silent on an import it cannot resolve.
+- `boundaries/no-unknown-files` and `no-unknown-dependencies` are on: a file in a directory that
+  matches no layer (`src/hooks/`, `src/lib/`, a stray file) is an error. `src/styles/**`,
+  `vite-env.d.ts` and the tests are boundaries-ignored. `session-hint.ts` may not import the guards
+  or the generated runtime (`no-restricted-imports`); only the two client tests
+  (`api-client.test.ts`, `api-client-refresh.test.ts`) import the generated SDK.
+- Keep `eslint-import-resolver-typescript` (it reads the `@/*` alias): without it violations pass.
 
-`tests/unit/eslint-boundaries.test.ts` lints one violation and one allowed case per rule, in a
-throwaway project built from the real `eslint.config.mjs`. A new rule gets a case there. Use the
-`@/` alias for every import that crosses a directory; relative imports stay inside one feature.
-The API is always reached at relative `/api` on the page's own origin (see Deployment), so the
-client takes its base from `window.location.origin` and the bundle carries no API URL.
+`tests/unit/eslint-boundaries.test.ts` lints one violation and one allowed case per rule, through
+the real `eslint.config.mjs`. A new rule gets a case there. Use the `@/` alias for every import that
+crosses a directory; relative imports stay inside one feature. The API is always relative `/api` on
+the page's own origin (see Deployment), so the bundle carries no API URL.
 
 ## Adding a feature
 
@@ -166,6 +169,7 @@ needs an endpoint first. `features/health`, `services/health.api.ts`, `models/he
    ```ts
    getHealth: build.query<HealthView, void>({
      queryFn: () => call(getApiHealth()),
+     forceRefetch: refetchIfRejected,
      providesTags: ['Health'],
    }),
    ```
@@ -205,10 +209,12 @@ needs an endpoint first. `features/health`, `services/health.api.ts`, `models/he
 ### Reads
 
 - `api` sets `refetchOnMountOrArgChange: 30` (seconds): a hook does not refetch data younger than
-  30 s; `keepUnusedDataFor` stays 60 s. A query without an argument is `build.query<Data, void>`
-  (`src/services/**` switches off `no-invalid-void-type` for it).
+  30 s; `keepUnusedDataFor` stays 60 s. Every query sets `forceRefetch: refetchIfRejected`
+  (from `services/api.ts`): an entry that succeeded and then rejected keeps its timestamp and
+  would not be refetched within the 30 s. A query without an argument is `build.query<Data, void>`
+  (`src/services/**` turns off `no-invalid-void-type`).
 - A hook returns `{ data, error, isLoading, isError, isFetching, refetch }`; `error` is the
-  `ApiError` (see Errors). A mutation's `invalidatesTags` refetches every subscribed component.
+  `ApiError`. A mutation's `invalidatesTags` refetches every subscribed component.
 
 ### Mutations
 
@@ -225,11 +231,12 @@ needs an endpoint first. `features/health`, `services/health.api.ts`, `models/he
   }
   ```
 
-- The endpoint returns the default copy; the feature words the failure with
-  `withCopy(error, SIGN_IN_COPY, { conflict: 'email' })` (its table, a code put on one field). The
-  server's text never reaches the page. `call(request, copy?, options?)` takes `options.fields`
-  and `options.discriminator` (a second key from the envelope, `conflict:slot_taken`); a 400 with
-  details becomes `fieldErrors` (copy key `validation_failed:<path>`).
+- `call(request)` takes only the request and returns the default copy; it maps a 400's `details`
+  to `fieldErrors`, and `ApiError.details` carries the envelope's raw `details`. The feature words
+  the failure with `withCopy(error, TABLE, { fields?, discriminator? })`, its one wording step:
+  `fields` puts a code on one field (`{ conflict: 'email' }`), `discriminator` reads a second key
+  from `error.details`. The lookup is `TABLE['code:second']`, then `TABLE[code]`, then the error's
+  message; `validation_failed:<path>` words one field. The server's text never reaches the page.
 - A cache write or stored flag that must follow a success happens inside the `queryFn`, before it
   returns, so every `unwrap()` caller sees it (`login`, `register`); `onQueryStarted` runs after the
   caller. Never `api.util.resetApiState()` inside a running mutation: it aborts it; reset after
@@ -248,13 +255,14 @@ React Hook Form with `zodResolver` and the mutation hook; `SignInForm` is the pa
   and a `label` and show the error with `aria-invalid` and `aria-describedby`; the submit row is
   `FormActions`.
 - `reportFailure(form, error)` puts `fieldErrors` on their fields (the first takes focus) and
-  toasts anything else, so a toast never repeats a field error. Mixed paths: the known ones land on
-  fields, the others share one toast; none known: it toasts the message.
+  toasts the rest, never repeating a field error: unknown paths share one toast; none known, the
+  message.
 
 ### State
 
 - `createStore(preloaded?)` is `configureStore` over `api.reducer`, the slices, the listener
-  middleware and `api.middleware`. `main.tsx` creates the one store; `renderRoutes` a fresh one per
+  middleware and `api.middleware`, with `devTools: env.MODE !== 'production'`: never leave DevTools
+  on in production, a mutation's action carries its arguments. `main.tsx` creates the one store; `renderRoutes` a fresh one per
   test, so no module holds a singleton. `setupListeners` is off unless a plan turns it on.
 - A slice is `store/<name>.slice.ts` (`createSlice` with `selectors`) for **client-only** state two
   or more features or the layout read (`theme.slice.ts`); read with `useAppSelector`, write with
@@ -274,8 +282,7 @@ the zone; `formatDate` and `formatDateTime` format in it. A form holds an instan
 
 ### Auth
 
-The API sets its tokens as HttpOnly cookies on the page's own origin (same-origin `/api`). The page
-never reads a token: no JavaScript can.
+The API sets its tokens as HttpOnly cookies on the page's own origin; the page never reads one.
 
 - **Refresh.** `core/config/api-client.ts` wraps `fetch`: a 401 from the page's own origin, on any
   endpoint except sign-in, sign-up, the OTP calls and the refresh itself, becomes one
@@ -285,10 +292,9 @@ never reads a token: no JavaScript can.
 - **The session hint.** The refresh only runs for a browser that signed in. The cookies are
   unreadable, so `core/auth/session-hint.ts` keeps a `localStorage` flag; without it every
   visitor's session probe would spend one of the API's per-address refresh attempts.
-  - It never holds a token or user data (the value is `1`), is set only after a sign-in or sign-up
-    succeeded and is cleared on sign-out.
-  - A missing hint with valid cookies (storage cleared or blocked) shows the signed-out view until
-    the user signs in; nothing is lost and nothing is exposed.
+  - It never holds a token or user data (the value is `1`); set after sign-in or sign-up,
+    cleared on sign-out.
+  - A missing hint with valid cookies (storage blocked) shows the signed-out view until sign-in.
   - A stale hint costs one refresh: a 400, 401 or 403 from `POST /api/auth/refresh` clears it (the
     servers answer 400 `refresh token missing` once the browser dropped the expired cookie). A 429,
     a 5xx or a network error does not, because they say nothing about the cookie.
@@ -299,8 +305,7 @@ never reads a token: no JavaScript can.
   `/api/user/me`.
 - **Guards.** `core/auth/guards.ts`: `readSession(store)` returns the `User` or `null`, failing
   closed (logged, except the 401); `requireAccount(store, returnTo?)` throws a redirect to
-  `/sign-in?next=…`; `requireRole(store, 'admin', returnTo?)` does the same for a visitor and sends
-  another role to `/forbidden`; `redirectIfSignedIn(store)` sends an account home. A loader calls
+  `/sign-in?next=…`; `requireRole(store, 'admin', returnTo?)` also sends another role to `/forbidden`; `redirectIfSignedIn(store)` sends an account home. A loader calls
   them: `loader: ({ request }) => requireAccount(store, returnToOf(request))`. The role is the
   API's answer, never a claim in a token; a guard only keeps a visitor off a screen, the API checks
   every call. A guarded page's `noindex` tag is client-rendered; the loader's guard is the
@@ -308,17 +313,17 @@ never reads a token: no JavaScript can.
 - **Sign-in and sign-up.** `login` and `register` resolve to the user only (the tokens never enter
   the store). Inside their `queryFn`, before returning, they set the hint and write the account
   into the `getMe` cache, so the header flips without a request and the next loader finds the
-  account. The form navigates to `safeNextPath(next)` after the await: a path on this site, else
+  account. The form (`next` is a prop, not a schema field) navigates to `safeNextPath(next)` after the await: a path on this site, else
   `/` (it compares the decoded, lowercased path with the auth screens).
-- **Sign-out.** `logout`'s `queryFn` calls the API, logs a failure and clears the hint whatever the
-  API said. `SignOutItem` then dispatches `api.util.resetApiState()` after `await logout().unwrap()`
-  and before `navigate('/sign-in')`.
+- **Sign-out.** `logout`'s `queryFn` calls the API, logs a failure, clears the hint whatever the
+  API said and resolves `{ revoked: boolean }`. `SignOutItem` toasts a warning after the await when
+  the API could not revoke, then dispatches `api.util.resetApiState()` and navigates to `/sign-in`.
 - **The account slot** is `AccountSlot`. `AccountMenu` has three states: a skeleton while `getMe`
   loads, a "Sign in" link and the theme menu for a visitor, the avatar menu (email, theme, "Sign
   out") for an account. The email is in the menu, never header text.
 - **Staff pages.** Put them under a pathless route whose loader calls
   `requireRole(store, 'admin', returnToOf(request))`, and give every staff loader the same call.
-  The template ships no staff page: no route creates an admin yet.
+  No staff page ships.
 - **Renaming the roles.** The roles are `user` and `admin`. A product that renames them changes
   `isUser` in `models/user.ts` (another role reads as signed out), every `requireRole(...)` call,
   the role-gated group, the unit tests that use a role, and this file, after the server's roles
@@ -339,34 +344,32 @@ never reads a token: no JavaScript can.
   its placeholders are not valid Sass (`.prettierignore` lists it; it builds only after
   generation). `themes/_light.scss` and `_dark.scss` hold the product's tokens beyond that set
   (surfaces, `--border-strong`, `--focus-ring`, skeleton, `--backdrop`, shadows), the same keys in
-  both; `setup/_typography.scss` takes the brand's font stack. Never a literal colour or size.
+  both; `setup/_typography.scss` takes the brand's font stack. Never a literal colour; spacing from `space()`; a hairline border or a 2 px detail is the exception.
   Spacing is the 4 px scale through `space()` (`space(4)` is 16 px); breakpoints `sm` 576, `md` 768,
   `lg` 1024, `xl` 1280, `xxl` 1536 through `breakpoints.up()`; mobile first; logical properties.
 - **Theming.** `data-theme` on `<html>` holds the resolved value (`light` or `dark`, never
   `system`). `public/theme-init.js` sets it before first paint from the stored choice or the
   brand's default; it is a file, not an inline script (`script-src 'self'`). `core/theme/theme.ts`
   and the theme slice's listener keep it in step and follow the OS while the choice is `system`.
-  Keep script and `theme.ts` in step (storage key `theme`, same default). No `prefers-color-scheme`
-  block.
+  Keep script and `theme.ts` in step (key `theme`, same default). No `prefers-color-scheme` block.
 - **Sizing.** A control is 36 px on a fine pointer, 32 px under `[data-density='compact']` on a
   fine pointer, 44 px on `(pointer: coarse)` whatever the density; icon buttons the same square.
   Use the `setup/_mixins.scss` mixins in this order: `control-height`, `compact-density`, then
   `touch-target` last, so the size never undoes it. `tests/unit/density.test.ts` compiles the tree
-  and asserts the three numbers. No page scrolls horizontally at any width.
+  and asserts the three numbers. No page scrolls horizontally.
 - **Primitives** are Radix (`radix-ui`), rendered by `shared/components/` with the tree's classes;
   Radix's data attributes (`data-state`, `data-side`) are the styling hooks. One icon set
   (`lucide-react`, `aria-hidden` next to a label) and one toast implementation (`sonner`, themed
   from the theme slice by `AppProviders`). No scaffolder.
 - **Patterns** in `shared/components/`: `Page`, `PageHeader`, `Section`, `EmptyState`,
   `ErrorState` (with retry), `ListSkeleton`, `CardSkeleton`, `FormActions` (sticky on phones),
-  `ConfirmDialog`; `AuthCard` with the server's auth. `UserMenu` and the shell (skip link, header
-  with the nav inline from `md` and in a sheet on phones, account slot, one `main`, footer) are in
-  `layout/`. Use a pattern before writing a layout by hand. A page renders inside the shell and
-  never adds a landmark set; it sets its title with a `<title>` element.
-- **Forms** use `shared/components/form/`, never a raw `input`. **Status** is a `Badge` by meaning
+  `ConfirmDialog`; `AuthCard` with auth. `UserMenu` and the shell (skip link, header with the nav
+  inline from `md` and in a sheet on phones, account slot, one `main`, footer) are in `layout/`.
+  Use a pattern before writing a layout by hand. A page never adds a landmark set; it sets its
+  title with a `<title>` element.
+- **Forms** use `shared/components/form/`. **Status** is a `Badge` by meaning
   (`success`, `warning`, `destructive`, `muted`, `info`) with words or an icon, never colour alone.
-  Semantic HTML, labelled controls, keyboard-reachable interactions; the target is WCAG 2.2 AA,
-  checked by the axe scan.
+  Semantic HTML, labelled controls; the target is WCAG 2.2 AA, checked by the axe scan.
 
 ## Errors
 
@@ -375,8 +378,8 @@ never reads a token: no JavaScript can.
   `app/root-error.tsx` for what no group caught. A group is a pathless route inside the group's
   layout, so its boundary renders inside the shell. Every data section has a skeleton that matches
   its layout. Messages are user-safe: no stack trace, query text, internal URL or secret. A
-  boundary logs the cause with `console.error`; its Try again button calls `revalidate()`, which
-  re-runs the loaders.
+  boundary logs the cause with `console.error`; its Try again button calls `revalidate()`. A lazy
+  chunk missing after a redeploy fires `vite:preloadError`; `main.tsx` reloads the page.
 - The generated client does not throw on an HTTP error status: it returns
   `{ data, error, response }`, and on a network failure `response` is undefined and `error` is the
   thrown value. `call` (`src/services/call.ts`) is the only place that reads the result and returns
@@ -385,8 +388,8 @@ never reads a token: no JavaScript can.
   failed query's error in the Redux state, which refuses class instances. A hook's `error` and the
   rejection of `.unwrap()` are the same object; `isApiError` is the guard. A `queryFn` that throws
   loses the copy mapping: return the error.
-- The message is copy we wrote: the feature's table by `code` (via `withCopy`, with a second key
-  when the contract adds a discriminator), then the default below. The server's `message` is never
+- The message is copy we wrote: the feature's table through `withCopy` (`code:second` when the
+  contract adds a discriminator read from `error.details`, then `code`), then the default below. The server's `message` is never
   shown. A 5xx, a missing envelope or an unreachable API is logged with its request id first.
 
   | `code` (status)                  | Default copy                                                 |
@@ -403,27 +406,27 @@ never reads a token: no JavaScript can.
   | `upstream_unavailable` (502-504) | The service is unavailable right now. Try again in a moment. |
   | no response (`network`)          | Can't reach the server. Check your connection and try again. |
 
-  A feature overrides the entries that need its own words (`SIGN_IN_COPY` maps 401 to "Email or
-  password is wrong." because the API cannot tell the two apart by design).
+  A feature overrides entries with its own words (`SIGN_IN_COPY` maps 401 to "Email or password is
+  wrong.": the API cannot tell the two apart).
 
-- A handler shows `error.message` with `toast.error` (`RefreshHealthButton`) or calls
-  `reportFailure`; a component that reads a hook shows `ErrorState` with the message and `refetch`.
+- A handler toasts `error.message` or calls `reportFailure`; a hook reader shows `ErrorState`.
 
 ## Tests
 
 - Unit tests run with `bun run test` (Vitest, jsdom, React Testing Library): co-located
-  `src/**/*.test.ts(x)`, `userEvent` for input. `tests/unit/` holds the tooling checks:
+  `src/**/*.test.ts(x)`. `tests/unit/` holds the tooling checks:
   `eslint-boundaries` (import rules), `styles-tree` (no stylesheet import or `style` outside
   `main.tsx`), `density` (compiled sizes), `main-imports` (zod configured first), `zod-config` (no
-  `new Function` under the CSP), `screen-routes` (`capturedRoutes`), `playwright-config` (blank
-  `E2E_BASE_URL`), and with a database `e2e-database-url`.
+  `new Function` under the CSP), `playwright-config` (blank `E2E_BASE_URL`), `screen-routes`
+  (`capturedRoutes`), and with a database `e2e-database-url`. Co-located checks of the glue include
+  `src/store/index.test.ts` and `src/core/config/api-client.test.ts`.
 - The API is the one boundary: `stubApi` stubs the global `fetch` by `METHOD /path`, so a test goes
   through the real generated client, `call`, the copy tables and the cache. A route is tested with
   `renderRoutes` (a memory router over `createRoutes`, a fresh store); with auth, `renderInRouter`
   renders one component under the store and a router. Mock `sonner` to assert a toast. No test
   starts the server. Drive `revalidate()` through a button, not from the test body.
-- E2E tests live in `tests/e2e/` (Playwright with `@axe-core/playwright`). `playwright.config.ts`
-  starts the API fresh (`reuseExistingServer: false`, `RATE_LIMIT_SCALE=100`) and the production
+- E2E tests (`tests/e2e/`, Playwright with `@axe-core/playwright`): `playwright.config.ts` starts
+  the API fresh (`reuseExistingServer: false`, `RATE_LIMIT_SCALE=100`) and the production
   build behind `vite preview`, which forwards `/api` to that API. Install the browser once with
   `bun x playwright install chromium` (add `--with-deps` on Linux).
 
@@ -464,13 +467,12 @@ never reads a token: no JavaScript can.
   entries without a `setup` share one account per project. A role-gated route is an entry with a
   `setup(account)`, which the project writes in its own e2e support file (for example promoting
   `account.email` to the role); the entry gets its own account. A setup writes only to
-  `account.databaseUrl`, the browser-test database (refused unless its name ends in `_e2e`) and
-  never reads a connection string from the environment (`DATABASE_URL` is the development one).
-  With `E2E_BASE_URL` set the entries with a `setup` are left out, so a setup never reaches a
-  development or production database. After a `setup` the spec signs out and in again through the
-  form, because the role is a claim in the session's token. Each signed-in test sets its own
-  timeout from its number of captures; no `storageState` setup project. A project without a
-  database has nothing to promote (its setup receives no `databaseUrl`).
+  `account.databaseUrl`, the browser-test database (refused unless its name ends in `_e2e`), and
+  never reads a connection string from the environment. With `E2E_BASE_URL` set the entries with a
+  `setup` are left out, so a setup never reaches a development or production database. After a
+  `setup` the spec signs out and in again through the form (the role is a claim in the session's
+  token). Each signed-in test sets its own timeout; no `storageState` setup project. Without a
+  database a setup receives no `databaseUrl`.
 
 <!-- @server:auth-end -->
 
