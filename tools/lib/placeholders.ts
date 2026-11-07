@@ -27,6 +27,7 @@ const TEXT_EXTENSIONS: ReadonlySet<string> = new Set([
   '.xml',
   '.properties',
   '.svg',
+  '.webmanifest',
   ...COMMENT_EXTENSIONS,
 ])
 
