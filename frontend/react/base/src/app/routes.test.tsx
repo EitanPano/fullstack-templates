@@ -20,13 +20,16 @@ afterEach(() => {
 })
 
 describe('the route table', () => {
-  it('renders the home route with the version and exactly one fetch', async () => {
+  it('renders the home route with the heading, the status badge and exactly one fetch', async () => {
     const fetchMock = stubApi({ 'GET /api/health': Response.json(HEALTH) })
 
     renderRoutes()
 
-    expect(await screen.findByText(/1\.2\.3/)).toBeInTheDocument()
-    expect(screen.getByRole('banner')).toBeVisible()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent('API v1.2.3')
+    expect(screen.getByRole('button', { name: 'Refresh' })).toBeVisible()
+    // The page header is a <header> too, so the shell is checked by its navigation.
+    expect(screen.getByRole('navigation', { name: 'Primary' })).toBeVisible()
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
@@ -52,7 +55,7 @@ describe('the route table', () => {
     healthy = true
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
 
-    expect(await screen.findByText(/1\.2\.3/)).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent('API v1.2.3')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
