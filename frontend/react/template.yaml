@@ -2,8 +2,8 @@ schemaVersion: 1
 id: react
 kind: frontend
 name: React 19 SPA (Vite)
-version: 2.1.1
-summary: "Vite and React 19 single-page app on the frontend foundation: React Router data mode, shadcn/ui, TanStack Query and a client generated from the server's contract"
+version: 3.0.0
+summary: "Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives on a global SCSS tree"
 runtime: { language: typescript, platform: node, minVersion: "24" }
 tools:
   - { name: bun, min: "1.4" }
@@ -30,31 +30,34 @@ defaultStack: react-python-fastapi
 # /api/auth and /api/user). Lines inside shared files carry // @server:auth markers.
 onlyWhen:
   server:auth:
-    - src/app/(auth)
-    - src/app/(site)/forbidden
-    - src/app/(site)/profile
-    - src/shared/api/session-hint.ts
-    - src/shared/auth
-    - src/shared/ui/pattern/auth-card.tsx
-    - src/entity/user
-    - src/feature/auth
-    - src/widget/account-menu
-    - src/widget/profile
-    - src/widget/sign-in
-    - src/widget/sign-up
+    - src/core/auth
+    - src/core/config/api-client-refresh.test.ts
+    - src/features/auth
+    - src/features/forbidden
+    - src/features/user
+    - src/layout/auth-layout
+    - src/layout/components/account-menu.tsx
+    - src/layout/components/account-menu.test.tsx
+    - src/models/user.ts
+    - src/models/user.test.ts
+    - src/services/auth.api.ts
+    - src/services/auth.api.test.ts
+    - src/services/user.api.ts
+    - src/services/user.api.test.ts
+    - src/shared/components/auth-card.tsx
+    - src/shared/utils/next-path.ts
+    - src/shared/utils/next-path.test.ts
+    - src/styles/components/_account-menu.scss
+    - src/styles/components/_auth-card.scss
+    - src/styles/components/_auth-layout.scss
+    - src/styles/views/_forbidden.scss
+    - src/styles/views/_profile.scss
+    - src/styles/views/_sign-in.scss
+    - src/styles/views/_sign-up.scss
+    - src/testing/auth-fixtures.ts
+    - src/testing/render-in-router.tsx
     - tests/e2e/auth-support.ts
     - tests/e2e/auth.spec.ts
-    - tests/unit/account-menu.test.tsx
-    - tests/unit/api-client-refresh.test.ts
-    - tests/unit/auth-model.test.ts
-    - tests/unit/next-path.test.ts
-    - tests/unit/session-hint.test.ts
-    - tests/unit/auth-routes.test.tsx
-    - tests/unit/session.test.ts
-    - tests/unit/sign-in-form.test.tsx
-    - tests/unit/sign-up-form.test.tsx
-    - tests/unit/require-role.test.tsx
-    - tests/unit/sign-out.test.tsx
   server:database:
     - scripts/e2e-database-url.ts
     - tests/unit/e2e-database-url.test.ts

@@ -377,25 +377,30 @@ When Next is bumped:
 When a dependency moves or the base is regenerated:
 
 1. Verify every version on the registry; never write one from memory. The set is listed in
-   [ADR 0003 › Versions](docs/adr/0003-spa-and-deploy-modes.md) and, for the foundation, in
-   [ADR 0005 › Consequences](docs/adr/0005-frontend-foundation.md).
+   [ADR 0007 › Versions](docs/adr/0007-react-redux-rtk-scss.md).
 2. Keep the exceptions to "latest" unless the reason is gone:
    - ESLint 9 and TypeScript 5.9: `eslint-plugin-jsx-a11y` peers ESLint up to 9, and
      typescript-eslint requires TypeScript below 6.1.0. This matches `next`.
    - React 19.3.0: the version `next` pins, so one React runs across the frontends.
-   - `react-router` is pinned exactly (8.5.0).
-   - `@hey-api/openapi-ts` is pinned exactly (it is 0.x; a minor can change the generated output).
-     The SPA adds its react-query plugin and `@tanstack/react-query`.
+   - `react-router` is pinned exactly (8.5.1), as is every runtime dependency.
+   - `@hey-api/openapi-ts` is pinned exactly (it is 0.x; a minor can change the generated output),
+     with the plugins typescript, client-fetch (its `runtimeConfigPath` is
+     `src/core/config/api-client.ts`), sdk and zod. No TanStack plugin.
 3. Run `bun install` and commit `bun.lock`; `bun tools/validate.ts --lockfiles` checks it with
    `--frozen-lockfile`.
-4. Add or update shadcn components with `bunx shadcn@<pin> add <name>`, as for Next (step 6 there),
-   adapting `Link` to `NavLink`; the Sheet is the phone nav.
+4. No scaffolder. A new component is a file in `src/shared/components/` on a `radix-ui` primitive
+   plus a partial in `src/styles/components/` forwarded by its `_index.scss`; a new screen is a
+   `views/` partial. `src/styles/themes/brand.css` holds the generator's token placeholders and is
+   never edited (it is Prettier-ignored because Prettier cannot parse the placeholders).
 5. Run the `contract` command when the server's contract moved, and commit
-   `src/shared/api/generated/`.
+   `src/services/generated/`.
 6. Run `tests/unit/eslint-boundaries.test.ts`. It lints one violation and one allowed case per
-   boundaries rule through the real `eslint.config.mjs`, so a new block that overlaps a rule fails
-   it (ESLint flat config replaces a rule's options for a file with those of the last block that
-   matches it, and does not merge them).
+   boundaries rule and per restriction through the real `eslint.config.mjs`, so a new block that
+   overlaps a rule fails it (ESLint flat config replaces a rule's options for a file with those of
+   the last block that matches it, and does not merge them). `tests/unit/density.test.ts` compiles
+   the SCSS tree and asserts the control heights (36 px, 32 px compact, 44 px on a coarse pointer);
+   `tests/unit/styles-tree.test.ts` refuses a stylesheet import outside `main.tsx` and any `style`
+   attribute.
 7. Bump `version` in `template.yaml` and `index.yaml`, add a `CHANGELOG.md` entry, and run
    `bun tools/validate.ts --readme`.
 8. Re-run the react cases with the container smoke:
@@ -514,16 +519,17 @@ the lockfiles is still to be configured.
   existing file invalid bumps it. v1.4.0 added optional fields (`answers.brand`, `onlyWhen`, the case
   fields for a server's flags, the `e2eDb` command, the provider's `e2e` URL); v1.4.1 adds the case
   field `brand`; v1.5.0 and v1.5.1 add none.
-- This release is `v1.6.0`, a minor: a template added (`frontend/angular` 1.0.0, with the stacks
-  `angular-bun-express` and `angular-python-fastapi`) and the frontend contract split into
-  invariants ([ADR 0006](docs/adr/0006-per-framework-frontends-and-angular.md)). It carries
-  `frontend/next` 2.1.2 (two rules moved into its `AGENTS.md`), `frontend/react` 2.1.1,
-  `server/bun-express` 2.4.3 and `server/python-fastapi` 1.2.2 (both servers cache a frontend's
-  hashed build output immutable whatever its layout). `schemaVersion` is unchanged; the
-  `.webmanifest` text type (placeholders only) is a tool change, not a schema change. The previous
-  release, `v1.5.1`, a patch (a `.gitignore` fix), had `frontend/next` 2.1.1. `v1.5.0`, a minor (a
-  feature release of existing templates), had `frontend/next` 2.1.0, `frontend/react` 2.1.0 (axe,
-  overflow and one-`h1` checks on every screen in both themes, the signed-in screens list, and a
-  compact icon button), `server/bun-express` 2.4.1 and `server/python-fastapi` 1.2.1
-  (documentation). A template's `version` is bumped in `template.yaml`, `index.yaml` and its
-  `CHANGELOG.md` together.
+- This release is `v1.7.0`, a minor: `frontend/react` 3.0.0, a template's own major (its layout
+  moves every file: Redux Toolkit with RTK Query, Radix primitives on the global SCSS tree, features
+  by server module; [ADR 0007](docs/adr/0007-react-redux-rtk-scss.md)). The stacks, the other
+  templates and `schemaVersion` are unchanged; no tool change. The previous release, `v1.6.0`, a
+  minor, added `frontend/angular` 1.0.0 with the stacks `angular-bun-express` and
+  `angular-python-fastapi` and split the frontend contract into invariants
+  ([ADR 0006](docs/adr/0006-per-framework-frontends-and-angular.md)); it carried `frontend/next`
+  2.1.2, `frontend/react` 2.1.1, `server/bun-express` 2.4.3 and `server/python-fastapi` 1.2.2
+  (both servers cache a frontend's hashed build output immutable whatever its layout) and the
+  `.webmanifest` text type (placeholders only), a tool change, not a schema change. Before it,
+  `v1.5.1`, a patch (a `.gitignore` fix), had `frontend/next` 2.1.1, and `v1.5.0`, a minor, had
+  `frontend/next` 2.1.0 and `frontend/react` 2.1.0 (the screens checks and the signed-in screens
+  list). A template's `version` is bumped in `template.yaml`, `index.yaml` and its `CHANGELOG.md`
+  together.
