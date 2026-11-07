@@ -134,7 +134,8 @@ The contract is the ten invariants of [docs/conventions.md › Frontend](docs/co
 `› Frontend, single-page app` for an SPA), decided in
 [ADR 0006](docs/adr/0006-per-framework-frontends-and-angular.md). A template's layers, import rules,
 state, forms and design system are its own, written in its `base/AGENTS.md`; the catalog does not
-prescribe them. Two models: `frontend/react` (an SPA on shadcn and Tailwind) and `frontend/angular`
+prescribe them. Two models: `frontend/react` (an SPA on Redux Toolkit with RTK Query, Radix
+primitives and the global SCSS tree; [ADR 0007](docs/adr/0007-react-redux-rtk-scss.md)) and `frontend/angular`
 (an SPA on the global SCSS tree, signal stores and Hey API's Angular client). Take the nearer one.
 The checklist is what `validate` and the cases prove.
 
