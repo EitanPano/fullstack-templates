@@ -1,0 +1,40 @@
+// A placeholder bar; the variants are shapes, so a component never sets a size of its own.
+.skeleton {
+  display: block;
+  inline-size: 100%;
+  block-size: 1rem;
+  border-radius: var(--radius);
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base) 25%,
+    var(--skeleton-shine) 50%,
+    var(--skeleton-base) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shine 1.4s ease-in-out infinite;
+}
+
+.skeleton--short {
+  inline-size: 66%;
+}
+
+.skeleton--title {
+  inline-size: 33%;
+  block-size: 1.25rem;
+}
+
+.skeleton--row {
+  block-size: 3rem;
+}
+
+@keyframes skeleton-shine {
+  to {
+    background-position-x: -200%;
+  }
+}
+
+.skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

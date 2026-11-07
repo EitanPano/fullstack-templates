@@ -1,0 +1,84 @@
+@use '../setup/breakpoints';
+@use '../setup/functions';
+@use '../setup/mixins';
+@use '../setup/variables';
+
+.header {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: functions.z(header);
+  border-block-end: 1px solid var(--border);
+  background: var(--background);
+}
+
+.header__inner {
+  display: flex;
+  align-items: center;
+  gap: functions.space(2);
+  min-block-size: variables.$header-height;
+}
+
+.header__brand {
+  display: inline-flex;
+  align-items: center;
+  min-inline-size: 0;
+  padding-inline: functions.space(2);
+  border-radius: var(--radius);
+  overflow-wrap: anywhere;
+  color: var(--foreground);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+
+  @include mixins.control-height;
+}
+
+// The inline navigation: hidden below md, where the sheet holds the same entries.
+.header__nav {
+  display: none;
+  margin-inline-start: functions.space(4);
+
+  @include breakpoints.up(md) {
+    display: block;
+  }
+}
+
+// The account slot: whatever the layout is given (a user menu), pushed to the inline end.
+.header__account {
+  display: flex;
+  align-items: center;
+  gap: functions.space(2);
+  margin-inline-start: auto;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: functions.space(1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-links__link {
+  display: inline-flex;
+  align-items: center;
+  padding-inline: functions.space(3);
+  border-radius: var(--radius);
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+
+  &:hover {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  // aria-current is set by the router: it is both the semantics and the styling hook.
+  &[aria-current='page'] {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  @include mixins.control-height;
+}

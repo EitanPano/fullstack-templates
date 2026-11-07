@@ -1,0 +1,29 @@
+// The status card's loading shape matches the loaded one: a button-sized and a badge-sized bar.
+.system-status__skeleton-button {
+  inline-size: 6rem;
+  block-size: 2.25rem;
+
+  @media (pointer: coarse) {
+    block-size: 2.75rem;
+  }
+}
+
+.system-status__skeleton-badge {
+  inline-size: 14rem;
+  block-size: 1.5rem;
+  border-radius: 999px;
+}
+
+.refresh-icon--spinning {
+  animation: refresh-icon-turn 700ms linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes refresh-icon-turn {
+  to {
+    rotate: 1turn;
+  }
+}

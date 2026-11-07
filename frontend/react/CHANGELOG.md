@@ -1,5 +1,64 @@
 # Changelog
 
+## 3.0.0 — 2026-11-07
+
+The template's own structure on Redux Toolkit, RTK Query and global SCSS
+([ADR 0007](../../docs/adr/0007-react-redux-rtk-scss.md)). A breaking restructure: a project
+generated from 2.x does not upgrade in place.
+
+### Breaking
+
+- The layer map is React's own: `app/` (wiring), `core/` (configuration, the auth guards and hint,
+  the theme logic), `layout/` (the shell and the auth frame), `features/<module>/` (one directory
+  per server module or screen group, with its routes file, pages, components, form schemas and
+  copy), `store/` (Redux Toolkit slices, the listener middleware, the typed hooks), `services/`
+  (the RTK Query API, one endpoints file per server module, over the generated SDK), `shared/`
+  (components, utils), `models/` (one file per noun) and `styles/` (the global SCSS tree).
+  `widget/`, `feature/<action>/`, `entity/` and the Next-style `app/(group)/page.tsx` files are gone.
+- Pages are loaded with React Router's `lazy`, each its own chunk; after a redeploy an open tab
+  that asks for a chunk the new image no longer has reloads itself (`vite:preloadError`).
+- Removed without replacement: the `RequireRole` component (a staff route uses the `requireRole`
+  loader guard; a control hidden by role is a product decision). Renamed: `ThemeToggle` is
+  `ThemeMenu` in `layout/components/`; the shadcn `Field` family is `FieldFrame` in
+  `shared/components/form/`; the session's 30 s staleness is the client's
+  `refetchOnMountOrArgChange`, not a `SESSION_STALE_MS` constant. The `antialiased` body class is
+  gone with Tailwind.
+- Data: Redux Toolkit with RTK Query (`fakeBaseQuery` over the generated SDK, tags per server
+  module, the route loader prefetches through the store) replaces TanStack Query and the generated
+  query options. `call` returns `{ data } | { error: ApiError }` (a plain, serialisable object)
+  instead of throwing an `ActionError`; a hook exposes the error and `.unwrap()` rejects with it.
+- Styling: the global SCSS tree in `src/styles/` (`setup/`, `themes/`, `basics/`, `components/`,
+  `views/`) with BEM class names replaces Tailwind CSS and the shadcn components; the primitives
+  stay on Radix (`radix-ui`) and are rendered by `src/shared/components/`. The dark theme is
+  `[data-theme='dark']` on `<html>` (was the `dark` class); `theme-init.js` and the theme listener
+  write the resolved value. The generated brand tokens live in `src/styles/themes/brand.css`.
+  Tailwind, `@tailwindcss/vite`, `tw-animate-css`, `tailwind-merge`, `class-variance-authority`
+  and `components.json` are removed; no scaffolder is allowed.
+- The generated client lives in `src/services/generated/` (was `src/shared/api/generated/`), with
+  the plugins typescript, client-fetch, sdk and zod; its runtime is imported only by `services/`,
+  its types only by `services/`, `store/`, `core/` and `models/`.
+- Unit tests are co-located (`src/**/*.test.tsx`); `tests/unit/` keeps the tooling checks (the
+  boundaries lint, the styles-tree scan, the density compile, the Playwright and e2e-database
+  configs). `SIGNED_IN_ROUTES` moves to `tests/e2e/screen-routes.ts`.
+- The import rules are the new table in `AGENTS.md`, enforced by `eslint-plugin-boundaries` with a
+  seeded violation and an allowed case per row; a `style` attribute and a stylesheet import outside
+  `main.tsx` are lint and test errors.
+
+### Added
+
+- `store/theme.slice.ts` with a listener that applies the theme, persists a user's choice (never
+  the brand default) and follows the OS while the choice is `system`; `createStore()` is a factory,
+  so a test owns a fresh store.
+- `src/testing/` with `renderRoutes` (a memory router over the real route table and a fresh store)
+  and `stubApi`.
+
+### Unchanged
+
+- The e2e suite's journeys and assertions (shell landmarks, skip link, 44 px targets, the 36 and
+  32 px densities, every screen in both themes under axe, the auth journeys), the `phone` and
+  `desktop` projects, `vite build && vite preview`, the `Dockerfile`, nginx, the Compose fragments,
+  the deploy modes, the brand placeholders and the `check` command.
+
 ## 2.1.1 — 2026-10-29
 
 ### Fixed

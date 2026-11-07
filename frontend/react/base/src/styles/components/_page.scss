@@ -1,0 +1,49 @@
+@use '../setup/breakpoints';
+@use '../setup/functions';
+
+// The vertical rhythm inside main: one gap between the header and each section.
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: functions.space(6);
+}
+
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: functions.space(3);
+
+  @include breakpoints.up(sm) {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+}
+
+.page-header__title {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+}
+
+.page-header__description {
+  margin-block-start: functions.space(1);
+  color: var(--muted-foreground);
+}
+
+.page-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: functions.space(2);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: functions.space(3);
+}
+
+.section__title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}

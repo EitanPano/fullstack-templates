@@ -1,0 +1,14 @@
+.separator {
+  flex: none;
+  background: var(--border);
+
+  &[data-orientation='horizontal'] {
+    inline-size: 100%;
+    block-size: 1px;
+  }
+
+  &[data-orientation='vertical'] {
+    inline-size: 1px;
+    block-size: 100%;
+  }
+}

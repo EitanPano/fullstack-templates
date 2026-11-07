@@ -12,8 +12,8 @@ export default function RootError() {
   }, [error])
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-4 p-8">
-      <h1 className="text-2xl font-semibold">Something went wrong</h1>
+    <main className="root-error">
+      <h1 className="root-error__title">Something went wrong</h1>
       <p>The app could not be shown. Reload the page, or try again later.</p>
     </main>
   )

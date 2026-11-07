@@ -1,0 +1,115 @@
+@use '../setup/breakpoints';
+@use '../setup/functions';
+
+// Radix Dialog as a centred modal; the sheet is the side-panel sibling. A phone gets it nearly
+// full width.
+.dialog__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: functions.z(overlay);
+  background: var(--backdrop);
+
+  &[data-state='open'] {
+    animation: dialog-fade-in 150ms ease;
+  }
+}
+
+.dialog {
+  --dialog-max: 32rem;
+
+  position: fixed;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  z-index: functions.z(overlay);
+  display: grid;
+  gap: functions.space(4);
+  inline-size: calc(100% - #{functions.space(8)});
+  max-inline-size: var(--dialog-max);
+  max-block-size: 90dvh;
+  padding: functions.space(6);
+  overflow-y: auto;
+  // The centre point is symmetric, so rtl needs no flip.
+  translate: -50% -50%;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-2);
+
+  &[data-state='open'] {
+    animation: dialog-in 150ms ease;
+  }
+}
+
+.dialog--sm {
+  --dialog-max: 24rem;
+}
+
+.dialog--lg {
+  @include breakpoints.up(md) {
+    --dialog-max: 48rem;
+  }
+}
+
+.dialog__header {
+  display: grid;
+  gap: functions.space(1);
+  // Room for the close button at the inline end.
+  padding-inline-end: functions.space(8);
+}
+
+.dialog__title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.dialog__description {
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+}
+
+.dialog__footer {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: functions.space(2);
+
+  .button {
+    inline-size: 100%;
+  }
+
+  @include breakpoints.up(md) {
+    flex-direction: row;
+    justify-content: flex-end;
+
+    .button {
+      inline-size: auto;
+    }
+  }
+}
+
+// The button's own size rules give it 36 px, and 44 px on a coarse pointer.
+.dialog__close {
+  position: absolute;
+  inset-block-start: functions.space(3);
+  inset-inline-end: functions.space(3);
+}
+
+@keyframes dialog-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog__overlay[data-state='open'],
+  .dialog[data-state='open'] {
+    animation: none;
+  }
+}

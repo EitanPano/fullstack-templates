@@ -50,7 +50,9 @@ Each decision lists what it costs.
 
 Amended by [ADR 0006](0006-per-framework-frontends-and-angular.md): the five layers are the shape
 of `react` and `next` only, now written in their `AGENTS.md` rather than in
-`docs/conventions.md`; each framework has its own layout.
+`docs/conventions.md`; each framework has its own layout. Amended again by
+[ADR 0007](0007-react-redux-rtk-scss.md): from `react` 3.0.0 the five layers are `next`'s only;
+React's tree is ADR 0007 R1 (`features/<module>` mirroring the server, `store/`, `services/`).
 
 Both templates use five layers under `src/`:
 
@@ -139,7 +141,9 @@ makes the map mechanical, which is what made the server template work.
 
 Amended by [ADR 0006](0006-per-framework-frontends-and-angular.md): shadcn on Tailwind is the
 design system of `react` and `next` only. The conventions keep the tokens' names and contrast
-checks (invariant 6), and a SPA template may style from a global SCSS tree (`angular`).
+checks (invariant 6), and a SPA template may style from a global SCSS tree (`angular`). Amended
+again by [ADR 0007](0007-react-redux-rtk-scss.md): from `react` 3.0.0 shadcn on Tailwind is
+`next`'s only; React renders Radix primitives from `shared/components/` styled by its SCSS tree.
 
 Primitives are shadcn/ui on Radix, with `cva` variants and `tailwind-merge` through `cn`, copied
 into `shared/ui/`. `components.json` maps `ui` to `@/shared/ui` and `utils` to `@/shared/lib/cn`.
@@ -298,6 +302,11 @@ which ends copied limits and hand-written narrowing.
 
 ### F6. Mutations
 
+Amended by [ADR 0007](0007-react-redux-rtk-scss.md): from `react` 3.0.0 a React mutation is an
+RTK Query endpoint in `services/<module>.api.ts` with `invalidatesTags`; the component awaits
+`.unwrap()` and `call` returns a plain `ApiError` instead of throwing. The SPA paragraphs below
+describe `react` 2.x.
+
 In Next, `shared/lib/safe-action.ts` holds the action client (next-safe-action 8.7.3, exact):
 
 - `action`, and, with `server:auth`, `accountAction` and `roleAction(role)`. The account
@@ -339,6 +348,10 @@ Cost: forms need JavaScript. Progressive enhancement through `useActionState` or
 but both templates are app UIs, and React Hook Form is the one form library both can share.
 
 ### F8. Reads and caching
+
+Amended by [ADR 0007](0007-react-redux-rtk-scss.md): from `react` 3.0.0 a React read is an RTK
+Query endpoint with `providesTags`, prefetched by the route loader through the store and read by the
+generated hook; TanStack Query and the query-options files are `react` 2.x.
 
 **Next.** `cacheComponents: true` (with `partialPrefetching` set explicitly, which silences a build
 warning). A public read is a `'use cache'` loader with `cacheTag('<entity>')` and a `cacheLife`

@@ -18,7 +18,8 @@ describe('playwright.config.ts', () => {
     // A CI variable exported empty must not become the origin ('' would start servers on no URL).
     const config = await load({ E2E_BASE_URL: '   ', E2E_DATABASE_URL: 'postgres://u:p@h/app_e2e' })
 
-    expect(config.use?.baseURL).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)
+    // In the template the port is still the generator's placeholder.
+    expect(config.use?.baseURL).toMatch(/^http:\/\/127\.0\.0\.1:(\d+|__PORT__)$/)
     expect(config.webServer).toBeDefined()
   })
 

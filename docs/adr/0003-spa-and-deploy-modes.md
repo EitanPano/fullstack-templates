@@ -91,6 +91,11 @@ the loader checks that it is present, and the app smoke (M5-8) proves that the `
 
 ### M5-2. The React template
 
+Amended by [ADR 0007](0007-react-redux-rtk-scss.md): from `react` 3.0.0 the template is on
+Redux Toolkit with RTK Query, Hey API's flat SDK and zod, Radix primitives styled by a global SCSS
+tree, with its own layer map (`app/`, `core/`, `layout/`, `features/`, `store/`, `services/`,
+`shared/`, `models/`, `styles/`). The libraries below describe 1.x and 2.x.
+
 - **Libraries.** React 19 (the version `next` pins, 19.3.0), React Router 8 (8.5.0) in data mode, Vite with
   `@vitejs/plugin-react`, Tailwind 4 through `@tailwindcss/vite`, sonner, lucide-react,
   openapi-fetch with openapi-typescript, zod, Vitest with Testing Library and jsdom, Playwright with

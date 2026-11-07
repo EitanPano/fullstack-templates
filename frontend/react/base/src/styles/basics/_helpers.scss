@@ -1,0 +1,44 @@
+@use '../setup/breakpoints';
+@use '../setup/functions';
+@use '../setup/mixins';
+@use '../setup/variables';
+
+.visually-hidden {
+  @include mixins.visually-hidden;
+}
+
+// First in tab order; off screen until it takes focus. It is 44 px tall on any pointer, because
+// it is the one control a keyboard user always meets.
+.skip-link {
+  position: absolute;
+  inset-block-start: functions.space(2);
+  inset-inline-start: functions.space(2);
+  z-index: functions.z(skip-link);
+  display: inline-flex;
+  align-items: center;
+  min-block-size: variables.$touch-target;
+  padding-inline: functions.space(4);
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  text-decoration: none;
+  translate: 0 -200%;
+
+  &:focus,
+  &:focus-visible {
+    translate: 0;
+  }
+
+  @include mixins.touch-target;
+}
+
+.container {
+  inline-size: 100%;
+  max-inline-size: variables.$container-max;
+  margin-inline: auto;
+  padding-inline: functions.space(4);
+
+  @include breakpoints.up(md) {
+    padding-inline: functions.space(8);
+  }
+}

@@ -1,0 +1,62 @@
+@use '../setup/functions';
+@use '../setup/mixins';
+
+// Text-like controls (input, textarea) share the box below; the select trigger has its own partial.
+.control {
+  position: relative;
+}
+
+.control__field {
+  display: block;
+  inline-size: 100%;
+  padding-block: functions.space(1);
+  padding-inline: functions.space(3);
+  border: 1px solid var(--input);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+
+  // The size, then the touch floor: the floor comes last in every rule that sets a size.
+  @include mixins.control-height;
+
+  &::placeholder {
+    color: var(--muted-foreground);
+  }
+
+  &:focus-visible {
+    @include mixins.focus-ring;
+  }
+
+  &:disabled,
+  &:read-only:not(select) {
+    background: var(--surface-2);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &[aria-invalid='true'] {
+    border-color: var(--destructive);
+  }
+}
+
+textarea.control__field {
+  min-block-size: 5rem;
+  padding-block: functions.space(2);
+  resize: vertical;
+}
+
+// The password box leaves room for its show/hide button at the inline end.
+.control--toggle .control__field {
+  padding-inline-end: 3rem;
+}
+
+.control__toggle {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+}

@@ -1,30 +1,25 @@
-import type { QueryClient } from '@tanstack/react-query'
 import { Outlet, type RouteObject } from 'react-router'
 
-import { healthQuery } from '@/entity/health/api/health'
-import { redirectIfSignedIn, requireAccount, returnToOf } from '@/shared/auth/session' // @server:auth
-
-import AuthError from './(auth)/error' // @server:auth
-import AuthLayout from './(auth)/layout' // @server:auth
-import AuthLoading from './(auth)/loading' // @server:auth
-import SignInPage from './(auth)/sign-in/page' // @server:auth
-import SignUpPage from './(auth)/sign-up/page' // @server:auth
-import SiteError from './(site)/error'
-import ForbiddenPage from './(site)/forbidden/page' // @server:auth
-import SiteLayout from './(site)/layout'
-import SiteLoading from './(site)/loading'
-import SiteNotFound from './(site)/not-found'
-import HomePage from './(site)/page'
-import ProfilePage from './(site)/profile/page' // @server:auth
-import RootError from './root-error'
+import { NAV } from '@/app/nav'
+import RootError from '@/app/root-error'
+import { authRoutes } from '@/features/auth/auth.routes' // @server:auth
+import { forbiddenRoutes } from '@/features/forbidden/forbidden.routes' // @server:auth
+import { healthRoutes } from '@/features/health/health.routes'
+import { notFoundRoutes } from '@/features/not-found/not-found.routes'
+import { userRoutes } from '@/features/user/user.routes' // @server:auth
+import { AuthError } from '@/layout/auth-layout/auth-error' // @server:auth
+import { AuthLayout } from '@/layout/auth-layout/auth-layout' // @server:auth
+import { AuthLoading } from '@/layout/auth-layout/auth-loading' // @server:auth
+import { MainError } from '@/layout/main-layout/main-error'
+import { MainLayout } from '@/layout/main-layout/main-layout'
+import { MainLoading } from '@/layout/main-layout/main-loading'
+import type { AppStore } from '@/store'
 
 // The route table: paths to components and loaders, nothing else. A route group is a pathless
 // route with its own HydrateFallback (loading) and ErrorBoundary (error), nested inside the
-// group's layout so a failure renders inside the shell. A loader calls `queryClient.query` for
-// what the page's widgets read (it returns cached data younger than the stale time, else fetches);
-// the widgets then suspend on the same query. The query client is passed in so a test can render
-// the table against its own.
-export function createRoutes(queryClient: QueryClient): RouteObject[] {
+// group's layout so a failure renders inside the shell. It is a function of the store so a test
+// renders the table against its own.
+export function createRoutes(store: AppStore): RouteObject[] {
   return [
     {
       path: '/',
@@ -32,28 +27,18 @@ export function createRoutes(queryClient: QueryClient): RouteObject[] {
       ErrorBoundary: RootError,
       children: [
         {
-          Component: SiteLayout,
+          element: <MainLayout nav={NAV} />,
           children: [
             {
               // React Router shows the nearest HydrateFallback at or above the first route whose
               // loader is still pending, so this one covers every page below it.
-              HydrateFallback: SiteLoading,
-              ErrorBoundary: SiteError,
+              HydrateFallback: MainLoading,
+              ErrorBoundary: MainError,
               children: [
-                {
-                  index: true,
-                  loader: () => queryClient.query(healthQuery()),
-                  Component: HomePage,
-                },
-                // @server:auth-start
-                {
-                  path: 'profile',
-                  loader: ({ request }) => requireAccount(queryClient, returnToOf(request)),
-                  Component: ProfilePage,
-                },
-                { path: 'forbidden', Component: ForbiddenPage },
-                // @server:auth-end
-                { path: '*', Component: SiteNotFound },
+                ...healthRoutes(store),
+                ...userRoutes(store), // @server:auth
+                ...forbiddenRoutes(), // @server:auth
+                ...notFoundRoutes(),
               ],
             },
           ],
@@ -65,18 +50,7 @@ export function createRoutes(queryClient: QueryClient): RouteObject[] {
             {
               HydrateFallback: AuthLoading,
               ErrorBoundary: AuthError,
-              children: [
-                {
-                  path: 'sign-in',
-                  loader: () => redirectIfSignedIn(queryClient),
-                  Component: SignInPage,
-                },
-                {
-                  path: 'sign-up',
-                  loader: () => redirectIfSignedIn(queryClient),
-                  Component: SignUpPage,
-                },
-              ],
+              children: authRoutes(store),
             },
           ],
         },

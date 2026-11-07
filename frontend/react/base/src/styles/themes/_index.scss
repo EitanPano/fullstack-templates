@@ -1,0 +1,6 @@
+@use 'light';
+@use 'dark';
+
+// The generated brand tokens (the light and dark blocks, --radius, color-scheme) live in
+// brand.css, which main.tsx loads before styles.scss. They sit in plain CSS because their
+// placeholders are bare declaration blocks that Sass cannot parse before the generator fills them.
