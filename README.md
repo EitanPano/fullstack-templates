@@ -32,11 +32,14 @@ template finds the same shape.
 | --- | --- | --- | --- | --- | --- |
 | `bun-express` | server | 2.4.2 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
 | `python-fastapi` | server | 1.2.1 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
-| `next` | frontend | 2.1.1 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
+| `angular` | frontend | 1.0.0 | i18n, pwa | — | Angular 22 single-page app on standalone components and signals, @ngrx/signals stores, global SCSS and Hey API's Angular client, with Transloco and the service worker behind flags |
+| `next` | frontend | 2.1.2 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
 | `react` | frontend | 2.1.1 | — | — | Vite and React 19 single-page app on the frontend foundation: React Router data mode, shadcn/ui, TanStack Query and a client generated from the server's contract |
 
 | Stack | Packages | Summary |
 | --- | --- | --- |
+| `angular-bun-express` | `server/bun-express`, `frontend/angular` | Angular 22 in front of Express 5 on Bun |
+| `angular-python-fastapi` | `server/python-fastapi`, `frontend/angular` | Angular 22 in front of FastAPI on Python 3.14 |
 | `next-bun-express` | `server/bun-express`, `frontend/next` | Next.js 16 in front of Express 5 on Bun |
 | `next-python-fastapi` | `server/python-fastapi`, `frontend/next` | Next.js 16 in front of FastAPI on Python 3.14 |
 | `react-bun-express` | `server/bun-express`, `frontend/react` | React 19 (Vite) in front of Express 5 on Bun |
@@ -64,15 +67,15 @@ Each template lives in `<kind>/<id>/` and is described by a `template.yaml` mani
 holds the files copied over the base and the scripts and commands they add, and the provider's
 Compose service and env contract in `shared/providers/` are wired into the project root.
 `bun-express` and `python-fastapi` ship `database/postgres`. A frontend that declares a `static`
-build output (`react`) can be served by a server's image; `next` cannot. See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/capabilities.md](docs/capabilities.md).
+build output (`react`, `angular`) can be served by a server's image; `next` cannot. See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/capabilities.md](docs/capabilities.md).
 
 ## Deploy modes
 
 A project with a server and a frontend ships in one of two modes, chosen with
 `--deploy single|split` and recorded in `.fullstack/catalog.yaml`. `single` puts the server and a
 single-page app's built files in one image on one port, with no CORS; it is the default for a
-React stack and needs Docker Compose 2.35.0 or later. `split` gives each package its own image and
-puts the frontend in front. Next.js stacks are always `split`. See
+React or Angular stack and needs Docker Compose 2.35.0 or later. `split` gives each package its
+own image and puts the frontend in front. Next.js stacks are always `split`. See
 [docs/conventions.md › Deploy modes](docs/conventions.md) and
 [ADR 0003](docs/adr/0003-spa-and-deploy-modes.md).
 
@@ -107,6 +110,16 @@ cd ../frontend && bun run check
 
 `react-bun-express` is the same frontend over Express on Bun. The Next.js stacks are
 `next-bun-express` and `next-python-fastapi`.
+
+An Angular 22 single-page app, in front of either server:
+
+```sh
+bun tools/generate.ts --stack angular-bun-express --out ../my-app --name my-app
+cd ../my-app/backend && bun run check
+cd ../frontend && bun run check
+```
+
+`angular-python-fastapi` is the same frontend over FastAPI.
 
 The generator copies each package's base, applies the flags, assembles the root
 `docker-compose.yml`, installs dependencies, generates the contract and the client types,

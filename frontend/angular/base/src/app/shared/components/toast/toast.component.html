@@ -1,0 +1,36 @@
+<div
+  class="toast-list"
+  aria-live="polite"
+  (mouseenter)="hover(true)"
+  (mouseleave)="hover(false)"
+  (focusin)="focus(true)"
+  (focusout)="focus(false)"
+>
+  @for (toast of toasts(); track toast.id) {
+    <div
+      class="toast toast--{{ toast.kind }}"
+      [attr.role]="toast.kind === 'error' ? 'alert' : 'status'"
+    >
+      <app-icon [name]="icon(toast.kind)" />
+      <p class="toast__message">{{ toast.messageKey | t: toast.params }}</p>
+      @if (toast.action; as action) {
+        <app-button
+          class="toast__action"
+          variant="ghost"
+          size="sm"
+          (click)="run(toast.id, action.run)"
+        >
+          {{ action.labelKey | t }}
+        </app-button>
+      }
+      <app-button
+        variant="ghost"
+        size="icon"
+        [ariaLabel]="'actions.dismiss' | t"
+        (click)="dismissed.emit(toast.id)"
+      >
+        <app-icon name="close" />
+      </app-button>
+    </div>
+  }
+</div>

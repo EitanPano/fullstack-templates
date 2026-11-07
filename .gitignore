@@ -2,6 +2,10 @@
 node_modules/
 .superpowers/
 .next/
+.angular/
+dist/
+playwright-report/
+test-results/
 *.tsbuildinfo
 next-env.d.ts
 

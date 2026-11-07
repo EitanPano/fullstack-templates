@@ -1,0 +1,104 @@
+schemaVersion: 1
+id: angular
+kind: frontend
+name: Angular 22 SPA
+version: 1.0.0
+summary: "Angular 22 single-page app on standalone components and signals, @ngrx/signals stores, global SCSS and Hey API's Angular client, with Transloco and the service worker behind flags"
+runtime: { language: typescript, platform: node, minVersion: "24" }
+tools:
+  - { name: bun, min: "1.4" }
+  - { name: node, min: "24" }
+placeholders: [PROJECT_NAME]
+dependencies: { manifest: package.json, adapter: npm }
+commands:
+  install: bun install
+  dev: bun run dev
+  check: bun run check
+  typecheck: bun run typecheck
+  lint: bun run lint
+  format: bun run format
+  test: bun run test
+  testE2e: bun run test:e2e
+  contract: bun run api:types
+contract: { consumes: "<server>/openapi.json" }
+http: { port: 4200, health: / }
+static: { out: dist }
+gitignore: [node, angular]
+agents: AGENTS.md
+defaultStack: angular-bun-express
+postGenerate:
+  - install
+  - contract
+  - format
+flags:
+  i18n:
+    summary: "Transloco with English and Hebrew (RTL), a language toggle and runtime-loaded copy tables"
+    default: true
+    onlyPaths:
+      - src/app/core/i18n/i18n.config.ts
+      - src/app/core/i18n/language.service.spec.ts
+      - src/app/core/i18n/language.service.ts
+      - src/app/core/i18n/languages.ts
+      - src/app/core/i18n/missing-key.handler.spec.ts
+      - src/app/core/i18n/missing-key.handler.ts
+      - src/app/core/i18n/translations/he.json
+      - src/app/core/i18n/transloco-http.loader.spec.ts
+      - src/app/core/i18n/transloco-http.loader.ts
+      - src/app/core/initializers/i18n.initializer.spec.ts
+      - src/app/core/initializers/i18n.initializer.ts
+      - tests/unit/translation-parity.spec.ts
+    dependencies:
+      remove: ["@jsverse/transloco"]
+  pwa:
+    summary: "Installable app: web manifest, icons, the Angular service worker with update and install prompts"
+    default: true
+    onlyPaths:
+      - public/icons/apple-touch-icon.png
+      - public/icons/icon-192.png
+      - public/icons/icon-512.png
+      - public/icons/icon.svg
+      - public/icons/maskable-512.png
+      - public/manifest.webmanifest
+      - src/app/core/initializers/pwa.initializer.spec.ts
+      - src/app/core/initializers/pwa.initializer.ts
+      - src/app/core/providers/app-update.service.spec.ts
+      - src/app/core/providers/app-update.service.ts
+      - src/app/core/providers/install-prompt.service.spec.ts
+      - src/app/core/providers/install-prompt.service.ts
+onlyWhen:
+  server:auth:
+    - src/app/core/guards/auth-guards.spec.ts
+    - src/app/core/guards/auth.guard.ts
+    - src/app/core/guards/role.guard.ts
+    - src/app/core/initializers/session.initializer.spec.ts
+    - src/app/core/initializers/session.initializer.ts
+    - src/app/core/interceptors/auth.interceptor.spec.ts
+    - src/app/core/interceptors/auth.interceptor.ts
+    - src/app/features/auth
+    - src/app/features/forbidden
+    - src/app/features/user
+    - src/app/layout/auth-layout
+    - src/app/models/user
+    - src/app/services/auth.service.spec.ts
+    - src/app/services/auth.service.ts
+    - src/app/services/user.service.spec.ts
+    - src/app/services/user.service.ts
+    - src/app/shared/components/auth-card
+    - src/app/shared/utils/next-path.spec.ts
+    - src/app/shared/utils/next-path.ts
+    - src/app/store/auth.store.spec.ts
+    - src/app/store/auth.store.ts
+    - src/app/store/user.store.spec.ts
+    - src/app/store/user.store.ts
+    - src/styles/components/_auth-card.scss
+    - src/styles/components/_auth-layout.scss
+    - src/styles/views/_forbidden.scss
+    - src/styles/views/_login.scss
+    - src/styles/views/_profile.scss
+    - src/styles/views/_register.scss
+    - src/styles/views/_verify-otp.scss
+    - tests/e2e/auth-support.ts
+    - tests/e2e/auth.spec.ts
+  server:database:
+    - scripts/e2e-database-url.ts
+    - tests/unit/e2e-database-url.spec.ts

@@ -1,0 +1,20 @@
+@use 'sass:map';
+@use 'variables';
+
+// Reads the spacing scale: `space(4)` is 16 px.
+@function space($step) {
+  @if not map.has-key(variables.$spacing, $step) {
+    @error 'Unknown spacing step `#{$step}`.';
+  }
+
+  @return map.get(variables.$spacing, $step);
+}
+
+// Reads the stacking order: `z(header)`.
+@function z($layer) {
+  @if not map.has-key(variables.$z-index, $layer) {
+    @error 'Unknown stacking layer `#{$layer}`.';
+  }
+
+  @return map.get(variables.$z-index, $layer);
+}

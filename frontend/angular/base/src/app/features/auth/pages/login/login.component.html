@@ -1,0 +1,23 @@
+<app-auth-card [heading]="'auth.login.title' | t" [description]="'auth.login.description' | t">
+  <form class="login__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <app-form-field [label]="'auth.email' | t">
+      <app-input
+        appAutofocus
+        formControlName="email"
+        type="email"
+        autocomplete="email"
+        inputmode="email"
+      />
+    </app-form-field>
+    <app-form-field [label]="'auth.password' | t">
+      <app-input formControlName="password" type="password" autocomplete="current-password" />
+    </app-form-field>
+    <app-form-actions submitKey="auth.login.submit" [pending]="store.loading()" />
+  </form>
+  <p footer class="login__alt">
+    {{ 'auth.login.noAccount' | t }}
+    <a routerLink="/auth/register" [queryParams]="next() ? { next: next() } : null">{{
+      'auth.login.registerLink' | t
+    }}</a>
+  </p>
+</app-auth-card>

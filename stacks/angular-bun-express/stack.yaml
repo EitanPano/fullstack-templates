@@ -1,0 +1,8 @@
+schemaVersion: 1
+id: angular-bun-express
+summary: Angular 22 in front of Express 5 on Bun
+packages:
+  - template: server/bun-express
+    dir: backend
+  - template: frontend/angular
+    dir: frontend

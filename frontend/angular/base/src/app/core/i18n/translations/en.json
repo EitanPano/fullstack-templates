@@ -1,0 +1,175 @@
+{
+  "app": {
+    "skipToContent": "Skip to content",
+    "loading": "Loading"
+  },
+  "nav": {
+    "primary": "Primary",
+    "open": "Open navigation",
+    "close": "Close navigation",
+    "home": "Home"
+  },
+  "shell": {
+    "offline": "Offline",
+    "footer": "© {{year}} {{name}}"
+  },
+  "language": {
+    "toggle": "Switch language to {{name}}",
+    "current": "Language: {{name}}",
+    "name": {
+      "en": "English",
+      "he": "עברית"
+    }
+  },
+  "theme": {
+    "toggle": "Theme: {{current}}. Switch to {{next}}.",
+    "current": "{{current}} theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "errors": {
+    "unexpected": "Something went wrong. Please try again.",
+    "title": "Something went wrong",
+    "description": "The page could not be shown. Try again in a moment.",
+    "required": "This field is required",
+    "email": "Enter a valid email address",
+    "minlength": "Enter at least {{min}} characters",
+    "maxlength": "Enter at most {{max}} characters",
+    "min": "Enter {{min}} or more",
+    "max": "Enter {{max}} or less",
+    "pattern": "Enter a value in the expected format",
+    "invalid": "This value is not valid",
+    "validation_failed": "Check the form and try again.",
+    "unauthenticated": "Your session has expired. Sign in again.",
+    "forbidden": "You do not have access to this.",
+    "not_found": "We could not find that.",
+    "conflict": "That conflicts with something that already exists.",
+    "payload_too_large": "That is too large to send.",
+    "unsupported_media_type": "That kind of file is not supported.",
+    "rate_limited": "Too many attempts. Wait a few minutes and try again.",
+    "internal": "Something went wrong on our side. Try again.",
+    "upstream_unavailable": "The service is unavailable right now. Try again in a moment.",
+    "network": "Cannot reach the server. Check your connection and try again.",
+    "unknown": "Something went wrong. Please try again.",
+    "validation": "Check the file and try again.",
+    "offline": "You are offline. Reconnect and try again.",
+    "match": "The values do not match"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page you are looking for does not exist or has moved.",
+    "home": "Back to the home page"
+  },
+  "actions": {
+    "retry": "Try again",
+    "dismiss": "Dismiss"
+  },
+  "form": {
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "charactersLeft": "{{count}} characters left"
+  },
+  "table": {
+    "empty": "Nothing to show yet",
+    "caption": "Table"
+  },
+  "modal": {
+    "close": "Close",
+    "confirm": "Confirm",
+    "cancel": "Cancel"
+  },
+  "health": {
+    "title": "System status",
+    "description": "Whether the server is up and answering.",
+    "refresh": "Refresh",
+    "version": "Version",
+    "uptime": "Uptime",
+    "uptimeValue": "{{seconds}} seconds",
+    "checked": "Last checked",
+    "status": {
+      "label": "Status",
+      "ok": "Operational",
+      "degraded": "Degraded"
+    }
+  },
+  "pwa": {
+    "updateReady": "A new version is ready.",
+    "reload": "Reload",
+    "unrecoverable": "The app got out of step with the server. Reload to continue.",
+    "install": "Install app",
+    "iosHint": "To install this app, tap Share, then Add to Home Screen."
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Password",
+    "confirm": "Confirm password",
+    "login": {
+      "title": "Sign in",
+      "description": "Welcome back. Sign in to continue.",
+      "submit": "Sign in",
+      "noAccount": "No account yet?",
+      "registerLink": "Create an account",
+      "invalid": "The email or password is incorrect."
+    },
+    "register": {
+      "title": "Create your account",
+      "description": "Use your email and a password of at least 8 characters.",
+      "submit": "Create account",
+      "hasAccount": "Already have an account?",
+      "loginLink": "Sign in",
+      "conflict": "An account with this email already exists."
+    },
+    "otp": {
+      "title": "Verify your email",
+      "description": "We will send a six-digit code to {{email}}.",
+      "send": "Send code",
+      "resend": "Send a new code",
+      "sent": "Code sent. Check your inbox.",
+      "code": "Verification code",
+      "hint": "The six digits we emailed you.",
+      "verify": "Verify",
+      "verified": "Your email is verified.",
+      "back": "Back to profile"
+    },
+    "menu": {
+      "label": "Account menu",
+      "profile": "Profile",
+      "signOut": "Sign out",
+      "signIn": "Sign in"
+    }
+  },
+  "role": {
+    "user": "Member",
+    "admin": "Administrator"
+  },
+  "profile": {
+    "title": "Your profile",
+    "description": "Your account details.",
+    "email": "Email",
+    "role": "Role",
+    "created": "Account created",
+    "verification": "Email",
+    "verified": "Verified",
+    "unverified": "Not verified",
+    "verify": "Verify now",
+    "phone": "Phone number",
+    "phoneHint": "With the country code, like +14155550132. Leave empty to remove it.",
+    "save": "Save",
+    "saved": "Your profile is saved."
+  },
+  "forbidden": {
+    "title": "No access",
+    "description": "Your account does not have access to this page.",
+    "home": "Back to the home page"
+  },
+  "guards": {
+    "unsaved": {
+      "title": "Leave without saving?",
+      "message": "You have changes that are not saved. If you leave, they are lost.",
+      "leave": "Leave"
+    }
+  }
+}

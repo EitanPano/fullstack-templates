@@ -1,0 +1,20 @@
+<div class="control control--select">
+  <select
+    class="control__field"
+    [id]="controlId"
+    [disabled]="disabled()"
+    [attr.aria-invalid]="invalid() ? 'true' : null"
+    [attr.aria-describedby]="describedBy()"
+    (change)="onSelect($event)"
+    (blur)="touch()"
+  >
+    @if (emptyKey(); as key) {
+      <option value="" [selected]="value() === ''">{{ key | t }}</option>
+    }
+    @for (option of options(); track option.value) {
+      <option [value]="option.value" [selected]="option.value === value()">
+        {{ option.labelKey | t }}
+      </option>
+    }
+  </select>
+</div>

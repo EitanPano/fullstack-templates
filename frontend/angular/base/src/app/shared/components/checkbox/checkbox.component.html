@@ -1,0 +1,14 @@
+<label class="checkbox" [attr.for]="controlId">
+  <input
+    class="checkbox__box"
+    type="checkbox"
+    [id]="controlId"
+    [checked]="value()"
+    [disabled]="disabled()"
+    [attr.aria-invalid]="invalid() ? 'true' : null"
+    [attr.aria-describedby]="describedBy()"
+    (change)="onToggle($event)"
+    (blur)="touch()"
+  />
+  <span class="checkbox__label"><ng-content /></span>
+</label>

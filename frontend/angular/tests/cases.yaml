@@ -1,0 +1,46 @@
+schemaVersion: 1
+cases:
+  - name: default
+    stack: angular-bun-express
+    deploy: single
+    withApp: true
+  - name: split
+    stack: angular-bun-express
+    deploy: split
+    withApp: true
+  - name: python
+    stack: angular-python-fastapi
+    deploy: single
+    withApp: true
+  - name: alone
+  - name: auth-off
+    stack: angular-bun-express
+    deploy: single
+    server: { flags: { auth: false } }
+  - name: postgres
+    stack: angular-bun-express
+    deploy: single
+    server: { capabilities: { database: postgres } }
+  - name: i18n-off
+    stack: angular-bun-express
+    deploy: single
+    flags: { i18n: false }
+  - name: pwa-off
+    stack: angular-bun-express
+    deploy: single
+    flags: { pwa: false }
+  - name: flags-off
+    stack: angular-bun-express
+    deploy: single
+    flags: { i18n: false, pwa: false }
+  # Non-default brand values through every gate: the cases above all generate the default brand.
+  - name: brand
+    stack: angular-bun-express
+    deploy: single
+    brand:
+      primary: '#ea580c'
+      neutral: '#64748b'
+      radius: sm
+      font: inter
+      theme: light
+      density: compact

@@ -1,0 +1,9 @@
+dist/
+.angular/
+node_modules/
+playwright-report/
+test-results/
+coverage/
+src/app/services/generated/
+src/styles/themes/brand.css
+bun.lock

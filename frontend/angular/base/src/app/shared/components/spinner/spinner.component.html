@@ -1,0 +1,8 @@
+@if (decorative()) {
+  <span class="spinner" aria-hidden="true"><span class="spinner__ring"></span></span>
+} @else {
+  <span class="spinner" role="status">
+    <span class="spinner__ring" aria-hidden="true"></span>
+    <span class="visually-hidden">{{ labelKey() | t }}</span>
+  </span>
+}
