@@ -183,6 +183,11 @@ stack; production does not refuse its credentials if you export them.
 - v1.5.1: the root `.gitignore` of a React or Bun-only project no longer lists `.next/` and
   `next-env.d.ts`; they live in a `next` section that only `frontend/next` 2.1.1 declares
   (`frontend/react` 2.1.1 and `server/bun-express` 2.4.2 pick up the smaller `node` section).
+- v1.6.0: the Angular 22 SPA template ([ADR 0006](docs/adr/0006-per-framework-frontends-and-angular.md)):
+  `frontend/angular` 1.0.0 with the `i18n` and `pwa` flags and the stacks `angular-bun-express` and
+  `angular-python-fastapi`; the frontend contract split into framework-neutral invariants;
+  `frontend/next` 2.1.2 (two rules moved into its `AGENTS.md`); `.webmanifest` placeholders and the
+  `.angular/` copy exclude in the generator.
 - Next: mongodb, redis, and a worker with rabbitmq.
 
 The design is in [ADR 0001](docs/adr/0001-catalog-architecture.md).
