@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.2 — 2026-11-07
+
+### Changed
+
+- `AGENTS.md` states two rules the catalog's frontend contract used to carry: the nav entry shape (`{ href, label }`) and that the generated module-level `client` is never used on the server. The contract now holds only framework-neutral invariants (ADR 0006); generated output is otherwise unchanged.
+
 ## 2.1.1 — 2026-10-29
 
 ### Fixed

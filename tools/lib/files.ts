@@ -29,6 +29,7 @@ export const COPY_EXCLUDES = {
     'node_modules',
     '.git',
     '.next',
+    '.angular',
     'dist',
     'coverage',
     'test-results',

@@ -1,0 +1,54 @@
+@use '@angular/cdk' as cdk;
+@use '../setup/breakpoints';
+@use '../setup/functions';
+
+// The CDK overlay container and panel rules, once, for the toast and any later overlay.
+@include cdk.overlay();
+
+.toast-list {
+  display: grid;
+  gap: functions.space(2);
+  inline-size: min(24rem, 100vw - 2rem);
+  margin: functions.space(4);
+  padding: 0;
+  list-style: none;
+  pointer-events: auto;
+
+  @include breakpoints.up(md) {
+    inline-size: 24rem;
+  }
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: functions.space(3);
+  padding: functions.space(3);
+  border: 1px solid var(--border-strong);
+  border-inline-start-width: 4px;
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--card-foreground);
+  box-shadow: var(--shadow-2);
+}
+
+.toast__message {
+  flex: 1;
+  padding-block: functions.space(2);
+}
+
+.toast--success {
+  border-inline-start-color: var(--success);
+}
+
+.toast--error {
+  border-inline-start-color: var(--destructive);
+}
+
+.toast--warning {
+  border-inline-start-color: var(--warning);
+}
+
+.toast--info {
+  border-inline-start-color: var(--info);
+}

@@ -18,6 +18,7 @@ describe('copyTree', () => {
       'node_modules/x',
       'sub/node_modules/x',
       '.next/y',
+      '.angular/cache/z',
       '.env',
       'sub/.env.local',
       '.env.example',

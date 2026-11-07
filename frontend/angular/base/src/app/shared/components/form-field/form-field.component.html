@@ -1,0 +1,10 @@
+<div class="form-field" [class.form-field--invalid]="invalid()">
+  @if (label(); as text) {
+    <label class="form-field__label" [attr.for]="id">{{ text }}</label>
+  }
+  @if (hint(); as text) {
+    <p class="form-field__hint" [id]="id + '-hint'">{{ text }}</p>
+  }
+  <ng-content />
+  <div class="form-field__error" [id]="id + '-error'" aria-live="polite">{{ message() }}</div>
+</div>

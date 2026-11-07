@@ -1,0 +1,29 @@
+<ng-template #content>
+  @if (loading()) {
+    <app-spinner [decorative]="true" />
+  }
+  <ng-content />
+</ng-template>
+
+@if (link(); as href) {
+  <a
+    [class]="classes()"
+    [routerLink]="href"
+    [attr.aria-label]="ariaLabel()"
+    [attr.aria-disabled]="inactive() ? 'true' : null"
+  >
+    <ng-container *ngTemplateOutlet="content" />
+  </a>
+} @else {
+  <button
+    [class]="classes()"
+    [attr.type]="type()"
+    [disabled]="inactive()"
+    [attr.aria-label]="ariaLabel()"
+    [attr.aria-busy]="loading() ? 'true' : null"
+    [attr.aria-expanded]="ariaExpanded()"
+    [attr.aria-controls]="ariaControls()"
+  >
+    <ng-container *ngTemplateOutlet="content" />
+  </button>
+}

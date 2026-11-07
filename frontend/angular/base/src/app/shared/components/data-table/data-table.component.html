@@ -1,0 +1,37 @@
+@if (rows().length === 0) {
+  <app-empty-state [heading]="emptyKey() | t">
+    <div actions><ng-content select="[empty]" /></div>
+  </app-empty-state>
+} @else {
+  <div class="data-table" role="region" tabindex="0" [attr.aria-label]="caption() | t">
+    <table class="data-table__table">
+      <caption [class.visually-hidden]="!captionVisible()">
+        {{
+          caption() | t
+        }}
+      </caption>
+      <thead>
+        <tr>
+          @for (column of columns(); track column.key) {
+            <th scope="col" [attr.data-align]="column.align ?? null">{{ column.labelKey | t }}</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track $index) {
+          <tr>
+            @for (column of columns(); track column.key) {
+              <td [attr.data-align]="column.align ?? null">
+                @if (cell(); as template) {
+                  <ng-container *ngTemplateOutlet="template; context: context(row, column)" />
+                } @else {
+                  {{ text(row, column) }}
+                }
+              </td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

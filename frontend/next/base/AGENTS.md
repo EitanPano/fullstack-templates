@@ -97,7 +97,7 @@ action, never through `fetch` in the browser.
 4. Add the route in `src/app/(group)/<route>/page.tsx`: a `PageHeader` and the widget inside
    `<Suspense fallback={<…Skeleton />}>`. The group's `loading.tsx` and `error.tsx` cover the
    route; add a segment-level pair only when the segment needs its own copy.
-5. When the feature adds a top-level screen, add its entry to `src/app/nav.ts`.
+5. When the feature adds a top-level screen, add its entry to `src/app/nav.ts` (`{ href, label }`).
 6. Configuration comes only through `src/shared/config/env.ts`. A browser-visible value is
    `NEXT_PUBLIC_*`, declared in a separate public schema, and listed in the example env file.
 7. Add a primitive with `bunx shadcn@4.21.4 add <name>` (see Styling). Never run `shadcn init`
@@ -156,6 +156,8 @@ export const renamePost = action.inputSchema(renamePostSchema).action(async ({ p
 
 - An action builds its client with `await createRequestApi()` (it adds the visitor's address when
   `CLIENT_IP_HEADER` is set); a public cached loader uses plain `createApi()`.
+  Never use the module-level `client` the generated code exports: it is shared by every request and
+  points at `/`.
 - `call(request, copy, options)` returns the data or throws an `ActionError`. The message is the
   copy table's entry for the envelope's `code`, then the default (Errors). The server's own text
   never reaches the browser.

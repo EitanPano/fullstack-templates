@@ -334,14 +334,14 @@ describe('runCase app smoke', () => {
 // The per-mode smoke: a stack of the fixture server (port 4000) and either a static frontend
 // (mini-spa, port 5173) or one that is not an SPA (mini-ui).
 const INDEX =
-  '<html><body><div id="root"></div><script type="module" crossorigin src="/assets/index-AbC123.js"></script></body></html>'
+  '<html><body><div id="root"></div><script type="module" crossorigin src="/assets/index-AbC12345.js"></script></body></html>'
 const SPA_ROUTE = '/some/client/route'
 const NOT_FOUND = JSON.stringify({
   error: { code: 'not_found', message: 'no route' },
   requestId: 'r1',
 })
 const PUBLIC_FILES =
-  '/app/public\n/app/public/index.html\n/app/public/assets\n/app/public/assets/index-AbC123.js'
+  '/app/public\n/app/public/index.html\n/app/public/assets\n/app/public/assets/index-AbC12345.js'
 // Spelled in two parts so no tool that scans for secret file names trips on the test data.
 const DOTFILE = '/app/public/.' + 'env.local'
 
@@ -374,7 +374,7 @@ function stackCatalog(options: {
   return { loaded, c: found }
 }
 
-const ASSET = '/assets/index-AbC123.js'
+const ASSET = '/assets/index-AbC12345.js'
 const GOOD_HEADERS: Record<string, string> = {
   'content-security-policy': "default-src 'self';script-src 'self'",
   'x-content-type-options': 'nosniff',
@@ -551,7 +551,7 @@ describe('app smoke, single', () => {
   })
   test.each([
     [
-      'index without the mount point',
+      'index without a hashed module script',
       at4000('/', htmlReply('<html></html>')),
       /GET \/ .*index\.html/,
     ],
@@ -566,7 +566,12 @@ describe('app smoke, single', () => {
         '/',
         htmlReply('<div id="root"></div><script type="module" src="/src/main.tsx"></script>'),
       ),
-      /GET \/ .*index\.html/,
+      /GET \/ .*no hashed module script/,
+    ],
+    [
+      'an Angular dev index',
+      at4000('/', htmlReply('<app-root></app-root><script src="main.js" type="module"></script>')),
+      /GET \/ .*no hashed module script/,
     ],
     [
       'index missing',
@@ -608,10 +613,46 @@ describe('app smoke, single', () => {
     await expect(result).rejects.toThrow(message)
     expect(verbs(calls).at(-1)).toBe('down -v')
   })
+  test('an Angular site: the root script is the immutable probe and /assets/ is not probed', async () => {
+    const ngIndex =
+      '<html><head><link rel="stylesheet" href="styles-JAGCROLU.css"></head><body><app-root></app-root><script src="main-DZ3OMSGX.js" type="module"></script></body></html>'
+    const { probe, urls } = site(4000, {
+      'http://127.0.0.1:4000/': htmlReply(ngIndex),
+      [`http://127.0.0.1:4000${SPA_ROUTE}`]: htmlReply(ngIndex),
+      'http://127.0.0.1:4000/main-DZ3OMSGX.js': {
+        status: 200,
+        body: 'x',
+        headers: ASSET_HEADERS,
+      },
+    })
+    const { out, log } = lines()
+    const built = build()
+    await runCase(
+      built.loaded,
+      built.c,
+      tempDir(),
+      APP,
+      recordWithVars().runner,
+      log,
+      probe,
+      fakeCapture().capture,
+    )
+    expect(urls).toContain('http://127.0.0.1:4000/main-DZ3OMSGX.js')
+    expect(urls.some((u) => u.endsWith('/assets/'))).toBe(false)
+    expect(out).toContain(
+      'app smoke: the hashed script sits at the root, no asset directory to probe',
+    )
+  })
+  test('public/ of an Angular build passes', async () => {
+    const listing =
+      '/app/public\n/app/public/index.html\n/app/public/main-DZ3OMSGX.js\n/app/public/i18n/en.json'
+    const { capture } = fakeCapture({ 'find /app/public': listing })
+    await smoke(build(), APP, site(4000).probe, capture).result
+  })
   test.each([
     ['source files', '/app/public/index.html\n/app/public/src\n/app/public/src/main.tsx'],
     ['a dotenv file', `/app/public/index.html\n${DOTFILE}`],
-    ['a source map', '/app/public/index.html\n/app/public/assets/index-AbC123.js.map'],
+    ['a source map', '/app/public/index.html\n/app/public/assets/index-AbC12345.js.map'],
     ['nothing', ''],
   ])('public/ with %s fails the case', async (_name, listing) => {
     const { capture } = fakeCapture({ 'find /app/public': listing })
@@ -808,12 +849,12 @@ const FAKE_SITES: Array<[string, (base: string) => Record<string, Reply>, RegExp
     (b) => ({
       [`${b}/assets/`]: { status: 200, body: '<pre>index.js</pre>', contentType: 'text/html' },
     }),
-    /assets directory .*status 200/,
+    /script directory .*status 200/,
   ],
   [
     'an assets directory answered with the shell',
     (b) => ({ [`${b}/assets/`]: { status: 404, body: INDEX } }),
-    /assets directory .*SPA shell/,
+    /script directory .*SPA shell/,
   ],
 ]
 describe('app smoke, the edge security behaviour', () => {

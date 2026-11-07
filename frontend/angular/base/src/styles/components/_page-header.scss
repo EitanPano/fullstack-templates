@@ -1,0 +1,30 @@
+@use '../setup/breakpoints';
+@use '../setup/functions';
+
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: functions.space(3);
+  margin-block-end: functions.space(6);
+
+  @include breakpoints.up(md) {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+}
+
+.page-header__description {
+  margin-block-start: functions.space(1);
+  color: var(--muted-foreground);
+}
+
+.page-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: functions.space(2);
+
+  &:empty {
+    display: none;
+  }
+}

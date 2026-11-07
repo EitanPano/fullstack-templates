@@ -44,6 +44,15 @@ async function escapesRoot(realRoot: string, decoded: string): Promise<boolean> 
   }
 }
 
+// Hashed build output is immutable: Vite's `assets/`, Angular's `media/` and its root bundles
+// (`main-`, `polyfills-`, `chunk-`, `styles-` plus an eight-character hash). Spelled out so a
+// user file such as `hero-mountain.jpg` is never cached; the nginx edge uses the same rule.
+const ANGULAR_BUNDLE = /^(?:main|polyfills|chunk|styles)-[A-Za-z0-9_-]{8}\.(?:js|css)$/
+
+export function isImmutable(name: string): boolean {
+  return name.startsWith('assets/') || name.startsWith('media/') || ANGULAR_BUNDLE.test(name)
+}
+
 function isDirectory(path: string): boolean {
   try {
     return statSync(path).isDirectory()
@@ -68,7 +77,7 @@ export function staticFiles(dir: string): RequestHandler {
       const name = relative(root, path).split(sep).join('/')
       // Only hashed build output is cached; any other file (favicon, robots.txt) revalidates,
       // as in the nginx edge, where send's default `public, max-age=0` would differ.
-      res.setHeader('Cache-Control', name.startsWith('assets/') ? ASSETS_CACHE : SHELL_CACHE)
+      res.setHeader('Cache-Control', isImmutable(name) ? ASSETS_CACHE : SHELL_CACHE)
     },
   })
 

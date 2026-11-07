@@ -1,0 +1,105 @@
+@use '../setup/functions';
+@use '../setup/mixins';
+
+// The text-like controls (<app-input>, <app-select>, <app-textarea>) share .control__field.
+.control {
+  position: relative;
+}
+
+.control__field {
+  display: block;
+  inline-size: 100%;
+  min-block-size: 2.5rem;
+  padding-block: functions.space(2);
+  padding-inline: functions.space(3);
+  border: 1px solid var(--input);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+
+  @include mixins.touch-target;
+
+  &::placeholder {
+    color: var(--muted-foreground);
+  }
+
+  &:focus-visible {
+    @include mixins.focus-ring;
+  }
+
+  &:disabled,
+  &:read-only:not(select) {
+    background: var(--surface-2);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &[aria-invalid='true'] {
+    border-color: var(--destructive);
+  }
+}
+
+textarea.control__field {
+  min-block-size: 5rem;
+  resize: vertical;
+}
+
+// Leaves room for the show/hide button at the end of a password input.
+.control--input:has(.control__toggle) .control__field {
+  padding-inline-end: 3rem;
+}
+
+.control__toggle {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: functions.space(1);
+  display: flex;
+  align-items: center;
+}
+
+.control__counter {
+  margin-block-start: functions.space(1);
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+  text-align: end;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: functions.space(2);
+  cursor: pointer;
+
+  // The label row is the touch target, not the 16 px box.
+  @include mixins.touch-target;
+}
+
+.checkbox__box {
+  flex: none;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  margin-block-start: 0.15rem;
+  accent-color: var(--primary);
+
+  &:focus-visible {
+    @include mixins.focus-ring;
+  }
+
+  &[aria-invalid='true'] {
+    outline: 2px solid var(--destructive);
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.checkbox__label {
+  padding-block: 0.1rem;
+}

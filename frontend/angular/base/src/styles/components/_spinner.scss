@@ -1,0 +1,20 @@
+.spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner__ring {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  border: 2px solid currentcolor;
+  border-block-start-color: transparent;
+  border-radius: 50%;
+  animation: spinner-turn 700ms linear infinite;
+}
+
+@keyframes spinner-turn {
+  to {
+    rotate: 1turn;
+  }
+}

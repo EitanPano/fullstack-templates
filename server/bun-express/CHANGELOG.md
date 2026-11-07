@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.3 — 2026-11-07
+
+### Fixed
+
+- `single` mode caches a frontend's hashed build output immutable whatever its layout: `assets/*` (Vite), `media/*` and the root bundles `main-`, `polyfills-`, `chunk-`, `styles-` plus an eight-character hash (Angular). Every other file still revalidates.
+
 ## 2.4.2 — 2026-10-29
 
 ### Fixed
