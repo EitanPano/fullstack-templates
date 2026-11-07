@@ -1,6 +1,5 @@
 import { fileURLToPath } from 'node:url'
 
-import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
@@ -10,8 +9,14 @@ import { defineConfig } from 'vite'
 const api = { '/api': { target: 'http://127.0.0.1:__SERVER_PORT__', changeOrigin: false } }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  // loadPaths lets a partial `@use 'setup/variables'` without a relative climb.
+  css: {
+    preprocessorOptions: {
+      scss: { loadPaths: [fileURLToPath(new URL('./src/styles', import.meta.url))] },
+    },
+  },
   server: { port: Number('__PORT__'), strictPort: true, proxy: api },
   preview: { port: Number('__PORT__'), strictPort: true, host: '127.0.0.1', proxy: api },
   build: { sourcemap: false },

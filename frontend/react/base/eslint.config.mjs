@@ -5,124 +5,207 @@ import jsxA11y from 'eslint-plugin-jsx-a11y'
 import reactHooks from 'eslint-plugin-react-hooks'
 import tseslint from 'typescript-eslint'
 
-// The layer map (AGENTS.md › Layers): app → widget → feature → entity → shared. Every import
-// the layers forbid is a `boundaries/dependencies` error whose message names the layer to use.
-// tests/unit/eslint-boundaries.test.ts lints one violation and one allowed case per rule through
-// this file, so a rule that stops firing fails the suite.
+// The layer map (AGENTS.md › Layers): app → layout → features → core, store, services → shared,
+// models. Every import the layers forbid is a `boundaries/dependencies` error whose message names
+// the layer to use. tests/unit/eslint-boundaries.test.ts lints one violation and one allowed case
+// per rule through this file, so a rule that stops firing fails the suite.
 //
 // ESLint flat config does not merge one rule's options across blocks: the last block that
 // matches a file replaces the rule for that file. `no-restricted-syntax` is therefore built
 // from the selector lists below and each block states every selector that applies to it.
-const sliceMessage = (layer) =>
-  `a ${layer} never imports another ${layer}: lift the shared part to shared/ or compose both in the layer above`
+const ALL = [
+  'app',
+  'layout',
+  'feature',
+  'store',
+  'services',
+  'services-generated',
+  'core',
+  'shared',
+  'models',
+  'testing',
+]
+const except = (...types) => ALL.filter((type) => !types.includes(type))
 
-// The data layer is api/ in this SPA (server/ in the Next template): a widget, feature or entity
-// reads and writes through its own api/ folder.
-
-// shared/api and shared/auth are elements of their own so that an import from the rest of
-// shared/ counts as a dependency (the plugin skips imports inside one element).
-const SHARED = ['shared', 'shared-api', 'shared-auth']
-
+// Later policies override earlier ones, so each forbidden edge comes first and its exceptions after.
 const policies = [
   {
-    from: { element: { type: ['widget', 'feature', 'entity', ...SHARED] } },
-    disallow: { to: { element: { type: 'app' } } },
-    message: 'only app/ is allowed to import app/: routes compose widgets, nothing imports a route',
+    from: { element: { type: 'app' } },
+    disallow: { to: { element: { type: ['services', 'testing'] } } },
+    message:
+      'app/ only wires: read data through a hook in a feature or the layout, and keep test helpers out of the bundle',
+  },
+  {
+    from: { element: { type: 'app' } },
+    disallow: { to: { element: { type: 'feature' } } },
+    message:
+      'app/ imports a feature only through its *.routes.tsx: pages and components are loaded by the route (lazy), never by app/',
+  },
+  {
+    from: { element: { type: 'app' } },
+    allow: { to: { element: { type: 'feature', fileInternalPath: '*.routes.tsx' } } },
+  },
+  {
+    from: { element: { type: 'layout' } },
+    disallow: { to: { element: { type: ['app', 'feature', 'testing'] } } },
+    message:
+      'layout/ never imports app/, a feature or testing/: take the data from a services hook or the store, and compose features in app/routes.tsx',
   },
   {
     from: { element: { type: 'feature' } },
-    disallow: { to: { element: { type: 'widget' } } },
-    message: 'compose widgets in a widget or in app/: a feature never imports a widget',
-  },
-  {
-    from: { element: { type: 'entity' } },
-    disallow: { to: { element: { type: 'widget' } } },
-    message: 'compose widgets in a widget or in app/: an entity never imports a widget',
-  },
-  {
-    from: { element: { type: 'entity' } },
-    disallow: { to: { element: { type: 'feature' } } },
+    disallow: { to: { element: { type: ['app', 'layout', 'testing'] } } },
     message:
-      'compose features in a widget: an entity never imports a feature (shared logic goes to shared/)',
+      'a feature never imports app/, layout/ or testing/: routes are composed in app/, and a shared part goes to shared/ or models/',
   },
   {
-    from: { element: { type: SHARED } },
-    disallow: { to: { element: { type: ['widget', 'feature', 'entity'] } } },
-    message:
-      'shared/ is product-agnostic: it never imports widget/, feature/ or entity/. Move the code to entity/ or feature/, or pass it in as props',
-  },
-  ...['widget', 'feature', 'entity'].map((layer) => ({
-    from: { element: { type: layer } },
+    from: { element: { type: 'feature' } },
     disallow: {
       to: {
-        element: { type: layer, captured: { slice: '!{{ from.element.captured.slice }}' } },
+        element: { type: 'feature', captured: { feature: '!{{ from.element.captured.feature }}' } },
       },
     },
     message:
-      layer === 'entity'
-        ? `an entity imports another entity only with import type from its model.ts: ${sliceMessage(layer)}`
-        : sliceMessage(layer),
-  })),
-  {
-    from: { element: { type: 'entity' } },
-    dependency: { kind: 'type' },
-    allow: { to: { element: { type: 'entity', fileInternalPath: 'model.ts' } } },
+      'a feature never imports another feature: lift the shared part to shared/ (product-agnostic) or models/ (a noun) or compose both in app/',
   },
+  // A form schema extends the generated request schema (limits are never copied) and reaches
+  // nothing else of the data layer.
   {
-    disallow: { to: { element: { type: 'shared-api' } } },
+    from: { element: { type: 'feature', fileInternalPath: '*.form.ts' } },
+    disallow: {
+      to: { element: { type: ['layout', 'store', 'services', 'core'] } },
+    },
     message:
-      'only */api/* and shared/auth import shared/api (a model.ts may import its types and the generated zod schemas): read through the entity query options (entity/<noun>/api) or pass the data in as props',
+      'a *.form.ts imports shared/, models/ and the generated zod schemas only: keep the form schema pure',
   },
   {
-    from: [{ element: { type: 'shared-auth' } }, { file: { categories: 'api' } }],
-    allow: { to: { element: { type: 'shared-api' } } },
+    from: { element: { type: 'store' } },
+    disallow: { to: { element: { type: except('store', 'services', 'core', 'models') } } },
+    message:
+      'store/ imports services/ (reducer, middleware, matchers), core/theme, core/config and models/ only: it never knows features, layout or shared/',
   },
-  // A model.ts is the one non-server file that touches the contract: its types, and the
-  // generated zod schemas a form schema extends (so limits are never copied).
   {
-    from: { element: { type: ['entity', 'feature'], fileInternalPath: 'model.ts' } },
+    from: { element: { type: 'store' } },
+    disallow: { to: { element: { type: 'core', captured: { area: 'auth' } } } },
+    message:
+      'store/ imports core/theme and core/config only: the auth wiring (core/auth) sits above the store',
+  },
+  {
+    from: { element: { type: 'services' } },
+    disallow: {
+      to: { element: { type: except('services', 'services-generated', 'core', 'models') } },
+    },
+    message:
+      'services/ imports services/generated, core/config, core/auth and models/ only: it never knows the store, shared/ or any screen',
+  },
+  {
+    from: { element: { type: 'services' } },
+    disallow: { to: { element: { type: 'core', captured: { area: 'theme' } } } },
+    message: 'services/ imports core/config and core/auth only: the theme is the UI concern',
+  },
+  {
+    from: { element: { type: 'core' } },
+    disallow: { to: { element: { type: except('core', 'shared', 'models') } } },
+    message:
+      'core/config, core/auth/session-hint.ts and core/theme import shared/, models/ and each other only; core/auth/guards.ts is the one file that reaches store/ and services/',
+  },
+  {
+    // The guards are the one core file that wires the loaders to the store and the data layer.
+    from: { file: { categories: 'guards' } },
+    allow: { to: { element: { type: ['store', 'services'] } } },
+  },
+  {
+    from: { element: { type: 'shared' } },
+    disallow: { to: { element: { type: except('shared', 'models') } } },
+    message:
+      'shared/ is product-agnostic: it imports shared/ and models/ only. Move the code to core/, a feature or services/, or pass it in as props',
+  },
+  {
+    from: { element: { type: 'models' } },
+    disallow: { to: { element: { type: except('models') } } },
+    message:
+      'models/ imports models/ and the generated contract types (import type) only: the runtime stays in services/',
+  },
+  {
+    from: { element: { type: ['app', 'layout', 'feature', 'shared'] } },
+    disallow: { to: { element: { type: 'services-generated' } } },
+    message:
+      "read the contract's types through models/<noun>.ts; only services/, store/, core/ and models/ import the generated files",
+  },
+  {
+    // A form schema extends the generated zod schemas (limits are never copied).
+    from: { element: { type: 'feature', fileInternalPath: '*.form.ts' } },
+    allow: { to: { element: { type: 'services-generated', fileInternalPath: 'zod.gen.ts' } } },
+  },
+  {
+    // main.tsx is the entry: it wires the app, the store, the theme and the styles, nothing else.
+    from: { file: { categories: 'entry' } },
+    disallow: { to: { element: { type: except('app', 'store', 'core', 'shared', 'models') } } },
+    message:
+      'main.tsx imports app/, store/, core/ and shared/ only: routes and screens are composed in app/, test helpers never ship',
+  },
+  {
+    // The contract's types reach a layer that is not UI through import type; the runtime stays in services/.
+    from: { element: { type: ['store', 'core', 'models'] } },
     dependency: { kind: 'type' },
-    allow: { to: { element: { type: 'shared-api' } } },
+    allow: { to: { element: { type: 'services-generated' } } },
   },
   {
-    from: { element: { type: ['entity', 'feature'], fileInternalPath: 'model.ts' } },
-    allow: { to: { element: { type: 'shared-api', fileInternalPath: 'generated/zod.gen.ts' } } },
+    from: { element: { type: except('testing') } },
+    disallow: { to: { element: { type: 'testing' } } },
+    message: 'only a *.test.ts(x) imports testing/: it holds test helpers and is never bundled',
   },
 ]
 
 const RAW_CONTROLS = [
-  ['button', 'Button from @/shared/ui/button'],
-  ['input', 'Input from @/shared/ui/input'],
-  ['select', 'Select from @/shared/ui/select'],
-  ['textarea', 'Textarea from @/shared/ui/textarea'],
+  ['button', 'Button from @/shared/components/button'],
+  ['input', 'Input from @/shared/components/input'],
+  ['select', 'Select from @/shared/components/select'],
+  ['textarea', 'Textarea from @/shared/components/textarea'],
 ].map(([tag, use]) => ({
   selector: `JSXOpeningElement[name.type='JSXIdentifier'][name.name='${tag}']`,
-  message: `Use ${use}, not a raw <${tag}>: only shared/ui renders the browser controls`,
+  message: `Use ${use}, not a raw <${tag}>: only shared/components renders the browser controls`,
 }))
 const NETWORK = [
   {
     selector:
-      "CallExpression[callee.name='fetch'], CallExpression[callee.object.name='globalThis'][callee.property.name='fetch']",
+      "CallExpression[callee.name='fetch'], CallExpression[callee.object.name='globalThis'][callee.property.name='fetch'], CallExpression[callee.object.name='window'][callee.property.name='fetch']",
     message:
-      'call the API through shared/api (the generated client behind an entity query or a feature mutation), not fetch',
+      'call the API through a services/<module>.api.ts endpoint (the generated SDK behind call), not fetch',
   },
 ]
 // Configuration is read in one place; Vite exposes it as import.meta.env.
 const ENV = [
   {
     selector: "MetaProperty[meta.name='import'][property.name='meta']",
-    message: 'Read configuration through src/shared/config/env.ts',
+    message: 'Read configuration through src/core/config/env.ts',
+  },
+]
+// CSS lives in src/styles/ only; a component renders class names.
+const STYLE = [
+  {
+    selector: "JSXAttribute[name.name='style']",
+    message: 'styles live in src/styles/: add a class and a partial, never an inline style',
   },
 ]
 const restrictSyntax = (...selectors) => ({
   'no-restricted-syntax': ['error', ...selectors.flat()],
 })
 
+// Only services/ calls the generated runtime; a type is welcome anywhere.
+const RUNTIME_MESSAGE =
+  'only services/ imports the generated runtime: add an endpoint in services/<module>.api.ts and use its hook (a type goes through models/)'
+const onlyServices = (...group) => ({
+  'no-restricted-imports': [
+    'error',
+    { patterns: [{ group, allowTypeImports: true, message: RUNTIME_MESSAGE }] },
+  ],
+})
+
 export default defineConfig([
   globalIgnores([
     'dist/**',
     'public/**',
-    'src/shared/api/generated/**',
+    'src/services/generated/**',
     'playwright-report/**',
     'test-results/**',
     'coverage/**',
@@ -137,7 +220,7 @@ export default defineConfig([
     },
     rules: {
       '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
-      // `role` is RequireRole's prop (an account role), not an ARIA role.
+      // A component may take a `role` prop that is an account role, not an ARIA role.
       'jsx-a11y/aria-role': ['error', { ignoreNonDOM: true }],
       '@typescript-eslint/no-unused-vars': [
         'error',
@@ -158,44 +241,93 @@ export default defineConfig([
         typescript: { project: `${import.meta.dirname}/tsconfig.app.json` },
       },
       'boundaries/include': ['src/**/*'],
+      // A test file is the consumer the layers exist for: it may import any of them.
+      'boundaries/ignore': ['src/**/*.test.{ts,tsx}'],
+      // A file matches every element that fits, so the nested generated folder stops the search.
+      // The guards file is a category, not an element: elements are folders.
+      'boundaries/files': [
+        { pattern: 'src/core/auth/guards.ts', category: 'guards' },
+        { pattern: 'src/main.tsx', category: 'entry' },
+      ],
       'boundaries/elements': [
         { type: 'app', pattern: 'src/app', partialMatch: false },
-        { type: 'widget', pattern: 'src/widget/*', partialMatch: false, capture: ['slice'] },
-        { type: 'feature', pattern: 'src/feature/*', partialMatch: false, capture: ['slice'] },
-        { type: 'entity', pattern: 'src/entity/*', partialMatch: false, capture: ['slice'] },
-        { type: 'shared-api', pattern: 'src/shared/api', partialMatch: false },
-        { type: 'shared-auth', pattern: 'src/shared/auth', partialMatch: false },
+        { type: 'layout', pattern: 'src/layout', partialMatch: false },
+        { type: 'feature', pattern: 'src/features/*', partialMatch: false, capture: ['feature'] },
+        { type: 'store', pattern: 'src/store', partialMatch: false },
+        {
+          type: 'services-generated',
+          pattern: 'src/services/generated',
+          partialMatch: false,
+          stopMatching: true,
+        },
+        { type: 'services', pattern: 'src/services', partialMatch: false },
+        { type: 'core', pattern: 'src/core/*', partialMatch: false, capture: ['area'] },
         { type: 'shared', pattern: 'src/shared', partialMatch: false },
+        { type: 'models', pattern: 'src/models', partialMatch: false },
+        { type: 'testing', pattern: 'src/testing', partialMatch: false },
       ],
-      'boundaries/files': [{ pattern: 'src/{widget,feature,entity}/*/api/**', category: 'api' }],
     },
     rules: {
       'boundaries/dependencies': ['error', { default: 'allow', policies }],
-      ...restrictSyntax(RAW_CONTROLS, NETWORK, ENV),
+      ...onlyServices(
+        '@/services/generated',
+        '@/services/generated/**',
+        '**/services/generated',
+        '**/services/generated/**',
+        '**/generated',
+        '**/generated/*',
+      ),
+      ...restrictSyntax(RAW_CONTROLS, NETWORK, ENV, STYLE),
+    },
+  },
+  {
+    // The data layer: the one place the generated runtime is imported. RTK Query's `void` argument
+    // type (`build.query<Data, void>`) is a call type argument, which this rule refuses by default.
+    files: ['src/services/**'],
+    rules: { 'no-restricted-imports': 'off', '@typescript-eslint/no-invalid-void-type': 'off' },
+  },
+  {
+    // A form schema extends the generated zod schemas (limits are never copied).
+    files: ['src/features/*/*.form.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          // A regex, because a negated glob cannot re-include a file under an excluded directory:
+          // the barrel, any relative spelling and every generated file except zod.gen.
+          patterns: [
+            {
+              regex: '(^|/)generated(/(?!zod[.]gen$).*)?$',
+              allowTypeImports: true,
+              message: RUNTIME_MESSAGE,
+            },
+          ],
+        },
+      ],
     },
   },
   {
     // The browser controls live here, wrapped once; everything else uses the wrappers.
-    files: ['src/shared/ui/**'],
-    rules: restrictSyntax(NETWORK, ENV),
+    files: ['src/shared/components/**'],
+    rules: restrictSyntax(NETWORK, ENV, STYLE),
   },
   {
-    // The typed client is the one place that names fetch and revalidates.
-    files: ['src/shared/api/**'],
-    rules: restrictSyntax(RAW_CONTROLS, ENV),
+    // The one file allowed to call fetch: the generated client's fetch wrapper lives here, because
+    // the client's runtime config is where its fetch is replaced.
+    files: ['src/core/config/api-client.ts'],
+    rules: restrictSyntax(RAW_CONTROLS, ENV, STYLE),
   },
   {
-    files: [
-      'src/shared/config/env.ts',
-      'vite.config.ts',
-      'vitest.config.mts',
-      'playwright.config.ts',
-    ],
+    files: ['src/core/config/env.ts'],
+    rules: restrictSyntax(RAW_CONTROLS, NETWORK, STYLE),
+  },
+  {
+    files: ['vite.config.ts', 'vitest.config.mts', 'playwright.config.ts'],
     rules: { 'no-restricted-syntax': 'off' },
   },
   {
     // A loader redirects by throwing React Router's `redirect()` response, which is its contract.
-    files: ['src/shared/auth/session.ts'],
+    files: ['src/core/auth/guards.ts'],
     rules: { '@typescript-eslint/only-throw-error': 'off' },
   },
   {
