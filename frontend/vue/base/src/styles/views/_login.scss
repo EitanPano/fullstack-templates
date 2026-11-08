@@ -1,0 +1,10 @@
+@use '../setup/functions';
+
+.login__form {
+  display: grid;
+  gap: functions.space(4);
+}
+
+.login__alt {
+  margin: 0;
+}

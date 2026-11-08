@@ -5,7 +5,7 @@ Owner: Eitan
 Plan: `fullstack-dev-harness/.plan/019-2026-11-06-angular-spa.md`
 Amends: `docs/conventions.md` (the frontend and SPA contracts), ADR 0003 M5-1, ADR 0005 F1 and F2
 Follow-ups it opens: ADR 0007 (React on Redux and RTK Query, its own structure), ADR 0008 (Next on
-the global SCSS tree)
+the global SCSS tree; amended by [ADR 0008](0008-vue-pinia.md), which took the number for Vue)
 
 ## Context
 
@@ -511,7 +511,9 @@ agent is standing in, which is where the frontend agent reads anyway.
 
 ## Out of scope
 
-Vue. React's restructure and Redux with RTK Query (ADR 0007). Next on the SCSS tree (ADR 0008).
+Vue (amended by [ADR 0008](0008-vue-pinia.md), which adds the Vue template). React's restructure and
+Redux with RTK Query (ADR 0007). Next on the SCSS tree (ADR 0008, amended: that number went to Vue;
+the Next ADR takes the next free one).
 Angular SSR (`@angular/ssr`). Angular Material. Per-feature Transloco scopes. An offline mutation
 queue (the template only refuses mutations offline). Push notifications. The hash-pattern immutable
 rule in the servers' static middleware. Dropping `@angular/service-worker` when `pwa` is off.

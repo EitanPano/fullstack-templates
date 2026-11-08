@@ -147,7 +147,7 @@ it through the API once the product has a delete endpoint.
 
 **Frontend, single-page app**
 
-The SPA specifics of invariants 2, 8 and 9, for every SPA template (React and Angular; a
+The SPA specifics of invariants 2, 8 and 9, for every SPA template (React, Angular and Vue; a
 template's `AGENTS.md` holds its layer map). The rationale is in
 [ADR 0003](adr/0003-spa-and-deploy-modes.md), with the layers moved to each template by
 [ADR 0006](adr/0006-per-framework-frontends-and-angular.md).

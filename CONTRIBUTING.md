@@ -134,9 +134,11 @@ The contract is the ten invariants of [docs/conventions.md › Frontend](docs/co
 `› Frontend, single-page app` for an SPA), decided in
 [ADR 0006](docs/adr/0006-per-framework-frontends-and-angular.md). A template's layers, import rules,
 state, forms and design system are its own, written in its `base/AGENTS.md`; the catalog does not
-prescribe them. Two models: `frontend/react` (an SPA on Redux Toolkit with RTK Query, Radix
-primitives and the global SCSS tree; [ADR 0007](docs/adr/0007-react-redux-rtk-scss.md)) and `frontend/angular`
-(an SPA on the global SCSS tree, signal stores and Hey API's Angular client). Take the nearer one.
+prescribe them. Three models: `frontend/react` (an SPA on Redux Toolkit with RTK Query, Radix
+primitives and the global SCSS tree; [ADR 0007](docs/adr/0007-react-redux-rtk-scss.md)), `frontend/angular`
+(an SPA on the global SCSS tree, signal stores and Hey API's Angular client) and `frontend/vue`
+(an SPA on the global SCSS tree, Pinia setup stores, Vue Router and Reka UI;
+[ADR 0008](docs/adr/0008-vue-pinia.md)). Take the nearest one.
 The checklist is what `validate` and the cases prove.
 
 - [ ] `template.yaml`: `kind: frontend`, `commands` for the fixed vocabulary, `http: { port, health }`,
@@ -451,6 +453,47 @@ When Angular is bumped or the base is regenerated:
    `python`, `auth-off`, `i18n-off`, `pwa-off`, `flags-off` and `brand`, `alone` (no
    `--with-app`), and `postgres` with `--with-services --with-app`.
 
+## Refreshing `frontend/vue/base`
+
+When a dependency moves or the base is regenerated:
+
+1. Verify every version on the registry (`npm view <pkg> time --json` and its peers; the latest
+   stable at least 14 days old, an exception recorded in the CHANGELOG). The set is listed in
+   [ADR 0008 › Versions](docs/adr/0008-vue-pinia.md), corrected there to what the lock resolved.
+   Re-verify the pins that move together:
+   - `vue`, `vue-router`, `pinia` and `@pinia/testing`, `vue-tsc`, `@vitejs/plugin-vue`.
+   - ESLint 10 with `eslint-plugin-vue`, `vue-eslint-parser`, `eslint-plugin-vuejs-accessibility`,
+     `typescript-eslint` and `eslint-plugin-boundaries`; every plugin must peer ESLint 10. Keep
+     `eslint-import-resolver-typescript`, without which a boundary violation is silently missed.
+   - TypeScript 5.9: typescript-eslint requires TypeScript below 6.1.0 (as `next` and `react`).
+   - `vite-plugin-pwa` peers Vite; `@hey-api/openapi-ts` is pinned exactly (0.x; a minor can change
+     the generated output), with the plugins typescript, client-fetch (its `runtimeConfigPath` is
+     `src/core/config/api-client.ts`), sdk and zod; the tools
+     (`@playwright/test` among them) are caret ranges and the runtime dependencies are pinned
+     exactly.
+2. Run `bun install` and commit `bun.lock`; `bun tools/validate.ts --lockfiles` checks it with
+   `--frozen-lockfile`.
+3. No scaffolder. A new component is a `.vue` file in `src/shared/components/` on a `reka-ui`
+   primitive plus a partial in `src/styles/components/` forwarded by its `_index.scss`.
+   `src/styles/themes/brand.css` holds the generator's token placeholders and is never edited, so an
+   in-place `vite build` fails by design; the generated cases are the build gate.
+4. Run the `contract` command when the server's contract moved, and commit
+   `src/services/generated/`; read the diff.
+5. Run `tests/unit/eslint-boundaries.spec.ts`. It lints one violation and one allowed case per
+   boundaries rule and per restriction through the real `eslint.config.mjs`, so a new block that
+   overlaps a rule fails it. Also `tests/unit/zod-config.spec.ts` (a module that imports zod at run
+   time imports `shared/validators/zod-config` first; zod 4 probes `new Function` under the CSP),
+   `density.spec.ts`, `styles-tree.spec.ts`, `theme-color.spec.ts` and `translation-parity.spec.ts`.
+6. Run `bun run check` in `base/`: `vue-tsc -b` (it type-checks the templates), then lint, Prettier
+   and Vitest.
+7. Bump `version` in `template.yaml` and `index.yaml`, add a `CHANGELOG.md` entry, and run
+   `bun tools/validate.ts --readme`.
+8. Re-run the cases, the container smoke included:
+   `bun tools/test-generated.ts --case frontend/vue/default --e2e --with-app`, then `split`,
+   `python`, `auth-off`, `i18n-off`, `pwa-off`, `flags-off` and `brand` (the ten cases of
+   `frontend/vue/tests/cases.yaml`), `alone` (no `--with-app`), and `postgres` with
+   `--with-services --with-app`.
+
 ## The e2e database
 
 A frontend's e2e suite never uses the development database. With a database provider (the
@@ -519,10 +562,13 @@ the lockfiles is still to be configured.
   existing file invalid bumps it. v1.4.0 added optional fields (`answers.brand`, `onlyWhen`, the case
   fields for a server's flags, the `e2eDb` command, the provider's `e2e` URL); v1.4.1 adds the case
   field `brand`; v1.5.0 and v1.5.1 add none.
-- This release is `v1.7.0`, a minor: `frontend/react` 3.0.0, a template's own major (its layout
-  moves every file: Redux Toolkit with RTK Query, Radix primitives on the global SCSS tree, features
-  by server module; [ADR 0007](docs/adr/0007-react-redux-rtk-scss.md)). The stacks, the other
-  templates and `schemaVersion` are unchanged; no tool change. The previous release, `v1.6.0`, a
+- This release is `v1.8.0`, a minor: `frontend/vue` 1.0.0 with the stacks `vue-bun-express` and
+  `vue-python-fastapi` (Pinia setup stores, Vue Router and Reka UI on the global SCSS tree;
+  [ADR 0008](docs/adr/0008-vue-pinia.md)). The other templates and `schemaVersion` are unchanged;
+  no tool change. The previous release, `v1.7.0`, a minor, was `frontend/react` 3.0.0, a template's
+  own major (its layout moves every file: Redux Toolkit with RTK Query, Radix primitives on the
+  global SCSS tree, features by server module;
+  [ADR 0007](docs/adr/0007-react-redux-rtk-scss.md)). Before it, `v1.6.0`, a
   minor, added `frontend/angular` 1.0.0 with the stacks `angular-bun-express` and
   `angular-python-fastapi` and split the frontend contract into invariants
   ([ADR 0006](docs/adr/0006-per-framework-frontends-and-angular.md)); it carried `frontend/next`

@@ -1,0 +1,8 @@
+schemaVersion: 1
+id: vue-bun-express
+summary: Vue 3 (Vite) in front of Express 5 on Bun
+packages:
+  - template: server/bun-express
+    dir: backend
+  - template: frontend/vue
+    dir: frontend
