@@ -1,0 +1,20 @@
+# @single-start
+# A build-only service that the server's build reads as its spa context (Compose 2.35.0 or
+# newer). No depends_on (the server's build waits for this one), no environment, no container.
+build:
+  context: ./__PACKAGE_DIR__
+  target: dist
+scale: 0
+# @single-end
+# @nosingle-start
+# nginx serves the static files on its own port.
+build:
+  context: ./__PACKAGE_DIR__
+  target: serve
+# nginx proxies /api to the server and starts after it. # @server
+environment: # @server
+  API_URL: http://__SERVER_DIR__:__SERVER_PORT__ # @server
+ports: ['__PORT__:__PORT__']
+depends_on: [__SERVER_DIR__] # @server
+profiles: ['app']
+# @nosingle-end

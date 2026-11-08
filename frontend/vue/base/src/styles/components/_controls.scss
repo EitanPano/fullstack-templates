@@ -1,0 +1,177 @@
+@use '../setup/functions';
+@use '../setup/mixins';
+
+// The text-like controls (AppInput, AppSelect, AppTextarea) share .control__field.
+.control {
+  position: relative;
+}
+
+.control__field {
+  display: block;
+  inline-size: 100%;
+  padding-block: functions.space(2);
+  padding-inline: functions.space(3);
+  border: 1px solid var(--input);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+
+  @include mixins.control-size(2.25rem, 2rem);
+  @include mixins.touch-target;
+
+  &::placeholder {
+    color: var(--muted-foreground);
+  }
+
+  &:focus-visible {
+    @include mixins.focus-ring;
+  }
+
+  &:disabled,
+  &:read-only:not(select) {
+    background: var(--surface-2);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &[aria-invalid='true'] {
+    border-color: var(--destructive);
+  }
+}
+
+textarea.control__field {
+  min-block-size: 5rem;
+  resize: vertical;
+}
+
+// Leaves room for the show/hide button at the end of a password input.
+.control--input:has(.control__toggle) .control__field {
+  padding-inline-end: 3rem;
+}
+
+.control__toggle {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: functions.space(1);
+  display: flex;
+  align-items: center;
+}
+
+.control__counter {
+  margin-block-start: functions.space(1);
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+  text-align: end;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: functions.space(2);
+  cursor: pointer;
+
+  // The label row is the touch target, not the 16 px box.
+  @include mixins.touch-target;
+}
+
+// Reka's Checkbox is a button with role=checkbox; data-state carries checked and unchecked.
+.checkbox__box {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  margin-block-start: 0.1rem;
+  padding: 0;
+  border: 1px solid var(--input);
+  border-radius: calc(var(--radius) / 2);
+  background: var(--background);
+  color: var(--primary-foreground);
+  cursor: pointer;
+
+  &[data-state='checked'] {
+    border-color: var(--primary);
+    background: var(--primary);
+  }
+
+  &:focus-visible {
+    @include mixins.focus-ring;
+  }
+
+  &[aria-invalid='true'] {
+    border-color: var(--destructive);
+  }
+
+  &[data-disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.checkbox__label {
+  padding-block: 0.1rem;
+}
+
+// Reka's Select: the trigger looks like a field; the listbox is portaled, so it is styled by class.
+.select__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: functions.space(2);
+  text-align: start;
+
+  &[data-placeholder] {
+    color: var(--muted-foreground);
+  }
+}
+
+.select__content {
+  z-index: functions.z(overlay);
+  min-inline-size: var(--reka-select-trigger-width);
+  max-block-size: var(--reka-select-content-available-height);
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-2);
+}
+
+.select__viewport {
+  padding: functions.space(1);
+}
+
+.select__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: functions.space(2);
+  padding-block: functions.space(2);
+  padding-inline: functions.space(3);
+  border-radius: calc(var(--radius) / 2);
+  cursor: pointer;
+  user-select: none;
+
+  @include mixins.touch-target;
+
+  &[data-highlighted] {
+    background: var(--accent);
+    color: var(--accent-foreground);
+    outline: none;
+  }
+
+  &[data-disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &[data-state='checked'] {
+    font-weight: var(--weight-semibold);
+  }
+}

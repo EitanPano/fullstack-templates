@@ -1,0 +1,11 @@
+.icon {
+  flex: none;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+}
+
+// Arrows and chevrons would mirror here; the set has none, so the icons stay as drawn in rtl.
+.icon--lg {
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+}

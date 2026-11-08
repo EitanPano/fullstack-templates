@@ -1,0 +1,32 @@
+@use '../setup/functions';
+
+// The card of every account screen: heading, form, and a footer link to the other screen.
+.auth-card {
+  display: grid;
+  gap: functions.space(6);
+  inline-size: 100%;
+  max-inline-size: 26rem;
+  padding: functions.space(6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-1);
+}
+
+.auth-card__title {
+  font-size: var(--text-xl);
+}
+
+.auth-card__description {
+  margin-block-start: functions.space(1);
+  color: var(--muted-foreground);
+}
+
+.auth-card__footer {
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+
+  &:empty {
+    display: none;
+  }
+}
