@@ -35,6 +35,7 @@ template finds the same shape.
 | `angular` | frontend | 1.0.0 | i18n, pwa | — | Angular 22 single-page app on standalone components and signals, @ngrx/signals stores, global SCSS and Hey API's Angular client, with Transloco and the service worker behind flags |
 | `next` | frontend | 2.1.2 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
 | `react` | frontend | 3.0.0 | — | — | Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives on a global SCSS tree |
+| `vue` | frontend | 1.0.0 | i18n, pwa | — | Vite and Vue 3 single-page app: Vue Router 5, Pinia 4 setup stores over a client generated from the server's contract, Reka UI primitives on a global SCSS tree, vue-i18n and the service worker behind flags |
 
 | Stack | Packages | Summary |
 | --- | --- | --- |
@@ -44,6 +45,8 @@ template finds the same shape.
 | `next-python-fastapi` | `server/python-fastapi`, `frontend/next` | Next.js 16 in front of FastAPI on Python 3.14 |
 | `react-bun-express` | `server/bun-express`, `frontend/react` | React 19 (Vite) in front of Express 5 on Bun |
 | `react-python-fastapi` | `server/python-fastapi`, `frontend/react` | React 19 (Vite) in front of FastAPI on Python 3.14 |
+| `vue-bun-express` | `server/bun-express`, `frontend/vue` | Vue 3 (Vite) in front of Express 5 on Bun |
+| `vue-python-fastapi` | `server/python-fastapi`, `frontend/vue` | Vue 3 (Vite) in front of FastAPI on Python 3.14 |
 <!-- matrix:end -->
 
 ## How a template is built
@@ -67,14 +70,14 @@ Each template lives in `<kind>/<id>/` and is described by a `template.yaml` mani
 holds the files copied over the base and the scripts and commands they add, and the provider's
 Compose service and env contract in `shared/providers/` are wired into the project root.
 `bun-express` and `python-fastapi` ship `database/postgres`. A frontend that declares a `static`
-build output (`react`, `angular`) can be served by a server's image; `next` cannot. See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/capabilities.md](docs/capabilities.md).
+build output (`react`, `angular`, `vue`) can be served by a server's image; `next` cannot. See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/capabilities.md](docs/capabilities.md).
 
 ## Deploy modes
 
 A project with a server and a frontend ships in one of two modes, chosen with
 `--deploy single|split` and recorded in `.fullstack/catalog.yaml`. `single` puts the server and a
 single-page app's built files in one image on one port, with no CORS; it is the default for a
-React or Angular stack and needs Docker Compose 2.35.0 or later. `split` gives each package its
+React, Angular or Vue stack and needs Docker Compose 2.35.0 or later. `split` gives each package its
 own image and puts the frontend in front. Next.js stacks are always `split`. See
 [docs/conventions.md › Deploy modes](docs/conventions.md) and
 [ADR 0003](docs/adr/0003-spa-and-deploy-modes.md).
@@ -120,6 +123,16 @@ cd ../frontend && bun run check
 ```
 
 `angular-python-fastapi` is the same frontend over FastAPI.
+
+A Vue 3 single-page app, in front of either server:
+
+```sh
+bun tools/generate.ts --stack vue-bun-express --out ../my-app --name my-app
+cd ../my-app/backend && bun run check
+cd ../frontend && bun run check
+```
+
+`vue-python-fastapi` is the same frontend over FastAPI.
 
 The generator copies each package's base, applies the flags, assembles the root
 `docker-compose.yml`, installs dependencies, generates the contract and the client types,

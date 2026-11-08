@@ -1,0 +1,12 @@
+// The only place styles live. Components carry none (tests/unit/styles-tree.spec.ts).
+@use 'setup/variables';
+@use 'setup/breakpoints';
+@use 'setup/functions';
+@use 'setup/mixins';
+@use 'setup/typography';
+@use 'themes';
+@use 'basics/helpers';
+@use 'basics/base';
+@use 'basics/layout';
+@use 'components';
+@use 'views';

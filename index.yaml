@@ -25,6 +25,11 @@ templates:
     path: frontend/react
     version: 3.0.0
     summary: "Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives on a global SCSS tree"
+  - id: vue
+    kind: frontend
+    path: frontend/vue
+    version: 1.0.0
+    summary: "Vite and Vue 3 single-page app: Vue Router 5, Pinia 4 setup stores over a client generated from the server's contract, Reka UI primitives on a global SCSS tree, vue-i18n and the service worker behind flags"
 stacks:
   - id: angular-bun-express
     path: stacks/angular-bun-express
@@ -44,3 +49,9 @@ stacks:
   - id: react-bun-express
     path: stacks/react-bun-express
     summary: React 19 (Vite) in front of Express 5 on Bun
+  - id: vue-bun-express
+    path: stacks/vue-bun-express
+    summary: Vue 3 (Vite) in front of Express 5 on Bun
+  - id: vue-python-fastapi
+    path: stacks/vue-python-fastapi
+    summary: Vue 3 (Vite) in front of FastAPI on Python 3.14
