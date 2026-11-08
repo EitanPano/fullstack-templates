@@ -6,7 +6,8 @@ SCSS tree in place of Tailwind and shadcn"). Catalog release `v1.7.0`, `frontend
 Harness plan 020. Amends [ADR 0003](0003-spa-and-deploy-modes.md) M5-2 and
 [ADR 0005](0005-frontend-foundation.md) F1, F2, F6, F8 for the React template; follows
 [ADR 0006](0006-per-framework-frontends-and-angular.md), which queued this as the React
-follow-up. Follow-up it leaves open: ADR 0008 (Next on the global SCSS tree).
+follow-up. Follow-up it leaves open: Next on the global SCSS tree (was named ADR 0008; amended by
+[ADR 0008](0008-vue-pinia.md), which took that number for Vue).
 
 ## Context
 
@@ -488,7 +489,10 @@ ADR 0006 A3 already made the harness layer-agnostic. What still names React 2.x'
 
 ## Out of scope
 
-Next on the SCSS tree (ADR 0008). Vue. An `i18n` flag (react-i18next or Lingui, Hebrew, RTL) and a
+Next on the SCSS tree (ADR 0008, amended: that number went to Vue). Vue (amended by
+[ADR 0008](0008-vue-pinia.md): the Vue template exists; its nginx config names the service-worker
+files and the manifest, which this template's never did, its generic extension rule covering
+them). An `i18n` flag (react-i18next or Lingui, Hebrew, RTL) and a
 `pwa` flag (`vite-plugin-pwa`) for React, each its own ADR or minor. A side-nav layout. A data
 table. A network badge and offline refusal. `setupListeners` (refetch on focus and reconnect).
 Proposed backlog lines: `- [ ] react: i18n flag (en/he, RTL) on the SCSS tree`,
