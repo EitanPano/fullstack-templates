@@ -42,6 +42,13 @@
   }
 }
 
+// The connection status: a polite live region, always rendered so a screen reader announces the
+// badge when it appears. Empty, it takes no room.
+.header__status {
+  display: flex;
+  align-items: center;
+}
+
 // The account slot: whatever the layout is given (a user menu), pushed to the inline end.
 .header__account {
   display: flex;

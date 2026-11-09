@@ -43,8 +43,13 @@ function stylesEntries(root: string): string[] {
 }
 
 // Rule 2: every sheet outside src/styles/ has its owner. An owner is a sibling (same directory)
-// non-test source with the sheet's stem that imports it as './<stem>.scss'; a directory-shared
-// partial is imported by two or more sibling non-test sources instead.
+// non-test source with the sheet's stem that imports it as './<stem>.scss', as its LAST import
+// statement (the page's own rules come after everything it composes); a directory-shared partial
+// is imported by two or more sibling non-test sources instead.
+const IMPORT_STATEMENT = /^import\s+(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]/gm
+function lastImport(text: string): string | undefined {
+  return [...text.matchAll(IMPORT_STATEMENT)].at(-1)?.[1]
+}
 function ownerless(root: string): string[] {
   const files = sources(root).filter((file) => !isTest(file.name))
   return sheets(root).flatMap((sheet) => {
@@ -56,7 +61,14 @@ function ownerless(root: string): string[] {
       (file) => dirname(file.name) === dirname(sheet.name) && importer.test(file.text),
     )
     if (importers.length >= 2) return []
-    if (importers.length === 1 && stem(importers[0]?.name ?? '') === stem(sheet.name)) return []
+    if (importers.length === 1 && stem(importers[0]?.name ?? '') === stem(sheet.name)) {
+      const owner = importers[0]
+      return lastImport(owner?.text ?? '') === `./${basename(sheet.name)}`
+        ? []
+        : [
+            `${sheet.name}: ${owner?.name ?? ''} imports it before another import (it must be the last import)`,
+          ]
+    }
     return [
       importers.length === 0
         ? `${sheet.name}: no sibling file imports it`
@@ -96,7 +108,27 @@ function unprefixed(root: string): string[] {
     .map((name) => `components/${name}`)
 }
 
-// Rule 6: the global tree is layered, the sibling sheets never are.
+// Rule 6: the global tree is layered, the sibling sheets never are. A global partial holds only
+// @use lines, comments and the one @layer block; a rule outside the block escapes the layer order.
+function topLevelStatements(text: string): string[] {
+  const code = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  const statements: string[] = []
+  let depth = 0
+  let start = 0
+  for (let i = 0; i < code.length; i++) {
+    const char = code[i]
+    if (char === '{') depth++
+    else if (char === '}' && --depth === 0) {
+      statements.push(code.slice(start, i + 1).trim())
+      start = i + 1
+    } else if (char === ';' && depth === 0) {
+      statements.push(code.slice(start, i + 1).trim())
+      start = i + 1
+    }
+  }
+  const rest = code.slice(start).trim()
+  return rest ? [...statements, rest] : statements
+}
 const LAYER_ORDER = '@layer setup, themes, basics;'
 const GLOBAL_LAYERS: [path: string, layer: string][] = [
   ['setup/_typography.scss', 'setup'],
@@ -119,8 +151,15 @@ function layerProblems(root: string): string[] {
     )
   }
   for (const [path, layer] of GLOBAL_LAYERS) {
-    if (!readStyles(root, path).includes(`@layer ${layer} {`)) {
+    const text = readStyles(root, path)
+    if (!text.includes(`@layer ${layer} {`)) {
       problems.push(`styles/${path}: its rules are not in @layer ${layer} { }`)
+      continue
+    }
+    for (const statement of topLevelStatements(text)) {
+      if (statement.startsWith('@use ') || statement.startsWith(`@layer ${layer} {`)) continue
+      const first = statement.split('\n')[0]?.trim() ?? ''
+      problems.push(`styles/${path}: a top-level statement outside the layer: ${first}`)
     }
   }
   for (const sheet of sheets(root)) {
@@ -269,5 +308,54 @@ describe('the scan itself', () => {
     expect(layerProblems(root)).toEqual([
       'components/app-ok.scss: a sibling sheet is never layered (unlayered rules win)',
     ])
+  })
+
+  it('refuses a rule left outside the layer block of a global partial', () => {
+    const root = seed({
+      'styles/basics/_layout.scss': `${LAYERED('basics')}\n.stray {\n  color: red;\n}\n`,
+    })
+
+    expect(layerProblems(root)).toEqual([
+      'styles/basics/_layout.scss: a top-level statement outside the layer: .stray {',
+    ])
+  })
+
+  it('accepts @use lines, comments and the one layer block at the top of a global partial', () => {
+    const root = seed({
+      'styles/basics/_layout.scss': `@use '../setup/functions';\n\n// What this holds.\n/* A block\n   comment { with braces } */\n${LAYERED('basics')}`,
+    })
+
+    expect(layerProblems(root)).toEqual([])
+  })
+
+  it('refuses a stylesheet imported before another import', () => {
+    const root = seed({
+      'components/app-ok.tsx':
+        "import './app-ok.scss'\nimport { x } from '@/shared/x'\nexport { x }\n",
+    })
+
+    expect(ownerless(root)).toEqual([
+      'components/app-ok.scss: components/app-ok.tsx imports it before another import (it must be the last import)',
+    ])
+  })
+
+  it('sees a multi-line import after the stylesheet import too', () => {
+    const root = seed({
+      'components/app-ok.tsx':
+        "import './app-ok.scss'\nimport {\n  a,\n  b,\n} from '@/shared/x'\nexport { a, b }\n",
+    })
+
+    expect(ownerless(root)).toEqual([
+      'components/app-ok.scss: components/app-ok.tsx imports it before another import (it must be the last import)',
+    ])
+  })
+
+  it('accepts the stylesheet import last after several imports', () => {
+    const root = seed({
+      'components/app-ok.tsx':
+        "import {\n  a,\n} from '@/shared/x'\nimport type { B } from '@/shared/y'\nimport './app-ok.scss'\n\nexport { a }\nexport type { B }\n",
+    })
+
+    expect(ownerless(root)).toEqual([])
   })
 })
