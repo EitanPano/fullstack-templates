@@ -10,7 +10,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 
 // Lints one snippet per rule through the real eslint.config.mjs. The snippets run in a throwaway
 // project that holds the files they import, because the boundary rule classifies a dependency by
-// the file it resolves to (an import that resolves to nothing is never reported); the features are
+// the file it resolves to (an import that resolves to nothing is never reported); the page modules are
 // invented here, so adding a real one never breaks the test. Type-aware linting cannot read
 // virtual files, so the one override turns it off.
 const config = fileURLToPath(new URL('../../eslint.config.mjs', import.meta.url))
@@ -22,15 +22,15 @@ const FILES = [
   'src/app/app.config.ts',
   'src/app/app.routes.ts',
   'src/app/nav.ts',
-  'src/app/layout/main-layout/main-layout.component.ts',
-  'src/app/features/health/health.routes.ts',
-  'src/app/features/health/health.form.ts',
-  'src/app/features/health/pages/health-status/health-status.component.ts',
-  'src/app/features/health/components/health-badge/health-badge.component.ts',
-  'src/app/features/other/other.routes.ts',
-  'src/app/features/other/other.form.ts',
-  'src/app/features/other/pages/other-page/other-page.component.ts',
-  'src/app/features/other/components/other-card/other-card.component.ts',
+  'src/app/components/app-main-layout/app-main-layout.component.ts',
+  'src/app/pages/health/health.routes.ts',
+  'src/app/pages/health/health.form.ts',
+  'src/app/pages/health/health-status/health-status.component.ts',
+  'src/app/pages/health/components/health-badge/health-badge.component.ts',
+  'src/app/pages/other/other.routes.ts',
+  'src/app/pages/other/other.form.ts',
+  'src/app/pages/other/other-page/other-page.component.ts',
+  'src/app/pages/other/components/other-card/other-card.component.ts',
   'src/app/store/health.store.ts',
   'src/app/services/health.service.ts',
   'src/app/services/generated/sdk.gen.ts',
@@ -89,46 +89,46 @@ async function messagesFor(filePath: string, code: string, ruleId: string) {
 const BOUNDARY = 'boundaries/dependencies'
 const RESTRICTED = 'no-restricted-imports'
 
-const PAGE = 'src/app/features/health/pages/health-status/x.ts'
-const COMPONENT = 'src/app/features/health/components/health-badge/x.ts'
-const ROUTES = 'src/app/features/health/x.routes.ts'
-const FORM = 'src/app/features/health/x.form.ts'
-const CROSS = 'a feature never imports another feature'
+const PAGE = 'src/app/pages/health/health-status/x.ts'
+const COMPONENT = 'src/app/pages/health/components/health-badge/x.ts'
+const ROUTES = 'src/app/pages/health/x.routes.ts'
+const FORM = 'src/app/pages/health/x.form.ts'
+const CROSS = 'a page module never imports another page module'
 const GENERATED = 'the generated client is imported only by services/'
 
 type Violation = [rule: string, file: string, code: string, ruleId: string, message: string]
 
 const violations: Violation[] = [
-  // app/ wires the layers; a feature is reached through its routes only, services through a store.
+  // app/ wires the layers; a page is reached through its module routes only, services through a store.
   [
     'app → services',
     'src/app/app.config.ts',
     "import '@app/services/health.service'",
     BOUNDARY,
-    'app/ wires layout/',
+    'app/ wires components/',
   ],
   [
-    'app → feature page',
+    'app → page',
     'src/app/app.routes.ts',
-    "import '@app/features/health/pages/health-status/health-status.component'",
+    "import '@app/pages/health/health-status/health-status.component'",
     BOUNDARY,
-    'import a feature only through its *.routes.ts',
+    'import a page only through its module *.routes.ts',
   ],
   [
-    'layout → services',
-    'src/app/layout/main-layout/x.ts',
+    'components → services',
+    'src/app/components/app-main-layout/x.ts',
     "import '@app/services/health.service'",
     BOUNDARY,
-    'layout/ imports core/',
+    'components/ imports core/',
   ],
   [
-    'layout → feature page',
-    'src/app/layout/main-layout/x.ts',
-    "import '@app/features/health/pages/health-status/health-status.component'",
+    'components → page',
+    'src/app/components/app-main-layout/x.ts',
+    "import '@app/pages/health/health-status/health-status.component'",
     BOUNDARY,
-    'layout/ imports core/',
+    'components/ imports core/',
   ],
-  // Pages inject stores, never services; a feature never reaches into another feature.
+  // Pages inject stores, never services; a page module never reaches into another page module.
   [
     'page → services',
     PAGE,
@@ -144,31 +144,31 @@ const violations: Violation[] = [
     'a page imports store/',
   ],
   [
-    'page → other feature component',
+    'page → other module component',
     PAGE,
-    "import '@app/features/other/components/other-card/other-card.component'",
+    "import '@app/pages/other/components/other-card/other-card.component'",
     BOUNDARY,
     CROSS,
   ],
-  ['page → other feature form', PAGE, "import '@app/features/other/other.form'", BOUNDARY, CROSS],
+  ['page → other module form', PAGE, "import '@app/pages/other/other.form'", BOUNDARY, CROSS],
   [
     'component → store',
     COMPONENT,
     "import '@app/store/health.store'",
     BOUNDARY,
-    'a feature component is presentational',
+    'a page component is presentational',
   ],
   [
-    'component → its own feature page',
+    'component → its own page',
     COMPONENT,
-    "import '@app/features/health/pages/health-status/health-status.component'",
+    "import '@app/pages/health/health-status/health-status.component'",
     BOUNDARY,
-    'a feature component is presentational',
+    'a page component is presentational',
   ],
   [
-    'routes → other feature page',
+    'routes → other module page',
     ROUTES,
-    "import '@app/features/other/pages/other-page/other-page.component'",
+    "import '@app/pages/other/other-page/other-page.component'",
     BOUNDARY,
     CROSS,
   ],
@@ -177,7 +177,28 @@ const violations: Violation[] = [
     ROUTES,
     "import '@app/store/health.store'",
     BOUNDARY,
-    'a feature routes file imports core/guards and its own pages only',
+    'a module routes file imports core/guards and its own pages only',
+  ],
+  [
+    'routes → its own module form',
+    ROUTES,
+    "import '@app/pages/health/health.form'",
+    BOUNDARY,
+    'a module routes file imports core/guards and its own pages only',
+  ],
+  [
+    'routes → its own module component',
+    ROUTES,
+    "import '@app/pages/health/components/health-badge/health-badge.component'",
+    BOUNDARY,
+    'a module routes file imports core/guards and its own pages only',
+  ],
+  [
+    'form → its own page',
+    FORM,
+    "import '@app/pages/health/health-status/health-status.component'",
+    BOUNDARY,
+    'a *.form.ts imports shared/validators',
   ],
   [
     'form → shared component',
@@ -195,9 +216,9 @@ const violations: Violation[] = [
     'a store imports services/',
   ],
   [
-    'store → feature page',
+    'store → page',
     'src/app/store/x.ts',
-    "import '@app/features/health/pages/health-status/health-status.component'",
+    "import '@app/pages/health/health-status/health-status.component'",
     BOUNDARY,
     'a store imports services/',
   ],
@@ -216,9 +237,9 @@ const violations: Violation[] = [
     'a service imports models/',
   ],
   [
-    'core/guards → feature page',
+    'core/guards → page',
     'src/app/core/guards/x.ts',
-    "import '@app/features/health/pages/health-status/health-status.component'",
+    "import '@app/pages/health/health-status/health-status.component'",
     BOUNDARY,
     'core wiring',
   ],
@@ -272,9 +293,9 @@ const violations: Violation[] = [
     'shared/ is product-agnostic',
   ],
   [
-    'shared → feature',
+    'shared → page module',
     'src/app/shared/validators/x.ts',
-    "import '@app/features/health/health.routes'",
+    "import '@app/pages/health/health.routes'",
     BOUNDARY,
     'shared/ is product-agnostic',
   ],
@@ -342,25 +363,32 @@ const violations: Violation[] = [
   ],
 ]
 
+// A folder no layer claims is refused, so the old homes cannot come back unnoticed.
+const unknown: [what: string, file: string][] = [
+  ['src/app/layout/', 'src/app/layout/x.ts'],
+  ['src/app/features/<module>/', 'src/app/features/health/x.ts'],
+  ['a component outside components/ and pages/', 'src/app/widgets/x.ts'],
+]
+
 const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   ['app → core/config', 'src/app/app.config.ts', "import '@app/core/config/constants'", BOUNDARY],
   ['app → app', 'src/app/app.config.ts', "import './app.routes'", BOUNDARY],
   [
-    'app → layout',
+    'app → components',
     'src/app/app.routes.ts',
-    "import '@app/layout/main-layout/main-layout.component'",
+    "import '@app/components/app-main-layout/app-main-layout.component'",
     BOUNDARY,
   ],
   [
-    'app → feature routes (the lazy import)',
+    'app → module routes (the lazy import)',
     'src/app/app.routes.ts',
-    "import('@app/features/health/health.routes')",
+    "import('@app/pages/health/health.routes')",
     BOUNDARY,
   ],
   ['app → store', 'src/app/app.config.ts', "import '@app/store/health.store'", BOUNDARY],
   [
-    'layout → core/providers',
-    'src/app/layout/main-layout/x.ts',
+    'components → core/providers',
+    'src/app/components/app-main-layout/x.ts',
     "import '@app/core/providers/storage.service'",
     BOUNDARY,
   ],
@@ -370,12 +398,12 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   ['page → core/config', PAGE, "import '@app/core/config/constants'", BOUNDARY],
   ['page → core/providers', PAGE, "import '@app/core/providers/storage.service'", BOUNDARY],
   [
-    'page → its own feature components',
+    'page → its own module components',
     PAGE,
-    "import '../../components/health-badge/health-badge.component'",
+    "import '../components/health-badge/health-badge.component'",
     BOUNDARY,
   ],
-  ['page → its own feature form', PAGE, "import '@app/features/health/health.form'", BOUNDARY],
+  ['page → its own module form', PAGE, "import '@app/pages/health/health.form'", BOUNDARY],
   [
     'component → shared',
     COMPONENT,
@@ -387,7 +415,7 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   [
     'routes → its own pages (the lazy import)',
     ROUTES,
-    "import('./pages/health-status/health-status.component')",
+    "import('./health-status/health-status.component')",
     BOUNDARY,
   ],
   ['form → shared/validators', FORM, "import '@app/shared/validators/zod-validator'", BOUNDARY],
@@ -524,6 +552,11 @@ describe('lint rules', { timeout: 60_000 }, () => {
     const found = await messagesFor(file, code, ruleId)
     expect(found).toHaveLength(1)
     expect(found[0]).toContain(message)
+  })
+
+  it.each(unknown)('a file in %s is refused as unknown', async (_what, file) => {
+    const found = await messagesFor(file, 'export {}', 'boundaries/no-unknown-files')
+    expect(found).toHaveLength(1)
   })
 
   it.each(allowed)('%s is allowed', async (_what, file, code, ruleId) => {
