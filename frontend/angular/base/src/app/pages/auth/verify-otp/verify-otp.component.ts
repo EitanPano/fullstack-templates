@@ -29,6 +29,7 @@ import { otpForm } from '../auth.form'
     TranslatePipe,
   ],
   templateUrl: './verify-otp.component.html',
+  styleUrl: './verify-otp.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VerifyOtpComponent {

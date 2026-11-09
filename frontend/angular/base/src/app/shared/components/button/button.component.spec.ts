@@ -104,4 +104,15 @@ describe('ButtonComponent', () => {
     expect(anchor?.getAttribute('href')).toBe('/')
     expect(anchor?.textContent).toContain('Save')
   })
+
+  it('adds the block class only when the block input is set', async () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([])] })
+    const fixture = TestBed.createComponent(ButtonComponent)
+    await fixture.whenStable()
+    const element = fixture.nativeElement as HTMLElement
+    expect(element.querySelector('button')?.className).not.toContain('button--block')
+    fixture.componentRef.setInput('block', true)
+    await fixture.whenStable()
+    expect(element.querySelector('button')?.className).toContain('button--block')
+  })
 })

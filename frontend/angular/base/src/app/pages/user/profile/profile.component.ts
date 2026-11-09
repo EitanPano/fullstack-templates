@@ -44,6 +44,7 @@ import { profileForm } from '../user.form'
     TranslatePipe,
   ],
   templateUrl: './profile.component.html',
+  styleUrl: './profile.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProfileComponent {

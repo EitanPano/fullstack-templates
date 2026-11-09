@@ -8,6 +8,7 @@ import { IconComponent, type IconName } from '../icon/icon.component'
   selector: 'app-empty-state',
   imports: [IconComponent],
   templateUrl: './empty-state.component.html',
+  styleUrl: './empty-state.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EmptyStateComponent {

@@ -9,6 +9,7 @@ import { ControlBase } from '../form-field/control-base'
 @Component({
   selector: 'app-checkbox',
   templateUrl: './checkbox.component.html',
+  styleUrl: './checkbox.component.scss',
   providers: [
     { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => CheckboxComponent), multi: true },
   ],

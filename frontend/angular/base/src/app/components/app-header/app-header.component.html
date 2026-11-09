@@ -82,10 +82,10 @@
               [attr.aria-label]="'auth.menu.label' | t"
             >
               <p class="user-menu__email">{{ auth.user()?.email }}</p>
-              <app-button link="/profile" variant="ghost" size="sm" (click)="closeMenu()">{{
+              <app-button link="/profile" variant="ghost" size="sm" block (click)="closeMenu()">{{
                 'auth.menu.profile' | t
               }}</app-button>
-              <app-button variant="ghost" size="sm" (click)="signOut()">{{
+              <app-button variant="ghost" size="sm" block (click)="signOut()">{{
                 'auth.menu.signOut' | t
               }}</app-button>
             </div>

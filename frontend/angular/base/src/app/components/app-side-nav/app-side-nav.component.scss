@@ -1,7 +1,7 @@
-@use '../setup/breakpoints';
-@use '../setup/functions';
-@use '../setup/mixins';
-@use '../setup/variables';
+@use 'setup/breakpoints';
+@use 'setup/functions';
+@use 'setup/mixins';
+@use 'setup/variables';
 
 // Below lg the panel is a drawer that slides in from the inline start; from lg it is a column.
 .side-nav {

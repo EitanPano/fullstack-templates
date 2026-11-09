@@ -8,6 +8,7 @@ export type SkeletonSize = 'sm' | 'md' | 'lg'
 @Component({
   selector: 'app-skeleton',
   templateUrl: './skeleton.component.html',
+  styleUrl: './skeleton.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SkeletonComponent {

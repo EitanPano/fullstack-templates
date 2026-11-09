@@ -45,6 +45,7 @@ function messageOf(key: string, detail: unknown): { key: string; params?: Params
 @Component({
   selector: 'app-form-field',
   templateUrl: './form-field.component.html',
+  styleUrl: './form-field.component.scss',
   providers: [{ provide: FORM_FIELD, useExisting: forwardRef(() => FormFieldComponent) }],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

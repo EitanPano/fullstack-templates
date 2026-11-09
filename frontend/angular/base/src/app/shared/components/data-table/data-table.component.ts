@@ -26,6 +26,7 @@ export interface TableCellContext<T> {
   selector: 'app-data-table',
   imports: [EmptyStateComponent, NgTemplateOutlet, TranslatePipe],
   templateUrl: './data-table.component.html',
+  styleUrl: './data-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DataTableComponent<T extends object> {

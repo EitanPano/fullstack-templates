@@ -1,7 +1,7 @@
-@use '../setup/breakpoints';
-@use '../setup/functions';
-@use '../setup/mixins';
-@use '../setup/variables';
+@use 'setup/breakpoints';
+@use 'setup/functions';
+@use 'setup/mixins';
+@use 'setup/variables';
 
 .header {
   position: sticky;
@@ -110,11 +110,6 @@
   border-radius: var(--radius);
   background: var(--background);
   box-shadow: var(--shadow-2);
-
-  .button {
-    justify-content: flex-start;
-    inline-size: 100%;
-  }
 }
 
 .user-menu__email {

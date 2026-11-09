@@ -1,9 +1,8 @@
-@use '@angular/cdk' as cdk;
-@use '../setup/breakpoints';
-@use '../setup/functions';
+@use 'setup/breakpoints';
+@use 'setup/functions';
 
-// The CDK overlay container and panel rules, once, for the toast and any later overlay.
-@include cdk.overlay();
+// The CDK overlay container and pane rules are the CDK's own: it loads its structural styles when
+// the first overlay opens, so nothing here (or in styles/) repeats them.
 
 .toast-list {
   display: grid;

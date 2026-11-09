@@ -29,6 +29,7 @@ const NEXT: Record<ThemePreference, ThemePreference> = {
   selector: 'app-header',
   imports: [ButtonComponent, IconComponent, RouterLink, TranslatePipe],
   templateUrl: './app-header.component.html',
+  styleUrl: './app-header.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppHeaderComponent {

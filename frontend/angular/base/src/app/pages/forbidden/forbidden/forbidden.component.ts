@@ -9,6 +9,7 @@ import { TranslatePipe } from '@app/shared/pipes/translate.pipe'
   selector: 'app-forbidden',
   imports: [ButtonComponent, PageHeaderComponent, TranslatePipe],
   templateUrl: './forbidden.component.html',
+  styleUrl: './forbidden.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ForbiddenComponent {}

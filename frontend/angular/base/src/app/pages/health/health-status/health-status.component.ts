@@ -25,6 +25,7 @@ import { HealthBadgeComponent } from '../components/health-badge/health-badge.co
     TranslatePipe,
   ],
   templateUrl: './health-status.component.html',
+  styleUrl: './health-status.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HealthStatusComponent {

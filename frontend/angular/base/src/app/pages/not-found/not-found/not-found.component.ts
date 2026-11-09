@@ -8,6 +8,7 @@ import { TranslatePipe } from '@app/shared/pipes/translate.pipe'
   selector: 'app-not-found',
   imports: [ButtonComponent, PageHeaderComponent, TranslatePipe],
   templateUrl: './not-found.component.html',
+  styleUrl: './not-found.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NotFoundComponent {}

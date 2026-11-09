@@ -31,6 +31,7 @@ import { loginForm } from '../auth.form'
     TranslatePipe,
   ],
   templateUrl: './login.component.html',
+  styleUrl: './login.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LoginComponent {

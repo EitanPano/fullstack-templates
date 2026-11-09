@@ -23,6 +23,7 @@ export type InputMode = 'none' | 'text' | 'tel' | 'url' | 'email' | 'numeric' | 
   selector: 'app-input',
   imports: [ButtonComponent, IconComponent, TranslatePipe],
   templateUrl: './input.component.html',
+  styleUrls: ['../controls.scss'],
   providers: [
     { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => InputComponent), multi: true },
   ],

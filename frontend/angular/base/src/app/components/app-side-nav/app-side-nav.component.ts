@@ -38,6 +38,7 @@ import { TranslatePipe } from '@app/shared/pipes/translate.pipe'
     TranslatePipe,
   ],
   templateUrl: './app-side-nav.component.html',
+  styleUrl: './app-side-nav.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'close()' },
 })

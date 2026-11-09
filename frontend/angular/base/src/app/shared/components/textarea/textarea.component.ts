@@ -10,6 +10,7 @@ import { ControlBase } from '../form-field/control-base'
   selector: 'app-textarea',
   imports: [TranslatePipe],
   templateUrl: './textarea.component.html',
+  styleUrls: ['../controls.scss'],
   providers: [
     { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => TextareaComponent), multi: true },
   ],

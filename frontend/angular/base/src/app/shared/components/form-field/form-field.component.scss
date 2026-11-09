@@ -1,11 +1,7 @@
-@use '../setup/functions';
+@use 'setup/functions';
 
-// <app-form-field> and the controls are transparent hosts; the BEM block inside carries the box.
-app-form-field,
-app-input,
-app-select,
-app-textarea,
-app-checkbox {
+// <app-form-field> is a block host; the BEM block inside carries the box.
+:host {
   display: block;
 }
 

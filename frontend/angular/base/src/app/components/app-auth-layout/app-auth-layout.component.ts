@@ -14,6 +14,7 @@ import { AppFooterComponent } from '../app-footer/app-footer.component'
   selector: 'app-auth-layout',
   imports: [AppFooterComponent, RouterLink, RouterOutlet, SkipLinkDirective, TranslatePipe],
   templateUrl: './app-auth-layout.component.html',
+  styleUrl: './app-auth-layout.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppAuthLayoutComponent {

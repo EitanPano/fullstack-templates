@@ -1,8 +1,8 @@
-@use '../setup/functions';
-@use '../setup/mixins';
+@use 'setup/functions';
+@use 'setup/mixins';
 
 // <app-button> is a transparent wrapper: the host adds no box, the .button inside carries it.
-app-button {
+:host {
   display: contents;
 }
 
@@ -85,6 +85,13 @@ app-button {
 .button--icon {
   inline-size: 2.5rem;
   padding: 0;
+}
+
+// Fills its container and aligns the label to the start (a menu row). The host has no box, so a
+// parent cannot do this from outside.
+.button--block {
+  justify-content: flex-start;
+  inline-size: 100%;
 }
 
 .button.is-loading {

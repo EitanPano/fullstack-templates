@@ -7,6 +7,7 @@ import { TranslatePipe } from '@app/shared/pipes/translate.pipe'
   selector: 'app-footer',
   imports: [TranslatePipe],
   templateUrl: './app-footer.component.html',
+  styleUrl: './app-footer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppFooterComponent {

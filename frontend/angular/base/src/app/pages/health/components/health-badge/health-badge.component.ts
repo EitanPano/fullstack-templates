@@ -10,6 +10,7 @@ import { TranslatePipe } from '@app/shared/pipes/translate.pipe'
   selector: 'app-health-badge',
   imports: [TranslatePipe],
   templateUrl: './health-badge.component.html',
+  styleUrl: './health-badge.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HealthBadgeComponent {

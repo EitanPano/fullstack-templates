@@ -30,6 +30,7 @@ import { registerForm } from '../auth.form'
     TranslatePipe,
   ],
   templateUrl: './register.component.html',
+  styleUrl: './register.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RegisterComponent {

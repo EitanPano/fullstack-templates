@@ -1,7 +1,12 @@
-@use '../setup/functions';
-@use '../setup/mixins';
+@use 'setup/functions';
+@use 'setup/mixins';
 
-// The text-like controls (<app-input>, <app-select>, <app-textarea>) share .control__field.
+// The text-like controls (<app-input>, <app-select>, <app-textarea>) share this sheet through
+// `styleUrls`; each host is a block, the .control inside carries the box.
+:host {
+  display: block;
+}
+
 .control {
   position: relative;
 }
@@ -67,39 +72,4 @@ textarea.control__field {
   color: var(--muted-foreground);
   font-size: var(--text-sm);
   text-align: end;
-}
-
-.checkbox {
-  display: inline-flex;
-  align-items: flex-start;
-  gap: functions.space(2);
-  cursor: pointer;
-
-  // The label row is the touch target, not the 16 px box.
-  @include mixins.touch-target;
-}
-
-.checkbox__box {
-  flex: none;
-  inline-size: 1.125rem;
-  block-size: 1.125rem;
-  margin-block-start: 0.15rem;
-  accent-color: var(--primary);
-
-  &:focus-visible {
-    @include mixins.focus-ring;
-  }
-
-  &[aria-invalid='true'] {
-    outline: 2px solid var(--destructive);
-    outline-offset: 1px;
-  }
-
-  &:disabled {
-    cursor: not-allowed;
-  }
-}
-
-.checkbox__label {
-  padding-block: 0.1rem;
 }
