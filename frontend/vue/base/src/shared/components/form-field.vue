@@ -35,3 +35,5 @@ provide(FORM_FIELD_KEY, { id, invalid, describedBy })
     <div :id="`${id}-error`" class="form-field__error" aria-live="polite">{{ error }}</div>
   </div>
 </template>
+
+<style lang="scss" src="./form-field.scss"></style>

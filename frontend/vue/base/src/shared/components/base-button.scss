@@ -1,0 +1,95 @@
+@use 'setup/functions';
+@use 'setup/mixins';
+
+// One control for a button and for a link that looks like one: <AppButton> renders either.
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: functions.space(2);
+  padding-block: functions.space(2);
+  padding-inline: functions.space(4);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+
+  @include mixins.control-size(2.25rem, 2rem);
+  @include mixins.touch-target;
+
+  &:disabled,
+  &[aria-disabled='true'] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.button--primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--primary) 90%, var(--foreground));
+  }
+}
+
+.button--secondary {
+  background: var(--secondary);
+  border-color: var(--border);
+  color: var(--secondary-foreground);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--secondary) 90%, var(--foreground));
+  }
+}
+
+.button--ghost {
+  color: var(--foreground);
+
+  &:hover:not(:disabled) {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+}
+
+.button--danger {
+  background: var(--destructive);
+  color: var(--destructive-foreground);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--destructive) 90%, var(--foreground));
+  }
+}
+
+.button--sm {
+  padding-block: functions.space(1);
+  padding-inline: functions.space(3);
+
+  @include mixins.control-size(2rem, 1.75rem);
+  // After the size is set: a small button still reaches 44 px under a coarse pointer.
+  @include mixins.touch-target;
+}
+
+// Square, the height of a control: the .button floor sets the height, this sets the width.
+.button--icon {
+  inline-size: 2.25rem;
+  padding: 0;
+
+  @media (pointer: fine) {
+    [data-density='compact'] & {
+      inline-size: 2rem;
+    }
+  }
+}
+
+.button.is-loading {
+  cursor: progress;
+}

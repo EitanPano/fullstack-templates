@@ -10,7 +10,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 
 // Lints one snippet per rule through the real eslint.config.mjs. The snippets run in a throwaway
 // project of fixture files (every file a snippet imports, plus files the later tasks add), because
-// the boundary rule classifies a dependency by the file it resolves to; the features are invented
+// the boundary rule classifies a dependency by the file it resolves to; the page modules are invented
 // here, so adding a real one never breaks the test and a rule that names a file the tree does not
 // hold yet is testable. Type-aware linting cannot read virtual files, so the one override turns
 // it off; every other rule stays on.
@@ -25,8 +25,8 @@ const FILES = [
   'src/app/plugins.ts',
   'src/app/router.ts',
   'src/app/routes.ts',
-  'src/layout/main-layout/main-layout.vue',
-  'src/layout/components/slots.ts',
+  'src/components/app-main-layout.vue',
+  'src/components/slots.ts',
   'src/store/health.store.ts',
   'src/store/loading.store.ts',
   'src/store/theme.store.ts',
@@ -50,18 +50,18 @@ const FILES = [
   'src/core/interceptors/error.interceptor.ts',
   'src/core/interceptors/http.provider.ts',
   'src/core/interceptors/loading.interceptor.ts',
-  'src/shared/components/app-button.vue',
+  'src/shared/components/base-button.vue',
   'src/shared/utils/time.ts',
   'src/shared/validators/zod-form.ts',
   'src/models/api/response.ts',
   'src/models/health/interface.ts',
   'src/models/nav/interface.ts',
-  'src/features/health/health.routes.ts',
-  'src/features/health/health.form.ts',
-  'src/features/health/pages/health-status-page.vue',
-  'src/features/health/components/health-badge.vue',
-  'src/features/other/other.routes.ts',
-  'src/features/other/pages/other-page.vue',
+  'src/pages/health/health.routes.ts',
+  'src/pages/health/health.form.ts',
+  'src/pages/health/health-status-page.vue',
+  'src/pages/health/components/health-badge.vue',
+  'src/pages/other/other.routes.ts',
+  'src/pages/other/other-page.vue',
   'src/testing/render.ts',
 ]
 for (const file of FILES) {
@@ -127,15 +127,15 @@ const BOUNDARY = 'boundaries/dependencies'
 const SYNTAX = 'no-restricted-syntax'
 const IMPORTS = 'no-restricted-imports'
 const HTML = 'vue/no-restricted-html-elements'
-const BLOCK = 'vue/no-restricted-block'
+const BLOCK = 'vue/block-lang'
 const INLINE = 'vue/no-static-inline-styles'
 // Every rule a snippet may trip because of where it sits: an allowed case must trip none.
 const GUARDED = [BOUNDARY, SYNTAX, IMPORTS, HTML, BLOCK, INLINE, 'boundaries/no-unknown-files']
 
-const PAGE = 'src/features/health/pages/x.vue'
-const COMPONENT = 'src/features/health/components/x.vue'
-const ROUTES = 'src/features/health/health.routes.ts'
-const FORM = 'src/features/health/health.form.ts'
+const PAGE = 'src/pages/health/x.vue'
+const COMPONENT = 'src/pages/health/components/x.vue'
+const ROUTES = 'src/pages/health/health.routes.ts'
+const FORM = 'src/pages/health/health.form.ts'
 const AUTH_WRAPPER = 'src/core/interceptors/auth.interceptor.ts'
 const LOADING_WRAPPER = 'src/core/interceptors/loading.interceptor.ts'
 const ERROR_INTERCEPTOR = 'src/core/interceptors/error.interceptor.ts'
@@ -149,9 +149,9 @@ const TYPES = "import type { HealthResponse } from '@/services/generated/types.g
 type Violation = [row: string, file: string, code: string, ruleId: string, message: string]
 type Allowed = [row: string, file: string, code: string]
 
-// One violation per row of ADR 0008 T1.1 and per restriction listed under it.
+// One violation per row of the layer table and per restriction listed under it.
 const violations: Violation[] = [
-  // app/: wiring above everything; a feature only through its routes file.
+  // app/: wiring above everything; a page module only through its routes file.
   [
     'app → services',
     'src/app/x.ts',
@@ -167,18 +167,18 @@ const violations: Violation[] = [
     'only a *.spec.ts imports testing/',
   ],
   [
-    'app → feature page',
+    'app → page module file',
     'src/app/x.ts',
-    "import '@/features/health/pages/health-status-page.vue'",
+    "import '@/pages/health/health-status-page.vue'",
     BOUNDARY,
     'only through its *.routes.ts',
   ],
   // main.ts is the entry: app, core, shared, models.
   ['main → store', 'src/main.ts', "import '@/store/theme.store'", BOUNDARY, 'main.ts imports app/'],
   [
-    'main → layout',
+    'main → components',
     'src/main.ts',
-    "import '@/layout/components/slots'",
+    "import '@/components/slots'",
     BOUNDARY,
     'main.ts imports app/',
   ],
@@ -189,43 +189,43 @@ const violations: Violation[] = [
     BOUNDARY,
     'main.ts imports app/',
   ],
-  // layout/: core/config, core/providers, store, shared, models.
+  // components/: core/config, core/providers, store, shared, models.
   [
-    'layout → app',
-    'src/layout/x.ts',
+    'components → app',
+    'src/components/x.ts',
     "import '@/app/nav'",
     BOUNDARY,
-    'layout/ imports core/config',
+    'components/ imports core/config',
   ],
   [
-    'layout → feature',
-    'src/layout/x.ts',
-    "import '@/features/health/health.routes'",
+    'components → page module',
+    'src/components/x.ts',
+    "import '@/pages/health/health.routes'",
     BOUNDARY,
-    'layout/ imports core/config',
+    'components/ imports core/config',
   ],
   [
-    'layout → services',
-    'src/layout/x.ts',
+    'components → services',
+    'src/components/x.ts',
     "import '@/services/health.service'",
     BOUNDARY,
-    'layout/ imports core/config',
+    'components/ imports core/config',
   ],
   [
-    'layout → core/guards',
-    'src/layout/x.ts',
+    'components → core/guards',
+    'src/components/x.ts',
     "import '@/core/guards/auth.guard'",
     BOUNDARY,
-    'layout/ imports core/config',
+    'components/ imports core/config',
   ],
   [
-    'layout → core/i18n',
-    'src/layout/x.ts',
+    'components → core/i18n',
+    'src/components/x.ts',
     "import '@/core/i18n/i18n'",
     BOUNDARY,
-    'layout/ imports core/config',
+    'components/ imports core/config',
   ],
-  // features/<f>/pages: store, shared, models, core/config, core/providers, core/guards.
+  // pages/<m>/*.vue: store, shared, models, core/config, core/providers, core/guards.
   [
     'page → services',
     PAGE,
@@ -234,7 +234,7 @@ const violations: Violation[] = [
     'a page reads a store, never services/',
   ],
   ['page → app', PAGE, "import '@/app/nav'", BOUNDARY, 'a page reads a store'],
-  ['page → layout', PAGE, "import '@/layout/components/slots'", BOUNDARY, 'a page reads a store'],
+  ['page → components', PAGE, "import '@/components/slots'", BOUNDARY, 'a page reads a store'],
   [
     'page → core/interceptors',
     PAGE,
@@ -250,50 +250,50 @@ const violations: Violation[] = [
     'only a *.spec.ts imports testing/',
   ],
   [
-    'feature → other feature',
+    'page module → other page module',
     PAGE,
-    "import '@/features/other/pages/other-page.vue'",
+    "import '@/pages/other/other-page.vue'",
     BOUNDARY,
-    'a feature never imports another feature',
+    'a page module never imports another page module',
   ],
   [
-    'feature → other feature (relative path)',
+    'page module → other page module (relative path)',
     PAGE,
-    "import '../../other/pages/other-page.vue'",
+    "import '../other/other-page.vue'",
     BOUNDARY,
-    'a feature never imports another feature',
+    'a page module never imports another page module',
   ],
-  // features/<f>/components: shared, models.
+  // pages/<m>/components/: shared, models.
   [
     'component → store',
     COMPONENT,
     "import '@/store/theme.store'",
     BOUNDARY,
-    'a feature component imports shared/ and models/ only',
+    'a page component imports shared/ and models/ only',
   ],
   [
     'component → core/config',
     COMPONENT,
     "import '@/core/config/constants'",
     BOUNDARY,
-    'a feature component imports shared/ and models/ only',
+    'a page component imports shared/ and models/ only',
   ],
-  // features/<f>/*.routes.ts: core/guards and its own pages.
+  // pages/<m>/*.routes.ts: core/guards and its own page module.
   [
     'routes → store',
     ROUTES,
     "import '@/store/theme.store'",
     BOUNDARY,
-    'a *.routes.ts imports core/guards and its own pages only',
+    'a *.routes.ts imports core/guards and its own page module only',
   ],
   [
     'routes → shared',
     ROUTES,
     "import '@/shared/utils/time'",
     BOUNDARY,
-    'a *.routes.ts imports core/guards and its own pages only',
+    'a *.routes.ts imports core/guards and its own page module only',
   ],
-  // features/<f>/*.form.ts: shared/validators, models, generated zod.
+  // pages/<m>/*.form.ts: shared/validators, models, generated zod.
   [
     'form → services',
     FORM,
@@ -311,7 +311,7 @@ const violations: Violation[] = [
   [
     'form → shared/components',
     FORM,
-    "import '@/shared/components/app-button.vue'",
+    "import '@/shared/components/base-button.vue'",
     BOUNDARY,
     'a *.form.ts imports shared/validators',
   ],
@@ -331,9 +331,9 @@ const violations: Violation[] = [
     'store/ imports store/, services/',
   ],
   [
-    'store → feature',
+    'store → page module',
     'src/store/x.ts',
-    "import '@/features/health/health.routes'",
+    "import '@/pages/health/health.routes'",
     BOUNDARY,
     'store/ imports store/, services/',
   ],
@@ -382,16 +382,16 @@ const violations: Violation[] = [
     'core wiring (guards, initializers',
   ],
   [
-    'core/initializers → feature',
+    'core/initializers → page module',
     'src/core/initializers/x.ts',
-    "import '@/features/health/health.routes'",
+    "import '@/pages/health/health.routes'",
     BOUNDARY,
     'core wiring (guards, initializers',
   ],
   [
-    'core/interceptors/error → layout',
+    'core/interceptors/error → components',
     ERROR_INTERCEPTOR,
-    "import '@/layout/components/slots'",
+    "import '@/components/slots'",
     BOUNDARY,
     'core wiring (guards, initializers',
   ],
@@ -518,9 +518,9 @@ const violations: Violation[] = [
     'shared/ is product-agnostic',
   ],
   [
-    'shared → feature',
+    'shared → page module',
     'src/shared/components/x.ts',
-    "import '@/features/health/health.routes'",
+    "import '@/pages/health/health.routes'",
     BOUNDARY,
     'shared/ is product-agnostic',
   ],
@@ -625,14 +625,14 @@ const violations: Violation[] = [
     PAGE,
     SFC("import '@/styles/styles.scss'"),
     IMPORTS,
-    'styles live in src/styles/',
+    'main.ts imports the global styles',
   ],
   [
     'a css import in a store',
     'src/store/x.ts',
     "import '@/styles/themes/brand.css'",
     IMPORTS,
-    'styles live in src/styles/',
+    'main.ts imports the global styles',
   ],
   [
     '<button> in a page',
@@ -642,8 +642,8 @@ const violations: Violation[] = [
     '<button> only inside shared/components/',
   ],
   [
-    '<input> in a layout',
-    'src/layout/x.vue',
+    '<input> in components/',
+    'src/components/x.vue',
     SFC('', '<input />'),
     HTML,
     '<input> only inside shared/components/',
@@ -663,11 +663,19 @@ const violations: Violation[] = [
     '<textarea> only inside shared/components/',
   ],
   [
-    'a <style> block',
+    'a <style> block without lang',
     PAGE,
     `${SFC('')}\n<style>p { color: red }</style>`,
     BLOCK,
-    'no <style> block',
+    "The 'lang' attribute of '<style>' is missing",
+  ],
+  [
+    'a <style lang="css"> block',
+    PAGE,
+    `${SFC('')}
+<style lang="css" src="./x.css"></style>`,
+    BLOCK,
+    "can be used for the 'lang' attribute of '<style>'",
   ],
   ['a static style attribute', PAGE, SFC('', '<p style="color: red" />'), INLINE, ''],
   [
@@ -682,39 +690,43 @@ const violations: Violation[] = [
 // One allowed case per row, so a rule cannot be satisfied by refusing everything.
 const allowed: Allowed[] = [
   [
-    'app → layout, store, shared, models, core',
+    'app → components, store, shared, models, core',
     'src/app/x.ts',
-    "import '@/layout/components/slots'; import '@/store/theme.store'; import '@/shared/utils/time'; import '@/models/nav/interface'; import '@/core/config/env'; import '@/core/guards/auth.guard'",
+    "import '@/components/slots'; import '@/store/theme.store'; import '@/shared/utils/time'; import '@/models/nav/interface'; import '@/core/config/env'; import '@/core/guards/auth.guard'",
   ],
-  ['app → a feature *.routes.ts', 'src/app/x.ts', "import '@/features/health/health.routes'"],
+  ['app → a page module *.routes.ts', 'src/app/x.ts', "import '@/pages/health/health.routes'"],
   [
     'main → app, core, shared, models',
     'src/main.ts',
     "import '@/app/plugins'; import '@/core/config/env'; import '@/shared/utils/time'; import '@/models/nav/interface'",
   ],
   [
-    'layout → core/config, core/providers, store, shared, models',
-    'src/layout/x.ts',
+    'components → core/config, core/providers, store, shared, models',
+    'src/components/x.ts',
     "import '@/core/config/constants'; import '@/core/providers/logger'; import '@/store/theme.store'; import '@/shared/utils/time'; import '@/models/nav/interface'",
   ],
-  ['layout → shared component', 'src/layout/x.ts', "import '@/shared/components/app-button.vue'"],
+  [
+    'components → shared component',
+    'src/components/x.ts',
+    "import '@/shared/components/base-button.vue'",
+  ],
   [
     'page → store, shared, models, core/config, core/providers, core/guards',
     PAGE,
     "import '@/store/health.store'; import '@/shared/utils/time'; import '@/models/health/interface'; import '@/core/config/constants'; import '@/core/providers/logger'; import '@/core/guards/unsaved-changes.guard'",
   ],
-  ['page → its own component', PAGE, "import '../components/health-badge.vue'"],
-  ['page → its own form', PAGE, "import '../health.form'"],
+  ['page → its own component', PAGE, "import './components/health-badge.vue'"],
+  ['page → its own form', PAGE, "import './health.form'"],
   ['page → generated types by an alias model', PAGE, "import '@/models/health/interface'"],
   [
     'component → shared, models',
     COMPONENT,
-    "import '@/shared/components/app-button.vue'; import '@/models/health/interface'",
+    "import '@/shared/components/base-button.vue'; import '@/models/health/interface'",
   ],
   [
     'routes → core/guards and its own pages',
     ROUTES,
-    "import '@/core/guards/auth.guard'; import('./pages/health-status-page.vue')",
+    "import '@/core/guards/auth.guard'; import('./health-status-page.vue')",
   ],
   [
     'form → shared/validators, models, generated zod',
@@ -810,11 +822,11 @@ const allowed: Allowed[] = [
   [
     'testing → anything',
     'src/testing/x.ts',
-    "import '@/features/health/health.routes'; import '@/app/nav'; import '@/store/theme.store'; import '@/services/health.service'",
+    "import '@/pages/health/health.routes'; import '@/app/nav'; import '@/store/theme.store'; import '@/services/health.service'",
   ],
   [
     'a spec → testing and any layer',
-    'src/features/health/pages/x.spec.ts',
+    'src/pages/health/pages/x.spec.ts',
     "import '@/testing/render'; import '@/services/health.service'",
   ],
   ['import.meta in env.ts', 'src/core/config/env.ts', 'export const v = import.meta.env.MODE'],
@@ -829,9 +841,15 @@ const allowed: Allowed[] = [
     SFC('', '<button type="button">x</button><input /><select /><textarea />'),
   ],
   [
-    'a component tag <AppButton> in a page',
+    'a component tag <BaseButton> in a page',
     PAGE,
-    SFC("import AppButton from '@/shared/components/app-button.vue'", '<AppButton />'),
+    SFC("import BaseButton from '@/shared/components/base-button.vue'", '<BaseButton />'),
+  ],
+  [
+    'an empty <style lang="scss" src> block',
+    PAGE,
+    `${SFC('')}
+<style lang="scss" src="./x.scss"></style>`,
   ],
   ['a script-only page', PAGE, SFC('const a = 1\nexport {}\nvoid a')],
   ['files in a claimed directory', 'src/shared/utils/x.ts', 'export {}'],
@@ -840,10 +858,10 @@ const allowed: Allowed[] = [
 // The first lint loads the whole config (type-aware presets, plugins), which can take seconds.
 describe('lint rules', { timeout: 60_000 }, () => {
   // The allowed cases pass vacuously if the rule stopped firing, so pin one known violation.
-  it('still reports exactly one boundaries message for shared → feature', async () => {
+  it('still reports exactly one boundaries message for shared → page module', async () => {
     const found = await messagesFor(
       'src/shared/components/x.ts',
-      "import '@/features/health/health.routes'",
+      "import '@/pages/health/health.routes'",
       BOUNDARY,
     )
     expect(found).toHaveLength(1)
@@ -862,17 +880,25 @@ describe('lint rules', { timeout: 60_000 }, () => {
 })
 
 describe('files outside every layer', { timeout: 60_000 }, () => {
-  it.each(['src/lib/format.ts', 'src/utils/format.ts', 'src/stray.ts', 'src/hooks/use-thing.ts'])(
-    '%s is refused',
-    async (file) => {
-      expect(await messagesFor(file, 'export {}', 'boundaries/no-unknown-files')).toHaveLength(1)
-    },
-  )
+  it.each([
+    'src/lib/format.ts',
+    'src/utils/format.ts',
+    'src/stray.ts',
+    'src/hooks/use-thing.ts',
+    'src/layout/x.vue',
+    'src/features/x/y.vue',
+  ])('%s is refused', async (file) => {
+    expect(await messagesFor(file, 'export {}', 'boundaries/no-unknown-files')).toHaveLength(1)
+  })
 
-  it.each(['src/main.ts', 'src/vite-env.d.ts', 'src/shared/utils/x.ts', 'src/models/x.ts'])(
-    '%s is allowed',
-    async (file) => {
-      expect(await messagesFor(file, 'export {}', 'boundaries/no-unknown-files')).toEqual([])
-    },
-  )
+  it.each([
+    'src/main.ts',
+    'src/vite-env.d.ts',
+    'src/shared/utils/x.ts',
+    'src/models/x.ts',
+    'src/components/app-x.vue',
+    'src/pages/health/x.vue',
+  ])('%s is allowed', async (file) => {
+    expect(await messagesFor(file, 'export {}', 'boundaries/no-unknown-files')).toEqual([])
+  })
 })

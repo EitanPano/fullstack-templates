@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppIcon from './app-icon.vue'
+import BaseIcon from './base-icon.vue'
 import type { IconName } from './icons'
 
 // What a list shows when it has nothing: an icon, a title, a description and, in the `actions`
@@ -12,9 +12,11 @@ withDefaults(defineProps<{ heading: string; description?: string; icon?: IconNam
 
 <template>
   <div class="empty-state">
-    <span class="empty-state__icon"><AppIcon :name="icon" large /></span>
+    <span class="empty-state__icon"><BaseIcon :name="icon" large /></span>
     <h2>{{ heading }}</h2>
     <p v-if="description" class="empty-state__description">{{ description }}</p>
     <div class="empty-state__actions"><slot name="actions" /></div>
   </div>
 </template>
+
+<style lang="scss" src="./empty-state.scss"></style>
