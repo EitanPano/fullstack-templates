@@ -110,6 +110,6 @@ onlyWhen:
     - scripts/e2e-database-url.ts
     - tests/unit/e2e-database-url.spec.ts
 postGenerate:
+  - install
   - contract
   - format
-  - install
