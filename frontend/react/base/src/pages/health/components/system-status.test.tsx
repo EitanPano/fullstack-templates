@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { Provider } from 'react-redux'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { SystemStatus } from '@/features/health/components/system-status'
+import { SystemStatus } from '@/pages/health/components/system-status'
 import { createStore } from '@/store'
 import { stubApi } from '@/testing/stub-api'
 

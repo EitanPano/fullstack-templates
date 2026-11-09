@@ -1,7 +1,7 @@
 import { RefreshCwIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { REFRESH_COPY } from '@/features/health/health.copy'
+import { REFRESH_COPY } from '@/pages/health/health.copy'
 import { isApiError } from '@/models/api-error'
 import { Button } from '@/shared/components/button'
 import { useRefreshHealthMutation } from '@/services/health.api'

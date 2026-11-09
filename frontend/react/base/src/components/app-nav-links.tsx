@@ -4,7 +4,7 @@ import type { NavEntry } from '@/models/nav'
 
 // The inline navigation from md. NavLink sets aria-current="page" on the entry for the current
 // route, which is also the styling hook. The phone gets the same entries in the sheet.
-export function NavLinks({ nav }: { nav: NavEntry[] }) {
+export function AppNavLinks({ nav }: { nav: NavEntry[] }) {
   return (
     <ul className="nav-links">
       {nav.map((entry) => (

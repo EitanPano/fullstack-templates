@@ -1,4 +1,4 @@
-import { ProfileCard } from '@/features/user/components/profile-card'
+import { ProfileCard } from '@/pages/user/components/profile-card'
 import { Page, PageHeader } from '@/shared/components/page'
 
 // A page only an account sees: its loader (user.routes.tsx) calls `requireAccount`, the page

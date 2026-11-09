@@ -10,12 +10,12 @@ export function authRoutes(store: AppStore): RouteObject[] {
     {
       path: 'sign-in',
       loader: () => redirectIfSignedIn(store),
-      lazy: () => import('./pages/sign-in-page'),
+      lazy: () => import('./sign-in-page'),
     },
     {
       path: 'sign-up',
       loader: () => redirectIfSignedIn(store),
-      lazy: () => import('./pages/sign-up-page'),
+      lazy: () => import('./sign-up-page'),
     },
   ]
 }

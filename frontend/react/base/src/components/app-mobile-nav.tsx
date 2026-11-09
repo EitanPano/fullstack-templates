@@ -1,7 +1,7 @@
 import { MenuIcon } from 'lucide-react'
 import { useState } from 'react'
 
-import { SheetNavLinks } from '@/layout/components/nav-links'
+import { SheetNavLinks } from '@/components/app-nav-links'
 import type { NavEntry } from '@/models/nav'
 import { Button } from '@/shared/components/button'
 import {
@@ -15,7 +15,7 @@ import {
 
 // The phone navigation: the same entries as the inline nav, in a sheet. The trigger is hidden
 // from md by CSS; the sheet nav carries the landmark name and closes when a link is followed.
-export function MobileNav({ nav }: { nav: NavEntry[] }) {
+export function AppMobileNav({ nav }: { nav: NavEntry[] }) {
   const [open, setOpen] = useState(false)
 
   return (

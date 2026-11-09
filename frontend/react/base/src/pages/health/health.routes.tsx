@@ -18,7 +18,7 @@ export function healthRoutes(store: AppStore): RouteObject[] {
           subscription.unsubscribe()
         }
       },
-      lazy: () => import('./pages/home-page'),
+      lazy: () => import('./home-page'),
     },
   ]
 }

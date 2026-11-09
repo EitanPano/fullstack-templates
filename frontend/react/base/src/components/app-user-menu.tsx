@@ -1,7 +1,7 @@
 import { UserIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-import { ThemeMenu } from '@/layout/components/theme-menu'
+import { AppThemeMenu } from '@/components/app-theme-menu'
 import { Avatar, AvatarFallback } from '@/shared/components/avatar'
 import { Button } from '@/shared/components/button'
 import {
@@ -15,7 +15,7 @@ import {
 // An avatar trigger with an items slot above the theme choices. Without an account the slot is
 // empty and the menu is the theme menu. An account passes its email (the first line of the menu,
 // never in the header) and its items, such as Sign out.
-export function UserMenu({
+export function AppUserMenu({
   children,
   initials,
   email,
@@ -54,7 +54,7 @@ export function UserMenu({
             <DropdownMenuSeparator />
           </>
         ) : null}
-        <ThemeMenu />
+        <AppThemeMenu />
       </DropdownMenuContent>
     </DropdownMenu>
   )

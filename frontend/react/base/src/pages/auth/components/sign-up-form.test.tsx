@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { clearSessionHint, hasSessionHint } from '@/core/auth/session-hint'
-import { SignUpForm } from '@/features/auth/components/sign-up-form'
+import { SignUpForm } from '@/pages/auth/components/sign-up-form'
 import { SESSION, envelope } from '@/testing/auth-fixtures'
 import { renderInRouter } from '@/testing/render-in-router'
 import { stubApi } from '@/testing/stub-api'

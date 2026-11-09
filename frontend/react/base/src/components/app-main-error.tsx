@@ -7,7 +7,7 @@ import { ErrorState } from '@/shared/components/error-state'
 // The group ErrorBoundary: it renders inside the shell. An ApiError already carries user-safe
 // copy; anything else gets a generic line and the cause goes to the console. Retry only
 // revalidates: a rejected cache entry with no subscriber is fetched again by the loader.
-export function MainError() {
+export function AppMainError() {
   const error = useRouteError()
   const revalidator = useRevalidator()
 

@@ -3,14 +3,14 @@ import userEvent from '@testing-library/user-event'
 import { Provider } from 'react-redux'
 import { describe, expect, it } from 'vitest'
 
-import { UserMenu } from '@/layout/components/user-menu'
+import { AppUserMenu } from '@/components/app-user-menu'
 import { DropdownMenuItem } from '@/shared/components/dropdown-menu'
 import { createStore } from '@/store'
 
-function setup(props: Parameters<typeof UserMenu>[0] = {}) {
+function setup(props: Parameters<typeof AppUserMenu>[0] = {}) {
   render(
     <Provider store={createStore()}>
-      <UserMenu {...props} />
+      <AppUserMenu {...props} />
     </Provider>,
   )
 }

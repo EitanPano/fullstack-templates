@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 
 import { SIGN_IN_PATH } from '@/core/config/constants'
-import { UserMenu } from '@/layout/components/user-menu'
+import { AppUserMenu } from '@/components/app-user-menu'
 import { initials } from '@/models/user'
 import { api } from '@/services/api'
 import { useLogoutMutation } from '@/services/auth.api'
@@ -51,7 +51,7 @@ function SignOutItem() {
 // The shell's account slot with an account behind it: a sign-in link and the theme menu for a
 // visitor; the avatar menu (email, theme, sign out) for an account. The email lives in the menu,
 // never as header text beside a primary button.
-export function AccountMenu() {
+export function AppAccountMenu() {
   const { data: user, isLoading, isError } = useGetMeQuery()
   if (isLoading) return <AccountMenuSkeleton />
   if (isError || user === null || user === undefined) {
@@ -60,13 +60,13 @@ export function AccountMenu() {
         <Button asChild variant="secondary" size="sm">
           <Link to={SIGN_IN_PATH}>Sign in</Link>
         </Button>
-        <UserMenu />
+        <AppUserMenu />
       </>
     )
   }
   return (
-    <UserMenu email={user.email} initials={initials(user)}>
+    <AppUserMenu email={user.email} initials={initials(user)}>
       <SignOutItem />
-    </UserMenu>
+    </AppUserMenu>
   )
 }

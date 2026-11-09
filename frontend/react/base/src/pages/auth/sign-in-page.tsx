@@ -1,6 +1,6 @@
 import { useSearchParams } from 'react-router'
 
-import { SignInForm } from '@/features/auth/components/sign-in-form'
+import { SignInForm } from '@/pages/auth/components/sign-in-form'
 import { AuthCard } from '@/shared/components/auth-card'
 import { safeNextPath } from '@/shared/utils/next-path'
 

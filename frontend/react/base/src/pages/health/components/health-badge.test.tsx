@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import { HealthBadge } from '@/features/health/components/health-badge'
+import { HealthBadge } from '@/pages/health/components/health-badge'
 
 describe('HealthBadge', () => {
   it('announces the version and uptime as a status', () => {

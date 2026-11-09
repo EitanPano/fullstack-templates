@@ -15,7 +15,7 @@ const CHOICES = [
 
 // The theme choices as menu items for the user menu. The listener behind the slice writes
 // data-theme and the stored choice.
-export function ThemeMenu() {
+export function AppThemeMenu() {
   const theme = useAppSelector(selectTheme)
   const dispatch = useAppDispatch()
 

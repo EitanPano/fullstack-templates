@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { Provider } from 'react-redux'
 import { describe, expect, it } from 'vitest'
 
-import { ThemeMenu } from '@/layout/components/theme-menu'
+import { AppThemeMenu } from '@/components/app-theme-menu'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,7 +20,7 @@ function setup() {
       <DropdownMenu>
         <DropdownMenuTrigger>Open</DropdownMenuTrigger>
         <DropdownMenuContent>
-          <ThemeMenu />
+          <AppThemeMenu />
         </DropdownMenuContent>
       </DropdownMenu>
     </Provider>,

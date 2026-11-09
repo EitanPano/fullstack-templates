@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { clearSessionHint, hasSessionHint, setSessionHint } from '@/core/auth/session-hint'
-import { AccountMenu } from '@/layout/components/account-menu'
+import { AppAccountMenu } from '@/components/app-account-menu'
 import { userApi } from '@/services/user.api'
 import { createStore } from '@/store'
 import { USER, envelope } from '@/testing/auth-fixtures'
@@ -25,7 +25,7 @@ afterEach(() => {
 describe('AccountMenu', () => {
   it('keeps the trigger size while the account loads, with no role to announce', () => {
     stubApi({ 'GET /api/user/me': () => new Promise<Response>(() => undefined) })
-    const { container } = renderInRouter(<AccountMenu />)
+    const { container } = renderInRouter(<AppAccountMenu />)
 
     expect(container.querySelector('.account-menu__skeleton')).toHaveAttribute(
       'aria-hidden',
@@ -36,7 +36,7 @@ describe('AccountMenu', () => {
 
   it('shows a visitor a sign-in link and the theme menu', async () => {
     stubApi({ 'GET /api/user/me': () => envelope('unauthenticated', 401) })
-    renderInRouter(<AccountMenu />)
+    renderInRouter(<AppAccountMenu />)
 
     expect(await screen.findByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/sign-in')
     expect(screen.getByRole('button', { name: 'Account menu' })).toBeInTheDocument()
@@ -44,7 +44,7 @@ describe('AccountMenu', () => {
 
   it('shows an account its menu with the email inside it, and no sign-in link', async () => {
     stubApi({ 'GET /api/user/me': Response.json(USER) })
-    renderInRouter(<AccountMenu />)
+    renderInRouter(<AppAccountMenu />)
 
     const trigger = await screen.findByRole('button', { name: 'Account menu, AD' })
     expect(screen.queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument()
@@ -61,7 +61,7 @@ describe('AccountMenu', () => {
       setSessionHint()
       const store = createStore()
       await store.dispatch(userApi.util.upsertQueryData('getMe', undefined, USER))
-      renderInRouter(<AccountMenu />, { store })
+      renderInRouter(<AppAccountMenu />, { store })
       await userEvent.click(await screen.findByRole('button', { name: /^Account menu/ }))
       await userEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }))
       return store

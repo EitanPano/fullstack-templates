@@ -4,7 +4,7 @@ import { Provider } from 'react-redux'
 import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { RefreshHealthButton } from '@/features/health/components/refresh-health-button'
+import { RefreshHealthButton } from '@/pages/health/components/refresh-health-button'
 import { createStore } from '@/store'
 import { stubApi } from '@/testing/stub-api'
 

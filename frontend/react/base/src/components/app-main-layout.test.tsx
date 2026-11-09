@@ -5,7 +5,7 @@ import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { describe, expect, it } from 'vitest'
 
-import { MainLayout } from '@/layout/main-layout/main-layout'
+import { AppMainLayout } from '@/components/app-main-layout'
 import type { NavEntry } from '@/models/nav'
 import { createStore } from '@/store'
 import { stubApi } from '@/testing/stub-api'
@@ -25,7 +25,7 @@ function setup() {
   const router = createMemoryRouter(
     [
       {
-        element: <MainLayout nav={NAV} />,
+        element: <AppMainLayout nav={NAV} />,
         children: [
           { path: '/', element: <p>Home body</p> },
           { path: '/plant', element: <p>Plant body</p> },

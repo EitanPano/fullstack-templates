@@ -1,4 +1,4 @@
-import { SystemStatus } from '@/features/health/components/system-status'
+import { SystemStatus } from '@/pages/health/components/system-status'
 import { Page, PageHeader } from '@/shared/components/page'
 
 // The home screen. The route loader has already put the health read in the cache, so the status
