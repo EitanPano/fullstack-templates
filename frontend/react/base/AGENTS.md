@@ -149,7 +149,7 @@ Also lint-enforced:
 - `fetch(`, `globalThis.fetch(`, `window.fetch(` only in `core/config/api-client.ts`;
   `import.meta` only in `core/config/env.ts`.
 - `button`, `input`, `select`, `textarea` JSX elements only in `shared/components/`; the `style`
-  JSX attribute nowhere; a `.css` or `.scss` import nowhere but `main.tsx`.
+  JSX attribute nowhere; a stylesheet import is only the owner's sibling `./<stem>.scss` (imported last); the global tree is loaded only by `main.tsx`.
 - `boundaries/no-unknown-files` and `no-unknown-dependencies` are on: a file in a directory that
   matches no layer (`src/hooks/`, `src/lib/`, a stray file) is an error. `src/styles/**`,
   `vite-env.d.ts` and the tests are boundaries-ignored. `session-hint.ts` may not import the guards
