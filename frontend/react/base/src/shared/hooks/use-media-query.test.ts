@@ -46,6 +46,17 @@ describe('useMediaQuery', () => {
     expect(media.matchMedia).toHaveBeenCalledWith('(min-width: 768px)')
   })
 
+  it('subscribes once across rerenders', () => {
+    const media = stubMatchMedia(false)
+    const { rerender } = renderHook(() => useMediaQuery('(min-width: 768px)'))
+
+    rerender()
+    rerender()
+
+    expect(media.list.addEventListener).toHaveBeenCalledTimes(1)
+    expect(media.list.removeEventListener).not.toHaveBeenCalled()
+  })
+
   it('removes its change listener on unmount', () => {
     const media = stubMatchMedia(false)
     const { unmount } = renderHook(() => useMediaQuery('(min-width: 768px)'))
