@@ -9,7 +9,7 @@ import {
   effect,
   inject,
   input,
-  output,
+  model,
   untracked,
 } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
@@ -22,7 +22,7 @@ import { IconComponent } from '@app/shared/components/icon/icon.component'
 import { ROLES } from '@app/shared/directives/has-role.directive'
 import { TranslatePipe } from '@app/shared/pipes/translate.pipe'
 
-// The primary navigation, from the NAV table. Below lg it is a drawer (`open` shows it); from lg
+// The primary navigation, from the NAV table. Below lg it is a drawer (`open` shows it, `[(open)]`); from lg
 // it is a column. It closes on navigation and on Escape. An entry with `roles` is filtered against
 // the ROLES token.
 // `modal` is true while the drawer covers the page: focus moves into it, Tab stays inside, and
@@ -57,9 +57,9 @@ export class AppSideNavComponent {
     ),
   )
 
-  readonly open = input(false)
+  // Two-way: the parent opens it, and the drawer sets it back to false when it closes itself.
+  readonly open = model(false)
   readonly modal = input(false)
-  readonly closed = output()
 
   constructor() {
     inject(Router)
@@ -81,7 +81,7 @@ export class AppSideNavComponent {
   }
 
   protected close(): void {
-    if (this.open()) this.closed.emit()
+    this.open.set(false)
   }
 
   // Remembers what had focus, then focuses the first control once the drawer is visible.

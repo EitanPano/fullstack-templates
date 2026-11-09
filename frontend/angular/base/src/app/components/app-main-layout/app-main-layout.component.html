@@ -1,7 +1,7 @@
 <a class="skip-link" appSkipLink href="#main">{{ 'app.skipToContent' | t }}</a>
 <div class="shell">
   <app-header class="shell__header" [navOpen]="navOpen()" (navToggle)="toggleNav()" />
-  <app-side-nav class="shell__nav" [open]="navOpen()" [modal]="modal()" (closed)="closeNav()" />
+  <app-side-nav class="shell__nav" [(open)]="navOpen" [modal]="modal()" />
   <main id="main" class="main" tabindex="-1" [attr.inert]="modal() ? '' : null">
     <router-outlet />
   </main>

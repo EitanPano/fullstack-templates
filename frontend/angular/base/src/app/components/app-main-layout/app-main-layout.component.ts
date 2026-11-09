@@ -35,7 +35,7 @@ const WIDE_QUERY = '(min-width: 1024px)'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppMainLayoutComponent {
-  // The side-nav drawer below lg; the header toggles it, the side-nav closes it.
+  // The side-nav drawer below lg; the header toggles it, the side-nav binds it two-way and closes it.
   protected readonly navOpen = signal(false)
   private readonly wide = signal(false)
 
@@ -61,9 +61,5 @@ export class AppMainLayoutComponent {
 
   protected toggleNav(): void {
     this.navOpen.update((open) => !open)
-  }
-
-  protected closeNav(): void {
-    this.navOpen.set(false)
   }
 }

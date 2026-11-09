@@ -32,7 +32,9 @@ async function render(open = false, nav: NavEntry[] = entries, roles: string[] =
   const fixture = TestBed.createComponent(AppSideNavComponent)
   fixture.componentRef.setInput('open', open)
   const closed: unknown[] = []
-  fixture.componentInstance.closed.subscribe(() => closed.push(1))
+  fixture.componentInstance.open.subscribe((value) => {
+    if (!value) closed.push(1)
+  })
   await fixture.whenStable()
   return { fixture, element: fixture.nativeElement as HTMLElement, closed }
 }
@@ -85,12 +87,20 @@ describe('AppSideNavComponent', () => {
 
   it('asks to close on Escape, on the close button, on the backdrop and after navigation', async () => {
     const { fixture, element, closed } = await render(true)
+    // Closing sets the model to false, so each trigger starts from an open drawer.
+    const reopen = async () => {
+      fixture.componentInstance.open.set(true)
+      await fixture.whenStable()
+    }
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
     expect(closed.length).toBe(1)
+    await reopen()
     element.querySelector<HTMLButtonElement>('.side-nav__close button')?.click()
     expect(closed.length).toBe(2)
+    await reopen()
     element.querySelector<HTMLElement>('.side-nav-backdrop')?.click()
     expect(closed.length).toBe(3)
+    await reopen()
     await TestBed.inject(Router).navigateByUrl('/other')
     await fixture.whenStable()
     expect(closed.length).toBe(4)
@@ -100,5 +110,50 @@ describe('AppSideNavComponent', () => {
     const { closed } = await render(false)
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
     expect(closed.length).toBe(0)
+  })
+
+  describe('two-way binding of open', () => {
+    @Component({
+      imports: [AppSideNavComponent],
+      template: '<app-side-nav [(open)]="drawer" />',
+    })
+    class DrawerHostComponent {
+      readonly drawer = signal(false)
+    }
+
+    function renderHost() {
+      TestBed.configureTestingModule({
+        providers: [
+          provideRouter([{ path: '', component: PageComponent }]),
+          provideTestTranslator(),
+          { provide: NAV_ENTRIES, useValue: entries },
+          { provide: ROLES, useValue: signal([]) },
+        ],
+      })
+      const fixture = TestBed.createComponent(DrawerHostComponent)
+      return { fixture, element: fixture.nativeElement as HTMLElement }
+    }
+
+    it("flips the parent's signal when the drawer closes itself", async () => {
+      const { fixture, element } = renderHost()
+      fixture.componentInstance.drawer.set(true)
+      await fixture.whenStable()
+      expect(element.querySelector('nav')?.classList.contains('is-open')).toBe(true)
+      element.querySelector<HTMLElement>('.side-nav-backdrop')?.click()
+      await fixture.whenStable()
+      expect(fixture.componentInstance.drawer()).toBe(false)
+      expect(element.querySelector('nav')?.classList.contains('is-open')).toBe(false)
+    })
+
+    it('opens when the parent sets the signal and leaves it alone when already closed', async () => {
+      const { fixture, element } = renderHost()
+      await fixture.whenStable()
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+      await fixture.whenStable()
+      expect(fixture.componentInstance.drawer()).toBe(false)
+      fixture.componentInstance.drawer.set(true)
+      await fixture.whenStable()
+      expect(element.querySelector('nav')?.classList.contains('is-open')).toBe(true)
+    })
   })
 })
