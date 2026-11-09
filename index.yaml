@@ -23,8 +23,8 @@ templates:
   - id: react
     kind: frontend
     path: frontend/react
-    version: 3.0.0
-    summary: "Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives on a global SCSS tree"
+    version: 4.0.0
+    summary: "Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives styled by co-located SCSS on a global token tree"
   - id: vue
     kind: frontend
     path: frontend/vue

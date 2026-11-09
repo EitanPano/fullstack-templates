@@ -2,8 +2,8 @@ schemaVersion: 1
 id: react
 kind: frontend
 name: React 19 SPA (Vite)
-version: 3.0.0
-summary: "Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives on a global SCSS tree"
+version: 4.0.0
+summary: "Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives styled by co-located SCSS on a global token tree"
 runtime: { language: typescript, platform: node, minVersion: "24" }
 tools:
   - { name: bun, min: "1.4" }
