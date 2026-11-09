@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest'
 
 // The layout mirrors through logical properties; a physical one would stay put under dir="rtl".
 describe('the styles tree', () => {
-  const dir = fileURLToPath(new URL('../../src/styles/', import.meta.url))
+  // styles.scss and its partials, and every sheet beside a page or component.
+  const dir = fileURLToPath(new URL('../../src/', import.meta.url))
   const files = (readdirSync(dir, { recursive: true }) as string[]).filter((name) =>
     name.endsWith('.scss'),
   )

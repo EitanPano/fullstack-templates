@@ -6,6 +6,7 @@ Plan: `fullstack-dev-harness/.plan/019-2026-11-06-angular-spa.md`
 Amends: `docs/conventions.md` (the frontend and SPA contracts), ADR 0003 M5-1, ADR 0005 F1 and F2
 Follow-ups it opens: ADR 0007 (React on Redux and RTK Query, its own structure), ADR 0008 (Next on
 the global SCSS tree; amended by [ADR 0008](0008-vue-pinia.md), which took the number for Vue)
+Amended by [ADR 0009](0009-pages-components-colocated-styles.md) (2.0.0 of this template): A2 the Angular tree, A2.4 styling.
 
 ## Context
 
@@ -96,6 +97,7 @@ block of the conventions shrinks to invariants 2, 8 and 9's SPA specifics (no pr
 build, the e2e serving) and loses its React lines.
 
 ### A2. The Angular template
+*Amended by [ADR 0009](0009-pages-components-colocated-styles.md): `layout/` becomes `components/` with `app-*` names, `features/` becomes `pages/`.*
 
 `frontend/angular` 1.0.0: Angular 22, standalone components, signals, `@ngrx/signals` stores, Hey
 API's Angular client, Transloco behind the `i18n` flag, the Angular service worker behind the `pwa`
@@ -355,6 +357,7 @@ and never repeats a field error; a server field error for an unregistered path b
 (invariant 3). Signal Forms are not used in 1.0.0; the spike notes their status for a 1.x minor.
 
 #### A2.4 Styling
+*Amended by [ADR 0009](0009-pages-components-colocated-styles.md): component styles sit beside their components under `styleUrl` (encapsulated), the global tree keeps tokens, base and layout in cascade layers; `styles/` is no longer the only home of CSS.*
 
 The `styles/` tree is the only home of CSS (`angular.json`: `styles: ["src/styles/styles.scss"]`,
 `stylePreprocessorOptions.includePaths: ["src/styles"]`). Components carry no `styles` or

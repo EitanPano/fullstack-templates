@@ -1,0 +1,8 @@
+@use 'setup/functions';
+
+.modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: functions.space(2);
+}

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 
 import { Label } from '@/shared/components/label'
 import { cn } from '@/shared/utils/cn'
+import './field-frame.scss'
 
 // The label, control slot, description and error of one field. The error line always exists, so
 // it is a live region that exists before its text and announces the message as it appears. It is

@@ -6,6 +6,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core'
 @Component({
   selector: 'app-auth-card',
   templateUrl: './auth-card.component.html',
+  styleUrl: './auth-card.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AuthCardComponent {

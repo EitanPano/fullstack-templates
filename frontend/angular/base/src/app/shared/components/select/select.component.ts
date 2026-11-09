@@ -15,6 +15,7 @@ export interface SelectOption {
   selector: 'app-select',
   imports: [TranslatePipe],
   templateUrl: './select.component.html',
+  styleUrls: ['../controls.scss'],
   providers: [
     { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => SelectComponent), multi: true },
   ],

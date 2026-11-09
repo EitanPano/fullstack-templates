@@ -4,17 +4,17 @@ import { describe, expect, it } from 'vitest'
 
 import { renderWithApp } from '@/testing/render'
 
-import AppInput from './app-input.vue'
+import BaseInput from './base-input.vue'
 import FormField from './form-field.vue'
 
-// A field with an app-input in its slot.
+// A field with an base-input in its slot.
 const Host = defineComponent({
   props: {
     label: { type: String, default: undefined },
     hint: { type: String, default: undefined },
     error: { type: String, default: undefined },
   },
-  setup: (props) => () => h(FormField, { ...props }, () => h(AppInput)),
+  setup: (props) => () => h(FormField, { ...props }, () => h(BaseInput)),
 })
 
 describe('FormField', () => {

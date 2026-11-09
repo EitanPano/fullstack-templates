@@ -4,9 +4,9 @@ The layer map of this package. Commands are in `package.json`; the contract code
 
 - `main.ts`: `bootstrapApplication(AppComponent, appConfig)`, nothing else.
 - `app/`: the files beside the folders are the wiring. `app.component.ts` (a `<router-outlet />`),
-  `app.config.ts` (the providers), `app.routes.ts` (layouts, one lazy `loadChildren` per feature,
+  `app.config.ts` (the providers), `app.routes.ts` (the two shells, one lazy `loadChildren` per page module,
   `**` to not-found) and `nav.ts` (the one navigation table; `NavEntry` lives in `models/nav/`, and
-  `app.config.ts` hands the table to `layout/` through the `NAV_ENTRIES` token in `core/config/`).
+  `app.config.ts` hands the table to `components/` through the `NAV_ENTRIES` token in `core/config/`).
   No business logic here.
   - `core/`: singletons wired once in `app.config.ts`, never imported by `shared/`.
     `config/` (`constants.ts` with the `STORAGE_KEYS`, `api-client.ts` the generated client's
@@ -16,11 +16,18 @@ The layer map of this package. Commands are in `package.json`; the contract code
     `i18n/` (the translator binding in `translator.provider.ts`; with the `i18n`
     flag also Transloco's config, the HTTP loader, `language.service.ts` and `translations/he.json`),
     `errors/`.
-  - `layout/`: the shells (`main-layout`, `auth-layout`) and their `header`, `side-nav` and `footer`.
-  - `features/<feature>/`: one glossary noun or screen group. `<feature>.routes.ts`,
-    `<feature>.form.ts` (typed form builders over the generated zod schemas), `pages/<page>/` (routed
-    components that read the store) and `components/<component>/` (presentational).
-  - `store/`: `@ngrx/signals` stores, one per feature noun, and `with-request-status.ts`.
+  - `components/app-<name>/`: the app-wide components, one folder each with
+    `app-<name>.component.ts`, `.html`, `.scss` and `.spec.ts`: the shells (`app-main-layout`,
+    `app-auth-layout`) and what they compose (`app-header`, `app-side-nav`, `app-footer`). The class
+    carries `App` (`AppHeaderComponent`), the selector is written out (`app-header`). A component
+    goes here when a shell composes it or it reads the store, the theme or the session; a reusable
+    control or pattern goes to `shared/components/`.
+  - `pages/<module>/`: one glossary noun or screen group, flat. `<module>.routes.ts`,
+    `<module>.form.ts` (typed form builders over the generated zod schemas), one folder per routed
+    page, `<page>/<page>.component.*` (reads the store; its `.scss` beside it), and
+    `components/<component>/` (the module's own presentational pieces). A page module never imports
+    another one. `health/` is the worked example; `not-found/` is the `**` route.
+  - `store/`: `@ngrx/signals` stores, one per noun, and `with-request-status.ts`.
   - `services/`: one facade per server module over the generated SDK; `generated/` is the Hey API
     output (types, zod, the Angular client, the flat SDK; committed, lint-ignored).
   - `shared/`: product-agnostic. `components/` (the browser controls wrapped once), `directives/`,
@@ -28,52 +35,55 @@ The layer map of this package. Commands are in `package.json`; the contract code
   - `models/`: a noun's types (re-exports of the generated types plus UI-only shapes), enums,
     constants.
 - `environments/`: `production` and nothing else (no API URL, no secret).
-- `styles/`: the only home of CSS (see Styling).
+- `styles/`: global and app-wide CSS only: `styles.scss`, `setup/`, `themes/`, `basics/` (see Styling).
 
 **No scaffolder.** Never run `ng new` or `ng generate` (or any other generator): they scatter files
-against the layer map and default to suffix-less names and component styles. Write the files by hand,
+against the layer map and default to suffix-less names. Write the files by hand,
 copying the nearest sibling.
 
 **Where does X go**
 
-| Addition                                    | Home                                       |
-| ------------------------------------------- | ------------------------------------------ |
-| A noun's types, enums, labels               | `app/models/<noun>/`                       |
-| A read or write on a server module          | `app/services/<module>.service.ts`         |
-| State a page reads, and the methods on it   | `app/store/<noun>.store.ts`                |
-| A routed screen                             | `app/features/<feature>/pages/<page>/`     |
-| A presentational piece of one feature       | `app/features/<feature>/components/`       |
-| A form                                      | `app/features/<feature>/<feature>.form.ts` |
-| A reusable control, pattern or pipe         | `app/shared/`                              |
-| A guard, interceptor, initializer, provider | `app/core/`                                |
-| A navigation entry                          | `app/nav.ts`                               |
-| A style                                     | `src/styles/`                              |
+| Addition                                    | Home                                               |
+| ------------------------------------------- | -------------------------------------------------- |
+| A noun's types, enums, labels               | `app/models/<noun>/`                               |
+| A read or write on a server module          | `app/services/<module>.service.ts`                 |
+| State a page reads, and the methods on it   | `app/store/<noun>.store.ts`                        |
+| A routed screen                             | `app/pages/<module>/<page>/`                       |
+| A presentational piece of one page module   | `app/pages/<module>/components/<name>/`            |
+| A form                                      | `app/pages/<module>/<module>.form.ts`              |
+| An app-wide component (header, menu)        | `app/components/app-<name>/`                       |
+| A reusable control, pattern or pipe         | `app/shared/`                                      |
+| A guard, interceptor, initializer, provider | `app/core/`                                        |
+| A navigation entry                          | `app/nav.ts`                                       |
+| A component's or page's style               | a sibling `<stem>.component.scss` under `styleUrl` |
+| A token, a theme value or a global rule     | `src/styles/` (`setup/`, `themes/`, `basics/`)     |
 
 **Naming.** Files follow the Angular style guide before v20, not the suffix-less one:
-`*.component.ts` with its template in an external `*.component.html` beside it (never `styles` or
-`styleUrl`), `*.service.ts`, `*.store.ts`, `*.guard.ts`, `*.interceptor.ts`, `*.pipe.ts`,
-`*.directive.ts`. The class carries the suffix (`AppComponent`, `MainLayoutComponent`).
-Cross-layer imports use the alias `@app/*` (`src/app/*`); imports inside one feature or one
+`*.component.ts` with its template in an external `*.component.html` and its styles in a sibling
+`*.component.scss` under `styleUrl` (never an inline `styles:`), `*.service.ts`, `*.store.ts`, `*.guard.ts`, `*.interceptor.ts`, `*.pipe.ts`,
+`*.directive.ts`. The class carries the suffix (`AppComponent`, `LoginComponent`); a class in `components/` also
+carries `App` (`AppMainLayoutComponent`) while its selector and folder read `app-main-layout`.
+Cross-layer imports use the alias `@app/*` (`src/app/*`); imports inside one page module or one
 directory stay relative.
 
 **Import rules** (`eslint-plugin-boundaries`; each lint message names the layer to use instead):
 
-| From                                                        | May import                                                                                              |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `app/` files                                                | layout, features (lazy routes only), core, store, shared, models                                        |
-| `layout/`                                                   | core, store, shared, models                                                                             |
-| `features/<f>/pages/`                                       | store, shared, models, `core/config`, `core/providers`, its own feature's `components/` and `*.form.ts` |
-| `features/<f>/components/`                                  | shared, models                                                                                          |
-| `features/<f>/*.routes.ts`                                  | `core/guards`, its own pages                                                                            |
-| `features/<f>/*.form.ts`                                    | `shared/validators`, models, the generated zod schemas                                                  |
-| `store/`                                                    | services, models, `core/providers`, `core/config`                                                       |
-| `services/`                                                 | models, `core/config`, `services/generated`                                                             |
-| `core/guards`, `core/interceptors`, `core/initializers`     | store, services, core, shared, models (they are the wiring)                                             |
-| `core/config`, `core/providers`, `core/i18n`, `core/errors` | each other, shared, models                                                                              |
-| `shared/`                                                   | shared, models                                                                                          |
-| `models/`                                                   | models; the generated types with `import type` only                                                     |
+| From                                                        | May import                                                                                             |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `app/` files                                                | components, pages (lazy routes only), core, store, shared, models                                      |
+| `components/`                                               | core, store, shared, models                                                                            |
+| `pages/<m>/<page>/`                                         | store, shared, models, `core/config`, `core/providers`, its own module's `components/` and `*.form.ts` |
+| `pages/<m>/components/`                                     | shared, models                                                                                         |
+| `pages/<m>/*.routes.ts`                                     | `core/guards`, its own pages                                                                           |
+| `pages/<m>/*.form.ts`                                       | `shared/validators`, models, the generated zod schemas                                                 |
+| `store/`                                                    | services, models, `core/providers`, `core/config`                                                      |
+| `services/`                                                 | models, `core/config`, `services/generated`                                                            |
+| `core/guards`, `core/interceptors`, `core/initializers`     | store, services, core, shared, models (they are the wiring)                                            |
+| `core/config`, `core/providers`, `core/i18n`, `core/errors` | each other, shared, models                                                                             |
+| `shared/`                                                   | shared, models                                                                                         |
+| `models/`                                                   | models; the generated types with `import type` only                                                    |
 
-- A feature never imports another feature. A page that needs a one-off request adds a service
+- A page module never imports another page module. A page that needs a one-off request adds a service
   and a store method first.
 - `@angular/common/http` is imported only in `services/`, `core/interceptors/` and `core/config/`
   (`no-restricted-imports`). The generated client's runtime is imported only in `services/`, and by
@@ -87,6 +97,10 @@ directory stay relative.
 
 `tests/unit/eslint-boundaries.spec.ts` lints one violation and one allowed case per rule, in a
 throwaway project built from the real `eslint.config.mjs`. A new rule gets a case there.
+`boundaries/no-unknown-files` is on: a file outside every layer in the table (a stray
+`src/app/widgets/` folder) is an error; `main.ts`, `src/environments/` and the specs are
+boundaries-ignored. The page layers are two levels deep (`pages/<m>/<page>/`), so a module's own
+`*.routes.ts` and `*.form.ts` are matched by their rows, not read as pages.
 
 The API is always reached at relative `/api` on the page's own origin (see Deployment), so the
 bundle carries no API URL.
@@ -119,23 +133,35 @@ withRequestStatus(), withMethods(...))`. A method is `patchState(store, setLoadi
    `load()` drops the old value before it calls, and ignores an answer that arrives after sign-out.
    **Offline rule:** a store method that mutates checks `NetworkService.online()` first and toasts `errors.offline` instead of sending (health only
    reads, so it does not).
-5. **Feature folder** `app/features/health/`: `health.routes.ts` (the default export, lazy-loads the
-   page), `pages/health-status/` (routed; injects the store; skeleton while loading,
+5. **Page module** `app/pages/health/`: `health.routes.ts` (the default export, lazy-loads the
+   page), `health-status/` (the routed page; injects the store; skeleton while loading,
    `app-error-state` with retry on failure, the loaded view) and `components/health-badge/`
    (presentational: inputs and a model table, no store).
-6. **Route and nav.** A lazy `loadChildren` in `app/app.routes.ts` inside the layout, and for a
+6. **Route and nav.** A lazy `loadChildren` in `app/app.routes.ts` inside the main shell, and for a
    top-level screen an entry in `app/nav.ts` (`{ path: '/', labelKey: 'nav.home' }`).
-7. **View style** `src/styles/views/_health-status.scss`, forwarded from `views/_index.scss`.
+7. **Styles** a sibling `<stem>.component.scss` named in the component's `styleUrl`
+   (`health-status.component.scss`, `health-badge.component.scss`). BEM classes; no inline `styles:`.
 8. **Copy** in `core/i18n/translations/en.json` **and `he.json`** (the `i18n` flag; the parity
    test `tests/unit/translation-parity.spec.ts` fails when a key or a `{{param}}` is missing from
    one): `nav.home`, `health.*`, and the `errors.<code>` text for any new envelope code. Use every
    key through `t` and never branch on the flag.
 9. **Specs** beside each file (see Tests): service, store, page, component.
 
+**The framework features in use**, so a new page does not reinvent them: standalone components with
+`input()`, `output()` and `model()` (the side-nav drawer's `open`), signals and `computed`,
+`@ngrx/signals` stores, `viewChild`, `@if` and `@for`, `OnPush` everywhere, `toSignal`,
+`afterNextRender`, the CDK overlay and dialog. The app is zoneless (Angular 21+ default): there is
+no `zone.js` polyfill and no `provideZoneChangeDetection`; state that a template reads is a signal.
+`@defer` is for a non-landmark block whose first paint can wait; the template has none, because its
+one candidate, the toast, is a CDK overlay portal and every other shell element is a landmark or
+flag-gated. `linkedSignal` is for local state that must reset when an input changes; the template
+has none (the controls keep no such state), so none is used. Not used, on purpose: `resource` and
+`httpResource` (the data path is page, store, service, SDK, one path) and Signal Forms.
+
 **Guarding a route (the server's `auth` flag; the files exist only then).** `core/guards/` holds
 `authGuard` (a `CanMatchFn`: a visitor is redirected, with a `RedirectCommand`, to
 `/auth/login?next=<attempted path and query>`), `guestGuard` (login and register: an account goes
-home) and `roleGuard`. Put them on the route in the feature's `*.routes.ts`:
+home) and `roleGuard`. Put them on the route in the module's `*.routes.ts`:
 `{ path: '', canMatch: [authGuard], loadComponent: ... }`, and for a role
 `{ canMatch: [roleGuard], data: { roles: ['admin'] }, ... }` (a visitor goes to login, another role to
 `/forbidden`). A guard only keeps a visitor off a screen; the API decides on every call. In a template,
@@ -154,7 +180,7 @@ browser signed in". With the flag, start-up reads `GET /api/user/me` (`session.i
 it, a sign-out or a refused refresh clears it, and a network error or an outage keeps it. Never store
 anything else under it, and never branch on it outside the auth store and interceptor.
 
-**The form recipe, by example.** `features/auth/auth.form.ts` is the pattern: one function per form
+**The form recipe, by example.** `pages/auth/auth.form.ts` is the pattern: one function per form
 (`loginForm()`, `registerForm()` with a `match('password', 'confirm')` confirm control,
 `otpForm()`), each a `NonNullableFormBuilder` group validated by `zodValidator` over the generated
 request schema (`zCredentials`, `zOtpVerificationBody.pick({ code: true })`), so no limit is copied. The
@@ -163,17 +189,37 @@ that returns whether it worked, and on `validation_failed` calls `applyFieldErro
 
 ## Styling
 
-Global SCSS in `src/styles/`, loaded by `angular.json`; components carry no styles
-(`tests/unit/no-component-styles.spec.ts`). The structure: `setup/` (variables, breakpoints,
-functions, mixins, typography; emits no CSS), `themes/` (the generated brand tokens and the
-product's additions), `basics/`, `components/`, `views/`. Breakpoints `sm` 576, `md` 768, `lg`
-1024, `xl` 1280, `xxl` 1536, mobile first (`@include up(md)`); spacing on a 4 px base. The brand
-tokens come from `src/styles/themes/brand.css`, which the generator fills.
+Two homes. `src/styles/` is the global and app-wide CSS and nothing else, loaded by
+`angular.json`: `styles.scss`, `setup/` (variables, breakpoints, functions, mixins, typography,
+layers; emits no CSS but the typography and layer order), `themes/` (the generated brand tokens and
+the product's additions) and `basics/` (`helpers`, `base`, `layout`). Every component and page
+owns a sibling `<stem>.component.scss` named by its `styleUrl`. Breakpoints `sm` 576, `md` 768,
+`lg` 1024, `xl` 1280, `xxl` 1536, mobile first (`@include up(md)`); spacing on a 4 px base. The
+brand tokens come from `src/styles/themes/brand.css`, which the generator fills.
 
-- **Order.** `styles.scss` `@use`s setup, themes, basics, components, views, in that order. A new
-  component gets `components/_<name>.scss` forwarded from `components/_index.scss`; a new screen
-  gets `views/_<name>.scss`. Class names are BEM (`.page-header__actions`); a partial `@use`s
-  `../setup/...` for the functions (`space()`, `z()`) and mixins it needs.
+- **Order and layers.** `styles.scss` `@use`s `setup/layers` first (`@layer setup, themes,
+basics;`), then setup, themes, basics; the rules of those six global partials sit inside their
+  `@layer`. A component sheet is never layered, so its rules win over the global ones. A sheet
+  `@use`s `setup/...` (the stylesheet include path is `src/styles`) for the functions (`space()`,
+  `z()`) and mixins it needs, never themes or basics. Class names are BEM
+  (`.page-header__actions`).
+- **Encapsulation is emulated.** A sheet styles its own template; `:host` styles the component's
+  host element (`<app-button>` is `:host { display: contents }`, a block control is
+  `:host { display: block }`). `ViewEncapsulation.None` and `::ng-deep` are refused by the scan.
+  A parent may style a child's host element when the child is in the parent's own template
+  (`.auth-layout app-footer`, `.header__nav-toggle` on an `<app-button>`), and it wins over the
+  child's `:host` rule only because both sheets are encapsulated, so move every sheet, never a
+  subset. A parent never restyles a child's interior (`.header .button`): the child takes an
+  input instead (`app-button` has `block`, which fills its container and aligns the label to the
+  start). Projected content is styled by the component that authors it. A rule that must depend on
+  an ancestor outside the template uses `:host-context(.ancestor)`. The CDK builds overlay panes
+  and backdrops outside every view, so they have no owning sheet: their structural CSS comes from
+  the CDK, and the modal's pane and backdrop rules (`.modal__panel*`, `.modal__backdrop`, applied
+  by `ModalService` as `panelClass` and `backdropClass`) are in `styles/basics/_layout.scss`. The
+  modal's own sheet styles what is inside its template.
+- **One shared sheet.** `shared/components/controls.scss` is the `.control` block that `input`,
+  `select` and `textarea` render; each lists it in `styleUrls: ['../controls.scss']`. The scan
+  accepts a sheet two or more sibling folders reference and nothing else.
 - **Tokens.** Colour, radius and font come from the custom properties (`var(--primary)`,
   `var(--surface-2)`, `var(--focus-ring)`); never a literal colour. `themes/_light.scss` and
   `_dark.scss` hold the same keys. `<html data-theme>` selects the dark values;
@@ -189,7 +235,7 @@ tokens come from `src/styles/themes/brand.css`, which the generator fills.
 - **Toasts.** One implementation: `NotificationService` renders `shared/components/toast` on the
   CDK overlay. A toast may carry one action (`{ labelKey, run }`, a copy key and a callback; only
   `showInfo` and `showWarning` take it): it never times out and is dismissed when the action runs.
-- **Theme toggle.** One toggle for everyone, in the header (`header.component`), a ghost icon
+- **Theme toggle.** One toggle for everyone, in the header (`app-header.component`), a ghost icon
   button that cycles light, dark and system. The user menu holds avatar, email, profile and sign
   out, and no theme control.
 - **Copy.** Every user-visible string in a template goes through the `t` pipe
@@ -200,17 +246,19 @@ tokens come from `src/styles/themes/brand.css`, which the generator fills.
 - **Flag off (`i18n`).** The language toggle, `he.json` and the Transloco dependency are gone; the
   English table is bundled into the build (`translator.provider.ts`, the `// @noi18n` lines) and every
   `t` and `Translator` call site is unchanged.
-- **Width.** A form lives in a card or a view no wider than `26rem` (`auth-card`) or `40rem`
-  (`views/_profile.scss`, `_health-status.scss`); do not stretch a form field across the container.
+- **Width.** A form lives in a card or a page no wider than `26rem` (`auth-card`) or `40rem`
+  (`profile.component.scss`, `health-status.component.scss`); do not stretch a form field across the
+  container.
 - **Text inputs and labels.** A component input that carries text takes an already translated string,
   and the heading input of `app-page-header`, `app-empty-state` and `app-error-state` is `heading`,
   never `title` (a static `title="..."` would also set the native tooltip). An `app-button` with
   `size="icon"` needs `ariaLabel`; dev mode logs a console error when it is missing.
 - **Drawer.** Below `lg` the side-nav is a modal drawer: focus moves in and stays (`cdkTrapFocus`),
   the page behind is `inert`, Escape or navigation closes it and focus returns to the toggle. It
-  closes itself when the viewport reaches `lg`.
+  closes itself when the viewport reaches `lg`. `open` is a `model()`: `app-main-layout` binds
+  `[(open)]="navOpen"`, and the drawer sets it back to false when it closes itself.
 - **Raw controls** (`<button>`, `<input>`, `<select>`, `<textarea>`) exist only under
-  `shared/components/`; a feature never writes one, it uses the components below. `app-button` also
+  `shared/components/`; a page never writes one, it uses the components below. `app-button` also
   renders a link (`link="/"`) so navigation and actions look the same.
 - **Key or text.** An input named `...Key` (`labelKey`, `titleKey`, `submitKey`, `emptyKey`) and the
   data-table `caption` take a key of the copy table and translate it themselves; every other text
@@ -246,7 +294,7 @@ first control inside it, once after render), `shared/pipes` (`t`; `relativeTime`
 grouped display, anything else unchanged) and `shared/utils/time.ts` (pure: `parseTime`,
 `differenceIn`, `isSameDay`).
 
-**The form recipe.** A feature's `<feature>.form.ts` builds the typed `FormGroup` with
+**The form recipe.** A page module's `<module>.form.ts` builds the typed `FormGroup` with
 `{ validators: zodValidator(zCredentials) }` over the generated zod request schema
 (`services/generated/zod.gen`), so a rule is written once, in the server's contract: a limit is
 never copied into the template (there is no `password.ts`; the generated schema validates a
@@ -337,6 +385,15 @@ store method that awaited the call shows the outcome.
   with the code, `src/**/*.spec.ts`. Checks on files outside `src/` (the ESLint config, the
   component-styles and restricted-element scans) live in `tests/unit/*.spec.ts`, each starting with
   `// @vitest-environment node`; the builder runs both homes together.
+- **The boundaries test** (`tests/unit/eslint-boundaries.spec.ts`) also asserts that a file outside
+  every layer (`src/app/layout/`, `src/app/features/`, `src/app/widgets/`) is refused.
+- **The styles scan** (`tests/unit/component-styles.spec.ts`) is Styling as a test: `src/styles/`
+  holds exactly `basics`, `setup`, `styles.scss` and `themes`; every other `.scss` is referenced by
+  its sibling `<stem>.component.ts` (or by two or more components when shared); a reference is
+  `./x.scss` or `../x.scss`; no inline `styles:`, no `ViewEncapsulation.None`, no `::ng-deep`; every
+  folder in `components/` starts with `app-` and its class with `App`; the global partials sit in
+  their layer and no component sheet does. The control sizing contract (36, 32, 44 px) is asserted by
+  the e2e (`shell.spec`) on the rendered page, not by a compile test.
 - **A facade or an interceptor** is tested with `provideHttpClient(withInterceptors([...]))`,
   `provideHttpClientTesting()` and, for the SDK, `provideApiClient()` (from
   `core/config/api-client.provider`). The generated client issues its request after one internal
@@ -430,7 +487,7 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && node scripts/e2e-stat
   `maxAge` and a 3 s timeout. Angular's worker has no `!` negation in `dataGroups[].urls` (it
   reads one as a literal path), so nothing is excluded by pattern: anything not listed is never
   cached, and a spec rejects a `!` entry and any match of `/api/user/**` or `/api/auth/**`. A
-  feature adds a URL to the group only for a public read that carries no session or personal data;
+  page module adds a URL to the group only for a public read that carries no session or personal data;
   never `/api/**`. The iOS install hint can be dismissed and stays dismissed.
 - **How an update reaches the user.** The worker downloads a new version in the background
   (`AppUpdateService` checks at start, hourly once stable and on window focus). When it is

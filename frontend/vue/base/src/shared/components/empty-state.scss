@@ -1,0 +1,34 @@
+@use 'setup/functions';
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: functions.space(3);
+  padding-block: functions.space(10);
+  padding-inline: functions.space(4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  text-align: center;
+}
+
+.empty-state__icon {
+  color: var(--muted-foreground);
+}
+
+.empty-state__description {
+  max-inline-size: 40ch;
+  color: var(--muted-foreground);
+}
+
+.empty-state__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: functions.space(2);
+
+  &:empty {
+    display: none;
+  }
+}

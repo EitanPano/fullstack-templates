@@ -1,4 +1,9 @@
-// The only place styles live. Components carry none (tests/unit/no-component-styles.spec.ts).
+// The global CSS (angular.json loads themes/brand.css, then this file): the tokens and tools, the
+// themes, and the basics. Every component and page carries a sibling stylesheet of its own,
+// referenced by its `styleUrl`, so a lazy route ships its page's CSS in its own chunk.
+// The three global groups sit in cascade layers (declared first, in order) and the component
+// sheets stay unlayered; an unlayered rule beats a layered one at any specificity.
+@use 'setup/layers';
 @use 'setup/variables';
 @use 'setup/breakpoints';
 @use 'setup/functions';
@@ -8,5 +13,3 @@
 @use 'basics/helpers';
 @use 'basics/base';
 @use 'basics/layout';
-@use 'components';
-@use 'views';

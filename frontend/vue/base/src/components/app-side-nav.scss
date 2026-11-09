@@ -1,0 +1,143 @@
+@use 'setup/breakpoints';
+@use 'setup/functions';
+@use 'setup/mixins';
+@use 'setup/variables';
+
+// The host of the navigation: below lg it adds no grid track (the drawer is portaled by Reka's
+// Dialog); from lg it is the column.
+.shell__nav {
+  display: contents;
+
+  @include breakpoints.up(lg) {
+    display: block;
+    grid-area: nav;
+  }
+}
+
+// The inline column, from lg.
+.side-nav {
+  position: sticky;
+  inset-block-start: variables.$header-height;
+  display: flex;
+  flex-direction: column;
+  gap: functions.space(2);
+  block-size: calc(100dvh - #{variables.$header-height});
+  padding: functions.space(4);
+  border-inline-end: 1px solid var(--border);
+  background: var(--surface-1);
+}
+
+// The drawer below lg: Reka's Dialog. data-state is open or closed; the keyframes slide it from
+// the inline start (the rtl rule flips the side).
+.side-nav-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: functions.z(drawer-backdrop);
+  background: var(--backdrop);
+
+  &[data-state='open'] {
+    animation: drawer-fade-in 200ms ease;
+  }
+
+  &[data-state='closed'] {
+    animation: drawer-fade-out 200ms ease;
+  }
+}
+
+.side-nav--drawer {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-start: 0;
+  z-index: functions.z(drawer);
+  inline-size: min(variables.$side-nav-width, 85vw);
+  block-size: auto;
+  box-shadow: var(--shadow-2);
+
+  &[data-state='open'] {
+    animation: drawer-slide-in 200ms ease;
+  }
+
+  &[data-state='closed'] {
+    animation: drawer-slide-out 200ms ease;
+  }
+}
+
+.side-nav__close {
+  align-self: flex-end;
+}
+
+.side-nav__list {
+  display: grid;
+  gap: functions.space(1);
+  padding: 0;
+  list-style: none;
+}
+
+.side-nav__link {
+  display: flex;
+  align-items: center;
+  padding-block: functions.space(2);
+  padding-inline: functions.space(3);
+  border-radius: var(--radius);
+  color: var(--foreground);
+  text-decoration: none;
+
+  @include mixins.touch-target;
+
+  &:hover {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  &.is-active {
+    background: var(--secondary);
+    color: var(--secondary-foreground);
+    font-weight: var(--weight-semibold);
+  }
+}
+
+@keyframes drawer-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes drawer-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes drawer-slide-in {
+  from {
+    translate: -100% 0;
+  }
+}
+
+@keyframes drawer-slide-out {
+  to {
+    translate: -100% 0;
+  }
+}
+
+@keyframes drawer-slide-in-rtl {
+  from {
+    translate: 100% 0;
+  }
+}
+
+@keyframes drawer-slide-out-rtl {
+  to {
+    translate: 100% 0;
+  }
+}
+
+[dir='rtl'] .side-nav--drawer {
+  &[data-state='open'] {
+    animation-name: drawer-slide-in-rtl;
+  }
+
+  &[data-state='closed'] {
+    animation-name: drawer-slide-out-rtl;
+  }
+}

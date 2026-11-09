@@ -4,6 +4,7 @@ import type { ComponentProps } from 'react'
 
 import { Button } from '@/shared/components/button'
 import { cn } from '@/shared/utils/cn'
+import './dialog.scss'
 
 export const Dialog = DialogPrimitive.Root
 export const DialogTrigger = DialogPrimitive.Trigger

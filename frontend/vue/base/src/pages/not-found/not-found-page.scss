@@ -1,0 +1,7 @@
+@use 'setup/functions';
+
+.not-found {
+  max-inline-size: 40rem;
+  margin-block: functions.space(10);
+  margin-inline: auto;
+}

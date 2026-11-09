@@ -1,7 +1,7 @@
 # frontend/angular
 
 Angular 22 single-page app on standalone components and signals: `@ngrx/signals` stores, typed
-forms over zod schemas, global SCSS, a typed client, SDK and zod schemas generated from the server's
+forms over zod schemas, co-located SCSS on a global token tree, a typed client, SDK and zod schemas generated from the server's
 OpenAPI contract (Hey API's Angular client), Vitest through `ng test` and Playwright with axe. When
 the stack's server has its `auth` flag on it adds the session glue (same-origin HttpOnly cookies, one
 refresh on a 401, route guards, sign-in and sign-up). Generated alone or as the `frontend` of the

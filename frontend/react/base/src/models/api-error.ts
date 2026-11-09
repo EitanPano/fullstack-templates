@@ -27,7 +27,7 @@ export function isApiError(value: unknown): value is ApiError {
   )
 }
 
-// A feature's copy table: `code`, `code:second-key` when the product's contract adds a
+// A page's copy table: `code`, `code:second-key` when the product's contract adds a
 // discriminator (see `WithCopyOptions`), or `validation_failed:<field>` for one field of a form.
 export type CopyTable = Partial<Record<string, string>>
 
@@ -38,8 +38,8 @@ export type WithCopyOptions = {
   discriminator?: (error: ApiError) => string | undefined
 }
 
-// Words an error in a feature's own copy; this is the one home of error copy beyond the defaults
-// in `services/call.ts`. The feature that shows the error knows its situation (a wrong password,
+// Words an error in a page's own copy; this is the one home of error copy beyond the defaults
+// in `services/call.ts`. The page that shows the error knows its situation (a wrong password,
 // a taken email), so it applies its table here and says which codes belong to a form field. Pure:
 // the error it is given is not changed.
 export function withCopy(

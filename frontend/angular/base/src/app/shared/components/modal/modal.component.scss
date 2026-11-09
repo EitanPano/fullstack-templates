@@ -1,0 +1,40 @@
+@use 'setup/breakpoints';
+@use 'setup/functions';
+
+// The dialog box and what is inside this template. The pane and the backdrop are built by the CDK
+// outside every view; their rules are in styles/basics/_layout.scss.
+.modal {
+  display: flex;
+  flex-direction: column;
+  max-block-size: inherit;
+  border: 1px solid var(--border-strong);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
+
+  @include breakpoints.up(md) {
+    border-radius: var(--radius);
+  }
+}
+
+.modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: functions.space(3);
+  padding-block: functions.space(3);
+  padding-inline: functions.space(4);
+  border-block-end: 1px solid var(--border);
+}
+
+.modal__title {
+  font-size: var(--text-lg);
+}
+
+.modal__body {
+  display: grid;
+  gap: functions.space(4);
+  padding: functions.space(4);
+  overflow-y: auto;
+}

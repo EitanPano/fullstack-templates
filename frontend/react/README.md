@@ -2,8 +2,8 @@
 
 Vite and React 19 single-page app: React Router 8 in data mode with lazy pages, Redux Toolkit with
 RTK Query over a typed client, SDK and zod schemas generated from the server's OpenAPI contract (Hey
-API), forms on React Hook Form, date helpers on `date-fns`, Radix primitives styled by a global SCSS
-tree, Vitest and Playwright with axe and, when the stack's server has its `auth` flag on, the
+API), forms on React Hook Form, date helpers on `date-fns`, Radix primitives styled by co-located SCSS
+on a global token tree, Vitest and Playwright with axe and, when the stack's server has its `auth` flag on, the
 session glue (same-origin HttpOnly cookies, one refresh on a 401, route guards, sign-in and
 sign-up). Generated alone or as the `frontend` of the `react-python-fastapi` or `react-bun-express`
 stack. The shape it follows is ADR 0007 and `docs/conventions.md › Frontend, single-page app`.

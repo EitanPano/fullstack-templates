@@ -1,0 +1,19 @@
+@use 'setup/functions';
+
+// The card of every account screen: it is a `.card` with a narrow measure, and the heading is the
+// page's h1.
+.auth-card {
+  inline-size: 100%;
+  max-inline-size: 26rem;
+  margin-inline: auto;
+}
+
+.auth-card__title {
+  font-size: var(--text-xl);
+}
+
+// The form inside the card: fields stacked on the 4 px scale.
+.auth-form {
+  display: grid;
+  gap: functions.space(4);
+}

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import AppButton from './app-button.vue'
-import AppModal from './app-modal.vue'
+import BaseButton from './base-button.vue'
+import BaseModal from './base-modal.vue'
 
 // Asks before a destructive or irreversible action: a message and a Cancel / Confirm pair in a
 // small modal. Confirm emits `confirm`; Cancel, Escape, the backdrop and the X emit `cancel`; each
@@ -26,13 +26,15 @@ function dismissed(next: boolean): void {
 </script>
 
 <template>
-  <AppModal :open="open" :title="props.title" size="sm" @update:open="dismissed">
+  <BaseModal :open="open" :title="props.title" size="sm" @update:open="dismissed">
     <p class="modal__message">{{ message }}</p>
     <div class="modal__actions">
-      <AppButton variant="secondary" @click="answer(false)">{{ $t('modal.cancel') }}</AppButton>
-      <AppButton :variant="danger ? 'danger' : 'primary'" @click="answer(true)">{{
+      <BaseButton variant="secondary" @click="answer(false)">{{ $t('modal.cancel') }}</BaseButton>
+      <BaseButton :variant="danger ? 'danger' : 'primary'" @click="answer(true)">{{
         confirmLabel ?? $t('modal.confirm')
-      }}</AppButton>
+      }}</BaseButton>
     </div>
-  </AppModal>
+  </BaseModal>
 </template>
+
+<style lang="scss" src="./base-modal.scss"></style>

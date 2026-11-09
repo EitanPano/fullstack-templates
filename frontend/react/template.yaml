@@ -2,8 +2,8 @@ schemaVersion: 1
 id: react
 kind: frontend
 name: React 19 SPA (Vite)
-version: 3.0.0
-summary: "Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives on a global SCSS tree"
+version: 4.0.0
+summary: "Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives styled by co-located SCSS on a global token tree"
 runtime: { language: typescript, platform: node, minVersion: "24" }
 tools:
   - { name: bun, min: "1.4" }
@@ -30,30 +30,28 @@ defaultStack: react-python-fastapi
 # /api/auth and /api/user). Lines inside shared files carry // @server:auth markers.
 onlyWhen:
   server:auth:
+    - src/components/app-account-menu.scss
+    - src/components/app-account-menu.test.tsx
+    - src/components/app-account-menu.tsx
+    - src/components/app-auth-error.tsx
+    - src/components/app-auth-layout.scss
+    - src/components/app-auth-layout.tsx
+    - src/components/app-auth-loading.tsx
     - src/core/auth
     - src/core/config/api-client-refresh.test.ts
-    - src/features/auth
-    - src/features/forbidden
-    - src/features/user
-    - src/layout/auth-layout
-    - src/layout/components/account-menu.tsx
-    - src/layout/components/account-menu.test.tsx
-    - src/models/user.ts
     - src/models/user.test.ts
-    - src/services/auth.api.ts
+    - src/models/user.ts
+    - src/pages/auth
+    - src/pages/forbidden
+    - src/pages/user
     - src/services/auth.api.test.ts
-    - src/services/user.api.ts
+    - src/services/auth.api.ts
     - src/services/user.api.test.ts
+    - src/services/user.api.ts
+    - src/shared/components/auth-card.scss
     - src/shared/components/auth-card.tsx
-    - src/shared/utils/next-path.ts
     - src/shared/utils/next-path.test.ts
-    - src/styles/components/_account-menu.scss
-    - src/styles/components/_auth-card.scss
-    - src/styles/components/_auth-layout.scss
-    - src/styles/views/_forbidden.scss
-    - src/styles/views/_profile.scss
-    - src/styles/views/_sign-in.scss
-    - src/styles/views/_sign-up.scss
+    - src/shared/utils/next-path.ts
     - src/testing/auth-fixtures.ts
     - src/testing/render-in-router.tsx
     - tests/e2e/auth-support.ts

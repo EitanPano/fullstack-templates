@@ -8,6 +8,7 @@ Harness plan 020. Amends [ADR 0003](0003-spa-and-deploy-modes.md) M5-2 and
 [ADR 0006](0006-per-framework-frontends-and-angular.md), which queued this as the React
 follow-up. Follow-up it leaves open: Next on the global SCSS tree (was named ADR 0008; amended by
 [ADR 0008](0008-vue-pinia.md), which took that number for Vue).
+Amended by [ADR 0009](0009-pages-components-colocated-styles.md) (React 4.0.0): R1 the tree, R5 styling, the `src/hooks/` ruling.
 
 ## Context
 
@@ -37,6 +38,7 @@ Each decision lists what it costs. Rows marked ▲ are reconciliations of Eitan'
 React's idioms or with the catalog's invariants, explained under the tree.
 
 ### R1. The tree
+*Amended by [ADR 0009](0009-pages-components-colocated-styles.md): `features/` becomes `pages/`, `layout/` becomes `components/` with `app-*` names (React 4.0.0).*
 
 `frontend/react` 3.0.0: Vite 8, React 19, React Router 8 in data mode (loaders, `lazy` pages),
 Redux Toolkit with RTK Query, Hey API's fetch client with the flat SDK and zod schemas, React Hook
@@ -307,6 +309,7 @@ the error line. `reportFailure(form, error)` puts an `ApiError` that carries `fi
 fields and toasts anything else; a path the form has no field for is toasted.
 
 ### R5. Styling
+*Amended by [ADR 0009](0009-pages-components-colocated-styles.md): component and page styles sit beside their owners; `src/styles/` keeps the layered global tree only.*
 
 - `src/styles/` is the only home of CSS: `main.tsx` imports `themes/brand.css` then `styles.scss`;
   no other file imports a stylesheet and no component sets a `style` attribute
@@ -628,6 +631,7 @@ Rulings from the Opus review of the branch (2026-11-07):
   `boundaries/no-unknown-files` and `no-unknown` now refuse it, with `main.tsx`, `vite-env.d.ts`,
   the styles tree and the tests ignored. The services and the core leaves may not import the
   guards file (a `services → guards → services` cycle was possible).
+*Amended by [ADR 0009](0009-pages-components-colocated-styles.md): `src/hooks/` stays refused; product-agnostic hooks live in `shared/hooks/`.*
 - **One home for copy.** `call(request)` takes no copy, fields or discriminator (the 2.x
   parameters were unused); `ApiError.details` carries the envelope's raw `details`, and
   `withCopy(error, table, { fields?, discriminator? })` is the feature's one wording step, with the

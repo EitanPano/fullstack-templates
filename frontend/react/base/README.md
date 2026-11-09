@@ -1,6 +1,6 @@
 # Frontend
 
-Vite, React 19, React Router 8 in data mode, Redux Toolkit with RTK Query and a global SCSS tree.
+Vite, React 19, React Router 8 in data mode, Redux Toolkit with RTK Query and co-located SCSS on a global token tree.
 The stack, commands, directory layout and definition of done are in the repository's
 `AGENTS.md`; nothing here repeats them.
 

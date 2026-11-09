@@ -25,6 +25,7 @@ export type IconName = keyof typeof ICONS
 @Component({
   selector: 'app-icon',
   templateUrl: './icon.component.html',
+  styleUrl: './icon.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class IconComponent {

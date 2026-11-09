@@ -1,0 +1,12 @@
+@use 'setup/functions';
+
+// Sonner reads these custom properties from its list; the extra attribute selectors out-rank its
+// own per-theme defaults without !important.
+.toaster[data-sonner-toaster][data-sonner-theme] {
+  --normal-bg: var(--popover);
+  --normal-text: var(--popover-foreground);
+  --normal-border: var(--border);
+  --border-radius: var(--radius);
+  font-family: var(--font-sans);
+  z-index: functions.z(toast);
+}

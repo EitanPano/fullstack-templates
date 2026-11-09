@@ -1,0 +1,99 @@
+@use 'setup/functions';
+@use 'setup/mixins';
+
+// <app-button> is a transparent wrapper: the host adds no box, the .button inside carries it.
+:host {
+  display: contents;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: functions.space(2);
+  min-block-size: 2.5rem;
+  padding-block: functions.space(2);
+  padding-inline: functions.space(4);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+
+  @include mixins.touch-target;
+
+  &:disabled,
+  &[aria-disabled='true'] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.button--primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--primary) 90%, var(--foreground));
+  }
+}
+
+.button--secondary {
+  background: var(--secondary);
+  border-color: var(--border);
+  color: var(--secondary-foreground);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--secondary) 90%, var(--foreground));
+  }
+}
+
+.button--ghost {
+  color: var(--foreground);
+
+  &:hover:not(:disabled) {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+}
+
+.button--danger {
+  background: var(--destructive);
+  color: var(--destructive-foreground);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--destructive) 90%, var(--foreground));
+  }
+}
+
+.button--sm {
+  min-block-size: 2rem;
+  padding-block: functions.space(1);
+  padding-inline: functions.space(3);
+
+  // After the size is set: a small button still reaches 44 px under a coarse pointer.
+  @include mixins.touch-target;
+}
+
+.button--icon {
+  inline-size: 2.5rem;
+  padding: 0;
+}
+
+// Fills its container and aligns the label to the start (a menu row). The host has no box, so a
+// parent cannot do this from outside.
+.button--block {
+  justify-content: flex-start;
+  inline-size: 100%;
+}
+
+.button.is-loading {
+  cursor: progress;
+}

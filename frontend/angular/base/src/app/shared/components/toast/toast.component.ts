@@ -32,6 +32,7 @@ const ICON: Record<ToastKind, IconName> = {
   selector: 'app-toast',
   imports: [ButtonComponent, IconComponent, TranslatePipe],
   templateUrl: './toast.component.html',
+  styleUrl: './toast.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ToastComponent {

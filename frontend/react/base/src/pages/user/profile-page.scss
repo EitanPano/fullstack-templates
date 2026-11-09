@@ -1,0 +1,17 @@
+@use 'setup/functions';
+
+// The account facts: a label column and a value column.
+.profile__facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: functions.space(2) functions.space(4);
+
+  dt {
+    color: var(--muted-foreground);
+  }
+
+  dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+}

@@ -4,6 +4,7 @@ import type { ComponentProps } from 'react'
 
 import { Button } from '@/shared/components/button'
 import { cn } from '@/shared/utils/cn'
+import './sheet.scss'
 
 export const Sheet = SheetPrimitive.Root
 export const SheetTrigger = SheetPrimitive.Trigger

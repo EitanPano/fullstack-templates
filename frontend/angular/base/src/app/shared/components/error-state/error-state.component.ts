@@ -10,6 +10,7 @@ import { IconComponent } from '../icon/icon.component'
   selector: 'app-error-state',
   imports: [ButtonComponent, IconComponent, TranslatePipe],
   templateUrl: './error-state.component.html',
+  styleUrl: './error-state.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ErrorStateComponent {

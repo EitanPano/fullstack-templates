@@ -63,3 +63,5 @@ function text(row: T, column: TableColumn): string {
     </table>
   </div>
 </template>
+
+<style lang="scss" src="./data-table.scss"></style>
