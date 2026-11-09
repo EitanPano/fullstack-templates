@@ -2,6 +2,7 @@ import { NgTemplateOutlet } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
+  booleanAttribute,
   computed,
   effect,
   input,
@@ -20,6 +21,7 @@ export type ButtonSize = 'sm' | 'md' | 'icon'
   selector: 'app-button',
   imports: [NgTemplateOutlet, RouterLink, SpinnerComponent],
   templateUrl: './button.component.html',
+  styleUrl: './button.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ButtonComponent {
@@ -28,6 +30,8 @@ export class ButtonComponent {
   readonly type = input<'button' | 'submit' | 'reset'>('button')
   readonly disabled = input(false)
   readonly loading = input(false)
+  // Fills its container and aligns the label to the start (a menu row).
+  readonly block = input(false, { transform: booleanAttribute })
   readonly link = input<string | null>(null)
   readonly ariaLabel = input<string | null>(null)
   readonly ariaExpanded = input<boolean | null>(null)
@@ -36,6 +40,7 @@ export class ButtonComponent {
   protected readonly classes = computed(() => {
     const classes = ['button', `button--${this.variant()}`]
     if (this.size() !== 'md') classes.push(`button--${this.size()}`)
+    if (this.block()) classes.push('button--block')
     if (this.loading()) classes.push('is-loading')
     return classes.join(' ')
   })

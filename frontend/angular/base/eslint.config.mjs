@@ -5,8 +5,7 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 import tseslint from 'typescript-eslint'
 
 // The layer map (AGENTS.md: the opening layer map and "Import rules"). Every import the layers
-// forbid is a `boundaries/dependencies`
-// error whose message names the layer to use. tests/unit/eslint-boundaries.spec.ts lints one
+// forbid is a `boundaries/dependencies` error whose message names the layer to use. tests/unit/eslint-boundaries.spec.ts lints one
 // violation and one allowed case per rule through this file, so a rule that stops firing fails the
 // suite.
 //
@@ -15,17 +14,19 @@ import tseslint from 'typescript-eslint'
 // the cross-cutting policies come after the rows they narrow.
 //
 // A layer is an element (a folder) or, for the files that sit beside folders, a file category:
-// `app` (the files directly in src/app), `feature-routes` and `feature-form`.
-const FILE_LAYERS = ['app', 'feature-routes', 'feature-form']
+// `app` (the files directly in src/app), `page-routes` and `page-form` (beside the page folders in
+// src/app/pages/<module>/). `components` is the app-wide folder (the shells and what they compose);
+// `page` is a page folder and `page-components` a module's own presentational pieces.
+const FILE_LAYERS = ['app', 'page-routes', 'page-form']
 const SHARED = ['shared', 'shared-validators']
 const CORE_WIRING = ['core-guards', 'core-interceptors', 'core-initializers']
 const CORE_LEAVES = ['core-config', 'core-providers', 'core-i18n', 'core-errors']
 const CORE = [...CORE_WIRING, ...CORE_LEAVES]
-const FEATURE = ['feature-pages', 'feature-components', 'feature-routes', 'feature-form']
+const PAGE = ['page', 'page-components', 'page-routes', 'page-form']
 const LAYERS = [
   'app',
-  'layout',
-  ...FEATURE,
+  'components',
+  ...PAGE,
   'store',
   'services',
   'services-generated',
@@ -35,7 +36,7 @@ const LAYERS = [
 ]
 
 // Selectors for layers, split into the element selector and the file selector they need.
-// `feature` is a captured-feature template; `fileInternalPath` narrows an element selector.
+// `feature` is a captured-module template; `fileInternalPath` narrows an element selector.
 const sel = (layers, { feature, fileInternalPath } = {}) => {
   const list = [layers].flat()
   const types = list.filter((name) => !FILE_LAYERS.includes(name))
@@ -56,7 +57,7 @@ const sel = (layers, { feature, fileInternalPath } = {}) => {
     ...(categories.length > 0 ? [{ file: { categories, ...captured } }] : []),
   ]
 }
-// The feature of the importing file: `from.element` for a folder layer, `from.file` for a file one.
+// The module of the importing file (pages/<module>/): `from.element` for a folder layer, `from.file` for a file one.
 const same = (kind) => `{{ from.${kind}.captured.feature }}`
 const other = (kind) => `!{{ from.${kind}.captured.feature }}`
 
@@ -69,35 +70,35 @@ const row = (from, allowed, message) => [
 const policies = [
   ...row(
     'app',
-    [sel(['app', 'layout', 'feature-routes', ...CORE, 'store', ...SHARED, 'models'])],
-    'app/ wires layout/, features/ (lazy routes only), core/, store/, shared/ and models/: import a feature only through its *.routes.ts, and reach services/ through a store',
+    [sel(['app', 'components', 'page-routes', ...CORE, 'store', ...SHARED, 'models'])],
+    'app/ wires components/, pages/ (lazy routes only), core/, store/, shared/ and models/: import a page only through its module *.routes.ts, and reach services/ through a store',
   ),
   ...row(
-    'layout',
+    'components',
     [sel([...CORE, 'store', ...SHARED, 'models'])],
-    'layout/ imports core/, store/, shared/ and models/: read data through store/, not services/ or features/',
+    'components/ imports core/, store/, shared/ and models/: read data through store/, not services/ or pages/',
   ),
   ...row(
-    'feature-pages',
+    'page',
     [
       sel(['store', ...SHARED, 'models', 'core-config', 'core-providers']),
-      sel('feature-components', { feature: same('element') }),
-      sel('feature-form', { feature: same('element') }),
+      sel('page-components', { feature: same('element') }),
+      sel('page-form', { feature: same('element') }),
     ],
-    'a page imports store/, shared/, models/, core/config, core/providers and its own feature components and *.form.ts: call services through a store method, never directly',
+    'a page imports store/, shared/, models/, core/config, core/providers and its own module components/ and *.form.ts: call services through a store method, never directly',
   ),
   ...row(
-    'feature-components',
+    'page-components',
     [sel([...SHARED, 'models'])],
-    'a feature component is presentational: it imports shared/ and models/, takes data as inputs and emits outputs; the page reads the store',
+    'a page component is presentational: it imports shared/ and models/, takes data as inputs and emits outputs; the page reads the store',
   ),
   ...row(
-    'feature-routes',
-    [sel('core-guards'), sel('feature-pages', { feature: same('file') })],
-    'a feature routes file imports core/guards and its own pages only',
+    'page-routes',
+    [sel('core-guards'), sel('page', { feature: same('file') })],
+    'a module routes file imports core/guards and its own pages only',
   ),
   ...row(
-    'feature-form',
+    'page-form',
     [sel(['shared-validators', 'models'])],
     'a *.form.ts imports shared/validators, models/ and the generated zod schemas (services/generated/zod.gen) only',
   ),
@@ -124,7 +125,7 @@ const policies = [
   ...row(
     SHARED,
     [sel([...SHARED, 'models'])],
-    'shared/ is product-agnostic: it imports only shared/ and models/. Move the code to core/ or a feature, or pass the value in as an input',
+    'shared/ is product-agnostic: it imports only shared/ and models/. Move the code to core/, components/ or a page module, or pass the value in as an input',
   ),
   ...row(
     'models',
@@ -133,10 +134,10 @@ const policies = [
   ),
   // Cross-cutting policies come after the rows they narrow.
   ...['element', 'file'].map((kind) => ({
-    from: sel(FEATURE.filter((name) => FILE_LAYERS.includes(name) === (kind === 'file'))),
-    disallow: { to: sel(FEATURE, { feature: other(kind) }) },
+    from: sel(PAGE.filter((name) => FILE_LAYERS.includes(name) === (kind === 'file'))),
+    disallow: { to: sel(PAGE, { feature: other(kind) }) },
     message:
-      'a feature never imports another feature: lift the shared part to shared/ or compose both in app/ or layout/',
+      'a page module never imports another page module: lift the shared part to shared/ or compose both in app/ or components/',
   })),
   {
     from: sel(LAYERS.filter((name) => name !== 'services')),
@@ -163,7 +164,7 @@ const policies = [
     allow: { to: sel('services-generated') },
   },
   {
-    from: sel('feature-form'),
+    from: sel('page-form'),
     allow: { to: sel('services-generated', { fileInternalPath: 'zod.gen.ts' }) },
   },
   {
@@ -231,29 +232,29 @@ export default defineConfig([
         typescript: { project: `${import.meta.dirname}/tsconfig.app.json` },
       },
       'boundaries/include': ['src/**/*'],
-      'boundaries/ignore': ['**/*.spec.ts'],
+      // main.ts and src/environments/ bootstrap the app outside the layer map.
+      'boundaries/ignore': ['**/*.spec.ts', 'src/main.ts', 'src/environments/**'],
       'boundaries/files': [
         { pattern: 'src/app/*.ts', category: 'app' },
-        {
-          pattern: 'src/app/features/*/*.routes.ts',
-          category: 'feature-routes',
-          capture: ['feature'],
-        },
-        { pattern: 'src/app/features/*/*.form.ts', category: 'feature-form', capture: ['feature'] },
+        { pattern: 'src/app/pages/*/*.routes.ts', category: 'page-routes', capture: ['feature'] },
+        { pattern: 'src/app/pages/*/*.form.ts', category: 'page-form', capture: ['feature'] },
       ],
       'boundaries/elements': [
-        { type: 'layout', pattern: 'src/app/layout', partialMatch: false },
+        { type: 'components', pattern: 'src/app/components', partialMatch: false },
+        // The module's own components come first so they match before the page element.
         {
-          type: 'feature-pages',
-          pattern: 'src/app/features/*/pages',
+          type: 'page-components',
+          pattern: 'src/app/pages/*/components',
           partialMatch: false,
           capture: ['feature'],
         },
+        // A page folder, pages/<module>/<page>: two levels, so the module's own *.routes.ts and
+        // *.form.ts (file categories above) are not also read as pages.
         {
-          type: 'feature-components',
-          pattern: 'src/app/features/*/components',
+          type: 'page',
+          pattern: 'src/app/pages/*/*',
           partialMatch: false,
-          capture: ['feature'],
+          capture: ['feature', 'page'],
         },
         { type: 'store', pattern: 'src/app/store', partialMatch: false },
         { type: 'services-generated', pattern: 'src/app/services/generated', partialMatch: false },
@@ -272,6 +273,7 @@ export default defineConfig([
     },
     rules: {
       'boundaries/dependencies': ['error', { default: 'disallow', policies }],
+      'boundaries/no-unknown-files': 'error',
       'no-restricted-imports': ['error', { paths: HTTP }],
     },
   },

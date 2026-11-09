@@ -1,4 +1,10 @@
-// The only place styles live. Components carry none (tests/unit/styles-tree.spec.ts).
+// The global and app-wide CSS (main.ts imports it after themes/brand.css): the tokens and tools,
+// the themes, and the basics. Every page and component carries a sibling stylesheet of its own,
+// referenced by its file, so a lazy route ships its page's CSS in its own chunk.
+// The three global groups sit in cascade layers (declared first, in order) and the sibling
+// sheets stay unlayered; an unlayered rule beats a layered one at any specificity, so a page or
+// component wins over the global tree whatever order the bundler links the chunks in.
+@use 'setup/layers';
 @use 'setup/variables';
 @use 'setup/breakpoints';
 @use 'setup/functions';
@@ -8,5 +14,3 @@
 @use 'basics/helpers';
 @use 'basics/base';
 @use 'basics/layout';
-@use 'components';
-@use 'views';

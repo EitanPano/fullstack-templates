@@ -106,7 +106,7 @@ export async function call<R extends ApiResult>(request: Promise<R>): Promise<Ca
   }
 
   const message = DEFAULT_COPY[code]
-  // A 400's details name the fields; the feature words them (`withCopy`), here they carry the
+  // A 400's details name the fields; the page words them (`withCopy`), here they carry the
   // default copy.
   const fieldErrors = new Map<string, string>()
   if (code === 'validation_failed') {

@@ -2,6 +2,7 @@ import { Slot } from 'radix-ui'
 import type { ComponentProps } from 'react'
 
 import { cn } from '@/shared/utils/cn'
+import './button.scss'
 
 type ButtonProps = ComponentProps<'button'> & {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'link'
@@ -10,7 +11,7 @@ type ButtonProps = ComponentProps<'button'> & {
   asChild?: boolean
 }
 
-// The one place a <button> is rendered; its classes are the BEM names in styles/components.
+// The one place a <button> is rendered; its classes are the BEM names in button.scss.
 export function Button({
   variant = 'primary',
   size,

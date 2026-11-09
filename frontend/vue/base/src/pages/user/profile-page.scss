@@ -1,0 +1,45 @@
+@use 'setup/functions';
+
+.profile {
+  max-inline-size: 40rem;
+}
+
+.profile__facts {
+  display: grid;
+  gap: functions.space(3);
+  margin-block-end: functions.space(6);
+  padding: functions.space(4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+}
+
+.profile__fact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: functions.space(2);
+
+  dt {
+    color: var(--muted-foreground);
+  }
+
+  dd {
+    display: flex;
+    align-items: center;
+    gap: functions.space(2);
+    margin: 0;
+    font-weight: var(--weight-medium);
+  }
+}
+
+.profile__form {
+  display: grid;
+  gap: functions.space(4);
+}
+
+.profile__loading {
+  display: grid;
+  gap: functions.space(3);
+}

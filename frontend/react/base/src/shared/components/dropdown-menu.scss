@@ -1,0 +1,100 @@
+@use 'setup/functions';
+@use 'setup/mixins';
+
+.dropdown-menu {
+  z-index: functions.z(overlay);
+  min-inline-size: 11rem;
+  max-block-size: var(--radix-dropdown-menu-content-available-height);
+  padding: functions.space(1);
+  overflow-y: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-2);
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+
+  &[data-state='open'] {
+    animation: dropdown-menu-in 120ms ease;
+  }
+
+  &[data-state='closed'] {
+    animation: dropdown-menu-out 100ms ease;
+  }
+}
+
+.dropdown-menu__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: functions.space(2);
+  padding-inline: functions.space(2);
+  border-radius: calc(var(--radius) - 2px);
+  font-size: var(--text-sm);
+  cursor: default;
+  outline: none;
+  user-select: none;
+
+  &[data-highlighted] {
+    @include mixins.focus-ring;
+    outline-offset: -2px;
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  &[data-disabled] {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  @include mixins.control-height;
+}
+
+// A radio item keeps its check in the inline-start gutter.
+.dropdown-menu__item--radio {
+  padding-inline-start: functions.space(8);
+}
+
+.dropdown-menu__indicator {
+  position: absolute;
+  inset-inline-start: functions.space(2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1rem;
+  pointer-events: none;
+
+  .icon {
+    inline-size: 0.5rem;
+    block-size: 0.5rem;
+    fill: currentcolor;
+  }
+}
+
+.dropdown-menu__label {
+  padding-block: functions.space(2);
+  padding-inline: functions.space(2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.dropdown-menu__separator {
+  block-size: 1px;
+  margin-block: functions.space(1);
+  margin-inline: calc(-1 * #{functions.space(1)});
+  background: var(--border);
+}
+
+@keyframes dropdown-menu-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+@keyframes dropdown-menu-out {
+  to {
+    opacity: 0;
+    scale: 0.96;
+  }
+}

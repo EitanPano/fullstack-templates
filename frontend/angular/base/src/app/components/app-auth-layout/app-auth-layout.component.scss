@@ -1,0 +1,33 @@
+@use 'setup/functions';
+@use 'setup/mixins';
+
+// The frame of the account screens: the product name on top, the card centred, the footer last.
+.auth-layout {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  justify-items: center;
+  min-block-size: 100dvh;
+  padding-block-start: functions.space(6);
+}
+
+.auth-layout__brand {
+  padding-inline: functions.space(2);
+  border-radius: var(--radius);
+  color: var(--foreground);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+
+  @include mixins.touch-target;
+}
+
+.auth-layout__main {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  inline-size: 100%;
+  padding: functions.space(4);
+}
+
+.auth-layout app-footer {
+  inline-size: 100%;
+}

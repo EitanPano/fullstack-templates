@@ -10,6 +10,7 @@ import { ButtonComponent } from '../button/button.component'
   selector: 'app-form-actions',
   imports: [ButtonComponent, TranslatePipe],
   templateUrl: './form-actions.component.html',
+  styleUrl: './form-actions.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FormActionsComponent {

@@ -2,8 +2,8 @@
 
 Vue 3 single-page app on Vite: Vue Router 5 with explicit route tables, Pinia 4 setup stores, a
 client, SDK and zod schemas generated from the server's OpenAPI contract (Hey API's fetch client),
-forms on a composable over the generated zod schemas, Reka UI primitives styled by a global SCSS
-tree, vue-i18n, Vitest and Playwright with axe. When the stack's server has its `auth` flag on it
+forms on a composable over the generated zod schemas, Reka UI primitives styled by co-located SCSS
+on a global token tree, vue-i18n, Vitest and Playwright with axe. When the stack's server has its `auth` flag on it
 adds the session glue (same-origin HttpOnly cookies, one refresh on a 401, route guards, sign-in
 and sign-up). Generated alone or as the `frontend` of the `vue-bun-express` or
 `vue-python-fastapi` stack. The shape it follows is ADR 0008 and
@@ -21,7 +21,7 @@ and sign-up). Generated alone or as the `frontend` of the `vue-bun-express` or
 - `template.yaml`: the manifest (commands, contract, HTTP surface, flags). `onlyWhen` lists the
   files that exist only with the server's `auth` flag (`server:auth`) or `database` capability, and
   `// @server:auth` markers cover the lines inside shared files. A `.vue` file takes template block
-  markers only; `src/layout/components/slots.ts` carries the optional header parts.
+  markers only; `src/components/slots.ts` carries the optional header parts.
 - `base/`: the files copied into the generated package, including `AGENTS.md`, `bun.lock` and the
   committed `src/services/generated/`.
 - `base/Dockerfile`, `base/nginx/`: the `dist` and `serve` image targets and the nginx config

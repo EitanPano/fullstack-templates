@@ -1,0 +1,8 @@
+@use 'setup/functions';
+
+.footer {
+  padding-block: functions.space(4);
+  border-block-start: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+}

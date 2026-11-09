@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'react'
 
 import { cn } from '@/shared/utils/cn'
+import './badge.scss'
 
 type BadgeProps = ComponentProps<'span'> & {
   variant?: 'default' | 'success' | 'warning' | 'destructive' | 'muted' | 'info'

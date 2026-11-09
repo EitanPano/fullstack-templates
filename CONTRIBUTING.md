@@ -135,9 +135,9 @@ The contract is the ten invariants of [docs/conventions.md › Frontend](docs/co
 [ADR 0006](docs/adr/0006-per-framework-frontends-and-angular.md). A template's layers, import rules,
 state, forms and design system are its own, written in its `base/AGENTS.md`; the catalog does not
 prescribe them. Three models: `frontend/react` (an SPA on Redux Toolkit with RTK Query, Radix
-primitives and the global SCSS tree; [ADR 0007](docs/adr/0007-react-redux-rtk-scss.md)), `frontend/angular`
-(an SPA on the global SCSS tree, signal stores and Hey API's Angular client) and `frontend/vue`
-(an SPA on the global SCSS tree, Pinia setup stores, Vue Router and Reka UI;
+primitives and co-located SCSS on a global token tree; [ADR 0007](docs/adr/0007-react-redux-rtk-scss.md)), `frontend/angular`
+(an SPA on co-located SCSS on a global token tree, signal stores and Hey API's Angular client) and `frontend/vue`
+(an SPA on co-located SCSS on a global token tree, Pinia setup stores, Vue Router and Reka UI;
 [ADR 0008](docs/adr/0008-vue-pinia.md)). Take the nearest one.
 The checklist is what `validate` and the cases prove.
 
@@ -391,8 +391,8 @@ When a dependency moves or the base is regenerated:
 3. Run `bun install` and commit `bun.lock`; `bun tools/validate.ts --lockfiles` checks it with
    `--frozen-lockfile`.
 4. No scaffolder. A new component is a file in `src/shared/components/` on a `radix-ui` primitive
-   plus a partial in `src/styles/components/` forwarded by its `_index.scss`; a new screen is a
-   `views/` partial. `src/styles/themes/brand.css` holds the generator's token placeholders and is
+   plus a sibling stylesheet with the component's stem (imported last in the component); a new
+   screen is a page in `pages/<module>/` with its own sibling sheet. `src/styles/themes/brand.css` holds the generator's token placeholders and is
    never edited (it is Prettier-ignored because Prettier cannot parse the placeholders).
 5. Run the `contract` command when the server's contract moved, and commit
    `src/services/generated/`.
@@ -401,8 +401,8 @@ When a dependency moves or the base is regenerated:
    overlaps a rule fails it (ESLint flat config replaces a rule's options for a file with those of
    the last block that matches it, and does not merge them). `tests/unit/density.test.ts` compiles
    the SCSS tree and asserts the control heights (36 px, 32 px compact, 44 px on a coarse pointer);
-   `tests/unit/styles-tree.test.ts` refuses a stylesheet import outside `main.tsx` and any `style`
-   attribute.
+   `tests/unit/styles-tree.test.ts` refuses a stylesheet without its sibling owner, a sibling
+   import that is not the owner's last import, and any `style` attribute.
 7. Bump `version` in `template.yaml` and `index.yaml`, add a `CHANGELOG.md` entry, and run
    `bun tools/validate.ts --readme`.
 8. Re-run the react cases with the container smoke:
@@ -474,7 +474,8 @@ When a dependency moves or the base is regenerated:
 2. Run `bun install` and commit `bun.lock`; `bun tools/validate.ts --lockfiles` checks it with
    `--frozen-lockfile`.
 3. No scaffolder. A new component is a `.vue` file in `src/shared/components/` on a `reka-ui`
-   primitive plus a partial in `src/styles/components/` forwarded by its `_index.scss`.
+   primitive plus a sibling stylesheet with the component's stem (an empty
+   `<style lang="scss" src>` block).
    `src/styles/themes/brand.css` holds the generator's token placeholders and is never edited, so an
    in-place `vite build` fails by design; the generated cases are the build gate.
 4. Run the `contract` command when the server's contract moved, and commit
@@ -562,13 +563,17 @@ the lockfiles is still to be configured.
   existing file invalid bumps it. v1.4.0 added optional fields (`answers.brand`, `onlyWhen`, the case
   fields for a server's flags, the `e2eDb` command, the provider's `e2e` URL); v1.4.1 adds the case
   field `brand`; v1.5.0 and v1.5.1 add none.
-- This release is `v1.8.0`, a minor: `frontend/vue` 1.0.0 with the stacks `vue-bun-express` and
-  `vue-python-fastapi` (Pinia setup stores, Vue Router and Reka UI on the global SCSS tree;
-  [ADR 0008](docs/adr/0008-vue-pinia.md)). The other templates and `schemaVersion` are unchanged;
-  no tool change. The previous release, `v1.7.0`, a minor, was `frontend/react` 3.0.0, a template's
-  own major (its layout moves every file: Redux Toolkit with RTK Query, Radix primitives on the
-  global SCSS tree, features by server module;
-  [ADR 0007](docs/adr/0007-react-redux-rtk-scss.md)). Before it, `v1.6.0`, a
+- This release is `v1.9.0`, a minor: `frontend/react` 4.0.0, `frontend/vue` 2.0.0 and
+  `frontend/angular` 2.0.0, three template majors (the trees move to `pages/` and `components/`
+  with co-located SCSS on a layered global tree;
+  [ADR 0009](docs/adr/0009-pages-components-colocated-styles.md)); `frontend/next` 2.1.2 and both
+  servers unchanged; `schemaVersion` 1; no tool change. The previous release, `v1.8.0`, a minor,
+  was `frontend/vue` 1.0.0 with the stacks `vue-bun-express` and `vue-python-fastapi` (Pinia setup
+  stores, Vue Router and Reka UI on the global SCSS tree; [ADR 0008](docs/adr/0008-vue-pinia.md));
+  it left the other templates and `schemaVersion` unchanged and had no tool change. Before it,
+  `v1.7.0`, a minor, was `frontend/react` 3.0.0, a template's own major (its layout moves every
+  file: Redux Toolkit with RTK Query, Radix primitives on the global SCSS tree, features by server
+  module; [ADR 0007](docs/adr/0007-react-redux-rtk-scss.md)). Before it, `v1.6.0`, a
   minor, added `frontend/angular` 1.0.0 with the stacks `angular-bun-express` and
   `angular-python-fastapi` and split the frontend contract into invariants
   ([ADR 0006](docs/adr/0006-per-framework-frontends-and-angular.md)); it carried `frontend/next`

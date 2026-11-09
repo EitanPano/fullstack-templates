@@ -3,6 +3,7 @@ import { RadioGroup as RadioGroupPrimitive } from 'radix-ui'
 import type { ComponentProps } from 'react'
 
 import { cn } from '@/shared/utils/cn'
+import './radio-group.scss'
 
 export function RadioGroup({
   className,

@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useRouteError } from 'react-router'
+import './root-error.scss'
 
 // Last-resort boundary for what no group caught: a whole page, because the layout it would sit
 // in has failed. Keep the message user-safe: no stack, no internal URL. The cause goes to the

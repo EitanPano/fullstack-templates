@@ -8,6 +8,7 @@ import { TranslatePipe } from '../../pipes/translate.pipe'
   selector: 'app-spinner',
   imports: [TranslatePipe],
   templateUrl: './spinner.component.html',
+  styleUrl: './spinner.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SpinnerComponent {

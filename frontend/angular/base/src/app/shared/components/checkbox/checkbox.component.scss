@@ -1,0 +1,42 @@
+@use 'setup/functions';
+@use 'setup/mixins';
+
+// The box and its label row; the host is a block so a field stacks it.
+:host {
+  display: block;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: functions.space(2);
+  cursor: pointer;
+
+  // The label row is the touch target, not the 16 px box.
+  @include mixins.touch-target;
+}
+
+.checkbox__box {
+  flex: none;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  margin-block-start: 0.15rem;
+  accent-color: var(--primary);
+
+  &:focus-visible {
+    @include mixins.focus-ring;
+  }
+
+  &[aria-invalid='true'] {
+    outline: 2px solid var(--destructive);
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.checkbox__label {
+  padding-block: 0.1rem;
+}

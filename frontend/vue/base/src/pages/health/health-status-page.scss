@@ -1,0 +1,36 @@
+@use 'setup/functions';
+
+.health-status {
+  max-inline-size: 40rem;
+}
+
+.health-status__facts {
+  display: grid;
+  gap: functions.space(3);
+  padding: functions.space(4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+}
+
+.health-status__fact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: functions.space(2);
+
+  dt {
+    color: var(--muted-foreground);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: var(--weight-medium);
+  }
+}
+
+.health-status__loading {
+  display: grid;
+  gap: functions.space(3);
+}

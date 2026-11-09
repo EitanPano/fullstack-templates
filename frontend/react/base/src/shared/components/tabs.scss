@@ -1,0 +1,53 @@
+@use 'setup/functions';
+@use 'setup/mixins';
+
+// Radix Tabs: a row of triggers over one panel; the selected trigger carries an underline.
+.tabs {
+  display: grid;
+  gap: functions.space(4);
+}
+
+.tabs__list {
+  display: flex;
+  gap: functions.space(1);
+  overflow-x: auto;
+  border-block-end: 1px solid var(--border);
+}
+
+.tabs__trigger {
+  margin-block-end: -1px;
+  padding-block: functions.space(1);
+  padding-inline: functions.space(4);
+  border: 0;
+  border-block-end: 2px solid transparent;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+
+  @include mixins.control-height;
+
+  &:hover:not([data-state='active']) {
+    color: var(--foreground);
+  }
+
+  &[data-state='active'] {
+    border-block-end-color: var(--primary);
+    color: var(--foreground);
+  }
+
+  &:focus-visible {
+    @include mixins.focus-ring;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.tabs__content:focus-visible {
+  @include mixins.focus-ring;
+}

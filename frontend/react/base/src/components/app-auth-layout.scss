@@ -1,0 +1,18 @@
+@use 'setup/functions';
+
+// The frame of the account screens: no shell, the card centred in the viewport. The loading and
+// error states sit in the same measure, and stand alone when they replace the whole page.
+.auth-layout {
+  display: grid;
+  place-items: center;
+  min-block-size: 100dvh;
+  padding: functions.space(4);
+}
+
+.auth-loading {
+  inline-size: 100%;
+  max-inline-size: 26rem;
+  margin-block-start: functions.space(6);
+  margin-inline: auto;
+  padding-inline: functions.space(4);
+}

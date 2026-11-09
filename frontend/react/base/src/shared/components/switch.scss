@@ -1,0 +1,69 @@
+@use 'setup/mixins';
+
+// Radix Switch: a track button with a sliding thumb. The thumb shifts toward the inline end, so
+// rtl flips the sign of the shift.
+.switch {
+  --switch-shift: 1rem;
+
+  position: relative;
+  flex: none;
+  inline-size: 2.25rem;
+  block-size: 1.25rem;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--input);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+
+  &:dir(rtl) {
+    --switch-shift: -1rem;
+  }
+
+  &[data-state='checked'] {
+    background: var(--primary);
+  }
+
+  &:focus-visible {
+    @include mixins.focus-ring;
+  }
+
+  &[aria-invalid='true'] {
+    border-color: var(--destructive);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  @include mixins.coarse-pointer {
+    &::after {
+      content: '';
+      position: absolute;
+      inset-block: -0.875rem;
+      inset-inline: -0.5rem;
+    }
+  }
+}
+
+.switch__thumb {
+  display: block;
+  inline-size: 1rem;
+  block-size: 1rem;
+  border-radius: 50%;
+  background: var(--background);
+  pointer-events: none;
+  transition: translate 120ms ease;
+
+  &[data-state='checked'] {
+    translate: var(--switch-shift) 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch,
+  .switch__thumb {
+    transition: none;
+  }
+}

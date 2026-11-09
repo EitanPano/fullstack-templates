@@ -9,7 +9,7 @@ import { NAV_ENTRIES } from './core/config/nav.token'
 import { Translator } from '@app/shared/i18n/translator'
 import { appConfig } from './app.config'
 import en from './core/i18n/translations/en.json' // @i18n
-import { MainLayoutComponent } from './layout/main-layout/main-layout.component'
+import { AppMainLayoutComponent } from './components/app-main-layout/app-main-layout.component'
 import { NAV } from './nav'
 
 describe('appConfig', () => {
@@ -42,7 +42,7 @@ describe('appConfig', () => {
     const router = TestBed.inject(Router)
     await router.navigateByUrl('/')
     const layout = router.routerState.snapshot.root.firstChild
-    expect(layout?.component).toBe(MainLayoutComponent)
+    expect(layout?.component).toBe(AppMainLayoutComponent)
     expect(layout?.firstChild?.routeConfig?.path).toBe('')
     expect(layout?.firstChild?.routeConfig?.pathMatch).toBe('full')
   })
@@ -52,7 +52,7 @@ describe('appConfig', () => {
     await router.navigateByUrl('/no/such/page')
     expect(router.url).toBe('/no/such/page')
     const layout = router.routerState.snapshot.root.firstChild
-    expect(layout?.component).toBe(MainLayoutComponent)
+    expect(layout?.component).toBe(AppMainLayoutComponent)
     expect(layout?.firstChild?.routeConfig?.path).toBe('**')
   })
 })

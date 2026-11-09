@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { cn } from '@/shared/utils/cn'
+import './empty-state.scss'
 
 // What a list or section shows when there is nothing to show yet, with the next step.
 export function EmptyState({

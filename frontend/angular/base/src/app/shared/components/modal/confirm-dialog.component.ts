@@ -16,6 +16,7 @@ export interface ConfirmData {
   selector: 'app-confirm-dialog',
   imports: [ButtonComponent, TranslatePipe],
   templateUrl: './confirm-dialog.component.html',
+  styleUrl: './confirm-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ConfirmDialogComponent {

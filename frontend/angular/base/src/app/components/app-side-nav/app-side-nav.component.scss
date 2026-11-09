@@ -1,0 +1,99 @@
+@use 'setup/breakpoints';
+@use 'setup/functions';
+@use 'setup/mixins';
+@use 'setup/variables';
+
+// Below lg the panel is a drawer that slides in from the inline start; from lg it is a column.
+.side-nav {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-start: 0;
+  z-index: functions.z(drawer);
+  display: flex;
+  flex-direction: column;
+  gap: functions.space(2);
+  inline-size: min(variables.$side-nav-width, 85vw);
+  padding: functions.space(4);
+  border-inline-end: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-2);
+  translate: -100% 0;
+  visibility: hidden;
+  transition:
+    translate 200ms ease,
+    visibility 200ms;
+
+  &.is-open {
+    translate: 0;
+    visibility: visible;
+  }
+
+  @include breakpoints.up(lg) {
+    position: sticky;
+    inset-block: variables.$header-height auto;
+    z-index: auto;
+    block-size: calc(100dvh - #{variables.$header-height});
+    inline-size: auto;
+    box-shadow: none;
+    translate: 0;
+    visibility: visible;
+    transition: none;
+  }
+}
+
+[dir='rtl'] .side-nav:not(.is-open) {
+  translate: 100% 0;
+
+  @include breakpoints.up(lg) {
+    translate: 0;
+  }
+}
+
+.side-nav__close {
+  align-self: flex-end;
+
+  @include breakpoints.up(lg) {
+    display: none;
+  }
+}
+
+.side-nav__list {
+  display: grid;
+  gap: functions.space(1);
+  padding: 0;
+  list-style: none;
+}
+
+.side-nav__link {
+  display: flex;
+  align-items: center;
+  padding-block: functions.space(2);
+  padding-inline: functions.space(3);
+  border-radius: var(--radius);
+  color: var(--foreground);
+  text-decoration: none;
+
+  @include mixins.touch-target;
+
+  &:hover {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  &.is-active {
+    background: var(--secondary);
+    color: var(--secondary-foreground);
+    font-weight: var(--weight-semibold);
+  }
+}
+
+.side-nav-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: functions.z(drawer-backdrop);
+  background: var(--backdrop);
+
+  @include breakpoints.up(lg) {
+    display: none;
+  }
+}

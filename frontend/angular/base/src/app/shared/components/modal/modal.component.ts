@@ -20,6 +20,7 @@ import {
   selector: 'app-modal',
   imports: [ButtonComponent, IconComponent, NgComponentOutlet, NgTemplateOutlet, TranslatePipe],
   templateUrl: './modal.component.html',
+  styleUrl: './modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ModalComponent {
