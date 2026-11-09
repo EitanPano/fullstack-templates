@@ -1,15 +1,28 @@
 // @vitest-environment node
+import { readdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { compile } from 'sass-embedded'
 import { describe, expect, it } from 'vitest'
 
-// Compiles the whole tree (brand.css is plain CSS that main.tsx loads, so it is not part of it)
-// and reads the sizing contract off the CSS text: 36 px, 32 px compact on a fine pointer, 44 px
-// on a coarse one whatever the density.
-const entry = fileURLToPath(new URL('../../src/styles/styles.scss', import.meta.url))
-const loadPath = fileURLToPath(new URL('../../src/styles', import.meta.url))
-const css = compile(entry, { loadPaths: [loadPath], style: 'expanded' }).css
+// Compiles the global tree (styles.scss) and every stylesheet beside a page or component (brand.css
+// is plain CSS that main.tsx loads, so it is not part of it) and reads the sizing contract off the
+// CSS text: 36 px, 32 px compact on a fine pointer, 44 px on a coarse one whatever the density.
+const src = fileURLToPath(new URL('../../src', import.meta.url))
+const loadPath = join(src, 'styles')
+
+function siblingSheets(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name)
+    if (entry.isDirectory()) return path === loadPath ? [] : siblingSheets(path)
+    return entry.name.endsWith('.scss') ? [path] : []
+  })
+}
+
+const css = [join(loadPath, 'styles.scss'), ...siblingSheets(src)]
+  .map((path) => compile(path, { loadPaths: [loadPath], style: 'expanded' }).css)
+  .join('\n')
 
 // The body of every top-level `@media` whose prelude contains `query`, joined.
 function media(query: string): string {

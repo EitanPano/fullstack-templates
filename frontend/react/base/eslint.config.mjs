@@ -5,7 +5,7 @@ import jsxA11y from 'eslint-plugin-jsx-a11y'
 import reactHooks from 'eslint-plugin-react-hooks'
 import tseslint from 'typescript-eslint'
 
-// The layer map (AGENTS.md › Layers): app → layout → features → core, store, services → shared,
+// The layer map (AGENTS.md › Layers): app → components, pages → core, store, services → shared,
 // models. Every import the layers forbid is a `boundaries/dependencies` error whose message names
 // the layer to use. tests/unit/eslint-boundaries.test.ts lints one violation and one allowed case
 // per rule through this file, so a rule that stops firing fails the suite.
@@ -15,8 +15,8 @@ import tseslint from 'typescript-eslint'
 // from the selector lists below and each block states every selector that applies to it.
 const ALL = [
   'app',
-  'layout',
-  'feature',
+  'components',
+  'page',
   'store',
   'services',
   'services-generated',
@@ -28,7 +28,7 @@ const ALL = [
 const except = (...types) => ALL.filter((type) => !types.includes(type))
 
 const GUARDS_MESSAGE =
-  'guards are the wiring above services and the leaves: import them from app/ or a feature'
+  'guards are the wiring above services and the leaves: import them from app/ or a page'
 
 // Later policies override earlier ones, so each forbidden edge comes first and its exceptions after.
 const policies = [
@@ -36,46 +36,46 @@ const policies = [
     from: { element: { type: 'app' } },
     disallow: { to: { element: { type: ['services', 'testing'] } } },
     message:
-      'app/ only wires: read data through a hook in a feature or the layout, and keep test helpers out of the bundle',
+      'app/ only wires: read data through a hook in a page or a component, and keep test helpers out of the bundle',
   },
   {
     from: { element: { type: 'app' } },
-    disallow: { to: { element: { type: 'feature' } } },
+    disallow: { to: { element: { type: 'page' } } },
     message:
-      'app/ imports a feature only through its *.routes.tsx: pages and components are loaded by the route (lazy), never by app/',
+      'app/ imports a page only through its *.routes.tsx: the page and its components are loaded by the route (lazy), never by app/',
   },
   {
     from: { element: { type: 'app' } },
-    allow: { to: { element: { type: 'feature', fileInternalPath: '*.routes.tsx' } } },
+    allow: { to: { element: { type: 'page', fileInternalPath: '*.routes.tsx' } } },
   },
   {
-    from: { element: { type: 'layout' } },
-    disallow: { to: { element: { type: ['app', 'feature', 'testing'] } } },
+    from: { element: { type: 'components' } },
+    disallow: { to: { element: { type: ['app', 'page', 'testing'] } } },
     message:
-      'layout/ never imports app/, a feature or testing/: take the data from a services hook or the store, and compose features in app/routes.tsx',
+      'components/ never imports app/, a page or testing/: take the data from a services hook or the store, and compose pages in app/routes.tsx',
   },
   {
-    from: { element: { type: 'feature' } },
-    disallow: { to: { element: { type: ['app', 'layout', 'testing'] } } },
+    from: { element: { type: 'page' } },
+    disallow: { to: { element: { type: ['app', 'components', 'testing'] } } },
     message:
-      'a feature never imports app/, layout/ or testing/: routes are composed in app/, and a shared part goes to shared/ or models/',
+      'a page never imports app/, components/ or testing/: routes are composed in app/, and a shared part goes to shared/ or models/',
   },
   {
-    from: { element: { type: 'feature' } },
+    from: { element: { type: 'page' } },
     disallow: {
       to: {
-        element: { type: 'feature', captured: { feature: '!{{ from.element.captured.feature }}' } },
+        element: { type: 'page', captured: { page: '!{{ from.element.captured.page }}' } },
       },
     },
     message:
-      'a feature never imports another feature: lift the shared part to shared/ (product-agnostic) or models/ (a noun) or compose both in app/',
+      'a page never imports another page: lift the shared part to shared/ (product-agnostic) or models/ (a noun) or compose both in app/',
   },
   // A form schema extends the generated request schema (limits are never copied) and reaches
   // nothing else of the data layer.
   {
-    from: { element: { type: 'feature', fileInternalPath: '*.form.ts' } },
+    from: { element: { type: 'page', fileInternalPath: '*.form.ts' } },
     disallow: {
-      to: { element: { type: ['layout', 'store', 'services', 'core'] } },
+      to: { element: { type: ['components', 'store', 'services', 'core'] } },
     },
     message:
       'a *.form.ts imports shared/, models/ and the generated zod schemas only: keep the form schema pure',
@@ -84,7 +84,7 @@ const policies = [
     from: { element: { type: 'store' } },
     disallow: { to: { element: { type: except('store', 'services', 'core', 'models') } } },
     message:
-      'store/ imports services/ (reducer, middleware, matchers), core/theme, core/config and models/ only: it never knows features, layout or shared/',
+      'store/ imports services/ (reducer, middleware, matchers), core/theme, core/config and models/ only: it never knows pages, components or shared/',
   },
   {
     from: { element: { type: 'store' } },
@@ -109,8 +109,7 @@ const policies = [
     // The guards wire the loaders to the store and the data layer; nothing below them imports them.
     from: { element: { type: ['services', 'core'] } },
     disallow: { to: { file: { categories: 'guards' } } },
-    message:
-      'guards are the wiring above services and the leaves: import them from app/ or a feature',
+    message: 'guards are the wiring above services and the leaves: import them from app/ or a page',
   },
   {
     from: { element: { type: 'core' } },
@@ -127,7 +126,7 @@ const policies = [
     from: { element: { type: 'shared' } },
     disallow: { to: { element: { type: except('shared', 'models') } } },
     message:
-      'shared/ is product-agnostic: it imports shared/ and models/ only. Move the code to core/, a feature or services/, or pass it in as props',
+      'shared/ is product-agnostic: it imports shared/ and models/ only. Move the code to core/, a page or services/, or pass it in as props',
   },
   {
     from: { element: { type: 'models' } },
@@ -136,14 +135,14 @@ const policies = [
       'models/ imports models/ and the generated contract types (import type) only: the runtime stays in services/',
   },
   {
-    from: { element: { type: ['app', 'layout', 'feature', 'shared'] } },
+    from: { element: { type: ['app', 'components', 'page', 'shared'] } },
     disallow: { to: { element: { type: 'services-generated' } } },
     message:
       "read the contract's types through models/<noun>.ts; only services/, store/, core/ and models/ import the generated files",
   },
   {
     // A form schema extends the generated zod schemas (limits are never copied).
-    from: { element: { type: 'feature', fileInternalPath: '*.form.ts' } },
+    from: { element: { type: 'page', fileInternalPath: '*.form.ts' } },
     allow: { to: { element: { type: 'services-generated', fileInternalPath: 'zod.gen.ts' } } },
   },
   {
@@ -190,11 +189,12 @@ const ENV = [
     message: 'Read configuration through src/core/config/env.ts',
   },
 ]
-// CSS lives in src/styles/ only; a component renders class names.
+// CSS lives in a stylesheet beside the component or page (src/styles/ holds the global tree); a
+// component renders class names.
 const STYLE = [
   {
     selector: "JSXAttribute[name.name='style']",
-    message: 'styles live in src/styles/: add a class and a partial, never an inline style',
+    message: "add a class to the component's stylesheet, never an inline style",
   },
 ]
 const restrictSyntax = (...selectors) => ({
@@ -262,8 +262,8 @@ export default defineConfig([
       ],
       'boundaries/elements': [
         { type: 'app', pattern: 'src/app', partialMatch: false },
-        { type: 'layout', pattern: 'src/layout', partialMatch: false },
-        { type: 'feature', pattern: 'src/features/*', partialMatch: false, capture: ['feature'] },
+        { type: 'components', pattern: 'src/components', partialMatch: false },
+        { type: 'page', pattern: 'src/pages/*', partialMatch: false, capture: ['page'] },
         { type: 'store', pattern: 'src/store', partialMatch: false },
         {
           type: 'services-generated',
@@ -303,7 +303,7 @@ export default defineConfig([
   },
   {
     // A form schema extends the generated zod schemas (limits are never copied).
-    files: ['src/features/*/*.form.ts'],
+    files: ['src/pages/*/*.form.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -348,7 +348,7 @@ export default defineConfig([
   {
     // The generator keeps one of the two returns (the account menu or the theme menu alone), so in
     // place the second is unreachable on purpose.
-    files: ['src/layout/components/account-slot.tsx'],
+    files: ['src/components/app-account-slot.tsx'],
     rules: { 'no-unreachable': 'off' },
   },
   {
