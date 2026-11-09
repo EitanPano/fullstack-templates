@@ -97,9 +97,10 @@ directory stay relative.
 
 `tests/unit/eslint-boundaries.spec.ts` lints one violation and one allowed case per rule, in a
 throwaway project built from the real `eslint.config.mjs`. A new rule gets a case there.
-`boundaries/no-unknown-files` is on: a file in a directory no layer claims (a stray
-`src/app/widgets/` folder) is an error; `main.ts`, `src/environments/` and the specs
-are boundaries-ignored.
+`boundaries/no-unknown-files` is on: a file outside every layer in the table (a stray
+`src/app/widgets/` folder) is an error; `main.ts`, `src/environments/` and the specs are
+boundaries-ignored. The page layers are two levels deep (`pages/<m>/<page>/`), so a module's own
+`*.routes.ts` and `*.form.ts` are matched by their rows, not read as pages.
 
 The API is always reached at relative `/api` on the page's own origin (see Deployment), so the
 bundle carries no API URL.
@@ -211,9 +212,11 @@ basics;`), then setup, themes, basics; the rules of those six global partials si
   subset. A parent never restyles a child's interior (`.header .button`): the child takes an
   input instead (`app-button` has `block`, which fills its container and aligns the label to the
   start). Projected content is styled by the component that authors it. A rule that must depend on
-  an ancestor outside the template uses `:host-context(.ancestor)` (the modal's size classes).
-  The CDK builds its overlay panes and backdrops outside every view: their structural CSS comes
-  from the CDK, and the modal sets its backdrop colour in `modal.service.ts`.
+  an ancestor outside the template uses `:host-context(.ancestor)`. The CDK builds overlay panes
+  and backdrops outside every view, so they have no owning sheet: their structural CSS comes from
+  the CDK, and the modal's pane and backdrop rules (`.modal__panel*`, `.modal__backdrop`, applied
+  by `ModalService` as `panelClass` and `backdropClass`) are in `styles/basics/_layout.scss`. The
+  modal's own sheet styles what is inside its template.
 - **One shared sheet.** `shared/components/controls.scss` is the `.control` block that `input`,
   `select` and `textarea` render; each lists it in `styleUrls: ['../controls.scss']`. The scan
   accepts a sheet two or more sibling folders reference and nothing else.
@@ -382,6 +385,8 @@ store method that awaited the call shows the outcome.
   with the code, `src/**/*.spec.ts`. Checks on files outside `src/` (the ESLint config, the
   component-styles and restricted-element scans) live in `tests/unit/*.spec.ts`, each starting with
   `// @vitest-environment node`; the builder runs both homes together.
+- **The boundaries test** (`tests/unit/eslint-boundaries.spec.ts`) also asserts that a file outside
+  every layer (`src/app/layout/`, `src/app/features/`, `src/app/widgets/`) is refused.
 - **The styles scan** (`tests/unit/component-styles.spec.ts`) is Styling as a test: `src/styles/`
   holds exactly `basics`, `setup`, `styles.scss` and `themes`; every other `.scss` is referenced by
   its sibling `<stem>.component.ts` (or by two or more components when shared); a reference is

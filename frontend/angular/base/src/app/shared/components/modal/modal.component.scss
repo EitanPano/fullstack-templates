@@ -1,39 +1,8 @@
 @use 'setup/breakpoints';
 @use 'setup/functions';
 
-// The CDK builds the pane and the backdrop outside any view, so a sheet cannot style them. The pane
-// shrinks to this host, which takes its width and height cap from the size class the service puts
-// on the pane (`:host-context`); the backdrop colour is set by the service. The CDK's own overlay
-// rules come from the CDK.
-:host {
-  display: block;
-  inline-size: 100vw;
-  max-inline-size: 100%;
-  max-block-size: 100dvh;
-
-  @include breakpoints.up(md) {
-    max-block-size: 90dvh;
-  }
-}
-
-:host-context(.modal__panel--sm) {
-  @include breakpoints.up(md) {
-    inline-size: 24rem;
-  }
-}
-
-:host-context(.modal__panel--md) {
-  @include breakpoints.up(md) {
-    inline-size: 32rem;
-  }
-}
-
-:host-context(.modal__panel--lg) {
-  @include breakpoints.up(md) {
-    inline-size: 48rem;
-  }
-}
-
+// The dialog box and what is inside this template. The pane and the backdrop are built by the CDK
+// outside every view; their rules are in styles/basics/_layout.scss.
 .modal {
   display: flex;
   flex-direction: column;

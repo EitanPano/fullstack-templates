@@ -79,9 +79,10 @@ All paths are under `src/`. A file's spec and template move with it.
 
 ### Changed
 
-- The modal sizes its pane from its own `:host` and `:host-context(.modal__panel--<size>)`, and
-  `ModalService` sets the backdrop colour on the backdrop element: the CDK builds both outside every
-  view, where an encapsulated sheet cannot reach them.
+- The modal's pane and backdrop rules (`.modal__panel*`, `.modal__backdrop`) are in
+  `styles/basics/_layout.scss`: the CDK builds both outside every view, so no component owns them.
+  `ModalService` still sets `panelClass` and `backdropClass`; the modal's sheet keeps the dialog box,
+  header and body.
 - The boundaries lint messages say `components/`, `pages/` and "a page module"; the
   `pages/<module>/<page>` element is two levels deep so a module's `*.routes.ts` and `*.form.ts`
   are not also read as pages. `eslint-boundaries.spec.ts` gains the unknown-folder cases and the

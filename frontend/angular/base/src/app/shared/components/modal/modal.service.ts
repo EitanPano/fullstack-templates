@@ -42,8 +42,6 @@ export class ModalService {
       backdropClass: 'modal__backdrop',
       panelClass: ['modal__panel', 'modal__panel--' + size],
     })
-    // The backdrop is created by the CDK outside every view, so no sheet can reach it.
-    ref.overlayRef.backdropElement?.style.setProperty('background', 'var(--backdrop)')
     return {
       close: (result) => {
         ref.close(result)

@@ -55,4 +55,37 @@
       padding-inline: functions.space(8);
     }
   }
+
+  // The modal's pane and backdrop. The CDK builds both outside every component view, so they have
+  // no owning sheet; `ModalService` puts these classes on them.
+  .modal__backdrop {
+    background: var(--backdrop);
+  }
+
+  .modal__panel {
+    inline-size: 100%;
+    max-block-size: 100dvh;
+
+    @include breakpoints.up(md) {
+      max-block-size: 90dvh;
+    }
+  }
+
+  .modal__panel--sm {
+    @include breakpoints.up(md) {
+      inline-size: 24rem;
+    }
+  }
+
+  .modal__panel--md {
+    @include breakpoints.up(md) {
+      inline-size: 32rem;
+    }
+  }
+
+  .modal__panel--lg {
+    @include breakpoints.up(md) {
+      inline-size: 48rem;
+    }
+  }
 }
