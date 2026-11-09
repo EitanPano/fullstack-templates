@@ -1,5 +1,5 @@
-@use '../setup/functions';
-@use '../setup/mixins';
+@use 'setup/functions';
+@use 'setup/mixins';
 
 // The text-like controls (AppInput, AppSelect, AppTextarea) share .control__field.
 .control {

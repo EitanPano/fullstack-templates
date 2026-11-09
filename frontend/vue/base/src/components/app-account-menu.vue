@@ -82,3 +82,5 @@ async function signOut(): Promise<void> {
     $t('auth.menu.signIn')
   }}</BaseButton>
 </template>
+
+<style lang="scss" src="./app-account-menu.scss"></style>

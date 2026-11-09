@@ -63,3 +63,5 @@ if (dev && props.size === 'icon' && !attrs['aria-label'] && !attrs['aria-labelle
     <slot />
   </button>
 </template>
+
+<style lang="scss" src="./base-button.scss"></style>

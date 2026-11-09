@@ -25,3 +25,5 @@ const notifications = useNotificationStore()
     <ToastViewport class="toast-viewport" :label="$t('toast.region')" />
   </ToastProvider>
 </template>
+
+<style lang="scss" src="./app-toast-host.scss"></style>

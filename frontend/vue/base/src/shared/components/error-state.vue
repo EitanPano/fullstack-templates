@@ -23,3 +23,5 @@ defineEmits<{ retry: [] }>()
     }}</BaseButton>
   </div>
 </template>
+
+<style lang="scss" src="./error-state.scss"></style>

@@ -16,3 +16,5 @@ withDefaults(defineProps<{ labelKey?: string; decorative?: boolean }>(), {
     <span class="visually-hidden">{{ $t(labelKey) }}</span>
   </span>
 </template>
+
+<style lang="scss" src="./base-spinner.scss"></style>

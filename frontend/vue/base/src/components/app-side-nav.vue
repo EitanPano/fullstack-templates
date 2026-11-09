@@ -77,3 +77,5 @@ watch(isDesktop, (desktop) => {
     </DialogRoot>
   </div>
 </template>
+
+<style lang="scss" src="./app-side-nav.scss"></style>

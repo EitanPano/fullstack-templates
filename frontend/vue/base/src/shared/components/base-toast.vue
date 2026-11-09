@@ -47,3 +47,5 @@ const emit = defineEmits<{ action: []; dismiss: [] }>()
     </ToastClose>
   </ToastRoot>
 </template>
+
+<style lang="scss" src="./base-toast.scss"></style>

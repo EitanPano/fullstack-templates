@@ -31,3 +31,5 @@ const { controlId, invalid, describedBy } = useFieldControl()
     <span class="checkbox__label"><slot /></span>
   </label>
 </template>
+
+<style lang="scss" src="./controls.scss"></style>

@@ -22,3 +22,5 @@ const itemClass = computed(() =>
     <div v-for="index in count" :key="index" :class="itemClass" />
   </div>
 </template>
+
+<style lang="scss" src="./base-skeleton.scss"></style>

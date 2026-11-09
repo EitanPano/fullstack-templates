@@ -47,3 +47,5 @@ const describedByAll = computed(() => {
     </p>
   </div>
 </template>
+
+<style lang="scss" src="./controls.scss"></style>

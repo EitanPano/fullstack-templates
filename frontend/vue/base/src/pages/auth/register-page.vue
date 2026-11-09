@@ -94,3 +94,5 @@ async function submit(): Promise<void> {
     </template>
   </AuthCard>
 </template>
+
+<style lang="scss" src="./register-page.scss"></style>

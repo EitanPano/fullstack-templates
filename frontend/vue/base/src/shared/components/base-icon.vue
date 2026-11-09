@@ -14,3 +14,5 @@ withDefaults(defineProps<{ name: IconName; large?: boolean }>(), { large: false 
     focusable="false"
   />
 </template>
+
+<style lang="scss" src="./base-icon.scss"></style>

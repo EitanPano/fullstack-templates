@@ -9,3 +9,5 @@ import PageHeader from '@/shared/components/page-header.vue'
     <BaseButton to="/" variant="secondary">{{ $t('notFound.home') }}</BaseButton>
   </section>
 </template>
+
+<style lang="scss" src="./not-found-page.scss"></style>

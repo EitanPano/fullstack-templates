@@ -13,3 +13,5 @@ const view = computed(() => HEALTH_STATUS[props.status])
 <template>
   <span class="health-badge" :class="`health-badge--${view.tone}`">{{ $t(view.labelKey) }}</span>
 </template>
+
+<style lang="scss" src="./health-badge.scss"></style>

@@ -64,3 +64,5 @@ function onInput(event: Event): void {
     </span>
   </div>
 </template>
+
+<style lang="scss" src="./controls.scss"></style>

@@ -18,3 +18,5 @@ withDefaults(defineProps<{ heading: string; description?: string; icon?: IconNam
     <div class="empty-state__actions"><slot name="actions" /></div>
   </div>
 </template>
+
+<style lang="scss" src="./empty-state.scss"></style>

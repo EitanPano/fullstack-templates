@@ -86,3 +86,5 @@ async function submit(): Promise<void> {
     </template>
   </AuthCard>
 </template>
+
+<style lang="scss" src="./verify-otp-page.scss"></style>

@@ -1,5 +1,5 @@
-@use '../setup/breakpoints';
-@use '../setup/functions';
+@use 'setup/breakpoints';
+@use 'setup/functions';
 
 // Stacked and full width on phones; inline and end-aligned from md. The buttons are display:
 // contents hosts, so the row's gap and stretch apply to the .button elements.

@@ -1,7 +1,7 @@
-@use '../setup/breakpoints';
-@use '../setup/functions';
-@use '../setup/mixins';
-@use '../setup/variables';
+@use 'setup/breakpoints';
+@use 'setup/functions';
+@use 'setup/mixins';
+@use 'setup/variables';
 
 // The host of the navigation: below lg it adds no grid track (the drawer is portaled by Reka's
 // Dialog); from lg it is the column.

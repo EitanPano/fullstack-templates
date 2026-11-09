@@ -73,3 +73,5 @@ const Install = installButton()
     </div>
   </header>
 </template>
+
+<style lang="scss" src="./app-header.scss"></style>

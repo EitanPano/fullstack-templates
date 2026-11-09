@@ -60,3 +60,5 @@ void store.load()
     </div>
   </section>
 </template>
+
+<style lang="scss" src="./health-status-page.scss"></style>

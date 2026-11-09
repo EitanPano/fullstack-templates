@@ -9,3 +9,5 @@ const year = new Date().getFullYear()
     <div class="container">{{ $t('shell.footer', { year, name: DISPLAY_NAME }) }}</div>
   </footer>
 </template>
+
+<style lang="scss" src="./app-footer.scss"></style>

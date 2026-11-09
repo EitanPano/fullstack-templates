@@ -1,5 +1,5 @@
-@use '../setup/functions';
-@use '../setup/mixins';
+@use 'setup/functions';
+@use 'setup/mixins';
 
 // The container scrolls sideways, so a wide table never widens the page. It is focusable so a
 // keyboard user can scroll it.

@@ -33,3 +33,5 @@ function skipToMain(): void {
   </div>
   <AppToastHost />
 </template>
+
+<style lang="scss" src="./app-auth-layout.scss"></style>

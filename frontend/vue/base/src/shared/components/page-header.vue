@@ -13,3 +13,5 @@ defineProps<{ heading: string; description?: string }>()
     <div class="page-header__actions"><slot name="actions" /></div>
   </div>
 </template>
+
+<style lang="scss" src="./page-header.scss"></style>

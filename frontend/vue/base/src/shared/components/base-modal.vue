@@ -39,3 +39,5 @@ const open = defineModel<boolean>('open', { default: false })
     </DialogPortal>
   </DialogRoot>
 </template>
+
+<style lang="scss" src="./base-modal.scss"></style>

@@ -146,3 +146,5 @@ async function signOut(): Promise<void> {
     />
   </section>
 </template>
+
+<style lang="scss" src="./profile-page.scss"></style>

@@ -36,3 +36,5 @@ function dismissed(next: boolean): void {
     </div>
   </BaseModal>
 </template>
+
+<style lang="scss" src="./base-modal.scss"></style>

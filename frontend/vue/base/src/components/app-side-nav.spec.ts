@@ -101,7 +101,10 @@ describe('SideNav on a narrow viewport', () => {
 
   it('asks to close on Escape', async () => {
     stubMatchMedia({ [DESKTOP_QUERY]: false })
-    const view = await renderWithApp(AppSideNav, { props: { entries: ENTRIES, open: true }, routes })
+    const view = await renderWithApp(AppSideNav, {
+      props: { entries: ENTRIES, open: true },
+      routes,
+    })
     await screen.findByRole('dialog')
 
     await userEvent.keyboard('{Escape}')
@@ -111,7 +114,10 @@ describe('SideNav on a narrow viewport', () => {
 
   it('asks to close from its close button', async () => {
     stubMatchMedia({ [DESKTOP_QUERY]: false })
-    const view = await renderWithApp(AppSideNav, { props: { entries: ENTRIES, open: true }, routes })
+    const view = await renderWithApp(AppSideNav, {
+      props: { entries: ENTRIES, open: true },
+      routes,
+    })
 
     await userEvent.click(await screen.findByRole('button', { name: 'Close navigation' }))
 
@@ -136,7 +142,10 @@ describe('SideNav on a narrow viewport', () => {
 
   it('asks to close when the viewport grows to the inline layout', async () => {
     const media = stubMatchMedia({ [DESKTOP_QUERY]: false })
-    const view = await renderWithApp(AppSideNav, { props: { entries: ENTRIES, open: true }, routes })
+    const view = await renderWithApp(AppSideNav, {
+      props: { entries: ENTRIES, open: true },
+      routes,
+    })
     await screen.findByRole('dialog')
 
     media.flip(DESKTOP_QUERY, true)

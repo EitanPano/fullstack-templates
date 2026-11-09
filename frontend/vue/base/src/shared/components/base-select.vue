@@ -76,3 +76,5 @@ function choose(value: string | undefined): void {
     </SelectRoot>
   </div>
 </template>
+
+<style lang="scss" src="./controls.scss"></style>

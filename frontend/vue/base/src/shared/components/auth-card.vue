@@ -15,3 +15,5 @@ defineProps<{ heading: string; description?: string }>()
     <div class="auth-card__footer"><slot name="footer" /></div>
   </section>
 </template>
+
+<style lang="scss" src="./auth-card.scss"></style>

@@ -1,7 +1,7 @@
-@use '../setup/breakpoints';
-@use '../setup/functions';
-@use '../setup/mixins';
-@use '../setup/variables';
+@use 'setup/breakpoints';
+@use 'setup/functions';
+@use 'setup/mixins';
+@use 'setup/variables';
 
 .header {
   position: sticky;

@@ -15,3 +15,5 @@ import PageHeader from '@/shared/components/page-header.vue'
     </PageHeader>
   </section>
 </template>
+
+<style lang="scss" src="./forbidden-page.scss"></style>

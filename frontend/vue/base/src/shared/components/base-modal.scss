@@ -1,5 +1,5 @@
-@use '../setup/breakpoints';
-@use '../setup/functions';
+@use 'setup/breakpoints';
+@use 'setup/functions';
 
 // Reka's Dialog: the backdrop and the panel are siblings in the portal. The panel is centred and,
 // on a phone, fills the screen; data-state is open or closed.

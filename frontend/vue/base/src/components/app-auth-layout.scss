@@ -1,5 +1,5 @@
-@use '../setup/functions';
-@use '../setup/mixins';
+@use 'setup/functions';
+@use 'setup/mixins';
 
 // The frame of the account screens: the product name on top, the card centred, the footer last.
 .auth-layout {

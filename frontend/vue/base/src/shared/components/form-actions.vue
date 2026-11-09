@@ -25,7 +25,9 @@ defineEmits<{ cancelled: [] }>()
 
 <template>
   <div class="form-actions">
-    <BaseButton type="submit" :loading="pending" :disabled="disabled">{{ $t(submitKey) }}</BaseButton>
+    <BaseButton type="submit" :loading="pending" :disabled="disabled">{{
+      $t(submitKey)
+    }}</BaseButton>
     <BaseButton
       v-if="cancellable"
       variant="secondary"
@@ -35,3 +37,5 @@ defineEmits<{ cancelled: [] }>()
     >
   </div>
 </template>
+
+<style lang="scss" src="./form-actions.scss"></style>
