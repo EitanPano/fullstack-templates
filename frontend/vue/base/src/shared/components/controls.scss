@@ -1,7 +1,7 @@
 @use 'setup/functions';
 @use 'setup/mixins';
 
-// The text-like controls (AppInput, AppSelect, AppTextarea) share .control__field.
+// The text-like controls (BaseInput, BaseSelect, BaseTextarea) share .control__field.
 .control {
   position: relative;
 }

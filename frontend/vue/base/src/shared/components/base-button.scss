@@ -1,7 +1,7 @@
 @use 'setup/functions';
 @use 'setup/mixins';
 
-// One control for a button and for a link that looks like one: <AppButton> renders either.
+// One control for a button and for a link that looks like one: <BaseButton> renders either.
 .button {
   display: inline-flex;
   align-items: center;

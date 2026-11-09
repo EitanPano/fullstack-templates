@@ -359,11 +359,11 @@ against `frontend/react/base`, `frontend/vue/base` and `frontend/angular/base`.
   entry and by a lazy route as its own chunk and links that chunk's CSS before the entry's, so a
   shared component's sheet comes first. The global tree is therefore wrapped in cascade layers:
   `setup/_layers.scss` declares `@layer setup, themes, basics;` and is the first `@use` of
-  `styles.scss`, and the rules of the six global partials sit in their layer. Sibling sheets are
-  never layered, so a component or a page beats the global tree at any specificity whatever the
-  chunk order: today's semantics by construction, since `basics/` already loaded before the
-  components. `brand.css` shares no property name with the themes, so the generated tokens keep
-  their precedence. Spike S1b proved it (entry CSS layered, `density` 11/11 on the new compile set
+  `styles.scss`, and the rules of every global partial sit in their layer. Sibling sheets are
+  never layered, so a basics rule can no longer beat a component rule by specificity. No rule
+  needed to at 1.x (the four that did, the compact `.container` and `.main`, `main:focus` and
+  `.skip-link:focus`, have no conflicting sibling rule), so rendering is unchanged. `brand.css`
+  shares no property name with the themes, so the generated tokens keep their precedence. Spike S1b proved it (entry CSS layered, `density` 11/11 on the new compile set
   with no regex changed, React screenshots pristine against layered equal outside the live uptime
   digits); the scans assert the declaration and refuse `@layer` in a sibling. The paragraph under
   C2 "The cascade" is amended by this item. Cost: one more concept in the global tree; the wrappers
