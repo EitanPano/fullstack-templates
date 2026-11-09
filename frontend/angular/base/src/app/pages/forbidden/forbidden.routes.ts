@@ -5,7 +5,7 @@ const FORBIDDEN_ROUTES: Routes = [
   {
     path: '',
     loadComponent: () =>
-      import('./pages/forbidden/forbidden.component').then((m) => m.ForbiddenComponent),
+      import('./forbidden/forbidden.component').then((m) => m.ForbiddenComponent),
   },
 ]
 

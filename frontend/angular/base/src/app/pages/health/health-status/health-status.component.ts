@@ -9,7 +9,7 @@ import { SkeletonComponent } from '@app/shared/components/skeleton/skeleton.comp
 import { RelativeTimePipe } from '@app/shared/pipes/relative-time.pipe'
 import { TranslatePipe } from '@app/shared/pipes/translate.pipe'
 
-import { HealthBadgeComponent } from '../../components/health-badge/health-badge.component'
+import { HealthBadgeComponent } from '../components/health-badge/health-badge.component'
 
 // The home screen: whether the server answers, its version and how long it has been up. The page
 // reads the store and never a service; the store toasts the failure, the page shows the retry.

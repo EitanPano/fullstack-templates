@@ -6,10 +6,10 @@ import { TranslatePipe } from '@app/shared/pipes/translate.pipe'
 @Component({
   selector: 'app-footer',
   imports: [TranslatePipe],
-  templateUrl: './footer.component.html',
+  templateUrl: './app-footer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class FooterComponent {
+export class AppFooterComponent {
   protected readonly name = DISPLAY_NAME
   protected readonly year = new Date().getFullYear()
 }

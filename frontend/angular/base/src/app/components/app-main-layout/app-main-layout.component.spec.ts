@@ -5,7 +5,7 @@ import { NAV_ENTRIES } from '@app/core/config/nav.token'
 import { provideTestTranslator } from '@app/core/i18n/translator.testing'
 import { NAV } from '@app/nav'
 
-import { MainLayoutComponent } from './main-layout.component'
+import { AppMainLayoutComponent } from './app-main-layout.component'
 
 type Listener = (event: { matches: boolean }) => void
 
@@ -27,12 +27,12 @@ async function render(wide = false) {
       { provide: NAV_ENTRIES, useValue: NAV },
     ],
   })
-  const fixture = TestBed.createComponent(MainLayoutComponent)
+  const fixture = TestBed.createComponent(AppMainLayoutComponent)
   await fixture.whenStable()
   return { fixture, element: fixture.nativeElement as HTMLElement, listeners }
 }
 
-describe('MainLayoutComponent', () => {
+describe('AppMainLayoutComponent', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })

@@ -24,7 +24,7 @@ import { applyFieldErrors } from '@app/shared/validators/server-errors'
 import { AuthStore } from '@app/store/auth.store'
 import { UserStore } from '@app/store/user.store'
 
-import { profileForm } from '../../user.form'
+import { profileForm } from '../user.form'
 
 // The signed-in account: e-mail, role, when it was created, whether the address is verified, its
 // phone number (the one editable field) and sign-out. Leaving with an unsaved phone number asks

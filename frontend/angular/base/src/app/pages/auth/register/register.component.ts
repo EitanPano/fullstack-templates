@@ -13,7 +13,7 @@ import { safeNextPath } from '@app/shared/utils/next-path'
 import { applyFieldErrors } from '@app/shared/validators/server-errors'
 import { AuthStore } from '@app/store/auth.store'
 
-import { registerForm } from '../../auth.form'
+import { registerForm } from '../auth.form'
 
 // The register screen: creates the account, which signs it in, and sends it to `next` or home.
 // Failures follow the login screen's rule (the store toasts, validation lands on the fields).

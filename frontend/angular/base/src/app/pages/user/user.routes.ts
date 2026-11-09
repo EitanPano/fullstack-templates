@@ -8,8 +8,7 @@ const USER_ROUTES: Routes = [
     path: '',
     canMatch: [authGuard],
     canDeactivate: [unsavedChangesGuard],
-    loadComponent: () =>
-      import('./pages/profile/profile.component').then((m) => m.ProfileComponent),
+    loadComponent: () => import('./profile/profile.component').then((m) => m.ProfileComponent),
   },
 ]
 

@@ -4,12 +4,12 @@ import { provideRouter } from '@angular/router'
 import { DISPLAY_NAME } from '@app/core/config/constants'
 import { provideTestTranslator } from '@app/core/i18n/translator.testing'
 
-import { AuthLayoutComponent } from './auth-layout.component'
+import { AppAuthLayoutComponent } from './app-auth-layout.component'
 
-describe('AuthLayoutComponent', () => {
+describe('AppAuthLayoutComponent', () => {
   async function render() {
     TestBed.configureTestingModule({ providers: [provideRouter([]), provideTestTranslator()] })
-    const fixture = TestBed.createComponent(AuthLayoutComponent)
+    const fixture = TestBed.createComponent(AppAuthLayoutComponent)
     await fixture.whenStable()
     return fixture.nativeElement as HTMLElement
   }

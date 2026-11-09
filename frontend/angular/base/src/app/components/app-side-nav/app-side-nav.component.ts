@@ -37,11 +37,11 @@ import { TranslatePipe } from '@app/shared/pipes/translate.pipe'
     RouterLinkActive,
     TranslatePipe,
   ],
-  templateUrl: './side-nav.component.html',
+  templateUrl: './app-side-nav.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'close()' },
 })
-export class SideNavComponent {
+export class AppSideNavComponent {
   private readonly document = inject(DOCUMENT)
   private readonly injector = inject(Injector)
   private returnTo: HTMLElement | null = null

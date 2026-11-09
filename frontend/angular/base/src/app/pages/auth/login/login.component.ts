@@ -13,7 +13,7 @@ import { safeNextPath } from '@app/shared/utils/next-path'
 import { applyFieldErrors } from '@app/shared/validators/server-errors'
 import { AuthStore } from '@app/store/auth.store'
 
-import { loginForm } from '../../auth.form'
+import { loginForm } from '../auth.form'
 
 // The sign-in screen. The store toasts every failure but `validation_failed`; that one lands on
 // the fields, and the page toasts only for the paths no field shows. `next` (the route's query

@@ -9,19 +9,18 @@ const AUTH_ROUTES: Routes = [
   {
     path: 'login',
     canMatch: [guestGuard],
-    loadComponent: () => import('./pages/login/login.component').then((m) => m.LoginComponent),
+    loadComponent: () => import('./login/login.component').then((m) => m.LoginComponent),
   },
   {
     path: 'register',
     canMatch: [guestGuard],
-    loadComponent: () =>
-      import('./pages/register/register.component').then((m) => m.RegisterComponent),
+    loadComponent: () => import('./register/register.component').then((m) => m.RegisterComponent),
   },
   {
     path: 'verify-otp',
     canMatch: [authGuard],
     loadComponent: () =>
-      import('./pages/verify-otp/verify-otp.component').then((m) => m.VerifyOtpComponent),
+      import('./verify-otp/verify-otp.component').then((m) => m.VerifyOtpComponent),
   },
 ]
 

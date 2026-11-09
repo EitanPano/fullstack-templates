@@ -28,10 +28,10 @@ const NEXT: Record<ThemePreference, ThemePreference> = {
 @Component({
   selector: 'app-header',
   imports: [ButtonComponent, IconComponent, RouterLink, TranslatePipe],
-  templateUrl: './header.component.html',
+  templateUrl: './app-header.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class HeaderComponent {
+export class AppHeaderComponent {
   protected readonly theme = inject(ThemeService)
   protected readonly network = inject(NetworkService)
   protected readonly name = DISPLAY_NAME

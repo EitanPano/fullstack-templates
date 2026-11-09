@@ -9,11 +9,11 @@ import { LanguageService } from '@app/core/i18n/language.service' // @i18n
 import type { PublicUser } from '@app/models/user/interface' // @server:auth
 import { AuthStore } from '@app/store/auth.store' // @server:auth
 
-import { HeaderComponent } from './header.component'
+import { AppHeaderComponent } from './app-header.component'
 
 async function render(navOpen = false) {
   TestBed.configureTestingModule({ providers: [provideRouter([]), provideTestTranslator()] })
-  const fixture = TestBed.createComponent(HeaderComponent)
+  const fixture = TestBed.createComponent(AppHeaderComponent)
   fixture.componentRef.setInput('navOpen', navOpen)
   await fixture.whenStable()
   return { fixture, element: fixture.nativeElement as HTMLElement }
@@ -25,7 +25,7 @@ function statusText(element: HTMLElement): string {
     .join(' ')
 }
 
-describe('HeaderComponent', () => {
+describe('AppHeaderComponent', () => {
   beforeEach(() => {
     localStorage.clear()
   })
@@ -170,7 +170,7 @@ describe('HeaderComponent', () => {
           },
         ],
       })
-      const fixture = TestBed.createComponent(HeaderComponent)
+      const fixture = TestBed.createComponent(AppHeaderComponent)
       await fixture.whenStable()
       return { fixture, element: fixture.nativeElement as HTMLElement }
     }

@@ -7,7 +7,7 @@ import { provideTestTranslator } from '@app/core/i18n/translator.testing'
 import type { NavEntry } from '@app/models/nav/interface'
 import { ROLES } from '@app/shared/directives/has-role.directive'
 
-import { SideNavComponent } from './side-nav.component'
+import { AppSideNavComponent } from './app-side-nav.component'
 
 @Component({ template: '' })
 class PageComponent {}
@@ -29,7 +29,7 @@ async function render(open = false, nav: NavEntry[] = entries, roles: string[] =
       { provide: ROLES, useValue: signal(roles) },
     ],
   })
-  const fixture = TestBed.createComponent(SideNavComponent)
+  const fixture = TestBed.createComponent(AppSideNavComponent)
   fixture.componentRef.setInput('open', open)
   const closed: unknown[] = []
   fixture.componentInstance.closed.subscribe(() => closed.push(1))
@@ -37,7 +37,7 @@ async function render(open = false, nav: NavEntry[] = entries, roles: string[] =
   return { fixture, element: fixture.nativeElement as HTMLElement, closed }
 }
 
-describe('SideNavComponent', () => {
+describe('AppSideNavComponent', () => {
   it('renders a labelled primary nav with one translated link per NAV entry', async () => {
     const { element } = await render()
     const nav = element.querySelector('nav')

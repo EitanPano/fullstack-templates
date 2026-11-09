@@ -12,29 +12,29 @@ import { RouterOutlet } from '@angular/router'
 import { SkipLinkDirective } from '@app/shared/directives/skip-link.directive'
 import { TranslatePipe } from '@app/shared/pipes/translate.pipe'
 
-import { FooterComponent } from '../components/footer/footer.component'
-import { HeaderComponent } from '../components/header/header.component'
-import { SideNavComponent } from '../components/side-nav/side-nav.component'
+import { AppFooterComponent } from '../app-footer/app-footer.component'
+import { AppHeaderComponent } from '../app-header/app-header.component'
+import { AppSideNavComponent } from '../app-side-nav/app-side-nav.component'
 
 // The lg breakpoint of styles/setup/_breakpoints.scss: from here the nav is a static column.
 const WIDE_QUERY = '(min-width: 1024px)'
 
 // The frame of every signed-in or public screen: skip link, header, side-nav, the page's one
-// <main id="main">, footer. A feature renders inside main and adds no landmark of its own.
+// <main id="main">, footer. A page renders inside main and adds no landmark of its own.
 @Component({
   selector: 'app-main-layout',
   imports: [
-    FooterComponent,
-    HeaderComponent,
+    AppFooterComponent,
+    AppHeaderComponent,
     RouterOutlet,
-    SideNavComponent,
+    AppSideNavComponent,
     SkipLinkDirective,
     TranslatePipe,
   ],
-  templateUrl: './main-layout.component.html',
+  templateUrl: './app-main-layout.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MainLayoutComponent {
+export class AppMainLayoutComponent {
   // The side-nav drawer below lg; the header toggles it, the side-nav closes it.
   protected readonly navOpen = signal(false)
   private readonly wide = signal(false)

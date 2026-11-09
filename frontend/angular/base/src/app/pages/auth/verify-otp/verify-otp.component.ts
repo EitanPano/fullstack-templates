@@ -13,7 +13,7 @@ import { TranslatePipe } from '@app/shared/pipes/translate.pipe'
 import { applyFieldErrors } from '@app/shared/validators/server-errors'
 import { AuthStore } from '@app/store/auth.store'
 
-import { otpForm } from '../../auth.form'
+import { otpForm } from '../auth.form'
 
 // Verifying the signed-in account's address: ask for a code, enter the six digits, done. The OTP
 // calls need a session, so the route sits behind authGuard; this is not a way to sign in.

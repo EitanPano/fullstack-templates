@@ -4,7 +4,7 @@ const HEALTH_ROUTES: Routes = [
   {
     path: '',
     loadComponent: () =>
-      import('./pages/health-status/health-status.component').then((m) => m.HealthStatusComponent),
+      import('./health-status/health-status.component').then((m) => m.HealthStatusComponent),
   },
 ]
 
