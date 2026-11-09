@@ -3,6 +3,7 @@ import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui'
 import type { ComponentProps } from 'react'
 
 import { cn } from '@/shared/utils/cn'
+import './dropdown-menu.scss'
 
 export const DropdownMenu = DropdownMenuPrimitive.Root
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger

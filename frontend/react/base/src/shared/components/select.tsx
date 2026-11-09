@@ -3,6 +3,7 @@ import { Select as SelectPrimitive } from 'radix-ui'
 import type { ComponentProps } from 'react'
 
 import { cn } from '@/shared/utils/cn'
+import './select.scss'
 
 export const Select = SelectPrimitive.Root
 export const SelectValue = SelectPrimitive.Value

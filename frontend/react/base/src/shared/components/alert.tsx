@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'react'
 
 import { cn } from '@/shared/utils/cn'
+import './alert.scss'
 
 // An icon child (class `icon`) takes the first column; the title and description sit beside it.
 export function Alert({

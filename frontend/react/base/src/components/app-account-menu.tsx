@@ -12,6 +12,7 @@ import { Button } from '@/shared/components/button'
 import { DropdownMenuItem } from '@/shared/components/dropdown-menu'
 import { Skeleton } from '@/shared/components/skeleton'
 import { useAppDispatch } from '@/store/hooks'
+import './app-account-menu.scss'
 
 // The size of the avatar trigger, so the header does not shift when the account arrives. It
 // carries no role: the page's own status regions stay the only ones announced.

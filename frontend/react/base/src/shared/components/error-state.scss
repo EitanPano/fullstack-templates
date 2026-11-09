@@ -1,0 +1,6 @@
+@use 'setup/functions';
+
+// An alert with a retry; alert.scss carries the look, this one the retry spacing.
+.error-state .alert__actions {
+  margin-block-start: functions.space(3);
+}

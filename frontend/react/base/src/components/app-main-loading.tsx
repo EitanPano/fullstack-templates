@@ -1,5 +1,6 @@
 import { Page } from '@/shared/components/page'
 import { CardSkeleton } from '@/shared/components/skeletons'
+import './app-main-loading.scss'
 
 // The group HydrateFallback: shown while a page module or its loader is pending, inside the
 // shell, so the header does not flash away.

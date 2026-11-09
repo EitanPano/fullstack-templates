@@ -1,5 +1,6 @@
 import { SystemStatus } from '@/pages/health/components/system-status'
 import { Page, PageHeader } from '@/shared/components/page'
+import './home-page.scss'
 
 // The home screen. The route loader has already put the health read in the cache, so the status
 // card answers at once and renders without a skeleton.

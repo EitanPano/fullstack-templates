@@ -12,6 +12,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/shared/components/sheet'
+import './app-mobile-nav.scss'
 
 // The phone navigation: the same entries as the inline nav, in a sheet. The trigger is hidden
 // from md by CSS; the sheet nav carries the landmark name and closes when a link is followed.

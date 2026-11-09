@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 
 import { Button } from '@/shared/components/button'
 import { Page, PageHeader } from '@/shared/components/page'
+import './forbidden-page.scss'
 
 // A plain page at a stable URL, inside the shell.
 function ForbiddenPage() {

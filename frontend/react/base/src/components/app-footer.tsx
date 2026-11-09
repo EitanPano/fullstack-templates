@@ -1,3 +1,5 @@
+import './app-footer.scss'
+
 // The contentinfo landmark: the product name, nothing that needs a link yet.
 export function AppFooter() {
   return (

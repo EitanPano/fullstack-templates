@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import { AppMobileNav } from '@/components/app-mobile-nav'
 import { AppNavLinks } from '@/components/app-nav-links'
 import type { NavEntry } from '@/models/nav'
+import './app-header.scss'
 
 // The banner: the phone menu, the brand, the inline navigation (from md) and an account slot at
 // the inline end. The slot is a prop so the layout decides what sits there.

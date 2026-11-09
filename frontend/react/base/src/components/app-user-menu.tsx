@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/shared/components/dropdown-menu'
+import './app-user-menu.scss'
 
 // An avatar trigger with an items slot above the theme choices. Without an account the slot is
 // empty and the menu is the theme menu. An account passes its email (the first line of the menu,

@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 
 import { Button } from '@/shared/components/button'
 import { EmptyState } from '@/shared/components/empty-state'
+import './not-found-page.scss'
 
 // A URL no route claims. It says so and names the way back, inside the shell.
 export function Component() {

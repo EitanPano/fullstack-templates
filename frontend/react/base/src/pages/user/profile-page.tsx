@@ -1,5 +1,6 @@
 import { ProfileCard } from '@/pages/user/components/profile-card'
 import { Page, PageHeader } from '@/shared/components/page'
+import './profile-page.scss'
 
 // A page only an account sees: its loader (user.routes.tsx) calls `requireAccount`, the page
 // stays a header and a card.

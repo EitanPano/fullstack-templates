@@ -2,6 +2,7 @@ import { TriangleAlertIcon } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/shared/components/alert'
 import { Button } from '@/shared/components/button'
+import './error-state.scss'
 
 // A user-safe failure with an optional retry. Keep `description` free of causes: those go to the
 // console under the route boundary that caught them. `retrying` disables the button while the
