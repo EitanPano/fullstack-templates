@@ -9,6 +9,7 @@ composable for forms; harness plan 021 holds the answers). Catalog release `v1.8
 with). ADR 0006 and ADR 0007 named "ADR 0008" as the Next-on-SCSS follow-up; that ADR was never
 written, so this one takes the number and the Next ADR takes the next free one (both references get
 an "amended by ADR 0008" line).
+Amended by [ADR 0009](0009-pages-components-colocated-styles.md) (Vue 2.0.0): T1 the tree, T5 styling, the `App` prefix.
 
 ## Context
 
@@ -35,6 +36,7 @@ Each decision lists what it costs. Rows marked ▲ are reconciliations of the An
 idioms or with the catalog's invariants, explained under the tree.
 
 ### T1. The tree
+*Amended by [ADR 0009](0009-pages-components-colocated-styles.md): `features/` becomes `pages/`, `layout/` becomes `components/` with `app-*` names, the primitives become `Base*` (Vue 2.0.0).*
 
 `frontend/vue` 1.0.0: Vite 8, Vue 3.5 (`<script setup lang="ts">`, Composition API only), Vue
 Router 5 with explicit route tables, Pinia 4 setup stores, Hey API's fetch client with the flat SDK
@@ -276,6 +278,7 @@ The reconciliations, each with its reason:
   `*.guard.ts`, `*.interceptor.ts`, `*.routes.ts`, `*.form.ts`, `*.initializer.ts`; directives and
   composables are `kebab.ts` and `use-kebab.ts`. Cross-layer imports use the `@/*` alias; imports
   inside one feature stay relative.
+  *Amended by [ADR 0009](0009-pages-components-colocated-styles.md): the primitives are `Base*` (`base-button.vue`, `<BaseButton>`); `App*` names the app-wide components.*
 - **Co-located `*.spec.ts`** beside the file (Vue's and Vitest's convention, and Angular's
   suffix); `tests/unit/` keeps the checks on files outside `src/`. `src/testing/` holds the helpers
   the specs import, as React's.
@@ -388,6 +391,7 @@ learn elsewhere; the agents file documents it in the recipe. Fallback (spike S2)
 1.33 with the generated schema as a Standard Schema validator and the same `form-field`.
 
 ### T5. Styling
+*Amended by [ADR 0009](0009-pages-components-colocated-styles.md): component and page styles sit beside their owners in `<style lang="scss" src>` blocks; `src/styles/` keeps the layered global tree only.*
 
 The React and Angular rule, unchanged: `src/styles/` is the only home of CSS; `main.ts` imports
 `themes/brand.css` then `styles.scss`; components render BEM classes and carry no `<style>` block
