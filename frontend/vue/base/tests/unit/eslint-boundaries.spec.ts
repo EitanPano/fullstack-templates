@@ -233,6 +233,13 @@ const violations: Violation[] = [
     BOUNDARY,
     'a page reads a store, never services/',
   ],
+  [
+    'page-local .ts → services',
+    'src/pages/health/use-x.ts',
+    "import '@/services/health.service'",
+    BOUNDARY,
+    'a page reads a store, never services/',
+  ],
   ['page → app', PAGE, "import '@/app/nav'", BOUNDARY, 'a page reads a store'],
   ['page → components', PAGE, "import '@/components/slots'", BOUNDARY, 'a page reads a store'],
   [
@@ -825,8 +832,13 @@ const allowed: Allowed[] = [
     "import '@/pages/health/health.routes'; import '@/app/nav'; import '@/store/theme.store'; import '@/services/health.service'",
   ],
   [
+    'page-local .ts → store, shared, models',
+    'src/pages/health/use-x.ts',
+    "import '@/store/health.store'; import '@/shared/utils/time'; import '@/models/health/interface'",
+  ],
+  [
     'a spec → testing and any layer',
-    'src/pages/health/pages/x.spec.ts',
+    'src/pages/health/x.spec.ts',
     "import '@/testing/render'; import '@/services/health.service'",
   ],
   ['import.meta in env.ts', 'src/core/config/env.ts', 'export const v = import.meta.env.MODE'],

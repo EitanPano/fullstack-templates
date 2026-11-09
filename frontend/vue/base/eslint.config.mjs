@@ -90,7 +90,7 @@ const policies = [
       'components/ imports core/config, core/providers, store/, shared/ and models/ only: compose pages in app/routes.ts and read data through a store',
   },
   {
-    from: { element: { type: 'page', fileInternalPath: '*.vue' } },
+    from: { element: { type: 'page', fileInternalPath: ['*.vue', '!(*.routes|*.form).ts'] } },
     disallow: {
       to: {
         element: {
