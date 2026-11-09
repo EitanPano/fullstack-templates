@@ -5,11 +5,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { useNotificationStore } from '@/store/notification.store'
 import { renderWithApp } from '@/testing/render'
 
-import ToastHost from './toast-host.vue'
+import AppToastHost from './app-toast-host.vue'
 
 describe('ToastHost', () => {
   it('shows nothing until a toast is queued, then renders it from the store', async () => {
-    await renderWithApp(ToastHost)
+    await renderWithApp(AppToastHost)
     expect(
       screen.queryByText('Cannot reach the server. Check your connection and try again.'),
     ).toBeNull()
@@ -22,7 +22,7 @@ describe('ToastHost', () => {
   })
 
   it('translates the message with the params it was queued with', async () => {
-    await renderWithApp(ToastHost)
+    await renderWithApp(AppToastHost)
 
     useNotificationStore().showInfo('shell.footer', { year: 2030, name: 'Acme' })
 
@@ -30,7 +30,7 @@ describe('ToastHost', () => {
   })
 
   it('removes a toast when its dismiss button is pressed', async () => {
-    await renderWithApp(ToastHost)
+    await renderWithApp(AppToastHost)
     const store = useNotificationStore()
     store.showSuccess('actions.dismiss')
 
@@ -42,7 +42,7 @@ describe('ToastHost', () => {
   })
 
   it('runs the action of a toast, then dismisses it', async () => {
-    await renderWithApp(ToastHost)
+    await renderWithApp(AppToastHost)
     const store = useNotificationStore()
     const run = vi.fn()
     store.showInfo('app.loading', undefined, { labelKey: 'actions.retry', run })
@@ -56,7 +56,7 @@ describe('ToastHost', () => {
   })
 
   it('has a named region for the list', async () => {
-    await renderWithApp(ToastHost)
+    await renderWithApp(AppToastHost)
     useNotificationStore().showInfo('app.loading')
 
     const region = await screen.findByRole('region', { name: /Notifications/ })

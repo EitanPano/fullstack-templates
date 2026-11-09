@@ -12,7 +12,7 @@ import {
 } from 'reka-ui'
 import { computed } from 'vue'
 
-import AppIcon from './app-icon.vue'
+import BaseIcon from './base-icon.vue'
 import { useFieldControl } from './form-field-context'
 
 export type SelectOption = { readonly value: string; readonly labelKey: string }
@@ -53,7 +53,7 @@ function choose(value: string | undefined): void {
         @blur="emit('blur')"
       >
         <SelectValue />
-        <AppIcon name="chevron-down" />
+        <BaseIcon name="chevron-down" />
       </SelectTrigger>
       <SelectPortal>
         <SelectContent class="select__content" position="popper" :side-offset="4">
@@ -68,7 +68,7 @@ function choose(value: string | undefined): void {
               :value="option.value"
             >
               <SelectItemText>{{ $t(option.labelKey) }}</SelectItemText>
-              <SelectItemIndicator><AppIcon name="check" /></SelectItemIndicator>
+              <SelectItemIndicator><BaseIcon name="check" /></SelectItemIndicator>
             </SelectItem>
           </SelectViewport>
         </SelectContent>

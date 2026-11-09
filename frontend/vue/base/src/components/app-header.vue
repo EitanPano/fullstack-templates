@@ -3,8 +3,8 @@ import { computed } from 'vue'
 
 import { DISPLAY_NAME } from '@/core/config/constants'
 import type { ThemeChoice } from '@/core/providers/theme'
-import AppButton from '@/shared/components/app-button.vue'
-import AppIcon from '@/shared/components/app-icon.vue'
+import BaseButton from '@/shared/components/base-button.vue'
+import BaseIcon from '@/shared/components/base-icon.vue'
 import type { IconName } from '@/shared/components/icons'
 import { useNetworkStore } from '@/store/network.store'
 import { useThemeStore } from '@/store/theme.store'
@@ -35,7 +35,7 @@ const Install = installButton()
 <template>
   <header class="header">
     <div class="header__inner container">
-      <AppButton
+      <BaseButton
         class="header__nav-toggle"
         variant="ghost"
         size="icon"
@@ -44,27 +44,27 @@ const Install = installButton()
         :aria-controls="navOpen ? 'side-nav' : undefined"
         @click="$emit('navToggle')"
       >
-        <AppIcon :name="navOpen ? 'close' : 'menu'" />
-      </AppButton>
+        <BaseIcon :name="navOpen ? 'close' : 'menu'" />
+      </BaseButton>
       <RouterLink class="header__brand" to="/">{{ DISPLAY_NAME }}</RouterLink>
       <div class="header__tools">
         <span class="header__status" aria-live="polite">
           <span v-if="!network.online" class="badge badge--warning">
-            <AppIcon name="wifi-off" />
+            <BaseIcon name="wifi-off" />
             {{ $t('shell.offline') }}
           </span>
         </span>
         <component :is="Language" v-if="Language" />
         <component :is="Install" v-if="Install" />
-        <AppButton
+        <BaseButton
           class="header__theme"
           variant="ghost"
           size="icon"
           :aria-label="$t('theme.toggle', { current: $t(current), next: $t(next) })"
           @click="theme.cycle()"
         >
-          <AppIcon :name="themeIcon" />
-        </AppButton>
+          <BaseIcon :name="themeIcon" />
+        </BaseButton>
         <span class="visually-hidden" role="status">
           {{ $t('theme.current', { current: $t(current) }) }}
         </span>

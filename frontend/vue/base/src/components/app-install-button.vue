@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppButton from '@/shared/components/app-button.vue'
+import BaseButton from '@/shared/components/base-button.vue'
 import { useInstallPromptStore } from '@/store/install-prompt.store'
 
 // The header's install control: present only while the browser offers to install the app.
@@ -11,7 +11,7 @@ function onInstall(): void {
 </script>
 
 <template>
-  <AppButton v-if="install.canInstall" variant="ghost" size="sm" @click="onInstall">
+  <BaseButton v-if="install.canInstall" variant="ghost" size="sm" @click="onInstall">
     {{ $t('pwa.install') }}
-  </AppButton>
+  </BaseButton>
 </template>

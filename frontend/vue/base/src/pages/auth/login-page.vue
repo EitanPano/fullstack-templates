@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { NEXT_PARAM } from '@/models/user/constants'
-import AppInput from '@/shared/components/app-input.vue'
+import BaseInput from '@/shared/components/base-input.vue'
 import AuthCard from '@/shared/components/auth-card.vue'
 import FormActions from '@/shared/components/form-actions.vue'
 import FormField from '@/shared/components/form-field.vue'
@@ -14,7 +14,7 @@ import { applyFieldErrors } from '@/shared/validators/server-errors'
 import { useAuthStore } from '@/store/auth.store'
 import { useNotificationStore } from '@/store/notification.store'
 
-import { loginForm } from '../auth.form'
+import { loginForm } from './auth.form'
 
 // The sign-in screen. The store toasts every failure but `validation_failed`; that one lands on
 // the fields, and the page toasts only for the paths no field shows. `next` (the route's query
@@ -54,7 +54,7 @@ async function submit(): Promise<void> {
   <AuthCard :heading="$t('auth.login.title')" :description="$t('auth.login.description')">
     <form class="login__form" novalidate @submit.prevent="submit">
       <FormField :label="$t('auth.email')" :error="form.errorText('email')">
-        <AppInput
+        <BaseInput
           v-model="form.values.email"
           v-autofocus
           type="email"
@@ -65,7 +65,7 @@ async function submit(): Promise<void> {
         />
       </FormField>
       <FormField :label="$t('auth.password')" :error="form.errorText('password')">
-        <AppInput
+        <BaseInput
           v-model="form.values.password"
           type="password"
           name="password"

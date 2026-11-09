@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { renderWithApp } from '@/testing/render'
 
-import InstallButton from './install-button.vue'
+import AppInstallButton from './app-install-button.vue'
 import { installButton } from './slots'
 
 function offer() {
@@ -21,17 +21,17 @@ describe('InstallButton', () => {
   })
 
   it('is the component the header slot answers with pwa on', () => {
-    expect(installButton()).toBe(InstallButton)
+    expect(installButton()).toBe(AppInstallButton)
   })
 
   it('renders nothing while the browser has not offered to install', async () => {
-    await renderWithApp(InstallButton)
+    await renderWithApp(AppInstallButton)
 
     expect(screen.queryByRole('button')).toBeNull()
   })
 
   it('appears when the browser offers and opens the install prompt on click', async () => {
-    await renderWithApp(InstallButton)
+    await renderWithApp(AppInstallButton)
     const prompt = offer()
 
     await userEvent.click(await screen.findByRole('button', { name: 'Install app' }))

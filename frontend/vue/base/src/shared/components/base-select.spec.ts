@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import { renderWithApp } from '@/testing/render'
 
-import AppSelect from './app-select.vue'
+import BaseSelect from './base-select.vue'
 
 const OPTIONS = [
   { value: 'light', labelKey: 'theme.light' },
@@ -13,13 +13,13 @@ const OPTIONS = [
 
 describe('AppSelect', () => {
   it('shows the label of the chosen option on the trigger', async () => {
-    await renderWithApp(AppSelect, { props: { options: OPTIONS, modelValue: 'dark' } })
+    await renderWithApp(BaseSelect, { props: { options: OPTIONS, modelValue: 'dark' } })
 
     expect(screen.getByRole('combobox')).toHaveTextContent('Dark')
   })
 
   it('opens a listbox of the translated options and emits the one chosen', async () => {
-    const view = await renderWithApp(AppSelect, {
+    const view = await renderWithApp(BaseSelect, {
       props: { options: OPTIONS, modelValue: 'light' },
     })
 
@@ -31,7 +31,7 @@ describe('AppSelect', () => {
   })
 
   it('chooses from the keyboard', async () => {
-    const view = await renderWithApp(AppSelect, {
+    const view = await renderWithApp(BaseSelect, {
       props: { options: OPTIONS, modelValue: 'light' },
     })
 
@@ -44,7 +44,7 @@ describe('AppSelect', () => {
   })
 
   it('offers an empty choice when emptyKey is set, and emits the empty string for it', async () => {
-    const view = await renderWithApp(AppSelect, {
+    const view = await renderWithApp(BaseSelect, {
       props: { options: OPTIONS, modelValue: 'dark', emptyKey: 'table.empty' },
     })
 
@@ -55,7 +55,7 @@ describe('AppSelect', () => {
   })
 
   it('shows the empty choice for an empty value', async () => {
-    await renderWithApp(AppSelect, {
+    await renderWithApp(BaseSelect, {
       props: { options: OPTIONS, modelValue: '', emptyKey: 'table.empty' },
     })
 
@@ -63,7 +63,7 @@ describe('AppSelect', () => {
   })
 
   it('does not open when disabled', async () => {
-    await renderWithApp(AppSelect, {
+    await renderWithApp(BaseSelect, {
       props: { options: OPTIONS, modelValue: 'light', disabled: true },
     })
 

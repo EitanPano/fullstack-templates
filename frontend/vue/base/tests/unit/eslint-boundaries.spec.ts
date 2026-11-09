@@ -50,7 +50,7 @@ const FILES = [
   'src/core/interceptors/error.interceptor.ts',
   'src/core/interceptors/http.provider.ts',
   'src/core/interceptors/loading.interceptor.ts',
-  'src/shared/components/app-button.vue',
+  'src/shared/components/base-button.vue',
   'src/shared/utils/time.ts',
   'src/shared/validators/zod-form.ts',
   'src/models/api/response.ts',
@@ -169,7 +169,7 @@ const violations: Violation[] = [
   [
     'app → feature page',
     'src/app/x.ts',
-    "import '@/features/health/pages/health-status-page.vue'",
+    "import '@/pages/health/health-status-page.vue'",
     BOUNDARY,
     'only through its *.routes.ts',
   ],
@@ -178,7 +178,7 @@ const violations: Violation[] = [
   [
     'main → layout',
     'src/main.ts',
-    "import '@/layout/components/slots'",
+    "import '@/components/slots'",
     BOUNDARY,
     'main.ts imports app/',
   ],
@@ -200,7 +200,7 @@ const violations: Violation[] = [
   [
     'layout → feature',
     'src/layout/x.ts',
-    "import '@/features/health/health.routes'",
+    "import '@/pages/health/health.routes'",
     BOUNDARY,
     'layout/ imports core/config',
   ],
@@ -234,7 +234,7 @@ const violations: Violation[] = [
     'a page reads a store, never services/',
   ],
   ['page → app', PAGE, "import '@/app/nav'", BOUNDARY, 'a page reads a store'],
-  ['page → layout', PAGE, "import '@/layout/components/slots'", BOUNDARY, 'a page reads a store'],
+  ['page → layout', PAGE, "import '@/components/slots'", BOUNDARY, 'a page reads a store'],
   [
     'page → core/interceptors',
     PAGE,
@@ -252,7 +252,7 @@ const violations: Violation[] = [
   [
     'feature → other feature',
     PAGE,
-    "import '@/features/other/pages/other-page.vue'",
+    "import '@/pages/other/other-page.vue'",
     BOUNDARY,
     'a feature never imports another feature',
   ],
@@ -311,7 +311,7 @@ const violations: Violation[] = [
   [
     'form → shared/components',
     FORM,
-    "import '@/shared/components/app-button.vue'",
+    "import '@/shared/components/base-button.vue'",
     BOUNDARY,
     'a *.form.ts imports shared/validators',
   ],
@@ -333,7 +333,7 @@ const violations: Violation[] = [
   [
     'store → feature',
     'src/store/x.ts',
-    "import '@/features/health/health.routes'",
+    "import '@/pages/health/health.routes'",
     BOUNDARY,
     'store/ imports store/, services/',
   ],
@@ -384,14 +384,14 @@ const violations: Violation[] = [
   [
     'core/initializers → feature',
     'src/core/initializers/x.ts',
-    "import '@/features/health/health.routes'",
+    "import '@/pages/health/health.routes'",
     BOUNDARY,
     'core wiring (guards, initializers',
   ],
   [
     'core/interceptors/error → layout',
     ERROR_INTERCEPTOR,
-    "import '@/layout/components/slots'",
+    "import '@/components/slots'",
     BOUNDARY,
     'core wiring (guards, initializers',
   ],
@@ -520,7 +520,7 @@ const violations: Violation[] = [
   [
     'shared → feature',
     'src/shared/components/x.ts',
-    "import '@/features/health/health.routes'",
+    "import '@/pages/health/health.routes'",
     BOUNDARY,
     'shared/ is product-agnostic',
   ],
@@ -684,9 +684,9 @@ const allowed: Allowed[] = [
   [
     'app → layout, store, shared, models, core',
     'src/app/x.ts',
-    "import '@/layout/components/slots'; import '@/store/theme.store'; import '@/shared/utils/time'; import '@/models/nav/interface'; import '@/core/config/env'; import '@/core/guards/auth.guard'",
+    "import '@/components/slots'; import '@/store/theme.store'; import '@/shared/utils/time'; import '@/models/nav/interface'; import '@/core/config/env'; import '@/core/guards/auth.guard'",
   ],
-  ['app → a feature *.routes.ts', 'src/app/x.ts', "import '@/features/health/health.routes'"],
+  ['app → a feature *.routes.ts', 'src/app/x.ts', "import '@/pages/health/health.routes'"],
   [
     'main → app, core, shared, models',
     'src/main.ts',
@@ -697,7 +697,7 @@ const allowed: Allowed[] = [
     'src/layout/x.ts',
     "import '@/core/config/constants'; import '@/core/providers/logger'; import '@/store/theme.store'; import '@/shared/utils/time'; import '@/models/nav/interface'",
   ],
-  ['layout → shared component', 'src/layout/x.ts', "import '@/shared/components/app-button.vue'"],
+  ['layout → shared component', 'src/layout/x.ts', "import '@/shared/components/base-button.vue'"],
   [
     'page → store, shared, models, core/config, core/providers, core/guards',
     PAGE,
@@ -709,7 +709,7 @@ const allowed: Allowed[] = [
   [
     'component → shared, models',
     COMPONENT,
-    "import '@/shared/components/app-button.vue'; import '@/models/health/interface'",
+    "import '@/shared/components/base-button.vue'; import '@/models/health/interface'",
   ],
   [
     'routes → core/guards and its own pages',
@@ -810,7 +810,7 @@ const allowed: Allowed[] = [
   [
     'testing → anything',
     'src/testing/x.ts',
-    "import '@/features/health/health.routes'; import '@/app/nav'; import '@/store/theme.store'; import '@/services/health.service'",
+    "import '@/pages/health/health.routes'; import '@/app/nav'; import '@/store/theme.store'; import '@/services/health.service'",
   ],
   [
     'a spec → testing and any layer',
@@ -829,9 +829,9 @@ const allowed: Allowed[] = [
     SFC('', '<button type="button">x</button><input /><select /><textarea />'),
   ],
   [
-    'a component tag <AppButton> in a page',
+    'a component tag <BaseButton> in a page',
     PAGE,
-    SFC("import AppButton from '@/shared/components/app-button.vue'", '<AppButton />'),
+    SFC("import BaseButton from '@/shared/components/base-button.vue'", '<BaseButton />'),
   ],
   ['a script-only page', PAGE, SFC('const a = 1\nexport {}\nvoid a')],
   ['files in a claimed directory', 'src/shared/utils/x.ts', 'export {}'],
@@ -843,7 +843,7 @@ describe('lint rules', { timeout: 60_000 }, () => {
   it('still reports exactly one boundaries message for shared → feature', async () => {
     const found = await messagesFor(
       'src/shared/components/x.ts',
-      "import '@/features/health/health.routes'",
+      "import '@/pages/health/health.routes'",
       BOUNDARY,
     )
     expect(found).toHaveLength(1)

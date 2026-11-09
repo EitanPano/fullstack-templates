@@ -4,11 +4,11 @@ import { describe, expect, it } from 'vitest'
 
 import { renderWithApp } from '@/testing/render'
 
-import AppInput from './app-input.vue'
+import BaseInput from './base-input.vue'
 
 describe('AppInput', () => {
   it('shows the value and emits what the user types', async () => {
-    const view = await renderWithApp(AppInput, { props: { modelValue: 'ab' } })
+    const view = await renderWithApp(BaseInput, { props: { modelValue: 'ab' } })
     const input = screen.getByRole('textbox')
     expect(input).toHaveValue('ab')
 
@@ -18,13 +18,13 @@ describe('AppInput', () => {
   })
 
   it('shows an empty field for null', async () => {
-    await renderWithApp(AppInput, { props: { modelValue: null } })
+    await renderWithApp(BaseInput, { props: { modelValue: null } })
 
     expect(screen.getByRole('textbox')).toHaveValue('')
   })
 
   it('holds a number for a number field, and null when it is emptied', async () => {
-    const view = await renderWithApp(AppInput, { props: { type: 'number', modelValue: null } })
+    const view = await renderWithApp(BaseInput, { props: { type: 'number', modelValue: null } })
     const input = screen.getByRole('spinbutton')
 
     await userEvent.type(input, '12')
@@ -35,7 +35,7 @@ describe('AppInput', () => {
   })
 
   it('emits blur so a form can mark the field touched', async () => {
-    const view = await renderWithApp(AppInput)
+    const view = await renderWithApp(BaseInput)
 
     await userEvent.click(screen.getByRole('textbox'))
     await userEvent.tab()
@@ -44,7 +44,7 @@ describe('AppInput', () => {
   })
 
   it('passes other attributes to the input, not to its wrapper', async () => {
-    const { container } = await renderWithApp(AppInput, {
+    const { container } = await renderWithApp(BaseInput, {
       props: { name: 'email', autocomplete: 'email', placeholder: 'you@x.co', 'data-testid': 'e' },
     })
 
@@ -57,13 +57,13 @@ describe('AppInput', () => {
   })
 
   it('is inert when disabled', async () => {
-    await renderWithApp(AppInput, { props: { disabled: true } })
+    await renderWithApp(BaseInput, { props: { disabled: true } })
 
     expect(screen.getByRole('textbox')).toBeDisabled()
   })
 
   it('reveals and hides a password with a labelled toggle', async () => {
-    const { container } = await renderWithApp(AppInput, {
+    const { container } = await renderWithApp(BaseInput, {
       props: { type: 'password', modelValue: 'secret' },
     })
     const field = container.querySelector('input')
@@ -77,7 +77,7 @@ describe('AppInput', () => {
   })
 
   it('has no toggle for other types', async () => {
-    await renderWithApp(AppInput)
+    await renderWithApp(BaseInput)
 
     expect(screen.queryByRole('button')).toBeNull()
   })

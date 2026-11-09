@@ -9,7 +9,7 @@ import { DESKTOP_QUERY, stubMatchMedia } from '@/testing/match-media'
 import { renderWithApp } from '@/testing/render'
 import { Page } from '@/testing/stubs'
 
-import SideNav from './side-nav.vue'
+import AppSideNav from './app-side-nav.vue'
 
 const ENTRIES: readonly NavEntry[] = [
   { path: '/', labelKey: 'nav.home' },
@@ -26,7 +26,7 @@ function withRoles(roles: string[], props: { entries: readonly NavEntry[]; open:
   const Host = defineComponent({
     setup() {
       provide(ROLES_KEY, ref(roles))
-      return () => h(SideNav, { ...props })
+      return () => h(AppSideNav, { ...props })
     },
   })
   return renderWithApp(Host, { routes })
@@ -40,7 +40,7 @@ describe('SideNav on a wide viewport', () => {
   it('is the Primary navigation, inline, built from the entries', async () => {
     stubMatchMedia({ [DESKTOP_QUERY]: true })
 
-    await renderWithApp(SideNav, { props: { entries: ENTRIES, open: false }, routes })
+    await renderWithApp(AppSideNav, { props: { entries: ENTRIES, open: false }, routes })
 
     const nav = screen.getByRole('navigation', { name: 'Primary' })
     expect(within(nav).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/')
@@ -50,7 +50,7 @@ describe('SideNav on a wide viewport', () => {
   it('marks the current page with aria-current and the active class', async () => {
     stubMatchMedia({ [DESKTOP_QUERY]: true })
 
-    await renderWithApp(SideNav, { props: { entries: ENTRIES, open: false }, routes })
+    await renderWithApp(AppSideNav, { props: { entries: ENTRIES, open: false }, routes })
 
     const home = screen.getByRole('link', { name: 'Home' })
     expect(home).toHaveAttribute('aria-current', 'page')
@@ -82,7 +82,7 @@ describe('SideNav on a narrow viewport', () => {
   it('renders no navigation while the drawer is closed', async () => {
     stubMatchMedia({ [DESKTOP_QUERY]: false })
 
-    await renderWithApp(SideNav, { props: { entries: ENTRIES, open: false }, routes })
+    await renderWithApp(AppSideNav, { props: { entries: ENTRIES, open: false }, routes })
 
     expect(screen.queryByRole('navigation')).toBeNull()
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -91,7 +91,7 @@ describe('SideNav on a narrow viewport', () => {
   it('opens a modal drawer holding the Primary navigation', async () => {
     stubMatchMedia({ [DESKTOP_QUERY]: false })
 
-    await renderWithApp(SideNav, { props: { entries: ENTRIES, open: true }, routes })
+    await renderWithApp(AppSideNav, { props: { entries: ENTRIES, open: true }, routes })
 
     const drawer = await screen.findByRole('dialog', { name: 'Menu' })
     expect(drawer).toHaveAttribute('data-state', 'open')
@@ -101,7 +101,7 @@ describe('SideNav on a narrow viewport', () => {
 
   it('asks to close on Escape', async () => {
     stubMatchMedia({ [DESKTOP_QUERY]: false })
-    const view = await renderWithApp(SideNav, { props: { entries: ENTRIES, open: true }, routes })
+    const view = await renderWithApp(AppSideNav, { props: { entries: ENTRIES, open: true }, routes })
     await screen.findByRole('dialog')
 
     await userEvent.keyboard('{Escape}')
@@ -111,7 +111,7 @@ describe('SideNav on a narrow viewport', () => {
 
   it('asks to close from its close button', async () => {
     stubMatchMedia({ [DESKTOP_QUERY]: false })
-    const view = await renderWithApp(SideNav, { props: { entries: ENTRIES, open: true }, routes })
+    const view = await renderWithApp(AppSideNav, { props: { entries: ENTRIES, open: true }, routes })
 
     await userEvent.click(await screen.findByRole('button', { name: 'Close navigation' }))
 
@@ -120,7 +120,7 @@ describe('SideNav on a narrow viewport', () => {
 
   it('asks to close once a link took the user to another page', async () => {
     stubMatchMedia({ [DESKTOP_QUERY]: false })
-    const view = await renderWithApp(SideNav, {
+    const view = await renderWithApp(AppSideNav, {
       props: {
         entries: [...ENTRIES.slice(0, 1), { path: '/admin', labelKey: 'nav.close' }],
         open: true,
@@ -136,7 +136,7 @@ describe('SideNav on a narrow viewport', () => {
 
   it('asks to close when the viewport grows to the inline layout', async () => {
     const media = stubMatchMedia({ [DESKTOP_QUERY]: false })
-    const view = await renderWithApp(SideNav, { props: { entries: ENTRIES, open: true }, routes })
+    const view = await renderWithApp(AppSideNav, { props: { entries: ENTRIES, open: true }, routes })
     await screen.findByRole('dialog')
 
     media.flip(DESKTOP_QUERY, true)

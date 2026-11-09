@@ -6,7 +6,7 @@ import { i18n } from '@/core/i18n/i18n'
 import { useLanguageStore } from '@/store/language.store'
 import { renderWithApp } from '@/testing/render'
 
-import LanguageToggle from './language-toggle.vue'
+import AppLanguageToggle from './app-language-toggle.vue'
 
 const root = document.documentElement
 
@@ -20,7 +20,7 @@ describe('LanguageToggle', () => {
   })
 
   it('shows the other language as the toggle and announces the current one', async () => {
-    await renderWithApp(LanguageToggle, { i18n })
+    await renderWithApp(AppLanguageToggle, { i18n })
 
     const toggle = screen.getByRole('button', { name: 'Switch language to עברית' })
     expect(toggle).toHaveTextContent('עברית')
@@ -29,7 +29,7 @@ describe('LanguageToggle', () => {
   })
 
   it('switches the language and the direction from the toggle', async () => {
-    await renderWithApp(LanguageToggle, { i18n })
+    await renderWithApp(AppLanguageToggle, { i18n })
     const store = useLanguageStore()
 
     await userEvent.click(screen.getByRole('button', { name: 'Switch language to עברית' }))
@@ -45,7 +45,7 @@ describe('LanguageToggle', () => {
   })
 
   it('stays on the current language when the table cannot be loaded', async () => {
-    await renderWithApp(LanguageToggle, { i18n })
+    await renderWithApp(AppLanguageToggle, { i18n })
     const store = useLanguageStore()
     vi.spyOn(store, 'setLang').mockResolvedValue(false)
 

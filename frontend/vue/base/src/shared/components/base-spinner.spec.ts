@@ -3,23 +3,23 @@ import { describe, expect, it } from 'vitest'
 
 import { renderWithApp } from '@/testing/render'
 
-import AppSpinner from './app-spinner.vue'
+import BaseSpinner from './base-spinner.vue'
 
 describe('AppSpinner', () => {
   it('alone is a status region with a translated label', async () => {
-    await renderWithApp(AppSpinner)
+    await renderWithApp(BaseSpinner)
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading')
   })
 
   it('takes another label key', async () => {
-    await renderWithApp(AppSpinner, { props: { labelKey: 'table.empty' } })
+    await renderWithApp(BaseSpinner, { props: { labelKey: 'table.empty' } })
 
     expect(screen.getByRole('status')).toHaveTextContent('Nothing to show yet')
   })
 
   it('is silent when decorative', async () => {
-    const { container } = await renderWithApp(AppSpinner, { props: { decorative: true } })
+    const { container } = await renderWithApp(BaseSpinner, { props: { decorative: true } })
 
     expect(screen.queryByRole('status')).toBeNull()
     expect(container.querySelector('.spinner')).toHaveAttribute('aria-hidden', 'true')

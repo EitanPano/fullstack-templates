@@ -11,12 +11,12 @@ import { computed, inject, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import type { NavEntry } from '@/models/nav/interface'
-import AppButton from '@/shared/components/app-button.vue'
-import AppIcon from '@/shared/components/app-icon.vue'
+import BaseButton from '@/shared/components/base-button.vue'
+import BaseIcon from '@/shared/components/base-icon.vue'
 import { useMediaQuery } from '@/shared/composables/use-media-query'
 import { ROLES_KEY } from '@/shared/directives/roles'
 
-import NavLinks from './nav-links.vue'
+import AppNavLinks from './app-nav-links.vue'
 
 // The primary navigation, from the nav table the layout passes in. From lg it is an inline column;
 // below lg it is a drawer on the Reka Dialog (focus trap, Escape, focus return) that `open` shows.
@@ -50,7 +50,7 @@ watch(isDesktop, (desktop) => {
 <template>
   <div>
     <div v-if="isDesktop" class="side-nav">
-      <NavLinks :entries="visible" />
+      <AppNavLinks :entries="visible" />
     </div>
     <DialogRoot v-else :open="open" @update:open="emit('update:open', $event)">
       <DialogPortal>
@@ -62,16 +62,16 @@ watch(isDesktop, (desktop) => {
         >
           <DialogTitle class="visually-hidden">{{ $t('nav.menu') }}</DialogTitle>
           <DialogClose as-child>
-            <AppButton
+            <BaseButton
               class="side-nav__close"
               variant="ghost"
               size="icon"
               :aria-label="$t('nav.close')"
             >
-              <AppIcon name="close" />
-            </AppButton>
+              <BaseIcon name="close" />
+            </BaseButton>
           </DialogClose>
-          <NavLinks :entries="visible" />
+          <AppNavLinks :entries="visible" />
         </DialogContent>
       </DialogPortal>
     </DialogRoot>

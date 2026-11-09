@@ -4,14 +4,14 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { errorMessageKey } from '@/models/api/error-copy'
-import AppButton from '@/shared/components/app-button.vue'
-import AppSkeleton from '@/shared/components/app-skeleton.vue'
+import BaseButton from '@/shared/components/base-button.vue'
+import BaseSkeleton from '@/shared/components/base-skeleton.vue'
 import ErrorState from '@/shared/components/error-state.vue'
 import PageHeader from '@/shared/components/page-header.vue'
 import { relativeTime } from '@/shared/utils/relative-time'
 import { useHealthStore } from '@/store/health.store'
 
-import HealthBadge from '../components/health-badge.vue'
+import HealthBadge from './components/health-badge.vue'
 
 // The home screen: whether the server answers, its version and how long it has been up. The page
 // reads the store and never a service; the store toasts the failure, the page shows the retry.
@@ -28,9 +28,9 @@ void store.load()
   <section class="health-status">
     <PageHeader :heading="$t('health.title')" :description="$t('health.description')">
       <template #actions>
-        <AppButton variant="secondary" :loading="loading" @click="store.load()">{{
+        <BaseButton variant="secondary" :loading="loading" @click="store.load()">{{
           $t('health.refresh')
-        }}</AppButton>
+        }}</BaseButton>
       </template>
     </PageHeader>
 
@@ -55,8 +55,8 @@ void store.load()
     </dl>
     <div v-else class="health-status__loading" role="status" aria-busy="true">
       <span class="visually-hidden">{{ $t('app.loading') }}</span>
-      <AppSkeleton variant="block" size="md" />
-      <AppSkeleton :lines="3" />
+      <BaseSkeleton variant="block" size="md" />
+      <BaseSkeleton :lines="3" />
     </div>
   </section>
 </template>

@@ -6,7 +6,7 @@ import { authGuard } from '@/core/guards/auth.guard'
 const routes: RouteRecordRaw[] = [
   {
     path: 'profile',
-    component: () => import('./pages/profile-page.vue'),
+    component: () => import('./profile-page.vue'),
     beforeEnter: authGuard,
     meta: { titleKey: 'profile.title' },
   },

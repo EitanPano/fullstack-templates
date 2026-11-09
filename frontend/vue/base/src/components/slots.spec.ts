@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import AccountMenu from './account-menu.vue' // @server:auth
-import InstallButton from './install-button.vue' // @pwa
-import LanguageToggle from './language-toggle.vue' // @i18n
+import AppAccountMenu from './app-account-menu.vue' // @server:auth
+import AppInstallButton from './app-install-button.vue' // @pwa
+import AppLanguageToggle from './app-language-toggle.vue' // @i18n
 import { accountSlot, installButton, languageToggle } from './slots'
 import slotsSource from './slots.ts?raw'
 
@@ -36,21 +36,21 @@ describe('slots', () => {
 
   // @server:auth-start
   it('answers the account menu while auth is on, above the null fallback', () => {
-    expect(accountSlot()).toBe(AccountMenu)
+    expect(accountSlot()).toBe(AppAccountMenu)
     expect(bodies()[0]?.body.match(/^\s+return /gm)).toHaveLength(2)
   })
   // @server:auth-end
 
   // @i18n-start
   it('answers the language toggle while i18n is on, above the null fallback', () => {
-    expect(languageToggle()).toBe(LanguageToggle)
+    expect(languageToggle()).toBe(AppLanguageToggle)
     expect(bodies()[1]?.body.match(/^\s+return /gm)).toHaveLength(2)
   })
   // @i18n-end
 
   // @pwa-start
   it('answers the install button while pwa is on, above the null fallback', () => {
-    expect(installButton()).toBe(InstallButton)
+    expect(installButton()).toBe(AppInstallButton)
     expect(bodies()[2]?.body.match(/^\s+return /gm)).toHaveLength(2)
   })
   // @pwa-end

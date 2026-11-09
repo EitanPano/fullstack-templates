@@ -8,7 +8,7 @@ import { DESKTOP_QUERY, stubMatchMedia } from '@/testing/match-media'
 import { renderWithApp } from '@/testing/render'
 import { Page } from '@/testing/stubs'
 
-import MainLayout from './main-layout.vue'
+import AppMainLayout from './app-main-layout.vue'
 
 const NAV: readonly NavEntry[] = [
   { path: '/', labelKey: 'nav.home' },
@@ -27,7 +27,7 @@ describe('MainLayout', () => {
 
   it('has the skip link first in the tab order, then the landmarks', async () => {
     stubMatchMedia({ [DESKTOP_QUERY]: true })
-    await renderWithApp(MainLayout, { props: { nav: NAV }, routes })
+    await renderWithApp(AppMainLayout, { props: { nav: NAV }, routes })
 
     await userEvent.tab()
 
@@ -40,7 +40,7 @@ describe('MainLayout', () => {
 
   it('renders the routed page inside main, which is the skip link target', async () => {
     stubMatchMedia({ [DESKTOP_QUERY]: true })
-    await renderWithApp(MainLayout, { props: { nav: NAV }, routes })
+    await renderWithApp(AppMainLayout, { props: { nav: NAV }, routes })
 
     const main = screen.getByRole('main')
 
@@ -51,7 +51,7 @@ describe('MainLayout', () => {
 
   it('moves focus to main when the skip link is followed, without leaving the route', async () => {
     stubMatchMedia({ [DESKTOP_QUERY]: true })
-    const { router } = await renderWithApp(MainLayout, { props: { nav: NAV }, routes })
+    const { router } = await renderWithApp(AppMainLayout, { props: { nav: NAV }, routes })
 
     await userEvent.click(screen.getByRole('link', { name: 'Skip to content' }))
 
@@ -61,7 +61,7 @@ describe('MainLayout', () => {
 
   it('renders the toasts the notification store holds', async () => {
     stubMatchMedia({ [DESKTOP_QUERY]: true })
-    await renderWithApp(MainLayout, { props: { nav: NAV }, routes })
+    await renderWithApp(AppMainLayout, { props: { nav: NAV }, routes })
 
     useNotificationStore().showError('errors.unexpected')
 
@@ -72,7 +72,7 @@ describe('MainLayout', () => {
 
   it('opens the drawer from the header toggle and makes the page behind it inert', async () => {
     stubMatchMedia({ [DESKTOP_QUERY]: false })
-    await renderWithApp(MainLayout, { props: { nav: NAV }, routes })
+    await renderWithApp(AppMainLayout, { props: { nav: NAV }, routes })
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.getByRole('main')).not.toHaveAttribute('inert')
 
@@ -86,7 +86,7 @@ describe('MainLayout', () => {
 
   it('closes the drawer on Escape and hands focus back to the toggle', async () => {
     stubMatchMedia({ [DESKTOP_QUERY]: false })
-    await renderWithApp(MainLayout, { props: { nav: NAV }, routes })
+    await renderWithApp(AppMainLayout, { props: { nav: NAV }, routes })
     const toggle = screen.getByRole('button', { name: 'Open navigation' })
     await userEvent.click(toggle)
     await screen.findByRole('dialog')
@@ -104,7 +104,7 @@ describe('MainLayout', () => {
 
   it('closes the drawer after following a link in it', async () => {
     stubMatchMedia({ [DESKTOP_QUERY]: false })
-    const { router } = await renderWithApp(MainLayout, { props: { nav: NAV }, routes })
+    const { router } = await renderWithApp(AppMainLayout, { props: { nav: NAV }, routes })
     await userEvent.click(screen.getByRole('button', { name: 'Open navigation' }))
 
     await userEvent.click(await screen.findByRole('link', { name: 'Open navigation' }))

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { renderWithApp } from '@/testing/render'
 
-import AppButton from './app-button.vue'
+import BaseButton from './base-button.vue'
 
 describe('AppButton', () => {
   afterEach(() => {
@@ -13,7 +13,7 @@ describe('AppButton', () => {
 
   it('renders a type=button with the primary variant and clicks through', async () => {
     const onClick = vi.fn()
-    await renderWithApp(AppButton, { props: { onClick }, slots: { default: 'Save' } })
+    await renderWithApp(BaseButton, { props: { onClick }, slots: { default: 'Save' } })
 
     const button = screen.getByRole('button', { name: 'Save' })
     await userEvent.click(button)
@@ -24,7 +24,7 @@ describe('AppButton', () => {
   })
 
   it('applies the variant and size classes and the aria-label of an icon button', async () => {
-    await renderWithApp(AppButton, {
+    await renderWithApp(BaseButton, {
       props: { variant: 'danger', size: 'icon', 'aria-label': 'Close' },
     })
 
@@ -34,7 +34,7 @@ describe('AppButton', () => {
 
   it('is busy and inert while loading, with a silent spinner', async () => {
     const onClick = vi.fn()
-    const { container } = await renderWithApp(AppButton, {
+    const { container } = await renderWithApp(BaseButton, {
       props: { loading: true, onClick },
       slots: { default: 'Save' },
     })
@@ -52,7 +52,7 @@ describe('AppButton', () => {
 
   it('does not click when disabled', async () => {
     const onClick = vi.fn()
-    await renderWithApp(AppButton, {
+    await renderWithApp(BaseButton, {
       props: { disabled: true, onClick },
       slots: { default: 'Save' },
     })
@@ -63,13 +63,13 @@ describe('AppButton', () => {
   })
 
   it('submits when the type is submit', async () => {
-    await renderWithApp(AppButton, { props: { type: 'submit' }, slots: { default: 'Go' } })
+    await renderWithApp(BaseButton, { props: { type: 'submit' }, slots: { default: 'Go' } })
 
     expect(screen.getByRole('button')).toHaveAttribute('type', 'submit')
   })
 
   it('renders a link instead of a button when to is set', async () => {
-    await renderWithApp(AppButton, { props: { to: '/somewhere' }, slots: { default: 'Go' } })
+    await renderWithApp(BaseButton, { props: { to: '/somewhere' }, slots: { default: 'Go' } })
 
     expect(screen.queryByRole('button')).toBeNull()
     const link = screen.getByRole('link', { name: 'Go' })
@@ -80,7 +80,7 @@ describe('AppButton', () => {
   it('reports an icon button without a name, since it has no text', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
-    await renderWithApp(AppButton, { props: { size: 'icon' } })
+    await renderWithApp(BaseButton, { props: { size: 'icon' } })
 
     expect(error).toHaveBeenCalledWith(expect.stringContaining('aria-label'))
   })
@@ -88,7 +88,7 @@ describe('AppButton', () => {
   it('stays quiet outside development', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
-    await renderWithApp(AppButton, { props: { size: 'icon' }, dev: false })
+    await renderWithApp(BaseButton, { props: { size: 'icon' }, dev: false })
 
     expect(error).not.toHaveBeenCalled()
   })
@@ -96,7 +96,7 @@ describe('AppButton', () => {
   it('stays quiet for an icon button that has a name', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
-    await renderWithApp(AppButton, { props: { size: 'icon', 'aria-label': 'Close' } })
+    await renderWithApp(BaseButton, { props: { size: 'icon', 'aria-label': 'Close' } })
 
     expect(error).not.toHaveBeenCalled()
   })

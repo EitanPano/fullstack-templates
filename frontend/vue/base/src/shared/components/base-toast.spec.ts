@@ -7,14 +7,14 @@ import { describe, expect, it, vi } from 'vitest'
 import type { ToastKind } from '@/models/notification/interface'
 import { renderWithApp } from '@/testing/render'
 
-import AppToast from './app-toast.vue'
+import BaseToast from './base-toast.vue'
 
 // A toast is a Reka Toast root, so it needs the provider and a viewport around it.
 type Props = { kind: ToastKind; message: string; actionLabel?: string }
 function host(props: Props, listeners: { onAction?: () => void; onDismiss?: () => void } = {}) {
   return defineComponent({
     render: () =>
-      h(ToastProvider, null, () => [h(AppToast, { ...props, ...listeners }), h(ToastViewport)]),
+      h(ToastProvider, null, () => [h(BaseToast, { ...props, ...listeners }), h(ToastViewport)]),
   })
 }
 

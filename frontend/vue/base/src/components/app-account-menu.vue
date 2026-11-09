@@ -3,7 +3,7 @@ import { storeToRefs } from 'pinia'
 import { computed, ref, useTemplateRef } from 'vue'
 import { useRouter } from 'vue-router'
 
-import AppButton from '@/shared/components/app-button.vue'
+import BaseButton from '@/shared/components/base-button.vue'
 import { useAuthStore } from '@/store/auth.store'
 
 // The header's account slot (slots.ts): a visitor gets a sign-in link, an account an avatar button
@@ -51,7 +51,7 @@ async function signOut(): Promise<void> {
     @keydown.esc="escape"
     @focusout="leave"
   >
-    <AppButton
+    <BaseButton
       class="account-menu__trigger"
       variant="ghost"
       size="icon"
@@ -61,7 +61,7 @@ async function signOut(): Promise<void> {
       @click="open = !open"
     >
       <span class="avatar" aria-hidden="true" :data-initials="initials"></span>
-    </AppButton>
+    </BaseButton>
     <div
       v-if="open"
       id="account-menu"
@@ -70,15 +70,15 @@ async function signOut(): Promise<void> {
       :aria-label="$t('auth.menu.label')"
     >
       <p class="account-menu__email">{{ user?.email }}</p>
-      <AppButton to="/profile" variant="ghost" size="sm" @click="close">{{
+      <BaseButton to="/profile" variant="ghost" size="sm" @click="close">{{
         $t('auth.menu.profile')
-      }}</AppButton>
-      <AppButton variant="ghost" size="sm" @click="signOut">{{
+      }}</BaseButton>
+      <BaseButton variant="ghost" size="sm" @click="signOut">{{
         $t('auth.menu.signOut')
-      }}</AppButton>
+      }}</BaseButton>
     </div>
   </div>
-  <AppButton v-else class="account-menu__sign-in" to="/auth/login" variant="ghost" size="sm">{{
+  <BaseButton v-else class="account-menu__sign-in" to="/auth/login" variant="ghost" size="sm">{{
     $t('auth.menu.signIn')
-  }}</AppButton>
+  }}</BaseButton>
 </template>

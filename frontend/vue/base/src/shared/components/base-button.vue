@@ -3,7 +3,7 @@ import { computed, inject, useAttrs } from 'vue'
 
 import { DEV_KEY } from '@/shared/composables/dev-mode'
 
-import AppSpinner from './app-spinner.vue'
+import BaseSpinner from './base-spinner.vue'
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 export type ButtonSize = 'sm' | 'md' | 'icon'
@@ -43,13 +43,13 @@ const dev = inject(DEV_KEY, false)
 
 // A developer mistake, so it is reported in development only.
 if (dev && props.size === 'icon' && !attrs['aria-label'] && !attrs['aria-labelledby']) {
-  console.error('AppButton: size="icon" needs an aria-label.')
+  console.error('BaseButton: size="icon" needs an aria-label.')
 }
 </script>
 
 <template>
   <RouterLink v-if="to" :to="to" :class="classes" :aria-disabled="inactive ? 'true' : undefined">
-    <AppSpinner v-if="loading" decorative />
+    <BaseSpinner v-if="loading" decorative />
     <slot />
   </RouterLink>
   <button
@@ -59,7 +59,7 @@ if (dev && props.size === 'icon' && !attrs['aria-label'] && !attrs['aria-labelle
     :disabled="inactive"
     :aria-busy="loading ? 'true' : undefined"
   >
-    <AppSpinner v-if="loading" decorative />
+    <BaseSpinner v-if="loading" decorative />
     <slot />
   </button>
 </template>

@@ -4,8 +4,8 @@ import { useTemplateRef } from 'vue'
 import { DISPLAY_NAME } from '@/core/config/constants'
 import { useThemeStore } from '@/store/theme.store'
 
-import AppFooter from '../components/app-footer.vue'
-import ToastHost from '../components/toast-host.vue'
+import AppFooter from './app-footer.vue'
+import AppToastHost from './app-toast-host.vue'
 
 // The frame of the sign-in, register and verification screens: a skip link, the product name
 // linking home, one centred <main id="main"> and the footer. No header and no side nav: a visitor
@@ -31,5 +31,5 @@ function skipToMain(): void {
     </main>
     <AppFooter class="auth-layout__footer" />
   </div>
-  <ToastHost />
+  <AppToastHost />
 </template>

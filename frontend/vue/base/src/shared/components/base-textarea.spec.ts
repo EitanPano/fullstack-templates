@@ -4,11 +4,11 @@ import { describe, expect, it } from 'vitest'
 
 import { renderWithApp } from '@/testing/render'
 
-import AppTextarea from './app-textarea.vue'
+import BaseTextarea from './base-textarea.vue'
 
 describe('AppTextarea', () => {
   it('shows the value and emits what the user types', async () => {
-    const view = await renderWithApp(AppTextarea, { props: { modelValue: 'hi' } })
+    const view = await renderWithApp(BaseTextarea, { props: { modelValue: 'hi' } })
     const box = screen.getByRole('textbox')
     expect(box).toHaveValue('hi')
 
@@ -18,7 +18,7 @@ describe('AppTextarea', () => {
   })
 
   it('counts the characters left when maxlength is set, and ties the count to the field', async () => {
-    const { container } = await renderWithApp(AppTextarea, {
+    const { container } = await renderWithApp(BaseTextarea, {
       props: { modelValue: 'abc', maxlength: 10 },
     })
 
@@ -31,13 +31,13 @@ describe('AppTextarea', () => {
   })
 
   it('shows no counter without a maxlength', async () => {
-    const { container } = await renderWithApp(AppTextarea, { props: { modelValue: 'abc' } })
+    const { container } = await renderWithApp(BaseTextarea, { props: { modelValue: 'abc' } })
 
     expect(container.querySelector('.control__counter')).toBeNull()
   })
 
   it('emits blur', async () => {
-    const view = await renderWithApp(AppTextarea)
+    const view = await renderWithApp(BaseTextarea)
 
     await userEvent.click(screen.getByRole('textbox'))
     await userEvent.tab()

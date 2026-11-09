@@ -4,17 +4,17 @@ import { describe, expect, it } from 'vitest'
 
 import { renderWithApp } from '@/testing/render'
 
-import AppModal from './app-modal.vue'
+import BaseModal from './base-modal.vue'
 
 describe('AppModal', () => {
   it('renders nothing while closed', async () => {
-    await renderWithApp(AppModal, { props: { open: false, title: 'Edit post' } })
+    await renderWithApp(BaseModal, { props: { open: false, title: 'Edit post' } })
 
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('is a modal dialog named by its title, with the slot as its body', async () => {
-    await renderWithApp(AppModal, {
+    await renderWithApp(BaseModal, {
       props: { open: true, title: 'Edit post' },
       slots: { default: '<p>Body text</p>' },
     })
@@ -29,13 +29,13 @@ describe('AppModal', () => {
   })
 
   it('takes a size', async () => {
-    await renderWithApp(AppModal, { props: { open: true, title: 'T', size: 'lg' } })
+    await renderWithApp(BaseModal, { props: { open: true, title: 'T', size: 'lg' } })
 
     expect(await screen.findByRole('dialog')).toHaveClass('modal--lg')
   })
 
   it('asks to close from its close button', async () => {
-    const view = await renderWithApp(AppModal, { props: { open: true, title: 'T' } })
+    const view = await renderWithApp(BaseModal, { props: { open: true, title: 'T' } })
 
     await userEvent.click(await screen.findByRole('button', { name: 'Close' }))
 
@@ -43,7 +43,7 @@ describe('AppModal', () => {
   })
 
   it('asks to close on Escape', async () => {
-    const view = await renderWithApp(AppModal, { props: { open: true, title: 'T' } })
+    const view = await renderWithApp(BaseModal, { props: { open: true, title: 'T' } })
     await screen.findByRole('dialog')
 
     await userEvent.keyboard('{Escape}')
@@ -52,7 +52,7 @@ describe('AppModal', () => {
   })
 
   it('keeps Tab inside the dialog', async () => {
-    await renderWithApp(AppModal, {
+    await renderWithApp(BaseModal, {
       props: { open: true, title: 'T' },
       slots: { default: '<button>Inside</button>' },
     })

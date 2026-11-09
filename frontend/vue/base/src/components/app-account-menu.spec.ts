@@ -11,7 +11,7 @@ import { renderWithApp } from '@/testing/render'
 import { stubApi } from '@/testing/stub-api'
 import { Page } from '@/testing/stubs'
 
-import AccountMenu from './account-menu.vue'
+import AppAccountMenu from './app-account-menu.vue'
 
 const routes = [
   { path: '/', component: Page },
@@ -31,14 +31,14 @@ describe('AccountMenu', () => {
   })
 
   it('offers a visitor a link to sign in and nothing else', async () => {
-    await renderWithApp(AccountMenu, { routes })
+    await renderWithApp(AppAccountMenu, { routes })
 
     expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/auth/login')
     expect(screen.queryByRole('button', { name: 'Account menu' })).not.toBeInTheDocument()
   })
 
   it('shows an account an avatar button, named by its label alone and closed', async () => {
-    await renderWithApp(AccountMenu, { routes, initialState: SIGNED_IN })
+    await renderWithApp(AppAccountMenu, { routes, initialState: SIGNED_IN })
 
     const trigger = screen.getByRole('button', { name: 'Account menu' })
     expect(trigger).toHaveAttribute('aria-expanded', 'false')
@@ -49,7 +49,7 @@ describe('AccountMenu', () => {
   })
 
   it('opens a panel with the email, the profile link and sign out', async () => {
-    await renderWithApp(AccountMenu, { routes, initialState: SIGNED_IN })
+    await renderWithApp(AppAccountMenu, { routes, initialState: SIGNED_IN })
 
     const trigger = screen.getByRole('button', { name: 'Account menu' })
     await userEvent.click(trigger)
@@ -64,7 +64,7 @@ describe('AccountMenu', () => {
   })
 
   it('closes on Escape and returns the focus to the trigger', async () => {
-    await renderWithApp(AccountMenu, { routes, initialState: SIGNED_IN })
+    await renderWithApp(AppAccountMenu, { routes, initialState: SIGNED_IN })
     const trigger = screen.getByRole('button', { name: 'Account menu' })
     await userEvent.click(trigger)
     screen.getByRole('link', { name: 'Profile' }).focus()
@@ -76,7 +76,7 @@ describe('AccountMenu', () => {
   })
 
   it('closes when focus leaves the menu', async () => {
-    await renderWithApp(AccountMenu, { routes, initialState: SIGNED_IN })
+    await renderWithApp(AppAccountMenu, { routes, initialState: SIGNED_IN })
     await userEvent.click(screen.getByRole('button', { name: 'Account menu' }))
 
     await userEvent.click(document.body)
@@ -85,7 +85,7 @@ describe('AccountMenu', () => {
   })
 
   it('closes after the profile link is followed', async () => {
-    const { router } = await renderWithApp(AccountMenu, { routes, initialState: SIGNED_IN })
+    const { router } = await renderWithApp(AppAccountMenu, { routes, initialState: SIGNED_IN })
     await userEvent.click(screen.getByRole('button', { name: 'Account menu' }))
 
     await userEvent.click(screen.getByRole('link', { name: 'Profile' }))
@@ -97,7 +97,7 @@ describe('AccountMenu', () => {
   it('signs out through the API, clears the hint and goes home', async () => {
     setSessionHint()
     stubApi({ 'POST /api/auth/logout': new Response(null, { status: 204 }) })
-    const { router } = await renderWithApp(AccountMenu, {
+    const { router } = await renderWithApp(AppAccountMenu, {
       routes,
       route: '/profile',
       initialState: SIGNED_IN,
@@ -115,7 +115,7 @@ describe('AccountMenu', () => {
   it('stays signed in, on the page, when sign-out fails', async () => {
     setSessionHint()
     stubApi({ 'POST /api/auth/logout': envelope('internal', 500) })
-    const { router } = await renderWithApp(AccountMenu, {
+    const { router } = await renderWithApp(AppAccountMenu, {
       routes,
       route: '/profile',
       initialState: SIGNED_IN,
@@ -132,7 +132,7 @@ describe('AccountMenu', () => {
   })
 
   it('swaps to the sign-in link when the session is lost under it', async () => {
-    await renderWithApp(AccountMenu, { routes, initialState: SIGNED_IN })
+    await renderWithApp(AppAccountMenu, { routes, initialState: SIGNED_IN })
 
     useAuthStore().forget()
 

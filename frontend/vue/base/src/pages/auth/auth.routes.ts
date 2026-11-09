@@ -10,19 +10,19 @@ const routes: RouteRecordRaw[] = [
   { path: '', redirect: '/auth/login' },
   {
     path: 'login',
-    component: () => import('./pages/login-page.vue'),
+    component: () => import('./login-page.vue'),
     beforeEnter: guestGuard,
     meta: { titleKey: 'auth.login.title' },
   },
   {
     path: 'register',
-    component: () => import('./pages/register-page.vue'),
+    component: () => import('./register-page.vue'),
     beforeEnter: guestGuard,
     meta: { titleKey: 'auth.register.title' },
   },
   {
     path: 'verify-otp',
-    component: () => import('./pages/verify-otp-page.vue'),
+    component: () => import('./verify-otp-page.vue'),
     beforeEnter: authGuard,
     meta: { titleKey: 'auth.otp.title' },
   },

@@ -4,11 +4,11 @@ import { describe, expect, it } from 'vitest'
 
 import { renderWithApp } from '@/testing/render'
 
-import AppCheckbox from './app-checkbox.vue'
+import BaseCheckbox from './base-checkbox.vue'
 
 describe('AppCheckbox', () => {
   it('is a checkbox named by its slot, reflecting the model', async () => {
-    await renderWithApp(AppCheckbox, {
+    await renderWithApp(BaseCheckbox, {
       props: { modelValue: true },
       slots: { default: 'Remember me' },
     })
@@ -19,7 +19,7 @@ describe('AppCheckbox', () => {
   })
 
   it('toggles on a click of the box and again on a click of the label', async () => {
-    const view = await renderWithApp(AppCheckbox, {
+    const view = await renderWithApp(BaseCheckbox, {
       props: { modelValue: false },
       slots: { default: 'Remember me' },
     })
@@ -31,7 +31,7 @@ describe('AppCheckbox', () => {
   })
 
   it('toggles from the keyboard', async () => {
-    const view = await renderWithApp(AppCheckbox, {
+    const view = await renderWithApp(BaseCheckbox, {
       props: { modelValue: false },
       slots: { default: 'Remember me' },
     })
@@ -43,7 +43,7 @@ describe('AppCheckbox', () => {
   })
 
   it('does not toggle when disabled', async () => {
-    const view = await renderWithApp(AppCheckbox, {
+    const view = await renderWithApp(BaseCheckbox, {
       props: { modelValue: false, disabled: true },
       slots: { default: 'Remember me' },
     })
@@ -54,7 +54,7 @@ describe('AppCheckbox', () => {
   })
 
   it('emits blur', async () => {
-    const view = await renderWithApp(AppCheckbox, { slots: { default: 'Remember me' } })
+    const view = await renderWithApp(BaseCheckbox, { slots: { default: 'Remember me' } })
 
     await userEvent.tab()
     await userEvent.tab()

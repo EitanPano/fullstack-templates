@@ -5,23 +5,23 @@ import type { Component } from 'vue'
 import { NAV } from '@/app/nav'
 import { createAppI18n } from '@/core/i18n/i18n'
 import he from '@/core/i18n/translations/he.json'
-import NotFoundPage from '@/features/not-found/pages/not-found-page.vue'
+import NotFoundPage from '@/pages/not-found/not-found-page.vue'
 import { renderWithApp } from '@/testing/render'
 
-import AppFooter from './components/app-footer.vue'
-import AppHeader from './components/app-header.vue'
-import SideNav from './components/side-nav.vue'
-import ToastHost from './components/toast-host.vue'
-import MainLayout from './main-layout/main-layout.vue'
+import AppFooter from './app-footer.vue'
+import AppHeader from './app-header.vue'
+import AppSideNav from './app-side-nav.vue'
+import AppToastHost from './app-toast-host.vue'
+import AppMainLayout from './app-main-layout.vue'
 
 const root = document.documentElement
 
 const SHELL: [string, Component, Record<string, unknown>?][] = [
   ['AppHeader', AppHeader],
   ['AppFooter', AppFooter],
-  ['SideNav', SideNav, { entries: NAV }],
-  ['ToastHost', ToastHost],
-  ['MainLayout', MainLayout, { nav: NAV }],
+  ['SideNav', AppSideNav, { entries: NAV }],
+  ['ToastHost', AppToastHost],
+  ['MainLayout', AppMainLayout, { nav: NAV }],
   ['NotFoundPage', NotFoundPage],
 ]
 
@@ -59,7 +59,7 @@ describe('the shell under dir="rtl"', () => {
   )
 
   it('puts the shell copy in Hebrew', async () => {
-    await renderWithApp(MainLayout, { i18n: hebrew(), props: { nav: NAV } })
+    await renderWithApp(AppMainLayout, { i18n: hebrew(), props: { nav: NAV } })
 
     expect(screen.getAllByRole('button', { name: he.nav.open }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('link', { name: he.app.skipToContent }).length).toBeGreaterThan(0)

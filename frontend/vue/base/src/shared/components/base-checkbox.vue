@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { CheckboxIndicator, CheckboxRoot } from 'reka-ui'
 
-import AppIcon from './app-icon.vue'
+import BaseIcon from './base-icon.vue'
 import { useFieldControl } from './form-field-context'
 
 // A checkbox on the Reka Checkbox (a button with role=checkbox; data-state is checked or
@@ -26,7 +26,7 @@ const { controlId, invalid, describedBy } = useFieldControl()
       :aria-describedby="describedBy"
       @blur="emit('blur')"
     >
-      <CheckboxIndicator><AppIcon name="check" /></CheckboxIndicator>
+      <CheckboxIndicator><BaseIcon name="check" /></CheckboxIndicator>
     </CheckboxRoot>
     <span class="checkbox__label"><slot /></span>
   </label>

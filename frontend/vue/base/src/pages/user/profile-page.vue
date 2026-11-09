@@ -7,9 +7,9 @@ import { useRouter } from 'vue-router'
 import { useUnsavedChangesGuard } from '@/core/guards/unsaved-changes.guard'
 import { errorMessageKey } from '@/models/api/error-copy'
 import { ROLE_LABEL_KEYS, VERIFY_OTP_PATH } from '@/models/user/constants'
-import AppButton from '@/shared/components/app-button.vue'
-import AppInput from '@/shared/components/app-input.vue'
-import AppSkeleton from '@/shared/components/app-skeleton.vue'
+import BaseButton from '@/shared/components/base-button.vue'
+import BaseInput from '@/shared/components/base-input.vue'
+import BaseSkeleton from '@/shared/components/base-skeleton.vue'
 import ConfirmDialog from '@/shared/components/confirm-dialog.vue'
 import ErrorState from '@/shared/components/error-state.vue'
 import FormActions from '@/shared/components/form-actions.vue'
@@ -21,7 +21,7 @@ import { useAuthStore } from '@/store/auth.store'
 import { useNotificationStore } from '@/store/notification.store'
 import { useUserStore } from '@/store/user.store'
 
-import { profileForm } from '../user.form'
+import { profileForm } from './user.form'
 
 // The signed-in account: e-mail, role, when it was created, whether the address is verified, its
 // phone number (the one editable field) and sign-out. Leaving with an unsaved phone number asks
@@ -78,7 +78,7 @@ async function signOut(): Promise<void> {
   <section class="profile">
     <PageHeader :heading="$t('profile.title')" :description="$t('profile.description')">
       <template #actions>
-        <AppButton variant="secondary" @click="signOut">{{ $t('auth.menu.signOut') }}</AppButton>
+        <BaseButton variant="secondary" @click="signOut">{{ $t('auth.menu.signOut') }}</BaseButton>
       </template>
     </PageHeader>
 
@@ -103,9 +103,9 @@ async function signOut(): Promise<void> {
             <template v-if="profile.emailVerifiedAt">{{ $t('profile.verified') }}</template>
             <template v-else>
               {{ $t('profile.unverified') }}
-              <AppButton variant="ghost" size="sm" :to="VERIFY_OTP_PATH">{{
+              <BaseButton variant="ghost" size="sm" :to="VERIFY_OTP_PATH">{{
                 $t('profile.verify')
-              }}</AppButton>
+              }}</BaseButton>
             </template>
           </dd>
         </div>
@@ -117,7 +117,7 @@ async function signOut(): Promise<void> {
           :hint="$t('profile.phoneHint')"
           :error="form.errorText('phone')"
         >
-          <AppInput
+          <BaseInput
             v-model="form.values.phone"
             type="tel"
             name="phone"
@@ -131,8 +131,8 @@ async function signOut(): Promise<void> {
     </template>
     <div v-else class="profile__loading" role="status" aria-busy="true">
       <span class="visually-hidden">{{ $t('app.loading') }}</span>
-      <AppSkeleton variant="block" size="md" />
-      <AppSkeleton :lines="3" />
+      <BaseSkeleton variant="block" size="md" />
+      <BaseSkeleton :lines="3" />
     </div>
 
     <ConfirmDialog

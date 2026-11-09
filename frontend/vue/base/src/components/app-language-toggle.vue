@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import AppButton from '@/shared/components/app-button.vue'
+import BaseButton from '@/shared/components/base-button.vue'
 import { useLanguageStore } from '@/store/language.store'
 
 // The header's language switch: the button names the language it switches to, and a polite
@@ -17,7 +17,7 @@ function switchLanguage(): void {
 </script>
 
 <template>
-  <AppButton
+  <BaseButton
     class="header__language"
     variant="ghost"
     size="sm"
@@ -25,7 +25,7 @@ function switchLanguage(): void {
     @click="switchLanguage"
   >
     <span :lang="language.next.code">{{ $t(nextName) }}</span>
-  </AppButton>
+  </BaseButton>
   <span class="visually-hidden" role="status">
     {{ $t('language.current', { name: $t(currentName) }) }}
   </span>

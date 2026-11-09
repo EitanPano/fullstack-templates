@@ -9,14 +9,14 @@ import { useNotificationStore } from '@/store/notification.store'
 import { renderWithApp } from '@/testing/render'
 import { Page } from '@/testing/stubs'
 
-import AuthLayout from './auth-layout.vue'
+import AppAuthLayout from './app-auth-layout.vue'
 
 // The layout is a route component, so the host is the router's outlet.
 const Host = defineComponent({ render: () => h(RouterView) })
 
 const routes = [
   { path: '/', component: Page },
-  { path: '/auth', component: AuthLayout, children: [{ path: 'login', component: Page }] },
+  { path: '/auth', component: AppAuthLayout, children: [{ path: 'login', component: Page }] },
 ]
 
 describe('AuthLayout', () => {

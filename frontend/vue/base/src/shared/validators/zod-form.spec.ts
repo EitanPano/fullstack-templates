@@ -4,7 +4,7 @@ import { defineComponent, h } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod'
 
-import AppInput from '@/shared/components/app-input.vue'
+import BaseInput from '@/shared/components/base-input.vue'
 import FormField from '@/shared/components/form-field.vue'
 import { renderWithApp } from '@/testing/render'
 
@@ -37,7 +37,7 @@ function harness(
       capture(form)
       const field = (name: 'email' | 'password' | 'confirm', label: string) =>
         h(FormField, { label, error: form.errorText(name) }, () =>
-          h(AppInput, {
+          h(BaseInput, {
             modelValue: form.values[name],
             'onUpdate:modelValue': (value: string | number | null) => {
               form.values[name] = String(value ?? '')

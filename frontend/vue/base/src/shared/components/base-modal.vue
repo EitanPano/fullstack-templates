@@ -8,8 +8,8 @@ import {
   DialogTitle,
 } from 'reka-ui'
 
-import AppButton from './app-button.vue'
-import AppIcon from './app-icon.vue'
+import BaseButton from './base-button.vue'
+import BaseIcon from './base-icon.vue'
 
 export type ModalSize = 'sm' | 'md' | 'lg'
 
@@ -29,9 +29,9 @@ const open = defineModel<boolean>('open', { default: false })
         <header class="modal__header">
           <DialogTitle class="modal__title">{{ title }}</DialogTitle>
           <DialogClose as-child>
-            <AppButton variant="ghost" size="icon" :aria-label="$t('modal.close')">
-              <AppIcon name="close" />
-            </AppButton>
+            <BaseButton variant="ghost" size="icon" :aria-label="$t('modal.close')">
+              <BaseIcon name="close" />
+            </BaseButton>
           </DialogClose>
         </header>
         <div class="modal__body"><slot /></div>

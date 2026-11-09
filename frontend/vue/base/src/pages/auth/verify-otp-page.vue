@@ -4,8 +4,8 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { PROFILE_PATH } from '@/models/user/constants'
-import AppButton from '@/shared/components/app-button.vue'
-import AppInput from '@/shared/components/app-input.vue'
+import BaseButton from '@/shared/components/base-button.vue'
+import BaseInput from '@/shared/components/base-input.vue'
 import AuthCard from '@/shared/components/auth-card.vue'
 import FormActions from '@/shared/components/form-actions.vue'
 import FormField from '@/shared/components/form-field.vue'
@@ -13,7 +13,7 @@ import { applyFieldErrors } from '@/shared/validators/server-errors'
 import { useAuthStore } from '@/store/auth.store'
 import { useNotificationStore } from '@/store/notification.store'
 
-import { otpForm } from '../auth.form'
+import { otpForm } from './auth.form'
 
 // Verifying the signed-in account's address: ask for a code, enter the six digits, done. The OTP
 // calls need a session, so the route sits behind authGuard; this is not a way to sign in.
@@ -54,16 +54,16 @@ async function submit(): Promise<void> {
     :heading="$t('auth.otp.title')"
     :description="$t('auth.otp.description', { email: user?.email ?? '' })"
   >
-    <AppButton v-if="!sent" class="verify-otp__send" :loading="loading" @click="sendCode">{{
+    <BaseButton v-if="!sent" class="verify-otp__send" :loading="loading" @click="sendCode">{{
       $t('auth.otp.send')
-    }}</AppButton>
+    }}</BaseButton>
     <form v-else class="verify-otp__form" novalidate @submit.prevent="submit">
       <FormField
         :label="$t('auth.otp.code')"
         :hint="$t('auth.otp.hint')"
         :error="form.errorText('code')"
       >
-        <AppInput
+        <BaseInput
           v-model="form.values.code"
           name="code"
           inputmode="numeric"
@@ -76,12 +76,12 @@ async function submit(): Promise<void> {
     </form>
     <template #footer>
       <p class="verify-otp__alt">
-        <AppButton v-if="sent" variant="ghost" size="sm" :disabled="loading" @click="sendCode">{{
+        <BaseButton v-if="sent" variant="ghost" size="sm" :disabled="loading" @click="sendCode">{{
           $t('auth.otp.resend')
-        }}</AppButton>
-        <AppButton variant="ghost" size="sm" :to="PROFILE_PATH">{{
+        }}</BaseButton>
+        <BaseButton variant="ghost" size="sm" :to="PROFILE_PATH">{{
           $t('auth.otp.back')
-        }}</AppButton>
+        }}</BaseButton>
       </p>
     </template>
   </AuthCard>

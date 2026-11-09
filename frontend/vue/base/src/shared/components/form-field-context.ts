@@ -2,7 +2,7 @@ import { computed, inject, type ComputedRef, type InjectionKey } from 'vue'
 
 import { useUniqueId } from '@/shared/composables/use-unique-id'
 
-// What a form-field hands down to the control inside it. A control (app-input, app-select, ...)
+// What a form-field hands down to the control inside it. A control (base-input, base-select, ...)
 // reads it optionally: inside a field it takes the field id (so the label for matches) and sets
 // aria-invalid and aria-describedby from it; outside a field it uses an id of its own and sets
 // neither.

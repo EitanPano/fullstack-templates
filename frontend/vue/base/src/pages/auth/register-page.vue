@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { NEXT_PARAM } from '@/models/user/constants'
-import AppInput from '@/shared/components/app-input.vue'
+import BaseInput from '@/shared/components/base-input.vue'
 import AuthCard from '@/shared/components/auth-card.vue'
 import FormActions from '@/shared/components/form-actions.vue'
 import FormField from '@/shared/components/form-field.vue'
@@ -14,7 +14,7 @@ import { applyFieldErrors } from '@/shared/validators/server-errors'
 import { useAuthStore } from '@/store/auth.store'
 import { useNotificationStore } from '@/store/notification.store'
 
-import { registerForm } from '../auth.form'
+import { registerForm } from './auth.form'
 
 // The register screen: creates the account, which signs it in, and sends it to `next` or home.
 // Failures follow the login screen's rule (the store toasts, validation lands on the fields);
@@ -56,7 +56,7 @@ async function submit(): Promise<void> {
   <AuthCard :heading="$t('auth.register.title')" :description="$t('auth.register.description')">
     <form class="register__form" novalidate @submit.prevent="submit">
       <FormField :label="$t('auth.email')" :error="form.errorText('email')">
-        <AppInput
+        <BaseInput
           v-model="form.values.email"
           v-autofocus
           type="email"
@@ -67,7 +67,7 @@ async function submit(): Promise<void> {
         />
       </FormField>
       <FormField :label="$t('auth.password')" :error="form.errorText('password')">
-        <AppInput
+        <BaseInput
           v-model="form.values.password"
           type="password"
           name="password"
@@ -76,7 +76,7 @@ async function submit(): Promise<void> {
         />
       </FormField>
       <FormField :label="$t('auth.confirm')" :error="form.errorText('confirm')">
-        <AppInput
+        <BaseInput
           v-model="form.values.confirm"
           type="password"
           name="confirm"

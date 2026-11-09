@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
-import AppButton from './app-button.vue'
-import AppIcon from './app-icon.vue'
+import BaseButton from './base-button.vue'
+import BaseIcon from './base-icon.vue'
 import { useFieldControl } from './form-field-context'
 
 export type InputType = 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'search'
@@ -52,15 +52,15 @@ function onInput(event: Event): void {
       @blur="emit('blur')"
     />
     <span v-if="type === 'password'" class="control__toggle">
-      <AppButton
+      <BaseButton
         variant="ghost"
         size="icon"
         :disabled="disabled"
         :aria-label="$t(revealed ? 'form.hidePassword' : 'form.showPassword')"
         @click="revealed = !revealed"
       >
-        <AppIcon :name="revealed ? 'eye-off' : 'eye'" />
-      </AppButton>
+        <BaseIcon :name="revealed ? 'eye-off' : 'eye'" />
+      </BaseButton>
     </span>
   </div>
 </template>

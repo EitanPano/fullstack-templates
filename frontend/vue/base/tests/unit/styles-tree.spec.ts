@@ -61,7 +61,7 @@ describe('the styles tree', () => {
         'layout/components/app-header.vue',
         'layout/components/side-nav.vue',
         'layout/components/toast-host.vue',
-        'shared/components/app-button.vue',
+        'shared/components/base-button.vue',
         'features/not-found/pages/not-found-page.vue',
       ]),
     )

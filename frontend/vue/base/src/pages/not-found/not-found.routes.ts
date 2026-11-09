@@ -5,7 +5,7 @@ import type { RouteRecordRaw } from 'vue-router'
 const routes: RouteRecordRaw[] = [
   {
     path: '/:pathMatch(.*)*',
-    component: () => import('./pages/not-found-page.vue'),
+    component: () => import('./not-found-page.vue'),
     meta: { titleKey: 'notFound.title' },
   },
 ]

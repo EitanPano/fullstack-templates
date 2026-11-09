@@ -4,7 +4,7 @@ import type { RouteRecordRaw } from 'vue-router'
 const routes: RouteRecordRaw[] = [
   {
     path: '',
-    component: () => import('./pages/health-status-page.vue'),
+    component: () => import('./health-status-page.vue'),
     meta: { titleKey: 'health.title' },
   },
 ]
