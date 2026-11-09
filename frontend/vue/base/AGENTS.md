@@ -10,34 +10,44 @@ The layer map of this package. Commands are in `package.json`; the contract code
 - `app/`: the wiring; no product logic, no fetch. `App.vue` (a `<RouterView />`), `plugins.ts`
   (`installPlugins`: Pinia, router, i18n, the error interceptor, the global error handler, the
   `has-role` directive and `ROLES_KEY`, the session and PWA initializers), `routes.ts` (the main
-  layout with `props: { nav: NAV }`, one lazy `*.routes.ts` per feature, the catch-all last; the
+  layout with `props: { nav: NAV }`, one lazy `*.routes.ts` per page module, the catch-all last; the
   auth layout and its routes with auth), `router.ts` (sets `document.title` from
   `meta.titleKey`) and `nav.ts` (the one navigation table; `NavEntry` lives in `models/nav/`, and
-  `layout/` receives the table as a route prop because it may not import `app/`).
+  `components/` receives the table as a route prop because it may not import `app/`).
 - `core/`: singletons wired once in `app/plugins.ts`, never imported by `shared/`.
   `config/` (`env.ts` the only reader of `import.meta`, `constants.ts` with the `STORAGE_KEYS`,
   `api-client.ts` the generator's `runtimeConfigPath`), `interceptors/`, `guards/`,
   `initializers/`, `providers/` (storage, logger, theme DOM helpers and, with auth, the session
   hint: platform wrappers with no reactive state), `i18n/` (vue-i18n with English bundled; with
   the `i18n` flag also `languages.ts` and `translations/he.json`), `errors/`.
-- `layout/`: `main-layout` (skip link, header, side nav, `<main id="main">`, footer, toast
-  host), `auth-layout` (centred card, no shell; auth only) and `components/` (header, side nav,
-  footer, toast host and `slots.ts`).
-- `features/<feature>/`: one glossary noun or screen group. `<feature>.routes.ts` (a default
-  export of `RouteRecordRaw[]`), `<feature>.form.ts` (a form over the generated zod schemas),
-  `pages/<page>-page.vue` (routed; read a store) and `components/` (presentational).
+- `components/`: the app-wide components, every file `app-*` with its `.scss` beside it when
+  styled. The shells: `app-main-layout` (skip link, header, side nav, `<main id="main">`, footer,
+  toast host; it takes the nav table as a prop because `components/` never imports `app/`); and
+  what they compose: `app-header` (with an offline badge that enters through `<Transition>`),
+  `app-side-nav`, `app-nav-links`, `app-footer`, `app-toast-host`. `slots.ts` is the generator's
+  one resolved file (below). A component goes here when a shell composes it or it reads a store;
+  a reusable control or pattern goes to `shared/components/`. With auth: `app-auth-layout`
+  (centred card, no shell) and `app-account-menu`; with `i18n` `app-language-toggle`; with `pwa`
+  `app-install-button`.
+- `pages/<module>/`: one directory per server module or screen group, named for the glossary
+  noun, flat: `<module>.routes.ts` (a default export of `RouteRecordRaw[]`), the routed
+  `<name>-page.vue` files beside it (read a store), each with its `<name>-page.scss`, when needed
+  `<module>.form.ts` (a form over the generated zod schemas); `components/` is the one
+  sub-directory, for the module's own presentational pieces. A page never imports another
+  module. `health/` is the worked example; `not-found/` is the catch-all route.
 - `store/`: every Pinia store, all setup stores. The domain stores (`health`, and with auth
   `auth` and `user`: one per server module) and the app-state stores (`theme`, `notification`,
   `network`, `loading`; `language` with `i18n`; `app-update` and `install-prompt` with `pwa`),
   plus `request-status.ts`. The import rule is the same for both kinds.
 - `services/`: one facade per server module over the generated SDK; `generated/` is the Hey API
   output (types, the fetch client, the flat SDK, zod; committed, lint-ignored).
-- `shared/`: product-agnostic. `components/` (the browser controls wrapped once), `directives/`,
+- `shared/`: product-agnostic. `components/` (the `base-*` primitives that wrap the browser
+  controls once, and the patterns, each with its `.scss` beside it), `directives/`,
   `composables/`, `validators/`, `utils/`.
 - `models/`: a noun's types (re-exports of the generated types plus UI-only shapes), enums,
   constants.
 - `testing/`: helpers imported only by `*.spec.ts`.
-- `styles/`: the only home of CSS (see Styling).
+- `styles/`: global and app-wide CSS only: `styles.scss`, `setup/`, `themes/`, `basics/` (see Styling).
 
 **No scaffolder.** Never run `create-vue`, `npm create vue` or any generator inside this package:
 they scatter files against the layer map and default to `<style scoped>` and Options API files.
@@ -50,46 +60,49 @@ Write the files by hand, copying the nearest sibling.
 | A noun's types, enums, labels               | `models/<noun>/`                                         |
 | A read or write on a server module          | `services/<module>.service.ts`                           |
 | State a page reads, and the methods on it   | `store/<noun>.store.ts`                                  |
-| A routed screen                             | `features/<feature>/pages/<page>-page.vue`               |
-| A presentational piece of one feature       | `features/<feature>/components/`                         |
-| A form                                      | `features/<feature>/<feature>.form.ts`                   |
-| A reusable control, pattern or composable   | `shared/`                                                |
+| A routed screen                             | `pages/<module>/<page>-page.vue` + `<page>-page.scss`    |
+| A presentational piece of one module        | `pages/<module>/components/`                             |
+| A form                                      | `pages/<module>/<module>.form.ts`                        |
+| An app-wide component (header, menu)        | `components/app-<name>.vue` + `app-<name>.scss`          |
+| A primitive (button, input, dialog)         | `shared/components/base-<name>.vue` + `.scss` beside it  |
+| A reusable pattern or composable            | `shared/`                                                |
 | A guard, interceptor, initializer, provider | `core/`                                                  |
 | A navigation entry                          | `app/nav.ts`                                             |
-| A style                                     | `styles/` (a component partial, or a view partial)       |
+| A stylesheet                                | beside its component or page, referenced by it           |
 | A copy string                               | `core/i18n/translations/en.json` (and `he.json`, `i18n`) |
 
 **Naming.** Files are kebab-case, and a component is PascalCase in a template:
 `health-status-page.vue` renders as `<HealthStatusPage>`. `<script setup lang="ts">` and the
-Composition API only. A one-word control carries the `App` prefix (`app-button.vue`,
-`<AppButton>`; `vue/multi-word-component-names`). A file that is not a component takes a suffix:
+Composition API only. A primitive carries the `Base` prefix (`base-button.vue`,
+`<BaseButton>`; `vue/multi-word-component-names`), an app-wide component the `App` prefix
+(`app-header.vue`, `<AppHeader>`). A file that is not a component takes a suffix:
 `*.store.ts`, `*.service.ts`, `*.guard.ts`, `*.interceptor.ts`, `*.routes.ts`, `*.form.ts`,
 `*.initializer.ts`; a composable is `use-kebab.ts` and exports `useKebab`. Cross-layer imports use
-the alias `@/*` (`src/*`); imports inside one feature stay relative. Specs sit beside the file as
+the alias `@/*` (`src/*`); imports inside one page module stay relative. Specs sit beside the file as
 `*.spec.ts`.
 
 **Import rules** (`eslint-plugin-boundaries`; each lint message names the layer to use instead):
 
-| From                                                                                             | May import                                                                                                                                              |
-| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `app/`                                                                                           | layout, features (`*.routes.ts` only), core, store, shared, models; never `services/`                                                                   |
-| `main.ts` (the entry)                                                                            | app, core, shared, models                                                                                                                               |
-| `layout/`                                                                                        | `core/config`, `core/providers`, store, shared, models                                                                                                  |
-| `features/<f>/pages/`                                                                            | store, shared, models, `core/config`, `core/providers`, `core/guards` (the unsaved-changes composable), its own feature's `components/` and `*.form.ts` |
-| `features/<f>/components/`                                                                       | shared, models                                                                                                                                          |
-| `features/<f>/*.routes.ts`                                                                       | `core/guards`, its own pages                                                                                                                            |
-| `features/<f>/*.form.ts`                                                                         | `shared/validators`, models, the generated zod schemas (`@/services/generated/zod.gen`)                                                                 |
-| `store/`                                                                                         | store, services, models, `core/providers`, `core/config`, `core/i18n` (the language store applies the locale)                                           |
-| `services/`                                                                                      | models, `core/config`, `services/generated`                                                                                                             |
-| `core/guards`, `core/initializers`, `core/interceptors/error.interceptor.ts`, `http.provider.ts` | store, services, core, shared, models (they are the wiring); `http.provider.ts` alone imports the generated client                                      |
-| `core/interceptors/loading.interceptor.ts`                                                       | `core/config`, `core/providers`, models and `store/loading.store.ts`                                                                                    |
-| `core/interceptors/auth.interceptor.ts`                                                          | `core/config`, `core/providers`, models: a leaf, never `store/`, `services/` or another interceptor                                                     |
-| `core/config`, `core/providers`, `core/i18n`, `core/errors`                                      | each other, shared, models; `core/config/api-client.ts` alone also the two fetch wrappers                                                               |
-| `shared/`                                                                                        | shared, models                                                                                                                                          |
-| `models/`                                                                                        | models; the generated types and zod schemas with `import type` only                                                                                     |
-| `testing/`                                                                                       | anything; nothing outside a `*.spec.ts` imports it                                                                                                      |
+| From                                                                                             | May import                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `app/`                                                                                           | components, pages (`*.routes.ts` only), core, store, shared, models; never `services/`                                                                 |
+| `main.ts` (the entry)                                                                            | app, core, shared, models                                                                                                                              |
+| `components/`                                                                                    | `core/config`, `core/providers`, store, shared, models                                                                                                 |
+| `pages/<m>/*.vue`                                                                                | store, shared, models, `core/config`, `core/providers`, `core/guards` (the unsaved-changes composable), its own module's `components/` and `*.form.ts` |
+| `pages/<m>/components/`                                                                          | shared, models                                                                                                                                         |
+| `pages/<m>/*.routes.ts`                                                                          | `core/guards`, its own module's pages                                                                                                                  |
+| `pages/<m>/*.form.ts`                                                                            | `shared/validators`, models, the generated zod schemas (`@/services/generated/zod.gen`)                                                                |
+| `store/`                                                                                         | store, services, models, `core/providers`, `core/config`, `core/i18n` (the language store applies the locale)                                          |
+| `services/`                                                                                      | models, `core/config`, `services/generated`                                                                                                            |
+| `core/guards`, `core/initializers`, `core/interceptors/error.interceptor.ts`, `http.provider.ts` | store, services, core, shared, models (they are the wiring); `http.provider.ts` alone imports the generated client                                     |
+| `core/interceptors/loading.interceptor.ts`                                                       | `core/config`, `core/providers`, models and `store/loading.store.ts`                                                                                   |
+| `core/interceptors/auth.interceptor.ts`                                                          | `core/config`, `core/providers`, models: a leaf, never `store/`, `services/` or another interceptor                                                    |
+| `core/config`, `core/providers`, `core/i18n`, `core/errors`                                      | each other, shared, models; `core/config/api-client.ts` alone also the two fetch wrappers                                                              |
+| `shared/`                                                                                        | shared, models                                                                                                                                         |
+| `models/`                                                                                        | models; the generated types and zod schemas with `import type` only                                                                                    |
+| `testing/`                                                                                       | anything; nothing outside a `*.spec.ts` imports it                                                                                                     |
 
-- A feature never imports another feature. A page that needs a one-off request adds a facade
+- A page module never imports another page module, and no page renders a `components/` shell piece. A page that needs a one-off request adds a facade
   method and a store method first.
 - The generated runtime (`client.gen`, `sdk.gen`, the barrel) is imported only in `services/` and
   `core/interceptors/http.provider.ts`; `zod.gen` is the one generated file a `*.form.ts` may also
@@ -101,10 +114,11 @@ the alias `@/*` (`src/*`); imports inside one feature stay relative. Specs sit b
 - `fetch(` (the global) is called only in `core/interceptors/auth.interceptor.ts`; `import.meta`
   only in `core/config/env.ts` (`no-restricted-syntax`).
 - `<button>`, `<input>`, `<select>` and `<textarea>` appear only inside `shared/components/`
-  (`vue/no-restricted-html-elements`, off for that directory). No `<style>` block in any component
-  (`vue/no-restricted-block`), no `style` attribute (`vue/no-static-inline-styles`, and
-  `tests/unit/styles-tree.spec.ts` also reads bound ones), no `.css` or `.scss` import outside
-  `main.ts`.
+  (`vue/no-restricted-html-elements`, off for that directory; the message names the `Base` wrapper).
+  A `<style>` block is empty and points at a sibling sheet (`vue/block-lang` pins `lang="scss"`;
+  `tests/unit/styles-tree.spec.ts` refuses `scoped` and a block with a body), no `style` attribute
+  (`vue/no-static-inline-styles`, and the scan also reads bound ones), no `.css` or `.scss` import
+  outside `main.ts`.
 - A file in a directory no layer claims is an error (`boundaries/no-unknown-files`), and so is importing one (`boundaries/no-unknown-dependencies`). The boundary
   rule is silent on an import it cannot resolve, so `eslint-import-resolver-typescript` reads the
   `@/*` alias from `tsconfig.app.json` and resolves `.vue` imports; keep the setting when the
@@ -148,15 +162,17 @@ a service; the generated runtime is imported only in `services/` and `http.provi
    value before it calls, and ignores an answer that arrives after sign-out. **Offline rule:** a
    store method that mutates checks `network.online` first and toasts `errors.offline` instead of
    sending (health only reads, so it does not).
-5. **Feature folder** `features/health/`: `health.routes.ts` (the default export; a lazy
-   `component: () => import('./pages/health-status-page.vue')` and `meta: { titleKey }`),
-   `pages/health-status-page.vue` (routed; `storeToRefs` on the store; skeleton while loading,
+5. **Page module** `pages/health/`: `health.routes.ts` (the default export; a lazy
+   `component: () => import('./health-status-page.vue')` and `meta: { titleKey }`),
+   `health-status-page.vue` (routed; `storeToRefs` on the store; skeleton while loading,
    `<ErrorState>` with retry on failure, the loaded view) and `components/health-badge.vue`
    (presentational: props and a model table, no store).
 6. **Route and nav.** The routes file is spread into the main layout's `children` in
    `app/routes.ts`, and for a top-level screen an entry goes in `app/nav.ts`
    (`{ path: '/', labelKey: 'nav.home' }`).
-7. **View style** `styles/views/_health-status.scss`, forwarded from `views/_index.scss`.
+7. **Styles** `pages/health/health-status-page.scss`, a sibling `.scss` with the page's stem,
+   referenced by `<style lang="scss" src="./health-status-page.scss"></style>`, the last block of
+   the page.
 8. **Copy** in `core/i18n/translations/en.json` **and `he.json`** (the `i18n` flag;
    `tests/unit/translation-parity.spec.ts` fails when a key or a `{param}` is missing from one):
    `nav.home`, `health.*`, and the `errors.<code>` text for any new envelope code. Use every key
@@ -166,7 +182,7 @@ a service; the generated runtime is imported only in `services/` and `http.provi
 **Guarding a route (the server's `auth` flag; the files exist only then).** `core/guards/` holds
 `authGuard` (a visitor is redirected to `/auth/login?next=<attempted path and query>`),
 `guestGuard` (login and register: an account goes home) and `roleGuard`. They are
-`beforeEnter` guards on the route in the feature's `*.routes.ts`: `{ path: '', beforeEnter:
+`beforeEnter` guards on the route in the module's `*.routes.ts`: `{ path: '', beforeEnter:
 authGuard, component: ... }`, and for a role `{ beforeEnter: roleGuard, meta: { roles: ['admin']
 }, ... }` (a visitor goes to login, another role to `/forbidden`). Each awaits `authStore.ready`
 before it decides. A guard only keeps a visitor off a screen; the API decides on every call. In a
@@ -190,7 +206,7 @@ store, the session initializer and the auth interceptor. The restore is capped a
 (`SESSION_RESTORE_TIMEOUT_MS`): after the cap the app is a visitor for good, a late answer is
 discarded, and a guarded deep link lands on sign-in with `next`.
 
-**The form recipe, by example.** `features/auth/auth.form.ts` is the pattern: one function per form
+**The form recipe, by example.** `pages/auth/auth.form.ts` is the pattern: one function per form
 (`loginForm()`, `registerForm()` with `match('password', 'confirm')` as its rule, `otpForm()`),
 each `useZodForm(schema, initial, rules?)` (`shared/validators/zod-form.ts`) over the generated
 request schema (`zCredentials`, `zOtpVerificationBody.pick({ code: true })`), so no limit is
@@ -204,7 +220,7 @@ the parsed value (a field the schema lacks, such as `confirm`, is not in it) and
 call while it runs; an invalid form calls nothing. The page composes
 `<form novalidate @submit.prevent="submit">`, one
 `<FormField :label="$t('auth.email')" :error="form.errorText('email')">` around each control
-(`<AppInput v-model="form.values.email" type="email" autocomplete="email" />`) and
+(`<BaseInput v-model="form.values.email" type="email" autocomplete="email" />`) and
 `<FormActions :pending="loading" />`. The field gives the control its id and `aria-invalid` /
 `aria-describedby` through `FORM_FIELD_KEY`. Error text is `errors.<key>` in `en.json` (`required`,
 `email`, `minlength`, `maxlength`, `min`, `max`, `pattern`, `invalid`, `match`; lengths fill
@@ -222,21 +238,26 @@ not enough). A new `*.form.ts` begins `import '@/shared/validators/zod-config'`;
 
 ## Styling
 
-Global SCSS in `src/styles/`, imported once from `main.ts`; components carry no styles
-(`tests/unit/styles-tree.spec.ts`). The structure: `setup/` (variables, breakpoints, functions,
-mixins, typography; emits no CSS), `themes/` (`brand.css` holds the generated brand tokens in plain
-CSS, `_light.scss` and `_dark.scss` the product's additions), `basics/` (helpers, base, layout),
-`components/` (one partial per shared or layout component, forwarded from `_index.scss`) and
-`views/` (one partial per screen). `styles.scss` `@use`s setup, themes, basics, components, views,
-in that order. Breakpoints `sm` 576, `md` 768, `lg` 1024, `xl` 1280, `xxl` 1536, mobile first
-(`@include up(md)`); spacing on a 4 px base (`space()`, `z()`).
+Two homes. The global tree in `src/styles/` is exactly `styles.scss`, `setup/`, `themes/` and
+`basics/`, imported once from `main.ts`; every page and component carries a sibling stylesheet of
+its own (`tests/unit/styles-tree.spec.ts`). `setup/` (variables, breakpoints, functions, mixins,
+typography, `_layers.scss`; emits no CSS but the typography), `themes/` (`brand.css` holds the
+generated brand tokens in plain CSS, `_light.scss` and `_dark.scss` the product's additions) and
+`basics/` (helpers, base, layout). `styles.scss` `@use`s `setup/layers` first, then setup, themes and
+basics, and the three groups sit in cascade layers (`@layer setup, themes, basics;`). Breakpoints
+`sm` 576, `md` 768, `lg` 1024, `xl` 1280, `xxl` 1536, mobile first (`@include up(md)`); spacing on a
+4 px base (`space()`, `z()`).
 
-- **Rules for a component.** Render class names only: no `<style>` block (scoped or not), no
-  `style` attribute (static or bound), no stylesheet import. A new component gets
-  `components/_<name>.scss`, forwarded from `components/_index.scss`; a new screen gets
-  `views/_<name>.scss` forwarded from `views/_index.scss`. Class names are BEM
-  (`.page-header__actions`); a partial `@use`s `../setup/...` for the functions and mixins it
-  needs. Never write a whole-line `// @word` comment in SCSS: the generator reads it as a marker.
+- **Rules for a component.** A page or component that needs rules gets a sibling `.scss` with its
+  stem (`app-header.scss`, `health-status-page.scss`) and references it with an empty
+  `<style lang="scss" src="./<stem>.scss"></style>` block, the last block of the file. `scoped` and a
+  `<style>` body are refused, so is a `style` attribute (static or bound) and any stylesheet import
+  outside `main.ts`. A partial two components share (`controls.scss`, `base-modal.scss`) is
+  referenced by each of them. Sibling sheets are never layered: an unlayered rule beats a layered
+  one at any specificity, so a page or component wins over the global tree whatever order the
+  bundler links the chunks in. Class names are BEM (`.page-header__actions`); a sheet `@use`s
+  `setup/...` (the `styles/` folder is a load path) for the functions and mixins it needs. Never
+  write a whole-line `// @word` comment in SCSS: the generator reads it as a marker.
 - **Tokens.** Colour, radius and font come from the custom properties (`var(--primary)`,
   `var(--surface-2)`, `var(--focus-ring)`); never a literal colour. `_light.scss` and `_dark.scss`
   hold the same keys. `<html data-theme>` selects the dark values; `public/theme-init.js` (a file,
@@ -249,12 +270,16 @@ in that order. Breakpoints `sm` 576, `md` 768, `lg` 1024, `xl` 1280, `xxl` 1536,
   `<html dir="rtl">` (the language toggle sets it).
 - **44 px.** Every control spans at least 44 px under `(pointer: coarse)`, whatever
   `data-density` says: use `@include touch-target` on any new control.
-- **Icons.** One set: `shared/components/app-icon.vue` over `lucide-vue-next` (the entries of
+- **Icons.** One set: `shared/components/base-icon.vue` over `lucide-vue-next` (the entries of
   `icons.ts`). One concept, one icon; a new concept adds an entry there, never a second set.
 - **Toasts.** One implementation: `store/notification.store.ts` holds the list and
-  `layout/components/toast-host.vue` renders it through Reka Toast. A toast may carry one action
+  `components/app-toast-host.vue` renders it through Reka Toast. A toast may carry one action
   (`{ labelKey, run }`; only `showInfo` and `showWarning` take it): it never times out and is
   dismissed when the action runs.
+- **Motion.** `<Transition>` and `<TransitionGroup>` wrap only elements the component renders
+  itself (the header's offline badge, `name="status"`); Reka's toasts, which it portals into its
+  viewport, animate through their own `data-state`. Every transition class sits in the owner's
+  sheet with a `@media (prefers-reduced-motion: reduce)` rule that switches it off.
 - **Theme toggle.** One toggle for everyone, in the header, a ghost icon button that cycles light,
   dark and system. The account menu holds avatar, email, profile and sign out, and no theme
   control.
@@ -266,36 +291,36 @@ in that order. Breakpoints `sm` 576, `md` 768, `lg` 1024, `xl` 1280, `xxl` 1536,
   initializer and the RTL spec are gone; the English table stays bundled and every `t` call site
   is unchanged.
 - **Width.** A form lives in a card or a view no wider than `26rem` (`auth-card`) or `40rem`
-  (`views/_profile.scss`, `_health-status.scss`); do not stretch a form field across the container.
+  (`profile-page.scss`, `health-status-page.scss`); do not stretch a form field across the container.
 - **Text props and labels.** A component prop that carries text takes an already translated string,
   and the heading prop of `PageHeader`, `EmptyState` and `ErrorState` is `heading`, never `title`.
-  An `AppButton` with `size="icon"` needs an `aria-label`; dev mode logs a console error when it
+  A `BaseButton` with `size="icon"` needs an `aria-label`; dev mode logs a console error when it
   is missing. A prop named `...Key` (`submitKey`, `cancelKey`, `emptyKey`, `captionKey`) takes a
   key of the copy table and translates it itself.
 - **Drawer.** Below `lg` the side nav is a modal drawer (a Reka Dialog): focus moves in and stays,
   the page behind is `inert`, Escape or navigation closes it and focus returns to the toggle.
 - **Raw controls** (`<button>`, `<input>`, `<select>`, `<textarea>`) exist only under
-  `shared/components/`; a feature never writes one. `AppButton` also renders a router link (`to="/"`)
+  `shared/components/`; a page never writes one. `BaseButton` also renders a router link (`to="/"`)
   so navigation and actions look the same.
 
 **The components** (`shared/components/<name>.vue`; the rubric names of the `ui-design` skill):
 
-| Component                                                 | What it is                                                                                                                                                                       |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `app-button` (`AppButton`)                                | The one `<button>` (or a link with `to`); `variant`, `size`, `loading`, `aria-label` for `size="icon"`.                                                                          |
-| `app-icon`                                                | The one icon set; `name`, `large`.                                                                                                                                               |
-| `form-field` (`FormField`)                                | Label, hint, the default-slot control and its error (below).                                                                                                                     |
-| `app-input`, `app-select`, `app-textarea`, `app-checkbox` | The controls; each takes `v-model` and emits `blur`. `app-input` has `type` and a password toggle; `app-select` and `app-checkbox` are Reka primitives.                          |
-| `form-actions` (`FormActions`)                            | Submit (`pending` shows the spinner and disables; `submitKey`) and optional cancel (`cancellable`, `@cancelled`); stacked on phones.                                             |
-| `page-header` (`PageHeader`)                              | Page heading, description and an `actions` slot.                                                                                                                                 |
-| `data-table` (`DataTable`)                                | `columns`, `rows`, a `cell` slot, `captionKey`, an empty state; scrolls inside its container.                                                                                    |
-| `app-modal`, `confirm-dialog`                             | `AppModal` (`title`, `size`, `v-model:open`) is the dialog; `ConfirmDialog` (`title`, `message`, `danger`, `@confirm`, `@cancel`) is the confirm pattern; both over Reka Dialog. |
-| `app-toast`                                               | One toast, presentational; the list is rendered by `layout/components/toast-host.vue`.                                                                                           |
-| `empty-state`, `error-state`                              | What a list shows with nothing to show, and what a failed load shows (`heading`, `description`, `@retry`).                                                                       |
-| `app-skeleton`, `app-spinner`                             | Loading placeholders; the spinner is a status region unless `decorative`.                                                                                                        |
-| `Page` (rubric)                                           | No component: the route's page `.vue` is the page, inside `<main id="main">` of the layout, with its view partial (`views/_<name>.scss`) setting the width and spacing.          |
-| `Section` (rubric)                                        | No component: a `<section>` with its own heading in the page, styled by the view partial.                                                                                        |
-| `ListSkeleton`, `CardSkeleton` (rubric)                   | `AppSkeleton`: `:lines="n"` for a list of rows, `variant="block"` for a card.                                                                                                    |
+| Component                                                     | What it is                                                                                                                                                                        |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `base-button` (`BaseButton`)                                  | The one `<button>` (or a link with `to`); `variant`, `size`, `loading`, `aria-label` for `size="icon"`.                                                                           |
+| `base-icon`                                                   | The one icon set; `name`, `large`.                                                                                                                                                |
+| `form-field` (`FormField`)                                    | Label, hint, the default-slot control and its error (below).                                                                                                                      |
+| `base-input`, `base-select`, `base-textarea`, `base-checkbox` | The controls; each takes `v-model` and emits `blur`. `base-input` has `type` and a password toggle; `base-select` and `base-checkbox` are Reka primitives.                        |
+| `form-actions` (`FormActions`)                                | Submit (`pending` shows the spinner and disables; `submitKey`) and optional cancel (`cancellable`, `@cancelled`); stacked on phones.                                              |
+| `page-header` (`PageHeader`)                                  | Page heading, description and an `actions` slot.                                                                                                                                  |
+| `data-table` (`DataTable`)                                    | `columns`, `rows`, a `cell` slot, `captionKey`, an empty state; scrolls inside its container.                                                                                     |
+| `base-modal`, `confirm-dialog`                                | `BaseModal` (`title`, `size`, `v-model:open`) is the dialog; `ConfirmDialog` (`title`, `message`, `danger`, `@confirm`, `@cancel`) is the confirm pattern; both over Reka Dialog. |
+| `base-toast`                                                  | One toast, presentational; the list is rendered by `components/app-toast-host.vue`.                                                                                               |
+| `empty-state`, `error-state`                                  | What a list shows with nothing to show, and what a failed load shows (`heading`, `description`, `@retry`).                                                                        |
+| `base-skeleton`, `base-spinner`                               | Loading placeholders; the spinner is a status region unless `decorative`.                                                                                                         |
+| `Page` (rubric)                                               | No component: the route's page `.vue` is the page, inside `<main id="main">` of the layout, with its sibling `<name>-page.scss` setting the width and spacing.                    |
+| `Section` (rubric)                                            | No component: a `<section>` with its own heading in the page, styled by the page's sibling sheet.                                                                                 |
+| `ListSkeleton`, `CardSkeleton` (rubric)                       | `BaseSkeleton`: `:lines="n"` for a list of rows, `variant="block"` for a card.                                                                                                    |
 
 <!-- @server:auth-start -->
 
@@ -314,7 +339,7 @@ grouped display with anything else unchanged, and the pure `time.ts`: `parseTime
 
 **The header's optional parts.** A `.vue` file takes template block markers only (a trailing
 marker or a marker inside `<script setup>` is never written), so no `.vue` file imports a file that
-exists only with a flag. `layout/components/slots.ts` is the one file the generator resolves:
+exists only with a flag. `components/slots.ts` is the one file the generator resolves:
 `accountSlot()`, `languageToggle()` and `installButton()` each return the component on a marked
 line, or `null` on the unmarked twin, and the header renders what they answer. A new optional part
 of the shell follows the same pattern.
@@ -466,6 +491,13 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && bun run preview`: the
 
 <!-- @server:auth-end -->
 
+- **The scans.** `tests/unit/styles-tree.spec.ts` reads the whole tree: `src/styles/` holds exactly
+  `styles.scss`, `setup/`, `themes/` and `basics/`; every `.scss` outside it has a sibling `.vue` with
+  its stem whose `<style lang="scss" src>` block is empty and last (or is referenced by two or more
+  siblings); no `scoped`, no block with a body, no `style` attribute; a `.vue` directly in
+  `components/` starts with `app-` and none in `shared/components/` does; the global partials sit in
+  their `@layer` and no sibling sheet does. `density.spec.ts` and `rtl-styles.spec.ts` compile and
+  scan `styles.scss` plus every sheet outside `styles/`. Each rule has a seeded case in the scan.
 - The data rule: a journey creates its data through the API or the UI with a name unique per run
   (`uniqueEmail`), and never takes the database's contents as a precondition.
 - Every new behaviour gets a test for the happy path and at least one for a failure or empty
@@ -487,7 +519,7 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && bun run preview`: the
   manifest, `sw.js`, `registerSW.js` and `workbox-*.js` into `dist/`; the worker registers in
   production only. It precaches the shell, never answers an `/api/` navigation with it, and caches
   one API response, `/api/health` (network first, 3 s timeout); never `/api/user/**` or
-  `/api/auth/**`. A feature adds a URL to `runtimeCaching` in `vite.config.ts` only for a public
+  `/api/auth/**`. A page module adds a URL to `runtimeCaching` in `vite.config.ts` only for a public
   read that carries no session or personal data; never `/api/**`.
 - **How an update reaches the user.** `store/app-update.store.ts` holds `needRefresh` and
   `updateServiceWorker`; `core/initializers/pwa.initializer.ts` checks at start, hourly and on
