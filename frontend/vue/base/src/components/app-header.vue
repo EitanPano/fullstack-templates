@@ -49,10 +49,12 @@ const Install = installButton()
       <RouterLink class="header__brand" to="/">{{ DISPLAY_NAME }}</RouterLink>
       <div class="header__tools">
         <span class="header__status" aria-live="polite">
-          <span v-if="!network.online" class="badge badge--warning">
-            <BaseIcon name="wifi-off" />
-            {{ $t('shell.offline') }}
-          </span>
+          <Transition name="status">
+            <span v-if="!network.online" class="badge badge--warning">
+              <BaseIcon name="wifi-off" />
+              {{ $t('shell.offline') }}
+            </span>
+          </Transition>
         </span>
         <component :is="Language" v-if="Language" />
         <component :is="Install" v-if="Install" />

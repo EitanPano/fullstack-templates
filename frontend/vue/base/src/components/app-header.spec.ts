@@ -1,5 +1,7 @@
 import { screen, within } from '@testing-library/vue'
+import { config } from '@vue/test-utils'
 import userEvent from '@testing-library/user-event'
+import { nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { DISPLAY_NAME } from '@/core/config/constants'
@@ -63,6 +65,29 @@ describe('AppHeader', () => {
     network.online = false
 
     expect(await screen.findByText('Offline')).toBeInTheDocument()
+  })
+
+  it('wraps the offline badge in a transition', async () => {
+    const { container } = await renderWithApp(AppHeader)
+
+    // The test utils stub <Transition> as <transition-stub>, which keeps the wrapper findable.
+    expect(container.querySelector('.header__status transition-stub')).not.toBeNull()
+  })
+
+  it('enters the badge through the status transition when the browser goes offline', async () => {
+    const stubs = config.global.stubs
+    config.global.stubs = { ...stubs, transition: false }
+    try {
+      const { container } = await renderWithApp(AppHeader)
+
+      useNetworkStore().online = false
+      await nextTick()
+
+      const badge = container.querySelector('.header__status .badge')
+      expect(badge).toHaveClass('status-enter-active')
+    } finally {
+      config.global.stubs = stubs
+    }
   })
 
   it('renders nothing for a slot whose flag is not on', async () => {
