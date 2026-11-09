@@ -130,14 +130,16 @@ function topLevelStatements(text: string): string[] {
   return rest ? [...statements, rest] : statements
 }
 const LAYER_ORDER = '@layer setup, themes, basics;'
-const GLOBAL_LAYERS: [path: string, layer: string][] = [
-  ['setup/_typography.scss', 'setup'],
-  ['themes/_light.scss', 'themes'],
-  ['themes/_dark.scss', 'themes'],
-  ['basics/_base.scss', 'basics'],
-  ['basics/_helpers.scss', 'basics'],
-  ['basics/_layout.scss', 'basics'],
-]
+// Every .scss under basics/ and themes/ except _index.scss is wrapped in its layer; setup/ emits
+// CSS only from _typography.scss. A new partial with bare rules fails without a list to update.
+function globalLayers(root: string): [path: string, layer: string][] {
+  const partials = (dir: string) =>
+    readdirSync(join(root, 'styles', dir))
+      .filter((name) => name.endsWith('.scss') && name !== '_index.scss')
+      .sort()
+      .map((name): [string, string] => [`${dir}/${name}`, dir])
+  return [['setup/_typography.scss', 'setup'], ...partials('themes'), ...partials('basics')]
+}
 const readStyles = (root: string, path: string) => readFileSync(join(root, 'styles', path), 'utf8')
 function layerProblems(root: string): string[] {
   const problems: string[] = []
@@ -150,7 +152,7 @@ function layerProblems(root: string): string[] {
       `styles/styles.scss: the first @use is ${firstUse ?? 'missing'}, expected @use 'setup/layers';`,
     )
   }
-  for (const [path, layer] of GLOBAL_LAYERS) {
+  for (const [path, layer] of globalLayers(root)) {
     const text = readStyles(root, path)
     if (!text.includes(`@layer ${layer} {`)) {
       problems.push(`styles/${path}: its rules are not in @layer ${layer} { }`)
@@ -299,6 +301,31 @@ describe('the scan itself', () => {
 
     expect(layerProblems(root)).toEqual([
       'styles/basics/_layout.scss: its rules are not in @layer basics { }',
+    ])
+  })
+
+  it('refuses a new basics partial with a bare rule', () => {
+    const root = seed({ 'styles/basics/_extra.scss': 'a {\n  color: red;\n}\n' })
+
+    expect(layerProblems(root)).toEqual([
+      'styles/basics/_extra.scss: its rules are not in @layer basics { }',
+    ])
+  })
+
+  it('refuses an extra entry in src/styles/', () => {
+    const root = seed({ 'styles/components/_x.scss': '.x {\n  color: red;\n}\n' })
+
+    expect(stylesEntries(root)).toEqual(['basics', 'components', 'setup', 'styles.scss', 'themes'])
+    expect(stylesEntries(root)).not.toEqual(STYLES_ENTRIES)
+  })
+
+  it('refuses an entry that loads another stylesheet', () => {
+    const root = seed({
+      'main.tsx': "import '@/styles/themes/brand.css'\nimport '@/styles/other.scss'\nexport {}\n",
+    })
+
+    expect(badStylesheetImports(root)).toEqual([
+      'main.tsx: stylesheets @/styles/themes/brand.css, @/styles/other.scss, expected @/styles/themes/brand.css, @/styles/styles.scss',
     ])
   })
 
