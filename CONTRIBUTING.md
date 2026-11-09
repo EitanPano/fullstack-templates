@@ -401,8 +401,8 @@ When a dependency moves or the base is regenerated:
    overlaps a rule fails it (ESLint flat config replaces a rule's options for a file with those of
    the last block that matches it, and does not merge them). `tests/unit/density.test.ts` compiles
    the SCSS tree and asserts the control heights (36 px, 32 px compact, 44 px on a coarse pointer);
-   `tests/unit/styles-tree.test.ts` refuses a stylesheet import outside `main.tsx` and any `style`
-   attribute.
+   `tests/unit/styles-tree.test.ts` refuses a stylesheet without its sibling owner, a sibling
+   import that is not the owner's last import, and any `style` attribute.
 7. Bump `version` in `template.yaml` and `index.yaml`, add a `CHANGELOG.md` entry, and run
    `bun tools/validate.ts --readme`.
 8. Re-run the react cases with the container smoke:

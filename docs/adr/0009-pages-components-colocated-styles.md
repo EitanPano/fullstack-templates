@@ -435,7 +435,7 @@ against `frontend/react/base`, `frontend/vue/base` and `frontend/angular/base`.
   `app-header.scss`, is the Vue transition example; Reka's toasts animate through their own
   `data-state` keyframes in `base-toast.scss`. Cost: a follow-up if a `<TransitionGroup>` example
   is wanted on another list.
-- **Vue tooling.** `vue/block-lang` takes `{ script: 'ts', style: 'scss' }` (S3: it checks `lang`
+- **Vue tooling.** `vue/block-lang` takes `{ script: { lang: 'ts' }, style: { lang: 'scss' } }` (S3: it checks `lang`
   only, accepts the empty `<style lang="scss" src>` block and flags a lang-less `<style>`), so
   `vue/no-restricted-block` for `style` is dropped. The page element's `fileInternalPath` is
   `*.vue`, so a non-page `.ts` directly in `src/pages/<module>/`, other than routes and forms, is
@@ -451,7 +451,7 @@ against `frontend/react/base`, `frontend/vue/base` and `frontend/angular/base`.
   to be a `@use`, a comment or the one `@layer` block. Vue's scan takes the same shape (its
   sibling `<style>` block must be the last block, and it refuses a layered sibling and a stray
   rule in a partial); Angular's refuses `ViewEncapsulation.None`, `::ng-deep`, an unprefixed
-  app-wide component and a sheet outside its layer.
+  app-wide component and a layered component sheet (a component sheet may not use `@layer`).
 - **Release hygiene.** Vue's manifest sort reordered `postGenerate` and was restored in its own
   commit. The intermediate commits of the three template tasks are not individually green (the
   lint config is re-pathed in a later commit); the merged tree is.
