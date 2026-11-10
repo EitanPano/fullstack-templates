@@ -29,15 +29,15 @@ const FILES = [
   'src/shared/components/toaster.tsx',
   'src/core/config/env.ts',
   'src/components/app-main-components.tsx',
-  'src/pages/health/health.routes.tsx',
-  'src/pages/health/home-page.tsx',
-  'src/pages/health/components/system-status.tsx',
+  'src/pages/post/post.routes.tsx',
+  'src/pages/post/home-page.tsx',
+  'src/pages/post/components/post-list.tsx',
   'src/pages/other/other.routes.tsx',
   'src/pages/other/y.tsx',
   'src/store/index.ts',
   'src/store/theme.slice.ts',
   'src/services/api.ts',
-  'src/services/health.api.ts',
+  'src/services/post.api.ts',
   'src/services/auth.api.ts',
   'src/services/user.api.ts',
   'src/services/generated/types.gen.ts',
@@ -51,7 +51,7 @@ const FILES = [
   'src/core/theme/theme.ts',
   'src/shared/utils/cn.ts',
   'src/shared/components/button.tsx',
-  'src/models/health.ts',
+  'src/models/post.ts',
   'src/models/api-error.ts',
   'src/models/user.ts',
   'src/testing/render-routes.tsx',
@@ -99,10 +99,10 @@ const BOUNDARY = 'boundaries/dependencies'
 const SYNTAX = 'no-restricted-syntax'
 const IMPORTS = 'no-restricted-imports'
 
-const PAGE_FILE = 'src/pages/health/x.tsx'
-const SDK = "import { getApiHealth } from '@/services/generated/sdk.gen'"
-const ZOD = "import { zHealthResponse } from '@/services/generated/zod.gen'"
-const TYPES = "import type { HealthResponse } from '@/services/generated/types.gen'"
+const PAGE_FILE = 'src/pages/post/x.tsx'
+const SDK = "import { getApiPost } from '@/services/generated/sdk.gen'"
+const ZOD = "import { zPostResponse } from '@/services/generated/zod.gen'"
+const TYPES = "import type { PostResponse } from '@/services/generated/types.gen'"
 
 type Violation = [rule: string, file: string, code: string, ruleId: string, message: string]
 
@@ -111,14 +111,14 @@ const violations: Violation[] = [
   [
     'app → page page',
     'src/app/x.tsx',
-    "import '@/pages/health/home-page'",
+    "import '@/pages/post/home-page'",
     BOUNDARY,
     'app/ imports a page only through its *.routes.tsx',
   ],
   [
     'app → services',
     'src/app/x.tsx',
-    "import '@/services/health.api'",
+    "import '@/services/post.api'",
     BOUNDARY,
     'read data through a hook in a page',
   ],
@@ -126,7 +126,7 @@ const violations: Violation[] = [
   [
     'components → page',
     'src/components/x.tsx',
-    "import '@/pages/health/health.routes'",
+    "import '@/pages/post/post.routes'",
     BOUNDARY,
     'compose pages in app/routes.tsx',
   ],
@@ -162,8 +162,8 @@ const violations: Violation[] = [
   ],
   [
     'page form → services',
-    'src/pages/health/health.form.ts',
-    "import '@/services/health.api'",
+    'src/pages/post/post.form.ts',
+    "import '@/services/post.api'",
     BOUNDARY,
     'a *.form.ts imports shared/, models/ and the generated zod schemas only',
   ],
@@ -178,7 +178,7 @@ const violations: Violation[] = [
   [
     'store → page',
     'src/store/x.ts',
-    "import '@/pages/health/health.routes'",
+    "import '@/pages/post/post.routes'",
     BOUNDARY,
     'store/ imports services/',
   ],
@@ -200,7 +200,7 @@ const violations: Violation[] = [
   [
     'services → page',
     'src/services/x.ts',
-    "import '@/pages/health/health.routes'",
+    "import '@/pages/post/post.routes'",
     BOUNDARY,
     'it never knows the store, shared/ or any screen',
   ],
@@ -243,7 +243,7 @@ const violations: Violation[] = [
   [
     'core/auth/guards → page',
     'src/core/auth/guards.ts',
-    "import '@/pages/health/health.routes'",
+    "import '@/pages/post/post.routes'",
     BOUNDARY,
     'core/auth/guards.ts is the one file that reaches store/ and services/',
   ],
@@ -301,7 +301,7 @@ const violations: Violation[] = [
   [
     'shared → services',
     'src/shared/components/x.tsx',
-    "import '@/services/health.api'",
+    "import '@/services/post.api'",
     BOUNDARY,
     'shared/ is product-agnostic',
   ],
@@ -315,7 +315,7 @@ const violations: Violation[] = [
   [
     'shared → page',
     'src/shared/components/x.tsx',
-    "import '@/pages/health/health.routes'",
+    "import '@/pages/post/post.routes'",
     BOUNDARY,
     'shared/ is product-agnostic',
   ],
@@ -339,13 +339,13 @@ const violations: Violation[] = [
   [
     'generated value import in a page (relative path)',
     PAGE_FILE,
-    "import { getApiHealth } from '../../services/generated/sdk.gen'",
+    "import { getApiPost } from '../../services/generated/sdk.gen'",
     IMPORTS,
     'add an endpoint in services/<module>.api.ts',
   ],
   [
     'generated sdk in a page form',
-    'src/pages/health/health.form.ts',
+    'src/pages/post/post.form.ts',
     SDK,
     IMPORTS,
     'only services/ imports the generated runtime',
@@ -360,15 +360,15 @@ const violations: Violation[] = [
   // The generated files: runtime in services/ only; types through models/.
   [
     'generated barrel in a page form',
-    'src/pages/health/health.form.ts',
+    'src/pages/post/post.form.ts',
     "import '@/services/generated'",
     IMPORTS,
     'only services/ imports the generated runtime',
   ],
   [
     'generated sdk in a page form (relative path)',
-    'src/pages/health/health.form.ts',
-    "import { getApiHealth } from '../../services/generated/sdk.gen'",
+    'src/pages/post/post.form.ts',
+    "import { getApiPost } from '../../services/generated/sdk.gen'",
     IMPORTS,
     'only services/ imports the generated runtime',
   ],
@@ -431,14 +431,14 @@ const violations: Violation[] = [
   ],
   [
     'page form → core',
-    'src/pages/health/health.form.ts',
+    'src/pages/post/post.form.ts',
     "import '@/core/config/constants'",
     BOUNDARY,
     'a *.form.ts imports shared/, models/',
   ],
   [
     'page form → store',
-    'src/pages/health/health.form.ts',
+    'src/pages/post/post.form.ts',
     "import '@/store/index'",
     BOUNDARY,
     'a *.form.ts imports shared/, models/',
@@ -453,14 +453,14 @@ const violations: Violation[] = [
   [
     'main.tsx → services',
     'src/main.tsx',
-    "import '@/services/health.api'",
+    "import '@/services/post.api'",
     BOUNDARY,
     'main.tsx imports app/, store/, core/ and shared/ only',
   ],
   [
     'window.fetch in a page',
     PAGE_FILE,
-    "await window.fetch('/api/health')",
+    "await window.fetch('/api/post')",
     SYNTAX,
     'call the API through a services/<module>.api.ts endpoint',
   ],
@@ -497,21 +497,21 @@ const violations: Violation[] = [
   [
     'bare fetch outside api-client',
     'src/services/x.ts',
-    "await fetch('/api/health')",
+    "await fetch('/api/post')",
     SYNTAX,
     'call the API through a services/<module>.api.ts endpoint',
   ],
   [
     'globalThis.fetch outside api-client',
     'src/core/auth/x.ts',
-    "await globalThis.fetch('/api/health')",
+    "await globalThis.fetch('/api/post')",
     SYNTAX,
     'call the API through a services/<module>.api.ts endpoint',
   ],
   [
     'bare fetch in shared/components',
     'src/shared/components/x.tsx',
-    "await fetch('/api/health')",
+    "await fetch('/api/post')",
     SYNTAX,
     'call the API through a services/<module>.api.ts endpoint',
   ],
@@ -555,37 +555,32 @@ const violations: Violation[] = [
 ]
 
 const allowed: [what: string, file: string, code: string, ruleId: string][] = [
-  ['app → page routes', 'src/app/x.tsx', "import '@/pages/health/health.routes'", BOUNDARY],
+  ['app → page routes', 'src/app/x.tsx', "import '@/pages/post/post.routes'", BOUNDARY],
   ['app → components', 'src/app/x.tsx', "import '@/components/app-main-components'", BOUNDARY],
   ['app → core guards', 'src/app/x.tsx', "import '@/core/auth/guards'", BOUNDARY],
   ['app → store', 'src/app/x.tsx', "import '@/store/index'", BOUNDARY],
   ['app → shared', 'src/app/x.tsx', "import '@/shared/utils/cn'", BOUNDARY],
-  ['app → models', 'src/app/x.tsx', "import '@/models/health'", BOUNDARY],
+  ['app → models', 'src/app/x.tsx', "import '@/models/post'", BOUNDARY],
   [
     'components → services (the hooks)',
     'src/components/x.tsx',
-    "import '@/services/health.api'",
+    "import '@/services/post.api'",
     BOUNDARY,
   ],
   ['components → store', 'src/components/x.tsx', "import '@/store/index'", BOUNDARY],
   ['components → core', 'src/components/x.tsx', "import '@/core/theme/theme'", BOUNDARY],
-  ['page → own page', PAGE_FILE, "import '@/pages/health/components/system-status'", BOUNDARY],
-  ['page → own page (relative path)', PAGE_FILE, "import './components/system-status'", BOUNDARY],
-  ['page → services (the hooks)', PAGE_FILE, "import '@/services/health.api'", BOUNDARY],
+  ['page → own page', PAGE_FILE, "import '@/pages/post/components/post-list'", BOUNDARY],
+  ['page → own page (relative path)', PAGE_FILE, "import './components/post-list'", BOUNDARY],
+  ['page → services (the hooks)', PAGE_FILE, "import '@/services/post.api'", BOUNDARY],
   ['page → store', PAGE_FILE, "import '@/store/index'", BOUNDARY],
-  [
-    'page → core guards',
-    'src/pages/health/health.routes.tsx',
-    "import '@/core/auth/guards'",
-    BOUNDARY,
-  ],
+  ['page → core guards', 'src/pages/post/post.routes.tsx', "import '@/core/auth/guards'", BOUNDARY],
   ['page → shared', PAGE_FILE, "import '@/shared/components/button'", BOUNDARY],
-  ['page → models', PAGE_FILE, "import '@/models/health'", BOUNDARY],
-  ['page form → shared', 'src/pages/health/health.form.ts', "import '@/shared/utils/cn'", BOUNDARY],
-  ['page form → generated zod schemas', 'src/pages/health/health.form.ts', ZOD, BOUNDARY],
+  ['page → models', PAGE_FILE, "import '@/models/post'", BOUNDARY],
+  ['page form → shared', 'src/pages/post/post.form.ts', "import '@/shared/utils/cn'", BOUNDARY],
+  ['page form → generated zod schemas', 'src/pages/post/post.form.ts', ZOD, BOUNDARY],
   [
     'page form → generated zod schemas (no restricted import)',
-    'src/pages/health/health.form.ts',
+    'src/pages/post/post.form.ts',
     ZOD,
     IMPORTS,
   ],
@@ -602,7 +597,7 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   [
     'core/auth/guards → services',
     'src/core/auth/guards.ts',
-    "import '@/services/health.api'",
+    "import '@/services/post.api'",
     BOUNDARY,
   ],
   [
@@ -619,7 +614,7 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   ],
   [
     'page → core/auth',
-    'src/pages/health/health.routes.tsx',
+    'src/pages/post/post.routes.tsx',
     "import '@/core/auth/session-hint'",
     BOUNDARY,
   ],
@@ -635,9 +630,9 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     "import '@/core/auth/session-hint'",
     BOUNDARY,
   ],
-  ['core/auth/guards → models', 'src/core/auth/guards.ts', "import '@/models/health'", BOUNDARY],
+  ['core/auth/guards → models', 'src/core/auth/guards.ts', "import '@/models/post'", BOUNDARY],
   ['core/config → shared', 'src/core/config/x.ts', "import '@/shared/utils/cn'", BOUNDARY],
-  ['core/config → models', 'src/core/config/x.ts', "import '@/models/health'", BOUNDARY],
+  ['core/config → models', 'src/core/config/x.ts', "import '@/models/post'", BOUNDARY],
   [
     'core/config → core/auth/session-hint',
     'src/core/config/x.ts',
@@ -653,7 +648,7 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     IMPORTS,
   ],
   ['shared → shared', 'src/shared/components/x.tsx', "import '@/shared/utils/cn'", BOUNDARY],
-  ['shared → models', 'src/shared/components/x.tsx', "import '@/models/health'", BOUNDARY],
+  ['shared → models', 'src/shared/components/x.tsx', "import '@/models/post'", BOUNDARY],
   ['models → generated (import type)', 'src/models/x.ts', TYPES, BOUNDARY],
   ['store → generated (import type)', 'src/store/x.ts', TYPES, BOUNDARY],
   ['core/config → generated (import type)', 'src/core/config/x.ts', TYPES, BOUNDARY],
@@ -664,12 +659,12 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     BOUNDARY,
   ],
   ['models → models', 'src/models/x.ts', "import '@/models/api-error'", BOUNDARY],
-  ['testing → page', 'src/testing/x.tsx', "import '@/pages/health/health.routes'", BOUNDARY],
+  ['testing → page', 'src/testing/x.tsx', "import '@/pages/post/post.routes'", BOUNDARY],
   ['testing → app', 'src/testing/x.tsx', "import '@/app/nav'", BOUNDARY],
   ['testing → store', 'src/testing/x.tsx', "import '@/store/index'", BOUNDARY],
   [
     'a test file → testing',
-    'src/pages/health/x.test.tsx',
+    'src/pages/post/x.test.tsx',
     "import '@/testing/render-routes'",
     BOUNDARY,
   ],
@@ -686,11 +681,11 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     SYNTAX,
   ],
   ['a component used as <Button>', PAGE_FILE, 'export const x = <Button />', SYNTAX],
-  ['fetch in api-client', 'src/core/config/api-client.ts', "await fetch('/api/health')", SYNTAX],
+  ['fetch in api-client', 'src/core/config/api-client.ts', "await fetch('/api/post')", SYNTAX],
   [
     'globalThis.fetch in api-client',
     'src/core/config/api-client.ts',
-    "await globalThis.fetch('/api/health')",
+    "await globalThis.fetch('/api/post')",
     SYNTAX,
   ],
   [
@@ -708,7 +703,7 @@ describe('files outside every layer', { timeout: 60_000 }, () => {
   it.each([
     'src/hooks/use-thing.ts',
     'src/layout/x.tsx',
-    'src/features/health/x.tsx',
+    'src/features/post/x.tsx',
     'src/lib/format.ts',
     'src/utils/format.ts',
     'src/stray.ts',
@@ -722,7 +717,7 @@ describe('files outside every layer', { timeout: 60_000 }, () => {
     'src/shared/utils/x.ts',
     'src/models/x.ts',
     'src/components/app-x.tsx',
-    'src/pages/health/x.tsx',
+    'src/pages/post/x.tsx',
   ])('%s is allowed', async (file) => {
     expect(await messagesFor(file, 'export {}', UNKNOWN_FILES)).toEqual([])
   })
@@ -734,7 +729,7 @@ describe('lint rules', { timeout: 60_000 }, () => {
   it('still reports exactly one boundaries message for shared → page', async () => {
     const found = await messagesFor(
       'src/shared/components/x.tsx',
-      "import '@/pages/health/health.routes'",
+      "import '@/pages/post/post.routes'",
       BOUNDARY,
     )
     expect(found).toHaveLength(1)
