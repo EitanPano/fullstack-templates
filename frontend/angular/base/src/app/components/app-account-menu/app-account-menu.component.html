@@ -1,0 +1,39 @@
+@if (auth.isLoggedIn()) {
+  <div
+    #userMenu
+    class="user-menu"
+    role="presentation"
+    (keydown.escape)="escapeMenu()"
+    (focusout)="leaveMenu($event)"
+  >
+    <app-button
+      class="user-menu__trigger"
+      variant="ghost"
+      size="icon"
+      [ariaLabel]="'auth.menu.label' | t"
+      [ariaExpanded]="menuOpen()"
+      ariaControls="user-menu"
+      (click)="toggleMenu()"
+    >
+      <span class="avatar" aria-hidden="true" [attr.data-initials]="initials()"></span>
+    </app-button>
+    @if (menuOpen()) {
+      <div
+        id="user-menu"
+        class="user-menu__panel"
+        role="group"
+        [attr.aria-label]="'auth.menu.label' | t"
+      >
+        <p class="user-menu__email">{{ auth.user()?.email }}</p>
+        <app-button link="/profile" variant="ghost" size="sm" block (click)="closeMenu()">{{
+          'auth.menu.profile' | t
+        }}</app-button>
+        <app-button variant="ghost" size="sm" block (click)="signOut()">{{
+          'auth.menu.signOut' | t
+        }}</app-button>
+      </div>
+    }
+  </div>
+} @else {
+  <app-button link="/auth/login" variant="ghost" size="sm">{{ 'auth.menu.signIn' | t }}</app-button>
+}

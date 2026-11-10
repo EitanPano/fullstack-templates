@@ -19,8 +19,6 @@ $spacing: (
 $z-index: (
   base: 0,
   header: 100,
-  drawer-backdrop: 200,
-  drawer: 210,
   overlay: 1000,
   toast: 1100,
   skip-link: 1200,
@@ -29,5 +27,4 @@ $z-index: (
 // The smallest touch target on a coarse pointer (WCAG 2.5.8 asks 24 px, this template holds 44 px).
 $touch-target: 44px;
 $header-height: 3.5rem;
-$side-nav-width: 16rem;
 $container-max: 72rem;

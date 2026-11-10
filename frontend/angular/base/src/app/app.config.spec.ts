@@ -11,6 +11,7 @@ import { appConfig } from './app.config'
 import en from './core/i18n/translations/en.json' // @i18n
 import { AppMainLayoutComponent } from './components/app-main-layout/app-main-layout.component'
 import { NAV } from './nav'
+import { HomeComponent } from './pages/home/home/home.component'
 
 describe('appConfig', () => {
   beforeEach(async () => {
@@ -38,13 +39,14 @@ describe('appConfig', () => {
     expect(['light', 'dark']).toContain(document.documentElement.getAttribute('data-theme'))
   })
 
-  it('routes the home path to the health feature inside the layout', async () => {
+  it('routes the home path to the index page inside the layout', async () => {
     const router = TestBed.inject(Router)
     await router.navigateByUrl('/')
     const layout = router.routerState.snapshot.root.firstChild
     expect(layout?.component).toBe(AppMainLayoutComponent)
     expect(layout?.firstChild?.routeConfig?.path).toBe('')
     expect(layout?.firstChild?.routeConfig?.pathMatch).toBe('full')
+    expect(layout?.firstChild?.firstChild?.component).toBe(HomeComponent)
   })
 
   it('routes an unknown path to the not-found page inside the layout', async () => {

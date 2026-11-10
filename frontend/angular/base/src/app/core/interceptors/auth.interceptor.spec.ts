@@ -15,13 +15,20 @@ import { StorageService } from '@app/core/providers/storage.service'
 import { isApiError } from '@app/models/api/response'
 import { AuthStore } from '@app/store/auth.store'
 import { AuthService } from '@app/services/auth.service'
-import { HealthService } from '@app/services/health.service'
+import { UserService } from '@app/services/user.service'
 
 import { provideHttp } from './http.provider'
 
 const UNAUTHENTICATED = { error: { code: 'unauthenticated', message: 'x' }, requestId: 'r' }
 const UNAUTHORIZED = { status: 401, statusText: 'Unauthorized' }
-const HEALTH = { status: 'ok', uptimeSeconds: 1, version: '1' }
+const ME = {
+  id: 'u1',
+  email: 'ada@example.com',
+  role: 'user',
+  phone: null,
+  emailVerifiedAt: null,
+  createdAt: '2026-01-01T00:00:00.000Z',
+}
 const CREDENTIALS = { email: 'ada@example.com', password: 'longenough1' }
 
 @Component({ template: '' })
@@ -77,11 +84,11 @@ describe('authInterceptor', () => {
     })
 
     it('collapses two concurrent 401s into one refresh and replays both requests once', async () => {
-      const health = TestBed.inject(HealthService)
-      const first = health.get()
-      const second = health.get()
+      const users = TestBed.inject(UserService)
+      const first = users.me()
+      const second = users.me()
 
-      const attempts = await take('/api/health', 2)
+      const attempts = await take('/api/user/me', 2)
       for (const attempt of attempts) attempt.flush(UNAUTHENTICATED, UNAUTHORIZED)
 
       const refreshes = await take('/api/auth/refresh')
@@ -89,19 +96,19 @@ describe('authInterceptor', () => {
       expect(refreshes[0].request.method).toBe('POST')
       refreshes[0].flush({})
 
-      const replays = await take('/api/health', 2)
+      const replays = await take('/api/user/me', 2)
       expect(replays).toHaveLength(2)
-      for (const replay of replays) replay.flush(HEALTH)
+      for (const replay of replays) replay.flush(ME)
 
-      await expect(Promise.all([first, second])).resolves.toEqual([HEALTH, HEALTH])
+      await expect(Promise.all([first, second])).resolves.toEqual([ME, ME])
       expectNoRequest('/api/auth/refresh')
     })
 
     it('replays the request only once: a second 401 reaches the caller', async () => {
-      const result = TestBed.inject(HealthService).get()
-      ;(await take('/api/health'))[0].flush(UNAUTHENTICATED, UNAUTHORIZED)
+      const result = TestBed.inject(UserService).me()
+      ;(await take('/api/user/me'))[0].flush(UNAUTHENTICATED, UNAUTHORIZED)
       ;(await take('/api/auth/refresh'))[0].flush({})
-      ;(await take('/api/health'))[0].flush(UNAUTHENTICATED, UNAUTHORIZED)
+      ;(await take('/api/user/me'))[0].flush(UNAUTHENTICATED, UNAUTHORIZED)
 
       const error: unknown = await result.catch((cause: unknown) => cause)
       expect(isApiError(error) && error.code).toBe('unauthenticated')
@@ -109,21 +116,21 @@ describe('authInterceptor', () => {
     })
 
     it('returns the original 401 as an ApiError when the refresh is refused, and forgets the hint', async () => {
-      const result = TestBed.inject(HealthService).get()
-      ;(await take('/api/health'))[0].flush(UNAUTHENTICATED, UNAUTHORIZED)
+      const result = TestBed.inject(UserService).me()
+      ;(await take('/api/user/me'))[0].flush(UNAUTHENTICATED, UNAUTHORIZED)
       ;(await take('/api/auth/refresh'))[0].flush(UNAUTHENTICATED, UNAUTHORIZED)
 
       const error: unknown = await result.catch((cause: unknown) => cause)
       expect(isApiError(error) && error.code).toBe('unauthenticated')
       expect(hintSet()).toBe(false)
-      expectNoRequest('/api/health')
+      expectNoRequest('/api/user/me')
     })
 
     it('sends the visitor to login with the current page as next when the refresh is refused', async () => {
       const router = TestBed.inject(Router)
       await router.navigateByUrl('/profile?tab=2')
-      const result = TestBed.inject(HealthService).get()
-      ;(await take('/api/health'))[0].flush(UNAUTHENTICATED, UNAUTHORIZED)
+      const result = TestBed.inject(UserService).me()
+      ;(await take('/api/user/me'))[0].flush(UNAUTHENTICATED, UNAUTHORIZED)
       ;(await take('/api/auth/refresh'))[0].flush(UNAUTHENTICATED, UNAUTHORIZED)
       await result.catch(() => undefined)
       await vi.waitFor(() => {
@@ -134,8 +141,8 @@ describe('authInterceptor', () => {
     it('does not navigate when the refresh only failed on the network (the session may be fine)', async () => {
       const router = TestBed.inject(Router)
       await router.navigateByUrl('/profile')
-      const result = TestBed.inject(HealthService).get()
-      ;(await take('/api/health'))[0].flush(UNAUTHENTICATED, UNAUTHORIZED)
+      const result = TestBed.inject(UserService).me()
+      ;(await take('/api/user/me'))[0].flush(UNAUTHENTICATED, UNAUTHORIZED)
       ;(await take('/api/auth/refresh'))[0].error(new ProgressEvent('error'))
       await result.catch(() => undefined)
       expect(router.url).toBe('/profile')
@@ -152,8 +159,8 @@ describe('authInterceptor', () => {
     })
 
     it('keeps the hint and the original error when the refresh cannot reach the server', async () => {
-      const result = TestBed.inject(HealthService).get()
-      ;(await take('/api/health'))[0].flush(UNAUTHENTICATED, UNAUTHORIZED)
+      const result = TestBed.inject(UserService).me()
+      ;(await take('/api/user/me'))[0].flush(UNAUTHENTICATED, UNAUTHORIZED)
       ;(await take('/api/auth/refresh'))[0].error(new ProgressEvent('error'))
 
       const error: unknown = await result.catch((cause: unknown) => cause)
@@ -199,8 +206,8 @@ describe('authInterceptor', () => {
     })
 
     it('does not refresh for a failure that is not a 401', async () => {
-      const result = TestBed.inject(HealthService).get()
-      ;(await take('/api/health'))[0].flush(
+      const result = TestBed.inject(UserService).me()
+      ;(await take('/api/user/me'))[0].flush(
         { error: { code: 'forbidden', message: 'x' }, requestId: 'r' },
         { status: 403, statusText: 'Forbidden' },
       )
@@ -212,8 +219,8 @@ describe('authInterceptor', () => {
 
   describe('without a session hint', () => {
     it('does not refresh: a visitor 401 goes straight to the caller', async () => {
-      const result = TestBed.inject(HealthService).get()
-      ;(await take('/api/health'))[0].flush(UNAUTHENTICATED, UNAUTHORIZED)
+      const result = TestBed.inject(UserService).me()
+      ;(await take('/api/user/me'))[0].flush(UNAUTHENTICATED, UNAUTHORIZED)
 
       const error: unknown = await result.catch((cause: unknown) => cause)
       expect(isApiError(error) && error.code).toBe('unauthenticated')
@@ -222,10 +229,10 @@ describe('authInterceptor', () => {
   })
 
   it('sends the cookies on every request', async () => {
-    const result = TestBed.inject(HealthService).get()
-    const [request] = await take('/api/health')
+    const result = TestBed.inject(UserService).me()
+    const [request] = await take('/api/user/me')
     expect(request.request.withCredentials).toBe(true)
-    request.flush(HEALTH)
+    request.flush(ME)
     await result
   })
 

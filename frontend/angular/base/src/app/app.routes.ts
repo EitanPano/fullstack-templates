@@ -18,7 +18,7 @@ export const routes: Routes = [
       {
         path: '',
         pathMatch: 'full',
-        loadChildren: () => import('./pages/health/health.routes'),
+        loadChildren: () => import('./pages/home/home.routes').then((m) => m.HOME_ROUTES),
       },
       // @server:auth-start
       {

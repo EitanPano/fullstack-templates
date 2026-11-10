@@ -9,8 +9,8 @@ const toasts: Toast[] = [
   {
     id: 1,
     kind: 'success',
-    messageKey: 'shell.footer',
-    params: { year: 2026, name: 'App' },
+    messageKey: 'auth.otp.description',
+    params: { email: 'ada@example.com' },
     timeoutMs: 1,
   },
   { id: 2, kind: 'error', messageKey: 'errors.unexpected', timeoutMs: 1 },
@@ -27,7 +27,7 @@ describe('ToastComponent', () => {
     await fixture.whenStable()
     const items = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.toast'))
     expect(items.map((item) => item.getAttribute('role'))).toEqual(['status', 'alert'])
-    expect(items[0].textContent).toContain('© 2026 App')
+    expect(items[0].textContent).toContain('a six-digit code to ada@example.com')
     expect(items[1].textContent).toContain('Something went wrong')
   })
 

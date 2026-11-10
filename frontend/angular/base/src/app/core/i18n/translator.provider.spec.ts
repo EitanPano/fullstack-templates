@@ -30,8 +30,8 @@ describe('StaticTranslator', () => {
   })
 
   it('fills {{param}} placeholders and leaves an unknown one in place', () => {
-    expect(translator.translate('shell.footer', { year: 2026, name: 'Acme' })).toBe('© 2026 Acme')
-    expect(translator.translate('shell.footer', { year: 2026 })).toBe('© 2026 {{name}}')
+    expect(translator.translate('theme.current', { current: 'Dark' })).toBe('Dark theme')
+    expect(translator.translate('theme.current')).toBe('{{current}} theme')
   })
 
   it('returns the key and warns for a missing key or a branch', () => {

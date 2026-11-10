@@ -4,14 +4,10 @@
     "loading": "Loading"
   },
   "nav": {
-    "primary": "Primary",
-    "open": "Open navigation",
-    "close": "Close navigation",
     "home": "Home"
   },
-  "shell": {
-    "offline": "Offline",
-    "footer": "© {{year}} {{name}}"
+  "home": {
+    "description": "Replace this page with the first screen."
   },
   "language": {
     "toggle": "Switch language to {{name}}",
@@ -80,20 +76,6 @@
     "close": "Close",
     "confirm": "Confirm",
     "cancel": "Cancel"
-  },
-  "health": {
-    "title": "System status",
-    "description": "Whether the server is up and answering.",
-    "refresh": "Refresh",
-    "version": "Version",
-    "uptime": "Uptime",
-    "uptimeValue": "{{seconds}} seconds",
-    "checked": "Last checked",
-    "status": {
-      "label": "Status",
-      "ok": "Operational",
-      "degraded": "Degraded"
-    }
   },
   "pwa": {
     "updateReady": "A new version is ready.",

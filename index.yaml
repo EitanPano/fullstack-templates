@@ -13,7 +13,7 @@ templates:
   - id: angular
     kind: frontend
     path: frontend/angular
-    version: 2.0.0
+    version: 3.0.0
     summary: "Angular 22 single-page app on standalone components and signals, @ngrx/signals stores, co-located SCSS on a global token tree and Hey API's Angular client, with Transloco and the service worker behind flags"
   - id: next
     kind: frontend
