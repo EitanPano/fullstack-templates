@@ -10,10 +10,10 @@ The layer map of this package. Commands are in `package.json`; the contract code
 - `app/`: the wiring; no product logic, no fetch. `App.vue` (a `<RouterView />`), `plugins.ts`
   (`installPlugins`: Pinia, router, i18n, the error interceptor, the global error handler, the
   `has-role` directive and `ROLES_KEY`, the session and PWA initializers), `routes.ts` (the main
-  layout with `props: { nav: NAV }`, one lazy `*.routes.ts` per page module, the catch-all last; the
-  auth layout and its routes with auth), `router.ts` (sets `document.title` from
-  `meta.titleKey`) and `nav.ts` (the one navigation table; `NavEntry` lives in `models/nav/`, and
-  `components/` receives the table as a route prop because it may not import `app/`).
+  layout, one lazy `*.routes.ts` per page module, the catch-all last; the auth layout and its
+  routes with auth), `router.ts` (sets `document.title` from
+  `meta.titleKey`) and `nav.ts` (the one navigation table, read by `screens.spec` and by the navigation a product
+  builds; `NavEntry` lives in `models/nav/`).
 - `core/`: singletons wired once in `app/plugins.ts`, never imported by `shared/`.
   `config/` (`env.ts` the only reader of `import.meta`, `constants.ts` with the `STORAGE_KEYS`,
   `api-client.ts` the generator's `runtimeConfigPath`), `interceptors/`, `guards/`,
@@ -21,22 +21,36 @@ The layer map of this package. Commands are in `package.json`; the contract code
   hint: platform wrappers with no reactive state), `i18n/` (vue-i18n with English bundled; with
   the `i18n` flag also `languages.ts` and `translations/he.json`), `errors/`.
 - `components/`: the app-wide components, every file `app-*` with its `.scss` beside it when
-  styled. The shells: `app-main-layout` (skip link, header, side nav, `<main id="main">`, footer,
-  toast host; it takes the nav table as a prop because `components/` never imports `app/`); and
-  what they compose: `app-header` (with an offline badge that enters through `<Transition>`),
-  `app-side-nav`, `app-nav-links`, `app-footer`, `app-toast-host`. `slots.ts` is the generator's
-  one resolved file (below). A component goes here when a shell composes it or it reads a store;
-  a reusable control or pattern goes to `shared/components/`. With auth: `app-auth-layout`
-  (centred card, no shell) and `app-account-menu`; with `i18n` `app-language-toggle`; with `pwa`
-  `app-install-button`.
+  styled. `app-main-layout` (the skip link, the one `<main id="main">` and the toast host; no
+  header, navigation or footer, see "The shell") and `app-toast-host`. A component the product
+  places: `app-theme-toggle`. A component goes here when a layout composes it or it reads a store;
+  a reusable control or pattern goes to `shared/components/`.
+
+<!-- @server:auth-start -->
+
+- With auth: `app-auth-layout` (centred card, no shell) and `app-account-menu`, which the product
+  places.
+
+<!-- @server:auth-end -->
+<!-- @i18n-start -->
+
+- With `i18n`: `app-language-toggle`, which the product places.
+
+<!-- @i18n-end -->
+<!-- @pwa-start -->
+
+- With `pwa`: `app-install-button`, which the product places.
+
+<!-- @pwa-end -->
+
 - `pages/<module>/`: one directory per server module or screen group, named for the glossary
   noun, flat: `<module>.routes.ts` (a default export of `RouteRecordRaw[]`), the routed
   `<name>-page.vue` files beside it (read a store), each with its `<name>-page.scss`, when needed
   `<module>.form.ts` (a form over the generated zod schemas); `components/` is the one
   sub-directory, for the module's own presentational pieces. A page never imports another
-  module. `health/` is the worked example; `not-found/` is the catch-all route.
-- `store/`: every Pinia store, all setup stores. The domain stores (`health`, and with auth
-  `auth` and `user`: one per server module) and the app-state stores (`theme`, `notification`,
+  module. `home/` is the index route and `not-found/` the catch-all.
+- `store/`: every Pinia store, all setup stores. The domain stores (one per server
+  module; with auth `auth` and `user`) and the app-state stores (`theme`, `notification`,
   `network`, `loading`; `language` with `i18n`; `app-update` and `install-prompt` with `pwa`),
   plus `request-status.ts`. The import rule is the same for both kinds.
 - `services/`: one facade per server module over the generated SDK; `generated/` is the Hey API
@@ -63,7 +77,7 @@ Write the files by hand, copying the nearest sibling.
 | A routed screen                             | `pages/<module>/<page>-page.vue` + `<page>-page.scss`    |
 | A presentational piece of one module        | `pages/<module>/components/`                             |
 | A form                                      | `pages/<module>/<module>.form.ts`                        |
-| An app-wide component (header, menu)        | `components/app-<name>.vue` + `app-<name>.scss`          |
+| An app-wide component (a header, a menu)    | `components/app-<name>.vue` + `app-<name>.scss`          |
 | A primitive (button, input, dialog)         | `shared/components/base-<name>.vue` + `.scss` beside it  |
 | A reusable pattern or composable            | `shared/`                                                |
 | A guard, interceptor, initializer, provider | `core/`                                                  |
@@ -72,10 +86,10 @@ Write the files by hand, copying the nearest sibling.
 | A copy string                               | `core/i18n/translations/en.json` (and `he.json`, `i18n`) |
 
 **Naming.** Files are kebab-case, and a component is PascalCase in a template:
-`health-status-page.vue` renders as `<HealthStatusPage>`. `<script setup lang="ts">` and the
+`home-page.vue` renders as `<HomePage>`. `<script setup lang="ts">` and the
 Composition API only. A primitive carries the `Base` prefix (`base-button.vue`,
 `<BaseButton>`; `vue/multi-word-component-names`), an app-wide component the `App` prefix
-(`app-header.vue`, `<AppHeader>`). A file that is not a component takes a suffix:
+(`app-theme-toggle.vue`, `<AppThemeToggle>`). A file that is not a component takes a suffix:
 `*.store.ts`, `*.service.ts`, `*.guard.ts`, `*.interceptor.ts`, `*.routes.ts`, `*.form.ts`,
 `*.initializer.ts`; a composable is `use-kebab.ts` and exports `useKebab`. Cross-layer imports use
 the alias `@/*` (`src/*`); imports inside one page module stay relative. Specs sit beside the file as
@@ -133,8 +147,9 @@ bundle carries no API URL.
 ## Adding a feature
 
 The data flows one way: **page -> store -> facade -> generated SDK**. A page reads a store and never
-a service; the generated runtime is imported only in `services/` and `http.provider.ts`. `health`
-(the home screen) is the worked example, file by file:
+a service; the generated runtime is imported only in `services/` and `http.provider.ts`. A noun
+`post`, step by step; the names the contract generates (`getApiPost`, `patchApiPostById`, `Post`)
+exist once step 1 has run.
 
 1. **Glossary and contract.** Name the noun and the action in `.doc/glossary.md`. If the server's
    contract changed, run `bun run api:types` (the input is the server's `openapi.json`):
@@ -142,42 +157,186 @@ a service; the generated runtime is imported only in `services/` and `http.provi
    the template comes from `server/python-fastapi`; a rule the contract states differs per
    server (the e-mail pattern exists in python-fastapi's, not in bun-express's), and a project
    regenerates the folder from its own server at bootstrap.
-2. **Models** `models/health/`: `interface.ts` re-exports the generated types (`import type`; a
-   hand-written API shape is a lint error) and `constants.ts` maps a status to its `labelKey` and
-   tone. `models/api/` holds `ApiError`, `isApiError()`, `toApiError()`, `Paginated<T>` and
-   `errorMessageKey()`.
-3. **Service** `services/health.service.ts`: an object with one method per call, each
-   `const { data } = await getApiHealth({ throwOnError: true })` and `return data`. A failure
-   rejects with the `ApiError` the error interceptor built.
-4. **Store** `store/health.store.ts`: `defineStore('health', () => { ... })`, a setup store.
-   `const request = useRequestStatus()` (`status`, `error`, `loading`, `loaded`, `failed`,
-   `setLoading`, `setLoaded`, `setError`, `fail`) and `return { ...request, health, load }`; a
-   store with two independent requests calls it twice. A method is `request.setLoading()`,
-   `await` the facade, patch the refs, `request.setLoaded()`; in the `catch` it toasts once:
-   `notifications.showError(errorMessageKey(request.fail(cause, 'health.load').code))`. `fail`
-   keeps the `ApiError` in state and logs a cause that is not an `ApiError`, so a bug is never
-   silent. **Account data (with auth).** A store that holds an account's data (`user.store.ts` is
-   the example) exposes `reset()` and clears itself when `auth.isLoggedIn` turns false, so
-   sign-out and a refused refresh leave nothing for the next account; its `load()` drops the old
-   value before it calls, and ignores an answer that arrives after sign-out. **Offline rule:** a
-   store method that mutates checks `network.online` first and toasts `errors.offline` instead of
-   sending (health only reads, so it does not).
-5. **Page module** `pages/health/`: `health.routes.ts` (the default export; a lazy
-   `component: () => import('./health-status-page.vue')` and `meta: { titleKey }`),
-   `health-status-page.vue` (routed; `storeToRefs` on the store; skeleton while loading,
-   `<ErrorState>` with retry on failure, the loaded view) and `components/health-badge.vue`
-   (presentational: props and a model table, no store).
-6. **Route and nav.** The routes file is spread into the main layout's `children` in
-   `app/routes.ts`, and for a top-level screen an entry goes in `app/nav.ts`
-   (`{ path: '/', labelKey: 'nav.home' }`).
-7. **Styles** `pages/health/health-status-page.scss`, a sibling `.scss` with the page's stem,
-   referenced by `<style lang="scss" src="./health-status-page.scss"></style>`, the last block of
-   the page.
-8. **Copy** in `core/i18n/translations/en.json` **and `he.json`** (the `i18n` flag;
-   `tests/unit/translation-parity.spec.ts` fails when a key or a `{param}` is missing from one):
-   `nav.home`, `health.*`, and the `errors.<code>` text for any new envelope code. Use every key
-   through `$t` or `t` and never branch on the flag.
-9. **Specs** beside each file (see Tests): service, store, page, component.
+2. **Models and service.** `models/post/interface.ts` re-exports the generated types (`import type`;
+   a hand-written API shape is a lint error). `services/post.service.ts` is an object with one
+   method per call, each `throwOnError: true` returning `data`; a failure rejects with the
+   `ApiError` the error interceptor built.
+
+   ```ts
+   // models/post/interface.ts
+   import type { Post } from '@/services/generated/types.gen'
+
+   export type { Post }
+
+   // services/post.service.ts
+   import type { Post } from '@/models/post/interface'
+
+   import { getApiPost, patchApiPostById } from './generated/sdk.gen'
+
+   export const postService = {
+     async list(): Promise<Post[]> {
+       const { data } = await getApiPost({ throwOnError: true })
+       return data
+     },
+
+     async rename(id: string, title: string): Promise<Post> {
+       const { data } = await patchApiPostById({
+         path: { id },
+         body: { title },
+         throwOnError: true,
+       })
+       return data
+     },
+   }
+   ```
+
+3. **A read** is a setup store: `useRequestStatus()` gives `status`, `error`, `loading`, `loaded`,
+   `failed` and the setters; a method sets loading, awaits the facade, patches the refs and, in the
+   `catch`, toasts once. `fail` keeps the `ApiError` in state and logs a cause that is not an
+   `ApiError`, so a bug is never silent.
+
+   ```ts
+   // store/post.store.ts
+   import { defineStore } from 'pinia'
+   import { ref } from 'vue'
+
+   import { errorMessageKey } from '@/models/api/error-copy'
+   import type { Post } from '@/models/post/interface'
+   import { postService } from '@/services/post.service'
+
+   import { useNotificationStore } from './notification.store'
+   import { useRequestStatus } from './request-status'
+
+   export const usePostStore = defineStore('post', () => {
+     const request = useRequestStatus()
+     const notifications = useNotificationStore()
+     const posts = ref<Post[]>([])
+
+     async function load(): Promise<void> {
+       request.setLoading()
+       try {
+         posts.value = await postService.list()
+         request.setLoaded()
+       } catch (cause) {
+         notifications.showError(errorMessageKey(request.fail(cause, 'post.load').code))
+       }
+     }
+
+     return { ...request, posts, load }
+   })
+   ```
+
+4. **A mutation** is a store method too. It checks `network.online` first and toasts
+   `errors.offline` instead of sending, and answers whether the server accepted the change. A
+   validation failure stays in `error` for the page to put on its fields (the form recipe below).
+
+   ```ts
+   // in store/post.store.ts, beside load(); also `import { useNetworkStore } from './network.store'`
+   const network = useNetworkStore()
+
+   async function rename(id: string, title: string): Promise<boolean> {
+     if (!network.online) {
+       notifications.showError('errors.offline')
+       return false
+     }
+     request.setLoading()
+     try {
+       const saved = await postService.rename(id, title)
+       posts.value = posts.value.map((post) => (post.id === id ? saved : post))
+       request.setLoaded()
+       return true
+     } catch (cause) {
+       notifications.showError(errorMessageKey(request.fail(cause, 'post.rename').code))
+       return false
+     }
+   }
+   ```
+
+5. **A page** `pages/post/`: `post.routes.ts` (a default export, a lazy component and `meta:
+{ titleKey }`) and `post-page.vue` with its `post-page.scss`. The page wraps its root in
+   `PageContainer`, reads the store with `storeToRefs`, shows a skeleton while loading and
+   `ErrorState` with a retry on failure. A full-bleed screen (a board, an editor) leaves
+   `PageContainer` out.
+
+   ```ts
+   // pages/post/post.routes.ts
+   import type { RouteRecordRaw } from 'vue-router'
+
+   const routes: RouteRecordRaw[] = [
+     { path: 'post', component: () => import('./post-page.vue'), meta: { titleKey: 'post.title' } },
+   ]
+   export default routes
+   ```
+
+   ```vue
+   <!-- pages/post/post-page.vue -->
+   <script setup lang="ts">
+   import { storeToRefs } from 'pinia'
+
+   import { errorMessageKey } from '@/models/api/error-copy'
+   import BaseSkeleton from '@/shared/components/base-skeleton.vue'
+   import ErrorState from '@/shared/components/error-state.vue'
+   import PageContainer from '@/shared/components/page-container.vue'
+   import PageHeader from '@/shared/components/page-header.vue'
+   import { usePostStore } from '@/store/post.store'
+
+   const store = usePostStore()
+   const { posts, loading, failed, error } = storeToRefs(store)
+   void store.load()
+   </script>
+
+   <template>
+     <PageContainer>
+       <section class="post">
+         <PageHeader :heading="$t('post.title')" />
+         <ErrorState
+           v-if="failed"
+           :description="$t(errorMessageKey(error?.code ?? 'unknown'))"
+           @retry="store.load()"
+         />
+         <BaseSkeleton v-else-if="loading" :lines="3" />
+         <ul v-else>
+           <li v-for="post in posts" :key="post.id">{{ post.title }}</li>
+         </ul>
+       </section>
+     </PageContainer>
+   </template>
+
+   <style lang="scss" src="./post-page.scss"></style>
+   ```
+
+6. **Route and nav.** Spread the routes file into the main layout's `children` in `app/routes.ts`
+   (`...postRoutes`), and for a top-level screen add `{ path: '/post', labelKey: 'nav.post' }` to
+   `app/nav.ts`.
+7. **Copy** in `core/i18n/translations/en.json`: `post.title`, `nav.post` and the `errors.<code>`
+   text for any new envelope code (the rules are under Styling, Copy).
+8. **Specs** beside each file (see Tests): service, store, page.
+
+**The shell.** The template renders no header, navigation or footer: `components/app-main-layout.vue`
+is the skip link, the page's one `main` and the toast host. A product's chrome is an `app-*`
+component in `components/` (this template's home for app-wide components) that the layout renders
+between the skip link and `<main>`. `components/` may not import `app/`, so a navigation takes the
+table of `app/nav.ts` as a prop that `routes.ts` passes (`props: { nav: NAV }`). `app-theme-toggle` is
+ready to place there.
+
+<!-- @server:auth-start -->
+
+With the server's auth, `app-account-menu` is ready to place there too.
+
+<!-- @server:auth-end -->
+<!-- @i18n-start -->
+
+With `i18n`, so is `app-language-toggle`.
+
+<!-- @i18n-end -->
+<!-- @pwa-start -->
+
+With `pwa`, so is `app-install-button`.
+
+<!-- @pwa-end -->
+
+`main` has no width and no padding: a page gets its container from `PageContainer`
+(`shared/components/page-container.vue`), and a full-bleed page leaves it out.
 
 **Guarding a route (the server's `auth` flag; the files exist only then).** `core/guards/` holds
 `authGuard` (a visitor is redirected to `/auth/login?next=<attempted path and query>`),
@@ -189,7 +348,7 @@ before it decides. A guard only keeps a visitor off a screen; the API decides on
 template, `v-has-role="'admin'"` (or an array) hides a control from an account without the role:
 `shared/directives/has-role.ts` is built per app by `createHasRoleDirective(roles)` and registered
 in `app/plugins.ts`, which also provides `ROLES_KEY` (`shared/directives/roles.ts`) from the same
-ref, so the side nav's filter by `NavEntry.roles` injects it. A page with edits to lose calls
+ref, so a navigation a product builds can filter by `NavEntry.roles` through it. A page with edits to lose calls
 `useUnsavedChangesGuard(hasChanges)` (`core/guards/unsaved-changes.guard.ts`; `hasChanges` is a
 function answering whether there are edits) and binds the returned state to a `<ConfirmDialog>`
 (`profile-page.vue` is the example). The login page reads `next` through `safeNextPath`
@@ -249,7 +408,7 @@ basics, and the three groups sit in cascade layers (`@layer setup, themes, basic
 4 px base (`space()`, `z()`).
 
 - **Rules for a component.** A page or component that needs rules gets a sibling `.scss` with its
-  stem (`app-header.scss`, `health-status-page.scss`) and references it with an empty
+  stem (`base-button.scss`, `home-page.scss`) and references it with an empty
   `<style lang="scss" src="./<stem>.scss"></style>` block, the last block of the file. `scoped` and a
   `<style>` body are refused, so is a `style` attribute (static or bound) and any stylesheet import
   outside `main.ts`. A partial two components share (`controls.scss`, `base-modal.scss`) is
@@ -277,12 +436,11 @@ basics, and the three groups sit in cascade layers (`@layer setup, themes, basic
   (`{ labelKey, run }`; only `showInfo` and `showWarning` take it): it never times out and is
   dismissed when the action runs.
 - **Motion.** `<Transition>` and `<TransitionGroup>` wrap only elements the component renders
-  itself (the header's offline badge, `name="status"`); Reka's toasts, which it portals into its
+  itself; Reka's toasts, which it portals into its
   viewport, animate through their own `data-state`. Every transition class sits in the owner's
   sheet with a `@media (prefers-reduced-motion: reduce)` rule that switches it off.
-- **Theme toggle.** One toggle for everyone, in the header, a ghost icon button that cycles light,
-  dark and system. The account menu holds avatar, email, profile and sign out, and no theme
-  control.
+- **Theme toggle.** One toggle for everyone, `components/app-theme-toggle.vue`: a ghost icon button
+  that cycles light, dark and system, which the product places (see The shell).
 - **Copy.** Every user-visible string goes through `$t('notFound.title')` in a template or `t` from
   `useI18n()` in script, with its key in `core/i18n/translations/en.json`, nested by area, `{param}`
   for values, and the same key in `he.json` when the `i18n` flag is on. vue-i18n is installed in
@@ -290,15 +448,13 @@ basics, and the three groups sit in cascade layers (`@layer setup, themes, basic
 - **Flag off (`i18n`).** The language toggle, `he.json`, `languages.ts`, the language store and
   initializer and the RTL spec are gone; the English table stays bundled and every `t` call site
   is unchanged.
-- **Width.** A form lives in a card or a view no wider than `26rem` (`auth-card`) or `40rem`
-  (`profile-page.scss`, `health-status-page.scss`); do not stretch a form field across the container.
+- **Width.** A form lives in a view no wider than `40rem` (`home-page.scss`); do not stretch a form
+  field across the container.
 - **Text props and labels.** A component prop that carries text takes an already translated string,
   and the heading prop of `PageHeader`, `EmptyState` and `ErrorState` is `heading`, never `title`.
   A `BaseButton` with `size="icon"` needs an `aria-label`; dev mode logs a console error when it
   is missing. A prop named `...Key` (`submitKey`, `cancelKey`, `emptyKey`, `captionKey`) takes a
   key of the copy table and translates it itself.
-- **Drawer.** Below `lg` the side nav is a modal drawer (a Reka Dialog): focus moves in and stays,
-  the page behind is `inert`, Escape or navigation closes it and focus returns to the toggle.
 - **Raw controls** (`<button>`, `<input>`, `<select>`, `<textarea>`) exist only under
   `shared/components/`; a page never writes one. `BaseButton` also renders a router link (`to="/"`)
   so navigation and actions look the same.
@@ -318,7 +474,8 @@ basics, and the three groups sit in cascade layers (`@layer setup, themes, basic
 | `base-toast`                                                  | One toast, presentational; the list is rendered by `components/app-toast-host.vue`.                                                                                               |
 | `empty-state`, `error-state`                                  | What a list shows with nothing to show, and what a failed load shows (`heading`, `description`, `@retry`).                                                                        |
 | `base-skeleton`, `base-spinner`                               | Loading placeholders; the spinner is a status region unless `decorative`.                                                                                                         |
-| `Page` (rubric)                                               | No component: the route's page `.vue` is the page, inside `<main id="main">` of the layout, with its sibling `<name>-page.scss` setting the width and spacing.                    |
+| `page-container` (`PageContainer`)                            | The page pattern's frame: the container width, centring, gutters and the compact padding. A page wraps its root in it; a full-bleed page leaves it out.                           |
+| `Page` (rubric)                                               | The route's page `.vue` inside `<main id="main">`: a `PageContainer` around its root `<section>`, with its sibling `<name>-page.scss` setting the width and spacing.              |
 | `Section` (rubric)                                            | No component: a `<section>` with its own heading in the page, styled by the page's sibling sheet.                                                                                 |
 | `ListSkeleton`, `CardSkeleton` (rubric)                       | `BaseSkeleton`: `:lines="n"` for a list of rows, `variant="block"` for a card.                                                                                                    |
 
@@ -326,7 +483,8 @@ basics, and the three groups sit in cascade layers (`@layer setup, themes, basic
 
 With the server's `auth` flag, `shared/components/auth-card.vue` (`AuthCard`) is the sign-in and
 sign-up card, 26rem wide: props `heading` (required) and `description`, the default slot for the
-form and a `footer` slot for the alternate link. The file exists only with `auth`.
+form and a `footer` slot for the alternate link. The file exists only with `auth`. Its
+`app-account-menu` holds avatar, email, profile and sign out, and no theme control.
 
 <!-- @server:auth-end -->
 
@@ -336,13 +494,6 @@ control inside it, once after mount), `shared/composables/` (`use-media-query.ts
 functions: `relativeTime(iso, lang)` "3 minutes ago" in the active language, `formatPhone(e164)` a
 grouped display with anything else unchanged, and the pure `time.ts`: `parseTime`, `differenceIn`,
 `isSameDay`).
-
-**The header's optional parts.** A `.vue` file takes template block markers only (a trailing
-marker or a marker inside `<script setup>` is never written), so no `.vue` file imports a file that
-exists only with a flag. `components/slots.ts` is the one file the generator resolves:
-`accountSlot()`, `languageToggle()` and `installButton()` each return the component on a marked
-line, or `null` on the unmarked twin, and the header renders what they answer. A new optional part
-of the shell follows the same pattern.
 
 ## Errors
 
@@ -415,12 +566,12 @@ awaited the call shows the outcome.
   starting with `// @vitest-environment node`. `vitest.config.mts` sets `allowOnly: false`,
   `passWithNoTests: false` and `unstubGlobals: true`; `vitest.setup.ts` supplies the `matchMedia`,
   `ResizeObserver` and pointer-capture stand-ins Reka needs.
-- **The API is the one boundary a test fakes.** `stubApi({ 'GET /api/health': Response.json(...) })`
+- **The API is the one boundary a test fakes.** `stubApi({ 'GET /api/post': Response.json([...]) })`
   (`src/testing/stub-api.ts`) replaces the global `fetch`, keyed `METHOD /path`; unlisted calls
   answer 404. A facade is tested through it, with the real generated client behind.
 - **A store** is tested on a fresh `createPinia()` with either `stubApi` (the real facade and
-  client behind it, as `auth.store.spec.ts`) or `vi.spyOn` on one facade method (as
-  `health.store.spec.ts`), never a module mock of a facade (the one `vi.mock` in a store spec
+  client behind it, as `auth.store.spec.ts`) or `vi.spyOn` on one facade method (as a store spec of
+  the recipe), never a module mock of a facade (the one `vi.mock` in a store spec
   replaces the virtual `virtual:pwa-register/vue` module, in `app-update.store.spec.ts`); **a
   page** with
   `renderWithApp(Page, { route, initialState })` (`src/testing/render.ts`): a testing Pinia
@@ -463,9 +614,12 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && bun run preview`: the
   (`devices['Desktop Chrome']`) runs `shell.spec.ts` and `screens.spec.ts`. A check that belongs to
   one of them carries `@phone` or `@desktop` in its title and the other project's `grepInvert`
   leaves it out, so nothing skips at run time; never a `test.skip`.
-- **Specs.** `shell.spec.ts` asserts the landmarks, the skip link, no horizontal overflow, the
-  44 px touch targets (phone, also with `data-density="compact"`) and the desktop densities.
-  `smoke.spec.ts` shows the health status the API returns. `screens.spec.ts` captures every screen
+- **Specs.** `shell.spec.ts` asserts the skip link, the one `main`, no horizontal overflow, the 404
+  inside `main`, its control's 44 px touch target (phone, also with `data-density="compact"`), the
+  desktop densities and the compact padding of the page container.
+  `smoke.spec.ts` asserts the index route is one `h1` inside `main` and that `GET /api/health` on
+  the page's origin answers 200 (the proxy, by a request). `bundle.spec.ts` asserts a clean console,
+  the theme script served as a file and the bundle under a CSP that forbids eval. `screens.spec.ts` captures every screen
   in phone and desktop, light and dark, to `test-results/screens/<route>-<viewport>-<theme>.png`
   (QA reads them) and checks each: no axe violation of the WCAG A and AA tags (in dark this is the
   contrast measurement), no horizontal scroll, exactly one `h1`. A failure names the route, theme
@@ -486,7 +640,7 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && bun run preview`: the
   and plants the session hint (`localStorage` key `session-hint`, the JSON string `"1"`). Entries
   share one account per project because the register route is rate limited. `auth.spec.ts` covers
   sign-up, sign-in, the profile, sign-out, a wrong password, a taken email on its field, the
-  guarded redirect with `next`, and two calls that expire together sharing one `/api/auth/refresh`.
+  guarded redirect with `next`.
   An e2e that forces a theme writes the JSON-quoted value (`setTheme`).
 
 <!-- @server:auth-end -->
@@ -518,8 +672,7 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && bun run preview`: the
 - **Service worker (the `pwa` flag).** `vite-plugin-pwa` (`registerType: 'prompt'`) emits the
   manifest, `sw.js`, `registerSW.js` and `workbox-*.js` into `dist/`; the worker registers in
   production only. It precaches the shell, never answers an `/api/` navigation with it, and caches
-  one API response, `/api/health` (network first, 3 s timeout); never `/api/user/**` or
-  `/api/auth/**`. A page module adds a URL to `runtimeCaching` in `vite.config.ts` only for a public
+  no API response. A page module adds a URL to `runtimeCaching` in `vite.config.ts` only for a public
   read that carries no session or personal data; never `/api/**`.
 - **How an update reaches the user.** `store/app-update.store.ts` holds `needRefresh` and
   `updateServiceWorker`; `core/initializers/pwa.initializer.ts` checks at start, hourly and on
@@ -529,10 +682,10 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && bun run preview`: the
 - **Install.** The manifest is configuration in `vite.config.ts` (its theme and background colours
   are `#ffffff`; change them to the brand) and the placeholder icons are in `public/icons/`
   (`icon.svg`, `icon-192.png`, `icon-512.png`, `maskable-512.png`, `apple-touch-icon.png`).
-  **Replace the icons** with the product's own. The header shows an install button when the browser
-  offers one, and a hint on iOS Safari (no install event there).
+  **Replace the icons** with the product's own. `app-install-button` is the button the product
+  places when the browser offers one; iOS Safari gets a hint toast (no install event there).
 - **Flag off.** Without `pwa` the plugin lines, `vite-plugin-pwa` and `workbox-window`, the icons,
-  the stores, the initializer and the header control are gone, and the build emits no worker.
+  the stores, the initializer and `app-install-button` are gone, and the build emits no worker.
 - The app calls the API at relative `/api` on its own origin in every environment: no API URL is
   compiled into the bundle and there is no CORS. Whatever serves `dist/` must also route `/api` to
   the server (a reverse proxy, or the server serving the files itself).
