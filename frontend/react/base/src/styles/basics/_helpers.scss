@@ -1,4 +1,3 @@
-@use '../setup/breakpoints';
 @use '../setup/functions';
 @use '../setup/mixins';
 @use '../setup/variables';
@@ -31,17 +30,6 @@
     }
 
     @include mixins.touch-target;
-  }
-
-  .container {
-    inline-size: 100%;
-    max-inline-size: variables.$container-max;
-    margin-inline: auto;
-    padding-inline: functions.space(4);
-
-    @include breakpoints.up(md) {
-      padding-inline: functions.space(8);
-    }
   }
 
   // Lucide icons: 1 rem inside a button or a line of text, `icon--lg` for an empty state.

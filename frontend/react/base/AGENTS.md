@@ -27,7 +27,8 @@ The layer map of this package. Commands are in `package.json`; the contract code
   styled. The layout and its group screens: `app-main-layout` (`AppMainLayout`: the skip link and
   the one `main`), `app-main-loading` (the group's `HydrateFallback`), `app-main-error` (its
   `ErrorBoundary`). Components the product places in its own shell, rendered by no template file:
-  `app-user-menu` (an avatar menu with the theme choices) and `app-theme-menu`. A component goes
+  `app-user-menu` (the avatar menu, which carries the theme items) is the control a product
+  places; `app-theme-menu` is those items, for a menu the product writes. A component goes
   here when a layout or the product's shell composes it or it reads the store, the theme or the
   session; a reusable control or pattern goes to `shared/components/`.
 
@@ -289,7 +290,8 @@ link and the page's one `main`. A product's chrome is a component in `components
 template's home for app-wide components) that `AppMainLayout` renders between the skip link and
 `main`. The nav table lives in `app/nav.ts` and `components/` never imports `app/`, so
 `app/routes.tsx` passes it in: give `AppMainLayout` a prop, such as `nav`, for the chrome to read.
-`AppUserMenu` and `AppThemeMenu` are ready to place there.
+`AppUserMenu` is ready to place there (it carries the theme items); `AppThemeMenu` is a fragment
+of menu items for a menu the product writes, and throws outside one.
 
 <!-- @server:auth-start -->
 
@@ -472,8 +474,8 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
   `ConfirmDialog`; `AuthCard` with auth. `Page` is the container: `main` has no width and no
   padding, so every route that renders in it (a page, the 404, the group's loading and error) is
   wrapped in `Page`, which carries the width, the gutters and the vertical padding (tighter under
-  compact density); a full-bleed screen is a route that renders without it. `AppUserMenu` and
-  `AppThemeMenu` in `components/` are the controls the product places in its header.
+  compact density); a full-bleed screen is a route that renders without it. `AppUserMenu` in
+  `components/` is the control the product places in its header; `AppThemeMenu` is its theme items.
   Use a pattern before writing a layout by hand. A page never adds a landmark set; it sets its
   title with a `<title>` element.
 - **Forms** use `shared/components/form/`. **Status** is a `Badge` by meaning

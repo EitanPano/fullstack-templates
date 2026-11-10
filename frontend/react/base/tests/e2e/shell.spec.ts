@@ -37,6 +37,15 @@ for (const path of ['/', '/no/such/page']) {
   })
 }
 
+// A full-bleed screen fills the viewport without a layout prop: main takes the rest of the column.
+test('main reaches the bottom of the viewport on a short page', async ({ page }) => {
+  await page.goto('/')
+
+  const bottom = await page.locator('main').evaluate((main) => main.getBoundingClientRect().bottom)
+  const viewport = await page.evaluate(() => window.innerHeight)
+  expect(bottom).toBeGreaterThanOrEqual(viewport - 1)
+})
+
 test('an unknown URL renders not-found inside main', async ({ page }) => {
   await page.goto('/no/such/page')
 
