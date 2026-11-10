@@ -147,16 +147,17 @@ The checklist is what `validate` and the cases prove.
       A frontend declares no `auth` flag of its own.
 - [ ] The invariants hold in the template's own terms: the generated client in a committed directory
       the agents file names; the API at relative `/api` with no compiled-in URL, no CORS and a dev
-      proxy; one env module; the shell a skip link and one `main`, with no header, navigation or footer, no
-      example screen, an index route of one `h1`, and the page pattern owning the container
-      ([ADR 0010](docs/adr/0010-no-chrome-no-example-screen.md)); the brand placeholders
+      proxy; one env module; the shell a skip link and one `main`, with no header, navigation or
+      footer, no example screen, an index route of one `h1`, and the page pattern owning the
+      container ([ADR 0010](docs/adr/0010-no-chrome-no-example-screen.md)); the brand placeholders
       (`__THEME_LIGHT__`, `__THEME_DARK__`, `__THEME_RADIUS__`, `__THEME_FONT_STACK__`,
       `__THEME_DENSITY__`, `__PROJECT_DISPLAY_NAME__`) in the files that carry the tokens, with the
       dark selector the template declares; `theme-init.js` a file, never inline; with auth, the guards,
       `/forbidden`, the 401 refresh that collapses and the session hint.
 - [ ] The tests the template owns: its own glue once (the main layout's unit test, the one nav
-      table that `screens.spec` reads, the components the product places, each with its unit test,
-      the error mapping, theme toggling, form bindings and, with auth, the session helpers, every auth action's success and
+      table that `screens.spec` reads, the components the template ships for the product to place
+      (the theme toggle, the account menu), each with its unit test, the error mapping, theme
+      toggling, form bindings and, with auth, the session helpers, every auth action's success and
       failure and a refresh that two concurrent 401s trigger once); the e2e `shell.spec`,
       `screens.spec`, `smoke.spec` and the auth journeys on the `phone` and `desktop` projects, with
       `reuseExistingServer: false`, `RATE_LIMIT_SCALE`, the API's command chained as `e2eDb && start`
@@ -578,9 +579,9 @@ the lockfiles is still to be configured.
   minor, was `frontend/vue` 1.0.0 with the stacks `vue-bun-express` and `vue-python-fastapi` (Pinia
   setup stores, Vue Router and Reka UI on the global SCSS tree;
   [ADR 0008](docs/adr/0008-vue-pinia.md)); it left the other templates and `schemaVersion`
-  unchanged and had no tool change. Before it, `v1.7.0`, a minor, was `frontend/react` 3.0.0, a template's own major (its layout moves every
-  file: Redux Toolkit with RTK Query, Radix primitives on the global SCSS tree, features by server
-  module; [ADR 0007](docs/adr/0007-react-redux-rtk-scss.md)). Before it, `v1.6.0`, a
+  unchanged and had no tool change. Before it, `v1.7.0`, a minor, was `frontend/react` 3.0.0, a
+  template's own major (its layout moves every file: Redux Toolkit with RTK Query, Radix
+  primitives on the global SCSS tree, features by server module; [ADR 0007](docs/adr/0007-react-redux-rtk-scss.md)). Before it, `v1.6.0`, a
   minor, added `frontend/angular` 1.0.0 with the stacks `angular-bun-express` and
   `angular-python-fastapi` and split the frontend contract into invariants
   ([ADR 0006](docs/adr/0006-per-framework-frontends-and-angular.md)); it carried `frontend/next`
