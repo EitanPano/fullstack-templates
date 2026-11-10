@@ -3,10 +3,9 @@ import { expect, test } from '@playwright/test'
 import {
   HASHED,
   PASSWORD,
-  closeAccountMenu,
+  expectSignedIn,
   fillSignIn,
   fillSignUp,
-  openAccountMenu,
   registerThroughUi,
   signOutThroughUi,
   uniqueEmail,
@@ -28,10 +27,8 @@ test('sign up creates the account and lands signed in', async ({ page }) => {
   await fillSignUp(page, email)
 
   await expect(page).toHaveURL(/\/$/, HASHED)
-  await expect(page.getByRole('heading', { level: 1, name: 'Home' })).toBeVisible()
-  await openAccountMenu(page, email)
-  await closeAccountMenu(page)
-  await expect(page.getByRole('link', { name: 'Sign in' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { level: 1, name: '__PROJECT_DISPLAY_NAME__' })).toBeVisible()
+  await expectSignedIn(page, email)
   await expectNoSeriousViolations(page)
 })
 
@@ -54,8 +51,7 @@ test('sign out, then sign in again with the same account', async ({ page }) => {
   await fillSignIn(page, email)
 
   await expect(page).toHaveURL(/\/$/, HASHED)
-  await openAccountMenu(page, email)
-  await closeAccountMenu(page)
+  await expectSignedIn(page, email)
   expect(problems.filter((text) => text.includes('NEXT_REDIRECT'))).toEqual([])
   await expectNoSeriousViolations(page)
 })
@@ -111,7 +107,5 @@ test('a guarded page sends a visitor to sign-in and back after signing in', asyn
   await expect(page).toHaveURL(/\/profile$/, HASHED)
   await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible()
   await expect(page.getByText(email)).toBeVisible()
-  // The scan waits for the account slot to settle, or it would scan the skeleton.
-  await expect(page.getByRole('button', { name: /^Account menu/ })).toBeVisible()
   await expectNoSeriousViolations(page)
 })
