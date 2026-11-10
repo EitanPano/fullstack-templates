@@ -2,7 +2,7 @@ schemaVersion: 1
 id: vue
 kind: frontend
 name: Vue 3 SPA (Vite)
-version: 2.0.0
+version: 3.0.0
 summary: "Vite and Vue 3 single-page app: Vue Router 5, Pinia 4 setup stores over a client generated from the server's contract, Reka UI primitives styled by co-located SCSS on a global token tree, vue-i18n and the service worker behind flags"
 runtime: { language: typescript, platform: node, minVersion: "24" }
 tools:
