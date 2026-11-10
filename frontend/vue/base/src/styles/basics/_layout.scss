@@ -1,7 +1,17 @@
 @layer basics {
+  // The layout root is a column at least the viewport high and `main` takes the rest, so a
+  // full-bleed screen fills the viewport and anything a product adds below it sits at the bottom.
+  .shell {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 100dvh;
+  }
+
   // `main` has no width and no padding: the page pattern (shared/components/page-container) owns
-  // them, so a full-bleed screen simply leaves it out.
+  // them, so a full-bleed screen simply leaves it out. It is a column too, so a workspace can fill it.
   .main {
-    display: block;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
   }
 }

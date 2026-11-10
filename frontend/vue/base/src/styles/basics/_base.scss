@@ -1,4 +1,3 @@
-@use '../setup/functions';
 @use '../setup/mixins';
 
 @layer basics {
@@ -92,10 +91,6 @@
   [data-density='compact'] {
     body {
       font-size: var(--text-sm);
-    }
-
-    .container {
-      padding-inline: functions.space(3);
     }
   }
 }
