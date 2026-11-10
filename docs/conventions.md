@@ -82,17 +82,17 @@ that enforces them, and where an addition goes. The rationale is in
    from an effect or an interceptor. Every route has a loading and an error state; every data
    section has a skeleton that matches its layout.
 4. **Shell** (ADR 0010; amends ADR 0004 U1). A skip link to `#main`, first in the tab order, and
-   the page's one `<main id="main">`; nothing else. Header, navigation, footer and the places of
-   the theme toggle and the account menu are product code. `app/nav.ts` is the one table of
-   top-level routes.
+   the page's one `<main id="main">`, filling the rest of a viewport-high column; nothing else.
+   Header, navigation, footer and the places of the theme toggle and the account menu are product
+   code. `app/nav.ts` is the one table of top-level routes.
 5. **Mobile first.** No horizontal overflow at any viewport. Controls are at least 44 x 44 px on
    a coarse pointer, icon buttons included; one component is the one place for a button.
 6. **Brand and theme.** The generator's inputs (`--display-name`, `--brand-primary`,
    `--brand-neutral`, `--radius`, `--font`, `--theme`, `--density`), its contrast checks and its
    OKLCH token names are the one semantic set across frontends. Light values in `:root`, dark
    values under a selector the template declares (`.dark` or `[data-theme="dark"]`). Light, dark
-   and system, the default from the brand input, a theme toggle component the template ships
-   and the product places (`AGENTS.md › Styling` names it). The no-flash theme script is a file,
+   and system, the default from the brand input, a theme control the template ships and the
+   product places (`AGENTS.md › Styling` names it). The no-flash theme script is a file,
    never inline: the deployed pages carry `script-src 'self'`. Spacing is a 4 px base and a
    template never adds a `--spacing-N` key (ADR 0004, U2). The inputs are recorded in
    provenance under `answers.brand`; defaults: the project name in title case, `#1d4ed8` on a
@@ -137,7 +137,7 @@ value counts as unset) nothing is started (CONTRIBUTING). A check for one projec
 `@phone` or `@desktop`, and the other project's `grepInvert` leaves it out; never a runtime
 `test.skip`. The development database is never touched. The `phone` project runs every journey
 with its accessibility scan; the `desktop` project runs `shell.spec` and `screens.spec`.
-`tests/e2e/shell.spec.ts` asserts the skip link, the one `main`, no horizontal overflow, the 44 px
+`tests/e2e/shell.spec.ts` asserts the skip link, the one `main` reaching the viewport's bottom, no horizontal overflow, the 44 px
 targets on the touch project, the density on the desktop project and that `data-density="compact"`
 does not shrink a touch target. `tests/e2e/screens.spec.ts` captures every nav route, plus sign-in
 and sign-up when auth is on, on phone and desktop in light and dark, to
