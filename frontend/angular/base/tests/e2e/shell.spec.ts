@@ -33,6 +33,17 @@ test('the skip link works on a nested screen too', async ({ page }) => {
   expect(new URL(page.url()).pathname).toBe(UNKNOWN)
 })
 
+test('main reaches the bottom of the viewport on a short page', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+  const gap = await page.evaluate(
+    () =>
+      window.innerHeight - (document.querySelector('main')?.getBoundingClientRect().bottom ?? 0),
+  )
+  expect(gap).toBeLessThanOrEqual(1)
+})
+
 test('the page has exactly one main, with the id the skip link points at', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
@@ -66,7 +77,7 @@ test('the 404 control is a 44 px touch target', { tag: '@phone' }, async ({ page
   await page.goto(UNKNOWN)
   await expect(page.getByRole('link', { name: 'Back to the home page' })).toBeVisible()
 
-  await expectTouchTargets(page, 1, 44)
+  await expectTouchTargets(page, 44, 1)
   await expectNoAxeViolations(page)
 })
 
@@ -82,7 +93,7 @@ test(
       document.documentElement.setAttribute('data-density', 'compact')
     })
 
-    await expectTouchTargets(page, 1, 44)
+    await expectTouchTargets(page, 44, 1)
   },
 )
 
@@ -91,27 +102,27 @@ test(
   { tag: '@desktop' },
   async ({ page }) => {
     await page.goto(UNKNOWN)
-    await expect(page.getByRole('link', { name: 'Back to the home page' })).toBeVisible()
+    const home = page.getByRole('link', { name: 'Back to the home page' })
+    await expect(home).toBeVisible()
 
-    const metrics = () =>
+    const metrics = async () =>
       page.evaluate(() => {
         const container = document.querySelector('main#main app-page')
-        const home = document.querySelector('main#main a')
         return {
           fontSize: getComputedStyle(document.body).fontSize,
           pagePadding: container ? parseFloat(getComputedStyle(container).paddingBlockStart) : 0,
-          homeHeight: home?.getBoundingClientRect().height ?? 0,
         }
       })
+    const homeHeight = async () => (await home.boundingBox())?.height
 
     await page.evaluate(() => {
       document.documentElement.removeAttribute('data-density')
     })
-    const comfortable = await metrics()
+    const comfortable = { ...(await metrics()), homeHeight: await homeHeight() }
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-density', 'compact')
     })
-    const compact = await metrics()
+    const compact = { ...(await metrics()), homeHeight: await homeHeight() }
 
     expect(comfortable.fontSize).toBe('16px')
     expect(compact.fontSize).toBe('14px')

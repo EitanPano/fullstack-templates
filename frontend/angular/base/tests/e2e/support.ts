@@ -31,7 +31,7 @@ export async function expectNoHorizontalOverflow(page: Page) {
 // Exactly `count` visible controls (button, link, field), each at least `minimum` px wide and tall:
 // a screen that loses a control must not pass on the ones left. The skip link is clipped until it
 // is focused, so it is outside this set.
-export async function expectTouchTargets(page: Page, count: number, minimum = 44) {
+export async function expectTouchTargets(page: Page, minimum: number, count: number) {
   const sizes = await page
     .locator('button, a[href], input:not([type="hidden"]), select, textarea')
     .evaluateAll((elements) =>
