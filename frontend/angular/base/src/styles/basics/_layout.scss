@@ -1,12 +1,6 @@
 @use '../setup/breakpoints';
 
 @layer basics {
-  // `main` has no width and no padding: the page pattern (`app-page`) owns the container.
-  .main {
-    display: block;
-    min-inline-size: 0;
-  }
-
   // The modal's pane and backdrop. The CDK builds both outside every component view, so they have
   // no owning sheet; `ModalService` puts these classes on them.
   .modal__backdrop {
