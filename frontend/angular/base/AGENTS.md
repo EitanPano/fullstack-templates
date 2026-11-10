@@ -150,7 +150,7 @@ never a service or `HttpClient`; `@angular/common/http` appears only in `service
 4. **Store.** A read is `patchState(store, setLoading())`, `await` the service,
    `patchState(store, { ... }, setLoaded())`; in the `catch` it `setError(error)`s and toasts
    `errors.<code>` once; a cause that is not an `ApiError` is first logged
-   (`inject(LoggerService).error(...)`, as `UserStore` does) and then shown as `errors.unknown`, so a
+   (`LoggerService.error`, as the block shows) and then shown as `errors.unknown`, so a
    bug is never silent. A mutation first checks `NetworkService.online()` and toasts `errors.offline`
    instead of sending, and returns whether it worked.
 
@@ -166,8 +166,10 @@ never a service or `HttpClient`; `@angular/common/http` appears only in `service
          service = inject(ModuleService),
          network = inject(NetworkService),
          notifications = inject(NotificationService),
+         logger = inject(LoggerService),
        ) => {
          const fail = (cause: unknown): void => {
+           if (!isApiError(cause)) logger.error('ModuleStore failed', cause)
            const error = isApiError(cause) ? cause : new ApiError({ status: 0, code: 'unknown' })
            patchState(store, setError(error))
            notifications.showError(errorMessageKey(error.code))
@@ -202,10 +204,14 @@ never a service or `HttpClient`; `@angular/common/http` appears only in `service
    )
    ```
 
-   **Account data (with auth).** A store that holds an account's data (`UserStore` is the example)
+   <!-- @server:auth-start -->
+
+   **Account data.** A store that holds an account's data (`UserStore` is the example)
    exposes `reset()` and clears itself with an `effect` on `AuthStore.isLoggedIn()` (`withHooks`
    `onInit`), so sign-out and a refused refresh leave nothing for the next account; its `load()`
    drops the old value before it calls, and ignores an answer that arrives after sign-out.
+
+   <!-- @server:auth-end -->
 
 5. **Page module and route.** `app/pages/<module>/<module>.routes.ts` (the default export,
    lazy-loads the page) and `<page>/` (the routed page; injects the store; a skeleton while loading,
