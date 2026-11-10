@@ -10,10 +10,15 @@ interface AssetGroup {
   updateMode?: string
   resources: { files: string[] }
 }
+interface DataGroup {
+  name: string
+  urls: string[]
+  cacheConfig: { strategy: string; maxAge: string; timeout?: string }
+}
 interface NgswConfig {
   index: string
   assetGroups: AssetGroup[]
-  dataGroups?: { name: string }[]
+  dataGroups?: DataGroup[]
   navigationUrls: string[]
 }
 
@@ -21,12 +26,45 @@ const config = JSON.parse(
   readFileSync(fileURLToPath(new URL('../../ngsw-config.json', import.meta.url)), 'utf8'),
 ) as NgswConfig
 
+// Angular's service worker has no negation in `dataGroups[].urls`: a `!` pattern is read as a
+// literal path, so it excludes nothing. A data group is therefore an allowlist of public reads.
+// This turns a `dataGroups` glob into the regular expression the worker builds (`**` any path,
+// `*` one segment, `?` one character; `#` stands in for `**` while it is converted).
+function matches(glob: string, path: string): boolean {
+  const source = Array.from(glob.replaceAll('**', '#'))
+    .map((char) => {
+      if (char === '#') return '.*'
+      if (char === '*') return '[^/]*'
+      if (char === '?') return '[^/]'
+      return '.+${}()|'.includes(char) ? `[${char}]` : char
+    })
+    .join('')
+  return new RegExp(`^${source}$`).test(path)
+}
+
+const groups = config.dataGroups ?? []
+const cachedBy = (path: string) =>
+  groups.filter((item) => item.urls.some((url) => matches(url, path)))
+
 describe('ngsw-config.json', () => {
-  it('caches no API answer: there is no data group, so account and auth endpoints stay fresh', () => {
-    // Angular's service worker has no negation in `dataGroups[].urls`: a `!` pattern is read as a
-    // literal path. A product that caches a public read adds a group of explicit URLs, never a glob
-    // that could reach /api/user or /api/auth, and extends this test with the paths it must not touch.
-    expect(config.dataGroups ?? []).toEqual([])
+  // The template declares no data group, so these hold trivially; a product that caches a public
+  // read adds its group and both tests keep guarding it.
+  it('uses no negative pattern in a data group (the worker ignores the `!`)', () => {
+    for (const item of groups) {
+      for (const url of item.urls) expect(url.startsWith('!'), `${item.name}: ${url}`).toBe(false)
+    }
+  })
+
+  it('never caches account or auth endpoints', () => {
+    for (const path of [
+      '/api/user/me',
+      '/api/user',
+      '/api/user/42',
+      '/api/auth/refresh',
+      '/api/auth/otp',
+    ]) {
+      expect(cachedBy(path), path).toEqual([])
+    }
   })
 
   it('prefetches the shell: index.html and the manifest', () => {
@@ -38,7 +76,7 @@ describe('ngsw-config.json', () => {
   })
 
   it('versions the copy tables with the app: an asset group, not a data group', () => {
-    expect((config.dataGroups ?? []).map((item) => item.name)).not.toContain('i18n')
+    expect(groups.map((item) => item.name)).not.toContain('i18n')
     const assets = config.assetGroups.find((item) => item.resources.files.includes('/i18n/**'))
     expect(assets?.installMode).toBe('lazy')
     expect(assets?.updateMode).toBe('prefetch')
