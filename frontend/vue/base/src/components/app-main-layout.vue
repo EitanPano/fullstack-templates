@@ -22,9 +22,11 @@ function skipToMain(): void {
 </script>
 
 <template>
-  <a class="skip-link" href="#main" @click.prevent="skipToMain">{{ $t('app.skipToContent') }}</a>
-  <main id="main" ref="main" class="main" tabindex="-1">
-    <RouterView />
-  </main>
-  <AppToastHost />
+  <div class="shell">
+    <a class="skip-link" href="#main" @click.prevent="skipToMain">{{ $t('app.skipToContent') }}</a>
+    <main id="main" ref="main" class="main" tabindex="-1">
+      <RouterView />
+    </main>
+    <AppToastHost />
+  </div>
 </template>

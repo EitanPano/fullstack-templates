@@ -331,7 +331,8 @@ ready to place there.
 
 <!-- @server:auth-start -->
 
-With the server's auth, `app-account-menu` is ready to place there too.
+With the server's auth, `app-account-menu` is ready to place there too: avatar, email, profile and
+sign out, and no theme control.
 
 <!-- @server:auth-end -->
 <!-- @i18n-start -->
@@ -493,8 +494,7 @@ basics, and the three groups sit in cascade layers (`@layer setup, themes, basic
 
 With the server's `auth` flag, `shared/components/auth-card.vue` (`AuthCard`) is the sign-in and
 sign-up card, 26rem wide: props `heading` (required) and `description`, the default slot for the
-form and a `footer` slot for the alternate link. The file exists only with `auth`. Its
-`app-account-menu` holds avatar, email, profile and sign out, and no theme control.
+form and a `footer` slot for the alternate link. The file exists only with `auth`.
 
 <!-- @server:auth-end -->
 
