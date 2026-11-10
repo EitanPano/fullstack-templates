@@ -91,8 +91,8 @@ that enforces them, and where an addition goes. The rationale is in
    `--brand-neutral`, `--radius`, `--font`, `--theme`, `--density`), its contrast checks and its
    OKLCH token names are the one semantic set across frontends. Light values in `:root`, dark
    values under a selector the template declares (`.dark` or `[data-theme="dark"]`). Light, dark
-   and system, the default from the brand input, a theme toggle component the product places
-   (`AGENTS.md › Styling` names it). The no-flash theme script is a file,
+   and system, the default from the brand input, a theme toggle component the template ships
+   and the product places (`AGENTS.md › Styling` names it). The no-flash theme script is a file,
    never inline: the deployed pages carry `script-src 'self'`. Spacing is a 4 px base and a
    template never adds a `--spacing-N` key (ADR 0004, U2). The inputs are recorded in
    provenance under `answers.brand`; defaults: the project name in title case, `#1d4ed8` on a
@@ -122,9 +122,9 @@ that enforces them, and where an addition goes. The rationale is in
 10. **The agents file.** The headings `Adding a feature`, `Styling`, `Errors`, `Tests` and
     `Deployment`; the layer map; the import rules with the lint that enforces them; and under
     `Adding a feature` the recipe for a new module, file by file. The recipe is documentation, as
-    the server's `Adding a module` is; a template never ships placeholder code, nor an example screen: the index route is one `h1` and
-    one line of copy. `validate` checks
-    the five headings; the layer map is not a checked heading.
+    the server's `Adding a module` is; a template never ships placeholder code, nor an example
+    screen: the index route is one `h1` and one line of copy. `validate` checks the five headings;
+    the layer map is not a checked heading.
 
 **E2E** (ADR 0004, U4; amended). Playwright serves the production build and starts the server
 fresh with `reuseExistingServer: false`, `RATE_LIMIT_SCALE=100` and the server's `start` command.
