@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/vue'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { useThemeStore } from '@/store/theme.store'
 import { renderWithApp } from '@/testing/render'
@@ -10,6 +10,7 @@ import AppThemeToggle from './app-theme-toggle.vue'
 describe('AppThemeToggle', () => {
   afterEach(() => {
     localStorage.clear()
+    vi.restoreAllMocks()
   })
 
   it('cycles the theme from the toggle and names the current and next choice', async () => {
@@ -37,5 +38,15 @@ describe('AppThemeToggle', () => {
     )
 
     expect(store.choice).toBe('light')
+  })
+
+  it('puts a class passed to it on its one root, with no Vue warning', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+
+    const { container } = await renderWithApp(AppThemeToggle, { props: { class: 'from-product' } })
+
+    expect(container.firstElementChild).toHaveClass('theme-toggle', 'from-product')
+    expect(container.children).toHaveLength(1)
+    expect(warn).not.toHaveBeenCalled()
   })
 })

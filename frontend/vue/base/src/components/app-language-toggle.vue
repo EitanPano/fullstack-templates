@@ -17,16 +17,17 @@ function switchLanguage(): void {
 </script>
 
 <template>
-  <BaseButton
-    class="language-toggle"
-    variant="ghost"
-    size="sm"
-    :aria-label="$t('language.toggle', { name: $t(nextName) })"
-    @click="switchLanguage"
-  >
-    <span :lang="language.next.code">{{ $t(nextName) }}</span>
-  </BaseButton>
-  <span class="visually-hidden" role="status">
-    {{ $t('language.current', { name: $t(currentName) }) }}
+  <span class="language-toggle">
+    <BaseButton
+      variant="ghost"
+      size="sm"
+      :aria-label="$t('language.toggle', { name: $t(nextName) })"
+      @click="switchLanguage"
+    >
+      <span :lang="language.next.code">{{ $t(nextName) }}</span>
+    </BaseButton>
+    <span class="visually-hidden" role="status">
+      {{ $t('language.current', { name: $t(currentName) }) }}
+    </span>
   </span>
 </template>

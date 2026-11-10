@@ -8,7 +8,8 @@ import type { IconName } from '@/shared/components/icons'
 import { useThemeStore } from '@/store/theme.store'
 
 // The theme switch: one button cycling light, dark and system, named by the current and the next
-// choice, and a polite status line announcing the active one. A product places it where it wants.
+// choice, and a polite status line announcing the active one. A product places it where it
+// wants; it has one root, so a `class` passed to it lands there without a warning.
 const THEME_ICON: Record<ThemeChoice, IconName> = { light: 'sun', dark: 'moon', system: 'monitor' }
 const NEXT: Record<ThemeChoice, ThemeChoice> = { light: 'dark', dark: 'system', system: 'light' }
 
@@ -20,15 +21,17 @@ const next = computed(() => `theme.${NEXT[theme.choice]}`)
 </script>
 
 <template>
-  <BaseButton
-    variant="ghost"
-    size="icon"
-    :aria-label="$t('theme.toggle', { current: $t(current), next: $t(next) })"
-    @click="theme.cycle()"
-  >
-    <BaseIcon :name="themeIcon" />
-  </BaseButton>
-  <span class="visually-hidden" role="status">
-    {{ $t('theme.current', { current: $t(current) }) }}
+  <span class="theme-toggle">
+    <BaseButton
+      variant="ghost"
+      size="icon"
+      :aria-label="$t('theme.toggle', { current: $t(current), next: $t(next) })"
+      @click="theme.cycle()"
+    >
+      <BaseIcon :name="themeIcon" />
+    </BaseButton>
+    <span class="visually-hidden" role="status">
+      {{ $t('theme.current', { current: $t(current) }) }}
+    </span>
   </span>
 </template>
