@@ -126,6 +126,7 @@ a wrong role).
 | A form field binding                          | `shared/components/form/`                                          |
 | A formatting or date helper                   | `shared/utils/`                                                    |
 | A product-agnostic hook                       | `shared/hooks/use-<name>.ts` + its test                            |
+| A hook a page and an app-wide component share | `store/use-<name>.ts`: pages never import `components/`           |
 | A route guard (with the server's auth)        | `core/auth/guards.ts`                                              |
 | An environment variable                       | `core/config/env.ts` plus `.env.example`                           |
 | A navigation entry                            | `app/nav.ts`                                                       |
@@ -174,7 +175,10 @@ the page's own origin (see Deployment), so the bundle carries no API URL.
 The data flows one way: **component -> RTK Query hook (`services/<module>.api.ts`) -> `call` ->
 generated SDK -> fetch client**. A component never calls `fetch` or the SDK; a one-off request
 needs an endpoint first. For a new server module (the noun, by its `.doc/glossary.md` name; `post`
-below):
+below). In the blocks, `Post`, `PostRow`, `PostList`, `getApiPost`, `patchApiPostById`, the `'Post'` tag
+and the `postApi` hooks are the example feature's own names: they exist once the server has the
+endpoint, `bun run api:types` has regenerated the client and `models/post.ts` exists. Everything
+else in the blocks already exists in the template.
 
 1. **Glossary and contract.** Name the noun and the actions in `.doc/glossary.md`. If the contract
    changed, run `bun run api:types`: `src/services/generated/` is regenerated and committed.
