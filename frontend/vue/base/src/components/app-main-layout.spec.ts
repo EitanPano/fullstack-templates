@@ -1,46 +1,36 @@
 import { screen, within } from '@testing-library/vue'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-import type { NavEntry } from '@/models/nav/interface'
 import { useNotificationStore } from '@/store/notification.store'
-import { DESKTOP_QUERY, stubMatchMedia } from '@/testing/match-media'
 import { renderWithApp } from '@/testing/render'
 import { Page } from '@/testing/stubs'
 
 import AppMainLayout from './app-main-layout.vue'
 
-const NAV: readonly NavEntry[] = [
-  { path: '/', labelKey: 'nav.home' },
-  { path: '/other', labelKey: 'nav.open' },
-]
-
-const routes = [
-  { path: '/', component: Page },
-  { path: '/other', component: Page },
-]
+// Plain content: a page that renders its own <header> could be reported as a banner by the
+// testing library, even inside main, and that is not what these tests are about.
+const routes = [{ path: '/', component: Page }]
 
 describe('MainLayout', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
-  it('has the skip link first in the tab order, then the landmarks', async () => {
-    stubMatchMedia({ [DESKTOP_QUERY]: true })
-    await renderWithApp(AppMainLayout, { props: { nav: NAV }, routes })
+  it('has the skip link first in the tab order, then the one main, and no other landmark', async () => {
+    await renderWithApp(AppMainLayout, { routes })
 
     await userEvent.tab()
 
-    expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveFocus()
-    expect(screen.getByRole('banner')).toBeInTheDocument()
-    expect(screen.getByRole('navigation', { name: 'Primary' })).toBeInTheDocument()
+    const skip = screen.getByRole('link', { name: 'Skip to content' })
+    expect(skip).toHaveFocus()
+    expect(screen.getAllByRole('link')).toHaveLength(1)
+    const main = screen.getByRole('main')
+    expect(skip.compareDocumentPosition(main) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.getAllByRole('main')).toHaveLength(1)
-    expect(screen.getByRole('contentinfo')).toBeInTheDocument()
+    expect(screen.queryByRole('banner')).toBeNull()
+    expect(screen.queryByRole('navigation')).toBeNull()
+    expect(screen.queryByRole('contentinfo')).toBeNull()
   })
 
   it('renders the routed page inside main, which is the skip link target', async () => {
-    stubMatchMedia({ [DESKTOP_QUERY]: true })
-    await renderWithApp(AppMainLayout, { props: { nav: NAV }, routes })
+    await renderWithApp(AppMainLayout, { routes })
 
     const main = screen.getByRole('main')
 
@@ -50,8 +40,7 @@ describe('MainLayout', () => {
   })
 
   it('moves focus to main when the skip link is followed, without leaving the route', async () => {
-    stubMatchMedia({ [DESKTOP_QUERY]: true })
-    const { router } = await renderWithApp(AppMainLayout, { props: { nav: NAV }, routes })
+    const { router } = await renderWithApp(AppMainLayout, { routes })
 
     await userEvent.click(screen.getByRole('link', { name: 'Skip to content' }))
 
@@ -60,8 +49,7 @@ describe('MainLayout', () => {
   })
 
   it('renders the toasts the notification store holds', async () => {
-    stubMatchMedia({ [DESKTOP_QUERY]: true })
-    await renderWithApp(AppMainLayout, { props: { nav: NAV }, routes })
+    await renderWithApp(AppMainLayout, { routes })
 
     useNotificationStore().showError('errors.unexpected')
 
@@ -70,48 +58,11 @@ describe('MainLayout', () => {
     ).toBeGreaterThan(0)
   })
 
-  it('opens the drawer from the header toggle and makes the page behind it inert', async () => {
-    stubMatchMedia({ [DESKTOP_QUERY]: false })
-    await renderWithApp(AppMainLayout, { props: { nav: NAV }, routes })
-    expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.getByRole('main')).not.toHaveAttribute('inert')
+  it('applies the saved theme, because the layout owns the theme store', async () => {
+    document.documentElement.removeAttribute('data-theme')
 
-    await userEvent.click(screen.getByRole('button', { name: 'Open navigation' }))
+    await renderWithApp(AppMainLayout, { routes, initialState: { theme: { choice: 'dark' } } })
 
-    expect(await screen.findByRole('dialog', { name: 'Menu' })).toBeInTheDocument()
-    // Reka also aria-hides everything outside the dialog, so the landmarks are found as hidden.
-    expect(screen.getByRole('main', { hidden: true })).toHaveAttribute('inert')
-    expect(screen.getByRole('contentinfo', { hidden: true })).toHaveAttribute('inert')
-  })
-
-  it('closes the drawer on Escape and hands focus back to the toggle', async () => {
-    stubMatchMedia({ [DESKTOP_QUERY]: false })
-    await renderWithApp(AppMainLayout, { props: { nav: NAV }, routes })
-    const toggle = screen.getByRole('button', { name: 'Open navigation' })
-    await userEvent.click(toggle)
-    await screen.findByRole('dialog')
-
-    await userEvent.keyboard('{Escape}')
-
-    await vi.waitFor(() => {
-      expect(screen.queryByRole('dialog')).toBeNull()
-    })
-    expect(screen.getByRole('main')).not.toHaveAttribute('inert')
-    await vi.waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Open navigation' })).toHaveFocus()
-    })
-  })
-
-  it('closes the drawer after following a link in it', async () => {
-    stubMatchMedia({ [DESKTOP_QUERY]: false })
-    const { router } = await renderWithApp(AppMainLayout, { props: { nav: NAV }, routes })
-    await userEvent.click(screen.getByRole('button', { name: 'Open navigation' }))
-
-    await userEvent.click(await screen.findByRole('link', { name: 'Open navigation' }))
-
-    expect(router.currentRoute.value.path).toBe('/other')
-    await vi.waitFor(() => {
-      expect(screen.queryByRole('dialog')).toBeNull()
-    })
+    expect(document.documentElement).toHaveAttribute('data-theme', 'dark')
   })
 })

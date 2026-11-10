@@ -44,19 +44,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         // The worker never answers an /api navigation with the shell.
         navigateFallbackDenylist: [/^\/api\//],
-        // The one API response ever cached is the health check, so the status page and the
-        // offline badge have something to show. Never /api/user/** or /api/auth/**.
-        runtimeCaching: [
-          {
-            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname === '/api/health',
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-health',
-              networkTimeoutSeconds: 3,
-              expiration: { maxEntries: 1, maxAgeSeconds: 300 },
-            },
-          },
-        ],
+        // No API response is cached. A page module adds a `runtimeCaching` rule for a public read
+        // that carries no session or personal data, never for /api/user/** or /api/auth/**.
       },
     }),
     // @pwa-end

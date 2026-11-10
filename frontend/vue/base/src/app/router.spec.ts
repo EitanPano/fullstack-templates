@@ -16,10 +16,10 @@ describe('router', () => {
     expect(document.title).toBe(`Page not found · ${DISPLAY_NAME}`)
   })
 
-  it('serves the health status page at the root', async () => {
+  it('serves the home page at the root', async () => {
     await router.push('/')
 
-    expect(document.title).toBe(`System status · ${DISPLAY_NAME}`)
+    expect(document.title).toBe(`Home · ${DISPLAY_NAME}`)
   })
 
   it('titles a route without a key by the product name alone', async () => {

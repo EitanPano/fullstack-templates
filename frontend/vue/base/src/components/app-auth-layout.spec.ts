@@ -20,7 +20,7 @@ const routes = [
 ]
 
 describe('AuthLayout', () => {
-  it('has the skip link first, then the brand, one main and the footer, and no shell', async () => {
+  it('has the skip link first, then the brand and one main, and no header, navigation or footer', async () => {
     await renderWithApp(Host, { route: '/auth/login', routes })
 
     await userEvent.tab()
@@ -29,7 +29,7 @@ describe('AuthLayout', () => {
     expect(screen.getByRole('link', { name: DISPLAY_NAME })).toHaveAttribute('href', '/')
     expect(screen.getAllByRole('main')).toHaveLength(1)
     expect(screen.getByRole('main')).toHaveAttribute('id', 'main')
-    expect(screen.getByRole('contentinfo')).toBeInTheDocument()
+    expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument()
     expect(screen.queryByRole('banner')).not.toBeInTheDocument()
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
   })
@@ -56,7 +56,7 @@ describe('AuthLayout', () => {
 
     expect(await screen.findByText('The email or password is incorrect.')).toBeInTheDocument()
   })
-  it('applies the saved theme, though the frame has no header to own the theme store', async () => {
+  it('applies the saved theme, because the frame owns the theme store', async () => {
     document.documentElement.removeAttribute('data-theme')
 
     await renderWithApp(Host, {

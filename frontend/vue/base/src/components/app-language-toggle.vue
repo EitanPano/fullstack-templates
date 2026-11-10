@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import BaseButton from '@/shared/components/base-button.vue'
 import { useLanguageStore } from '@/store/language.store'
 
-// The header's language switch: the button names the language it switches to, and a polite
+// The language switch, which the product places: the button names the language it switches to, and a polite
 // status line announces the active one.
 const language = useLanguageStore()
 
@@ -18,7 +18,7 @@ function switchLanguage(): void {
 
 <template>
   <BaseButton
-    class="header__language"
+    class="language-toggle"
     variant="ghost"
     size="sm"
     :aria-label="$t('language.toggle', { name: $t(nextName) })"
