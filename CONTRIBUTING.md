@@ -147,9 +147,10 @@ The checklist is what `validate` and the cases prove.
       A frontend declares no `auth` flag of its own.
 - [ ] The invariants hold in the template's own terms: the generated client in a committed directory
       the agents file names; the API at relative `/api` with no compiled-in URL, no CORS and a dev
-      proxy; one env module; the shell a skip link and one `main`, with no header, navigation or
-      footer, no example screen, an index route of one `h1`, and the page pattern owning the
-      container ([ADR 0010](docs/adr/0010-no-chrome-no-example-screen.md)); the brand placeholders
+      proxy; one env module; the shell a skip link and one `main` filling a viewport-high
+      column, with no header, navigation or footer, no example screen, an index route of one `h1`,
+      and the page pattern owning the container
+      ([ADR 0010](docs/adr/0010-no-chrome-no-example-screen.md)); the brand placeholders
       (`__THEME_LIGHT__`, `__THEME_DARK__`, `__THEME_RADIUS__`, `__THEME_FONT_STACK__`,
       `__THEME_DENSITY__`, `__PROJECT_DISPLAY_NAME__`) in the files that carry the tokens, with the
       dark selector the template declares; `theme-init.js` a file, never inline; with auth, the guards,
@@ -159,8 +160,8 @@ The checklist is what `validate` and the cases prove.
       (the theme toggle, the account menu), each with its unit test, the error mapping, theme
       toggling, form bindings and, with auth, the session helpers, every auth action's success and
       failure and a refresh that two concurrent 401s trigger once); the e2e `shell.spec`,
-      `screens.spec`, `smoke.spec` and the auth journeys on the `phone` and `desktop` projects, with
-      `reuseExistingServer: false`, `RATE_LIMIT_SCALE`, the API's command chained as `e2eDb && start`
+      `screens.spec`, `smoke.spec` (structure, never the placeholder's words) and the auth
+      journeys on the `phone` and `desktop` projects, with `reuseExistingServer: false`, `RATE_LIMIT_SCALE`, the API's command chained as `e2eDb && start`
       (no `globalSetup`), `E2E_BASE_URL` and `retries: 0`.
 - [ ] The boundaries test: a spec in `tests/unit/` lints one violation and one allowed case per import
       rule through ESLint's Node API and the real `eslint.config.mjs`, and each message names the
