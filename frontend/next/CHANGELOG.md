@@ -1,5 +1,45 @@
 # Changelog
 
+## 3.0.0 — 2026-11-10
+
+No template chrome and no example screen (ADR 0010). A generated app is a skip link, one `main` and an index route of one `h1` and one line of copy. A project generated from 2.x keeps its header, footer and status page as its own code; there is no migration tool.
+
+### Breaking
+
+| What | Before | Now, and what a project generated before does |
+| --- | --- | --- |
+| Site layout | `(site)/layout.tsx` rendered `AppShell`: skip link, header with the brand, nav and account slot, `main`, footer | The skip link and the one `main`, nothing else. Header, navigation and footer are product code: a component in `shared/ui/pattern/` that the layout renders between `<SkipLink />` and `<main>` (`AGENTS.md › The shell`). An old project keeps its `AppShell`. |
+| `shared/ui/pattern/app-shell.tsx`, `mobile-nav.tsx`, `nav-links.tsx` | The shell, the phone sheet, the nav links | Deleted. New: `skip-link.tsx` and `nav-entry.ts` (the `NavEntry` type, which `app/nav.ts` imports; it left `nav-links.tsx`). |
+| Page container | `main` carried `max-w-5xl`, gutters and padding | `main` has no width and no padding; `Page` owns them (`mx-auto w-full max-w-5xl px-4 py-6 sm:px-8`). The site group's `loading.tsx`, `error.tsx` and `not-found.tsx` now wrap their content in `Page`, as do the index, profile and forbidden pages. A route that renders without `Page` is full-bleed. An old project that adopts the new `Page` must drop the container from its `main`, or the two stack. |
+| Example screen | `entity/health`, `feature/refresh-health`, `widget/system-status` and the home page's status card | Deleted with their five unit tests. The index route is the display name as its one `h1` and "Replace this page with the first screen."; it calls no API. The server keeps `/api/health` for deploy probes. |
+| Sign out | A menu item in the header's account menu | The profile page's header carries a Sign out button (`feature/auth/ui/sign-out-button.tsx`, the same action; with the server's auth). `widget/account-menu`, `UserMenu` and `ThemeToggle` stay, tested, rendered by no template file, for the product to place. |
+| `AGENTS.md` | The health slices were "the worked example" | `Adding a feature` is a code block per step (a read, a mutation, a widget, a page) and a paragraph, "The shell"; the layer list and `Styling` name `ThemeToggle` and `UserMenu` as components the product places. |
+| e2e | `shell.spec.ts` asserted the banner, contentinfo and Primary navigation, the phone menu and the theme menu; `smoke.spec.ts` anchored on Refresh; the auth journeys read the account menu | See the pairs below. `signOutThroughUi` keeps its signature but goes to `/profile`; `openAccountMenu` and `closeAccountMenu` are gone, `expectSignedIn` (the profile page names the email) replaces them. |
+
+### Changed
+
+- `tests/unit/use-cache.test.ts` no longer requires a cached loader to exist: it proves its rule on seeded sources (one refused source per forbidden import, one allowed, two skipped) and still scans the real `src`.
+- `tests/unit/eslint-boundaries.test.ts` invents `entity/post`, `feature/rename-post` and `widget/post-list` where it named the deleted health slices; every case is the same.
+
+### Assertions and their successors
+
+No assertion is dropped without a successor; nothing is skipped or focused.
+
+| Dropped | Now covered by |
+| --- | --- |
+| `shell.spec`: the page has `banner`, `main`, `contentinfo` and a Primary `navigation` | `shell.spec`: exactly one `main` with id `main`; `site-layout.test.tsx`: one `main`, no banner, navigation or contentinfo landmark. The header, footer and navigation are gone with ADR D1. |
+| `shell.spec`: an unknown URL answers 404 with the banner visible | `shell.spec`: answers 404 and renders inside `main` |
+| `shell.spec`: touch targets are 44 px (menu button, brand, account menu, Refresh), also at compact density | `shell.spec` `@phone`: every visible control on the 404 is at least 44 px, also at compact density (the controls it measured are gone with ADR D1 and D3) |
+| `shell.spec`: the phone menu and its Close are 44 px | Gone with the phone menu (ADR D1); `close-button.test.tsx` still pins the sheet and dialog Close at 44 px |
+| `shell.spec` `@desktop`: Refresh and the account menu are 36 px, 32 px compact | `shell.spec` `@desktop`: the 404's home control is 36 px, 32 px compact; `button-sizing.test.tsx` pins the icon button sizes |
+| `shell.spec`: the theme menu switches to dark and survives a reload | `theme-toggle.test.tsx` and `user-menu.test.tsx` (the choice is requested and marked), `screens.spec.ts` (every screen in both themes) |
+| `smoke.spec`: the home page reaches the API and shows its status; Refresh pings it again with a toast | Gone with the example screen (ADR D3). `smoke.spec`: the index route is one `h1` inside `main` and passes axe. |
+| `app-shell.test.tsx`: landmarks, skip link, one `main`, brand link, account slot, nav entries, `aria-current`, the sheet | `site-layout.test.tsx`: skip link first, one `main`, no banner, navigation or contentinfo. The rest is gone with the header and navigation (ADR D1). |
+| `health-badge`, `health-loader`, `refresh-health-action`, `refresh-health-button` and `system-status` tests | Gone with the health slices (ADR D3) |
+| `use-cache.test.ts`: finds the cached loaders | Seeded sources, and `src` has files to scan |
+| `auth.spec`, `auth-support`: the signed-in account menu names the email; the visitor has no Sign in link; the account slot settles before the scan | `expectSignedIn`: `/profile` names the email, so a visible email means signed in; `a signed-in account is kept out of the sign-in screen`; `account-menu.test.tsx` covers the visitor's Sign in link and the menu |
+| `auth-support`: sign out through the account menu item | `signOutThroughUi` clicks the profile's Sign out; `profile-page.test.tsx` runs the action from the button, and `account-menu.test.tsx` still runs it from the menu item |
+
 ## 2.1.2 — 2026-11-07
 
 ### Changed
