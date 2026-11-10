@@ -172,6 +172,8 @@ dependency, no new case: every existing case passes with `--e2e`.
 - ADR 0009 C3 loses three examples (D3).
 - On desktop, Vue and Angular lose their 16 rem side-nav column: the content area widens from
   1024 to 1280 px and the container re-centres (R12).
+- A generated Next app with auth off has no e2e that reaches the API until the product's first
+  read (R27).
 
 ## Out of scope
 
@@ -245,3 +247,34 @@ build session (harness plan 023), recorded before the template it concerns was b
   and the menu item share one hook, `store/use-sign-out.ts`. Vue's and Angular's e2e "two
   concurrent 401s share one refresh" needed the health screen's Refresh button and is now proven
   by the auth interceptor's unit spec alone. Angular's `ngsw-config.json` has no data group left.
+- **`smoke.spec` asserts structure, not the placeholder's words (ruling R20).** D5's row asks for
+  one `h1` inside `main` and axe (and, for an SPA, `GET /api/health` answering 200). The first
+  build also asserted the display name and the placeholder line; those assertions are gone,
+  because the first product task replaces the index page and a template e2e that pins the
+  placeholder's words is the anchor this ADR's Context describes. Each home page's own unit test
+  proves the placeholder's text, and a product replaces it with the page.
+- **The full-height frame is part of D1 (ruling R24).** D1 moves the container out of `main` so
+  that a full-bleed screen fills the viewport; that needs the layout root to be a column at least
+  the viewport high with `main` taking the rest. Next and React kept that frame; Vue and Angular
+  had lost it with the old shell grid and have it back. All four `shell.spec` files assert that
+  `main` reaches the bottom of the viewport on a short page.
+- **The theme control in Next and React (ruling R25).** D2 lists `pattern/theme-toggle.tsx` and
+  `app-theme-menu` as components the product places. They are the theme's menu items and render
+  only inside a menu. The control a product places is the user menu (`UserMenu`, `AppUserMenu`),
+  or the account menu with auth; both carry the theme items. Vue and Angular ship a standalone
+  theme toggle. No standalone theme trigger was added to Next and React in this release. This
+  corrects D2's wording; its table stands.
+- **Angular's service-worker guard (ruling R26).** The unit spec keeps its two invariants that
+  never concerned the health group: no negation pattern in a data group, and no data group
+  caches `/api/user/**` or `/api/auth/**`. They pass with no data group and bind the first one a
+  product adds.
+- **Next with auth off has no e2e that reaches the API (ruling R27).** D5 gives only the SPAs a
+  health request. A generated Next app with auth off makes no API call, so nothing in its e2e
+  reaches the API until the product's first read; with auth on, the auth journeys do. D5's "no
+  assertion is dropped without a successor" has this one stated exception. A probe endpoint was
+  not added: it would be an example endpoint by another name.
+- **Left with the chrome, and kept.** `$header-height` and the global `.container` helper left
+  the SPAs with the chrome: a fixed header height is a decision the template no longer makes, and
+  the helper disagreed with the page pattern's container. The `header` layer of the z-index scale
+  and the `menu` and `wifi-off` icons stay as library entries a product's shell is likeliest to
+  use.
