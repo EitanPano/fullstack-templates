@@ -43,7 +43,7 @@ describe('the route table', () => {
 
     function setupFailingOnce() {
       vi.spyOn(console, 'error').mockImplementation(() => undefined)
-      let healthy = false
+      let recovered = false
       const router = createMemoryRouter(
         [
           {
@@ -55,7 +55,7 @@ describe('the route table', () => {
                   {
                     path: '/',
                     loader: () => {
-                      if (healthy) return null
+                      if (recovered) return null
                       throw Object.assign(new Error('db down: hunter2'), {
                         code: 'upstream_unavailable',
                         message: 'The service is unavailable right now. Try again in a moment.',
@@ -71,7 +71,7 @@ describe('the route table', () => {
         { initialEntries: ['/'] },
       )
       const view = render(<RouterProvider router={router} />)
-      return { view, recover: () => (healthy = true) }
+      return { view, recover: () => (recovered = true) }
     }
 
     it('renders inside main, in the page container, with the safe copy only', async () => {
@@ -82,7 +82,7 @@ describe('the route table', () => {
       expect(document.body).not.toHaveTextContent('hunter2')
     })
 
-    it('renders the page once Try again finds the loader healthy', async () => {
+    it('renders the page once Try again finds the loader answering', async () => {
       const { recover } = setupFailingOnce()
       await screen.findByRole('alert')
 
