@@ -7,8 +7,6 @@ import { STORAGE_KEYS } from '../../src/app/core/config/constants'
 // is also the contrast measurement.
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 
-export const isPhone = (project: string) => project === 'phone'
-
 // One line per violation, naming the rule, its impact and the elements.
 export async function axeProblems(page: Page): Promise<string[]> {
   const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze()
@@ -30,10 +28,10 @@ export async function expectNoHorizontalOverflow(page: Page) {
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0)
 }
 
-// Every visible control (button, link, field) at least `minimum` px wide and tall. The skip link is
-// clipped until it is focused, so it is outside this set. Run it with the drawer open to cover the
-// navigation links, which are hidden while it is closed.
-export async function expectTouchTargets(page: Page, minimum = 44) {
+// Exactly `count` visible controls (button, link, field), each at least `minimum` px wide and tall:
+// a screen that loses a control must not pass on the ones left. The skip link is clipped until it
+// is focused, so it is outside this set.
+export async function expectTouchTargets(page: Page, count: number, minimum = 44) {
   const sizes = await page
     .locator('button, a[href], input:not([type="hidden"]), select, textarea')
     .evaluateAll((elements) =>
@@ -45,7 +43,7 @@ export async function expectTouchTargets(page: Page, minimum = 44) {
         return [{ name: `${element.tagName.toLowerCase()} "${name}"`, width, height }]
       }),
     )
-  expect(sizes.length).toBeGreaterThan(0)
+  expect(sizes.length, 'visible controls').toBe(count)
   const small = sizes.filter((size) => size.width < minimum || size.height < minimum)
   expect(small, `controls under ${String(minimum)} px`).toEqual([])
 }

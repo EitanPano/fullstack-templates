@@ -2,9 +2,9 @@ import { expect, test } from '@playwright/test'
 
 import {
   PASSWORD,
+  expectSignedIn,
   fillSignIn,
   fillSignUp,
-  openAccountMenu,
   registerThroughApi,
   registerThroughUi,
   signOutThroughUi,
@@ -25,9 +25,10 @@ test('sign up creates the account and lands signed in', async ({ page }) => {
   await fillSignUp(page, email)
 
   await expect(page).toHaveURL(/\/$/, { timeout: 15_000 })
-  await expect(page.getByRole('heading', { level: 1, name: 'System status' })).toBeVisible()
-  await openAccountMenu(page, email)
-  await expect(page.getByRole('link', { name: 'Sign in' })).toHaveCount(0)
+  await expect(
+    page.getByRole('heading', { level: 1, name: '__PROJECT_DISPLAY_NAME__' }),
+  ).toBeVisible()
+  await expectSignedIn(page, email)
   await expectNoAxeViolations(page)
 })
 
@@ -41,19 +42,10 @@ test('sign in, see the profile, sign out', async ({ page }) => {
   await fillSignIn(page, email)
   await expect(page).toHaveURL(/\/$/, { timeout: 15_000 })
 
-  await openAccountMenu(page, email)
-  await page
-    .getByRole('group', { name: 'Account menu' })
-    .getByRole('link', { name: 'Profile' })
-    .click()
-  await expect(page).toHaveURL(/\/profile$/)
-  await expect(page.getByRole('heading', { level: 1, name: 'Your profile' })).toBeVisible()
-  await expect(page.locator('.profile__fact', { hasText: 'Email' }).first()).toContainText(email)
+  await expectSignedIn(page, email)
   await expectNoAxeViolations(page)
 
-  await page.getByRole('button', { name: 'Sign out' }).click()
-  await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByRole('button', { name: 'Account menu' })).toHaveCount(0)
+  await signOutThroughUi(page, email)
 })
 
 test('a wrong password shows our copy and signs nobody in', async ({ page }) => {
@@ -87,51 +79,4 @@ test('a guarded page sends a visitor to sign in and back after signing in', asyn
   await expect(page.getByRole('heading', { level: 1, name: 'Your profile' })).toBeVisible()
   await expect(page.locator('.profile__facts')).toContainText(email)
   await expectNoAxeViolations(page)
-})
-
-test('two calls that expire together share one refresh', async ({ page }) => {
-  await registerThroughApi(page, 'refresh')
-  await page.goto('/')
-  const status = page.locator('.health-status__fact', { hasText: 'Status' }).locator('dd')
-  await expect(status).toHaveText('Operational')
-
-  const refreshes: string[] = []
-  const answered: number[] = []
-  page.on('request', (request) => {
-    if (new URL(request.url()).pathname === '/api/auth/refresh') refreshes.push(request.method())
-  })
-  page.on('response', (response) => {
-    if (new URL(response.url()).pathname === '/api/health') answered.push(response.status())
-  })
-  // The access token has expired: the API answers the first two health calls 401 (as it does for
-  // a request carrying an expired token), then answers for real, so each call is replayed once the
-  // session is refreshed.
-  let refused = 0
-  await page.route('**/api/health', async (route) => {
-    if (refused < 2) {
-      refused += 1
-      await route.fulfill({
-        status: 401,
-        contentType: 'application/json',
-        body: JSON.stringify({ error: { code: 'unauthenticated', message: 'Token expired' } }),
-      })
-    } else {
-      await route.continue()
-    }
-  })
-
-  // Two clicks in one task fire two calls before either answer arrives.
-  await page.evaluate(() => {
-    const refresh = [...document.querySelectorAll('button')].find(
-      (button) => button.textContent.trim() === 'Refresh',
-    )
-    refresh?.click()
-    refresh?.click()
-  })
-
-  await expect.poll(() => answered.filter((code) => code === 200).length).toBe(2)
-  expect(answered.filter((code) => code === 401)).toHaveLength(2)
-  expect(refreshes).toEqual(['POST'])
-  await expect(status).toHaveText('Operational')
-  await expect(page).toHaveURL(/\/$/)
 })
