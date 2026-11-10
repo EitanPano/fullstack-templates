@@ -1,21 +1,17 @@
 import type { Metadata } from 'next'
-import { Suspense } from 'react'
 
-import { PageHeader, Page } from '@/shared/ui/pattern/page-layout'
-import { SystemStatus } from '@/widget/system-status/ui/system-status'
-import { SystemStatusSkeleton } from '@/widget/system-status/ui/system-status-skeleton'
+import { Page, PageHeader } from '@/shared/ui/pattern/page-layout'
 
 export const metadata: Metadata = { title: 'Home' }
 
-// A page is a header and widgets, each in its own Suspense with the widget's skeleton; nothing
-// else lives in app/.
+// The index route: the product's name as the one `h1`, through the page pattern. Replace it.
 export default function HomePage() {
   return (
     <Page>
-      <PageHeader title="Home" description="Replace this page with the first feature." />
-      <Suspense fallback={<SystemStatusSkeleton />}>
-        <SystemStatus />
-      </Suspense>
+      <PageHeader
+        title="__PROJECT_DISPLAY_NAME__"
+        description="Replace this page with the first screen."
+      />
     </Page>
   )
 }
