@@ -613,7 +613,8 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && node scripts/e2e-stat
   answer is cached. Angular's worker has no `!` negation in `dataGroups[].urls` (it reads one as a
   literal path), so nothing is excluded by pattern: anything not listed is never cached. A product
   that caches a public read adds a group of explicit URLs that carry no session or personal data,
-  never `/api/**`, and extends `tests/unit/ngsw-config.spec.ts` with the paths it must not touch. The iOS install hint can be dismissed and stays dismissed.
+  never `/api/**`; `tests/unit/ngsw-config.spec.ts` rejects a `!` entry and any group that matches
+  `/api/user/**` or `/api/auth/**`. The iOS install hint can be dismissed and stays dismissed.
 - **How an update reaches the user.** The worker downloads a new version in the background
   (`AppUpdateService` checks at start, hourly once stable and on window focus). When it is
   ready, an info toast offers `pwa.reload`; the action activates the version and reloads the

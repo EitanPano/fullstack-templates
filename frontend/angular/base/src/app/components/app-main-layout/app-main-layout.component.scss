@@ -1,0 +1,15 @@
+// The frame: a column at least the viewport high, with `main` taking the rest, so a full-bleed
+// screen fills the viewport and a footer the product adds sits at the bottom of a short page.
+// `main` has no width and no padding: `app-page` owns the container.
+:host {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100dvh;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-inline-size: 0;
+}

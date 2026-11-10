@@ -12,6 +12,7 @@ import { TranslatePipe } from '@app/shared/pipes/translate.pipe'
   selector: 'app-main-layout',
   imports: [RouterOutlet, SkipLinkDirective, TranslatePipe],
   templateUrl: './app-main-layout.component.html',
+  styleUrl: './app-main-layout.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppMainLayoutComponent {}
