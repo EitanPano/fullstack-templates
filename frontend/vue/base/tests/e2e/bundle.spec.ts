@@ -88,9 +88,11 @@ test('the bundle runs under a CSP that forbids eval', async ({ page }) => {
   // The form's first parse runs zod, which probes `new Function('')` unless it runs jitless.
   await page.goto('/auth/register')
   await expect(page.getByRole('heading', { level: 1, name: 'Create your account' })).toBeVisible()
-  await page.getByLabel('Email').fill('not an email')
+  await page.getByLabel('Email').fill('csp@example.com')
+  await page.getByLabel('Password', { exact: true }).fill('short')
+  await page.getByLabel('Confirm password').fill('short')
   await page.getByRole('button', { name: 'Create account' }).click()
-  await expect(page.getByText('Enter a valid email address')).toBeVisible()
+  await expect(page.getByText('Enter at least 8 characters')).toBeVisible()
   // @server:auth-end
 
   // No violation so far: nothing in the bundle tried to evaluate code.

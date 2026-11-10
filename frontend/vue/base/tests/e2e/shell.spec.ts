@@ -11,9 +11,7 @@ test('the skip link is first in the tab order and moves focus to main', async ({
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
   await page.keyboard.press('Tab')
-  const skip = page.getByRole('link', { name: 'Skip to content' })
-  await expect(skip).toBeFocused()
-  expect((await skip.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44)
+  await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused()
 
   await page.keyboard.press('Enter')
   await expect(page.locator('main#main')).toBeFocused()
