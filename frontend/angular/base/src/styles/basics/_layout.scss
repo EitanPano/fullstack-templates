@@ -1,59 +1,10 @@
 @use '../setup/breakpoints';
-@use '../setup/functions';
-@use '../setup/variables';
 
 @layer basics {
-  // The shell grid: header, side-nav (a drawer below lg, a column from lg), main, footer.
-  .shell {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto 1fr auto;
-    grid-template-areas:
-      'header'
-      'main'
-      'footer';
-    min-block-size: 100dvh;
-
-    @include breakpoints.up(lg) {
-      grid-template-columns: variables.$side-nav-width minmax(0, 1fr);
-      grid-template-areas:
-        'header header'
-        'nav main'
-        'footer footer';
-    }
-  }
-
-  .shell__header {
-    display: block;
-    grid-area: header;
-  }
-
-  .shell__nav {
-    // Below lg the nav is a fixed drawer: the host adds no grid track.
-    display: contents;
-
-    @include breakpoints.up(lg) {
-      display: block;
-      grid-area: nav;
-    }
-  }
-
-  .shell__footer {
-    display: block;
-    grid-area: footer;
-  }
-
+  // `main` has no width and no padding: the page pattern (`app-page`) owns the container.
   .main {
-    grid-area: main;
-    inline-size: 100%;
-    max-inline-size: variables.$container-max;
-    margin-inline: auto;
-    padding-block: functions.space(6);
-    padding-inline: functions.space(4);
-
-    @include breakpoints.up(md) {
-      padding-inline: functions.space(8);
-    }
+    display: block;
+    min-inline-size: 0;
   }
 
   // The modal's pane and backdrop. The CDK builds both outside every component view, so they have

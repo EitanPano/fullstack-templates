@@ -1,52 +1,54 @@
-<section class="profile">
-  <app-page-header [heading]="'profile.title' | t" [description]="'profile.description' | t">
-    <app-button actions variant="secondary" (click)="signOut()">{{
-      'auth.menu.signOut' | t
-    }}</app-button>
-  </app-page-header>
+<app-page>
+  <section class="profile">
+    <app-page-header [heading]="'profile.title' | t" [description]="'profile.description' | t">
+      <app-button actions variant="secondary" (click)="signOut()">{{
+        'auth.menu.signOut' | t
+      }}</app-button>
+    </app-page-header>
 
-  @if (store.failed() && !store.profile()) {
-    <app-error-state [description]="errorKey() | t" (retry)="retry()" />
-  } @else if (store.profile(); as profile) {
-    <dl class="profile__facts">
-      <div class="profile__fact">
-        <dt>{{ 'profile.email' | t }}</dt>
-        <dd>{{ profile.email }}</dd>
-      </div>
-      <div class="profile__fact">
-        <dt>{{ 'profile.role' | t }}</dt>
-        <dd>{{ roleKey() | t }}</dd>
-      </div>
-      <div class="profile__fact">
-        <dt>{{ 'profile.created' | t }}</dt>
-        <dd>{{ profile.createdAt | relativeTime }}</dd>
-      </div>
-      <div class="profile__fact">
-        <dt>{{ 'profile.verification' | t }}</dt>
-        <dd>
-          @if (profile.emailVerifiedAt) {
-            {{ 'profile.verified' | t }}
-          } @else {
-            {{ 'profile.unverified' | t }}
-            <app-button variant="ghost" size="sm" link="/auth/verify-otp">{{
-              'profile.verify' | t
-            }}</app-button>
-          }
-        </dd>
-      </div>
-    </dl>
+    @if (store.failed() && !store.profile()) {
+      <app-error-state [description]="errorKey() | t" (retry)="retry()" />
+    } @else if (store.profile(); as profile) {
+      <dl class="profile__facts">
+        <div class="profile__fact">
+          <dt>{{ 'profile.email' | t }}</dt>
+          <dd>{{ profile.email }}</dd>
+        </div>
+        <div class="profile__fact">
+          <dt>{{ 'profile.role' | t }}</dt>
+          <dd>{{ roleKey() | t }}</dd>
+        </div>
+        <div class="profile__fact">
+          <dt>{{ 'profile.created' | t }}</dt>
+          <dd>{{ profile.createdAt | relativeTime }}</dd>
+        </div>
+        <div class="profile__fact">
+          <dt>{{ 'profile.verification' | t }}</dt>
+          <dd>
+            @if (profile.emailVerifiedAt) {
+              {{ 'profile.verified' | t }}
+            } @else {
+              {{ 'profile.unverified' | t }}
+              <app-button variant="ghost" size="sm" link="/auth/verify-otp">{{
+                'profile.verify' | t
+              }}</app-button>
+            }
+          </dd>
+        </div>
+      </dl>
 
-    <form class="profile__form" [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <app-form-field [label]="'profile.phone' | t" [hint]="'profile.phoneHint' | t">
-        <app-input formControlName="phone" type="tel" autocomplete="tel" inputmode="tel" />
-      </app-form-field>
-      <app-form-actions submitKey="profile.save" [pending]="store.loading()" />
-    </form>
-  } @else {
-    <div class="profile__loading" role="status" aria-busy="true">
-      <span class="visually-hidden">{{ 'app.loading' | t }}</span>
-      <app-skeleton variant="block" size="md" />
-      <app-skeleton [lines]="3" />
-    </div>
-  }
-</section>
+      <form class="profile__form" [formGroup]="form" (ngSubmit)="save()" novalidate>
+        <app-form-field [label]="'profile.phone' | t" [hint]="'profile.phoneHint' | t">
+          <app-input formControlName="phone" type="tel" autocomplete="tel" inputmode="tel" />
+        </app-form-field>
+        <app-form-actions submitKey="profile.save" [pending]="store.loading()" />
+      </form>
+    } @else {
+      <div class="profile__loading" role="status" aria-busy="true">
+        <span class="visually-hidden">{{ 'app.loading' | t }}</span>
+        <app-skeleton variant="block" size="md" />
+        <app-skeleton [lines]="3" />
+      </div>
+    }
+  </section>
+</app-page>

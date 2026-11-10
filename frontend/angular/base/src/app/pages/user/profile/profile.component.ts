@@ -16,6 +16,7 @@ import { ErrorStateComponent } from '@app/shared/components/error-state/error-st
 import { FormActionsComponent } from '@app/shared/components/form-actions/form-actions.component'
 import { FormFieldComponent } from '@app/shared/components/form-field/form-field.component'
 import { InputComponent } from '@app/shared/components/input/input.component'
+import { PageComponent } from '@app/shared/components/page/page.component'
 import { PageHeaderComponent } from '@app/shared/components/page-header/page-header.component'
 import { SkeletonComponent } from '@app/shared/components/skeleton/skeleton.component'
 import { RelativeTimePipe } from '@app/shared/pipes/relative-time.pipe'
@@ -37,6 +38,7 @@ import { profileForm } from '../user.form'
     FormActionsComponent,
     FormFieldComponent,
     InputComponent,
+    PageComponent,
     PageHeaderComponent,
     ReactiveFormsModule,
     RelativeTimePipe,
