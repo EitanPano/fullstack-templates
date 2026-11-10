@@ -8,6 +8,7 @@ approved with "yes do that"; built under plan 022). Catalog release `v1.9.0`: `f
 [ADR 0007](0007-react-redux-rtk-scss.md) (R1 the React tree, its styling section, the `src/hooks/`
 ruling) and [ADR 0008](0008-vue-pinia.md) (T1 the Vue tree, T5 styling, the `App` prefix). The ten
 invariants of `docs/conventions.md › Frontend` name no folder and hold unchanged.
+Amended by [ADR 0010](0010-no-chrome-no-example-screen.md) (v1.10.0): C1's app-wide component list (the header, footer and navigation components leave), C3's examples (three leave with the chrome).
 
 ## Context
 
