@@ -106,6 +106,6 @@ test('a guarded page sends a visitor to sign-in and back after signing in', asyn
 
   await expect(page).toHaveURL(/\/profile$/, HASHED)
   await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible()
-  await expect(page.getByText(email)).toBeVisible()
+  await expect(page.getByRole('main').getByText(email)).toBeVisible()
   await expectNoSeriousViolations(page)
 })

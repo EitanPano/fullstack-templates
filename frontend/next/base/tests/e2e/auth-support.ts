@@ -47,11 +47,12 @@ export async function registerThroughUi(page: Page, email = uniqueEmail()): Prom
 }
 
 // The profile page is where an account reads its own session: it names the email. A visitor is
-// sent to sign-in instead, so a visible email means signed in.
+// sent to sign-in instead, so a visible email means signed in. Scoped to main: while a route streams,
+// Next holds the resolved markup twice for a moment, the copy outside main hidden.
 export async function expectSignedIn(page: Page, email: string) {
   await page.goto('/profile')
   await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible()
-  await expect(page.getByText(email)).toBeVisible()
+  await expect(page.getByRole('main').getByText(email)).toBeVisible()
 }
 
 // Signs out with the profile page's button; the action sends the visitor to the sign-in screen.
