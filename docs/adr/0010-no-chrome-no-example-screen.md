@@ -1,8 +1,8 @@
 # ADR 0010: No template chrome, no example screen
 
 Status: accepted (Eitan, 2026-11-10: "accept the ADR"). D1 and D3 are his rulings of the same
-day; the rows marked ▲ are the session's, listed to him before he accepted. Not built yet:
-harness plan 023 builds it once he sets that plan to active. Catalog release `v1.10.0`: `frontend/next` 3.0.0, `frontend/react` 5.0.0, `frontend/vue`
+day; the rows marked ▲ are the session's, listed to him before he accepted. Built by
+harness plan 023 on `feat/no-chrome`. Catalog release `v1.10.0`: `frontend/next` 3.0.0, `frontend/react` 5.0.0, `frontend/vue`
 3.0.0, `frontend/angular` 3.0.0; the servers and the tools are unchanged. Amends
 [ADR 0004](0004-ui-baseline.md) (U1 the shell, U4 what `shell.spec` asserts),
 [ADR 0006](0006-per-framework-frontends-and-angular.md) (invariants 4, 6, 7, 8 and 10) and
@@ -170,6 +170,8 @@ dependency, no new case: every existing case passes with `--e2e`.
 - The harness decides the chrome per product; without that decision (plan 023) an app would
   have none.
 - ADR 0009 C3 loses three examples (D3).
+- On desktop, Vue and Angular lose their 16 rem side-nav column: the content area widens from
+  1024 to 1280 px and the container re-centres (R12).
 
 ## Out of scope
 
@@ -211,3 +213,35 @@ build session (harness plan 023), recorded before the template it concerns was b
 - **The compact-density spacing check stays (ruling R8).** D5's `shell.spec` row lists what the
   suite must assert; it does not remove a template's check that compact density tightens the
   page's spacing. That check now reads the page pattern's container instead of `main`.
+- **The theme e2e's successors (ruling R10).** D5 names the theme unit tests and `screens.spec`'s
+  two-theme capture as successors of the theme-menu e2e. Neither reloads a page: the unit test
+  proves the write (the control asks the theme store or library for the theme) and `screens.spec`
+  proves the read (a theme stored before load is applied). The reload round trip is no longer
+  asserted end to end, and each changelog says so.
+- **The desktop shift in Vue and Angular (ruling R12).** Their 2.x desktop layout had a 16 rem
+  side-nav column; with it gone the content area widens from 1024 to 1280 px and the container
+  re-centres, so on desktop the 404 and forbidden screens sit 128 px further left and the profile
+  screen 192 px. Widths, heights and the phone layout are unchanged. Next and React had no such
+  column.
+- **The `@desktop` heights (ruling R13).** D5's "36 px, 32 px compact" are what Next, React and
+  Vue asserted at 2.x. Angular's 2.0.0 `shell.spec` asserted 40 px in both densities (compact
+  tightens its spacing and font size instead). Each template asserts what its own 2.x spec did,
+  on the 404's home control.
+- **The auth layout (ruling R14).** D1 says the auth layout is unchanged. In Vue and Angular it
+  rendered the app footer, which D1 deletes, so there it loses the footer and nothing else; it
+  keeps its brand link in all four templates. The plan's "no brand text outside the index route's
+  `h1` and the page title" is therefore read for the main layout.
+- **Tests outside D5's row (ruling R15).** A 2.x `shell.spec` test that is neither in D5's row
+  nor in its "Gone" list stays in `shell.spec` under its title: the theme-script and CSP check in
+  the three SPAs, and Vue's console check and its CSP-that-forbids-eval check. The row lists what
+  must be there; it does not ban the rest.
+- **RTL (ruling R16).** Vue's language e2e clicked the header's toggle and asserted no horizontal
+  overflow and no axe violation under `dir="rtl"`. Its successor is a `shell.spec` test inside
+  the `i18n` block that stores the Hebrew choice before load and asserts the direction, the
+  overflow and axe. The click is the unit spec's, and the click-then-reload round trip is no
+  longer asserted end to end.
+- **Builders' decisions.** Next's `NavEntry` type lives in `shared/ui/pattern/nav-entry.ts`, so
+  a product's nav component in `shared/` can take the table as a prop. React's Sign out button
+  and the menu item share one hook, `store/use-sign-out.ts`. Vue's and Angular's e2e "two
+  concurrent 401s share one refresh" needed the health screen's Refresh button and is now proven
+  by the auth interceptor's unit spec alone. Angular's `ngsw-config.json` has no data group left.
