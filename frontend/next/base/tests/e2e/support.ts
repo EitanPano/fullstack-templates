@@ -24,19 +24,6 @@ export async function openMenu(trigger: Locator, firstItem: Locator) {
   }).toPass({ timeout: 15_000 })
 }
 
-// A sheet slides in over 500 ms and a box read mid-slide is fractional (43.99998 px for a 44 px
-// button). Wait for its finite animations, then measure; the thresholds stay exact.
-export async function settled(locator: Locator) {
-  await locator.evaluate((element) =>
-    Promise.all(
-      element
-        .getAnimations({ subtree: true })
-        .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
-        .map((animation) => animation.finished),
-    ),
-  )
-}
-
 // What a screen must satisfy whatever its content: no WCAG A/AA axe violation, no sideways scroll
 // and exactly one visible h1. Returns one line per failure, naming the rule or the numbers, so a
 // failing screen tells the agent what to fix; an empty list is a pass.
@@ -71,4 +58,3 @@ export async function screenProblems(page: Page): Promise<string[]> {
   return problems
 }
 
-export const isPhone = (project: string) => project === 'phone'

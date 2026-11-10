@@ -24,6 +24,15 @@ test('the page has exactly one main, with the id the skip link points at', async
   await expect(page.locator('main')).toHaveAttribute('id', 'main')
 })
 
+test('main reaches the bottom of the viewport on a short page', async ({ page }) => {
+  await page.goto('/')
+
+  const gap = await page.evaluate(
+    () => (document.querySelector('main')?.getBoundingClientRect().bottom ?? 0) - window.innerHeight,
+  )
+  expect(gap).toBeGreaterThanOrEqual(-1)
+})
+
 for (const path of ['/', '/no/such/page']) {
   test(`${path} has no horizontal overflow`, async ({ page }) => {
     await page.goto(path)
@@ -61,16 +70,21 @@ async function controlSizes(page: Page) {
   )
 }
 
-test('touch targets are 44 px on the phone project only', { tag: '@phone' }, async ({ page }) => {
-  await page.goto('/no/such/page')
-  await expect(page.getByRole('link', { name: 'Back to the start' })).toBeVisible()
-
+// The 404 has one control, the way back to the start.
+async function expectTouchTargets(page: Page) {
   const sizes = await controlSizes(page)
-  expect(sizes.length).toBeGreaterThanOrEqual(1)
+  expect(sizes.map((size) => size.text)).toEqual(['Back to the start'])
   for (const size of sizes) {
     expect(size.width, size.text).toBeGreaterThanOrEqual(44)
     expect(size.height, size.text).toBeGreaterThanOrEqual(44)
   }
+}
+
+test('touch targets are 44 px on the phone project only', { tag: '@phone' }, async ({ page }) => {
+  await page.goto('/no/such/page')
+  await expect(page.getByRole('link', { name: 'Back to the start' })).toBeVisible()
+
+  await expectTouchTargets(page)
 
   await expectNoSeriousViolations(page)
 })
@@ -88,12 +102,7 @@ test(
       document.documentElement.setAttribute('data-density', 'compact')
     })
 
-    const sizes = await controlSizes(page)
-    expect(sizes.length).toBeGreaterThanOrEqual(1)
-    for (const size of sizes) {
-      expect(size.width, size.text).toBeGreaterThanOrEqual(44)
-      expect(size.height, size.text).toBeGreaterThanOrEqual(44)
-    }
+    await expectTouchTargets(page)
   },
 )
 
