@@ -193,7 +193,8 @@ exist once step 1 has run.
 3. **A read** is a setup store: `useRequestStatus()` gives `status`, `error`, `loading`, `loaded`,
    `failed` and the setters; a method sets loading, awaits the facade, patches the refs and, in the
    `catch`, toasts once. `fail` keeps the `ApiError` in state and logs a cause that is not an
-   `ApiError`, so a bug is never silent.
+   `ApiError`, so a bug is never silent. A store with two independent requests calls
+   `useRequestStatus()` twice.
 
    ```ts
    // store/post.store.ts
@@ -251,6 +252,15 @@ exist once step 1 has run.
      }
    }
    ```
+
+<!-- @server:auth-start -->
+
+**Account data.** A store that holds an account's data (`user.store.ts` is the example) exposes
+`reset()` and clears itself when `auth.isLoggedIn` turns false, so sign-out and a refused refresh
+leave nothing for the next account. Its `load()` drops the old value before it calls, and ignores
+an answer that arrives after sign-out.
+
+<!-- @server:auth-end -->
 
 5. **A page** `pages/post/`: `post.routes.ts` (a default export, a lazy component and `meta:
 { titleKey }`) and `post-page.vue` with its `post-page.scss`. The page wraps its root in
@@ -616,14 +626,23 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && bun run preview`: the
   leaves it out, so nothing skips at run time; never a `test.skip`.
 - **Specs.** `shell.spec.ts` asserts the skip link, the one `main`, no horizontal overflow, the 404
   inside `main`, its control's 44 px touch target (phone, also with `data-density="compact"`), the
-  desktop densities and the compact padding of the page container.
+  desktop densities, the compact padding of the page container, a clean console, the theme script
+  served as a file and the bundle under a CSP that forbids eval.
   `smoke.spec.ts` asserts the index route is one `h1` inside `main` and that `GET /api/health` on
-  the page's origin answers 200 (the proxy, by a request). `bundle.spec.ts` asserts a clean console,
-  the theme script served as a file and the bundle under a CSP that forbids eval. `screens.spec.ts` captures every screen
+  the page's origin answers 200 (the proxy, by a request). `screens.spec.ts` captures every screen
   in phone and desktop, light and dark, to `test-results/screens/<route>-<viewport>-<theme>.png`
   (QA reads them) and checks each: no axe violation of the WCAG A and AA tags (in dark this is the
   contrast measurement), no horizontal scroll, exactly one `h1`. A failure names the route, theme
   and project with the rule ids and targets.
+
+<!-- @i18n-start -->
+
+- **RTL.** With `i18n`, `shell.spec.ts` stores the Hebrew choice before the page loads and asserts
+  `dir="rtl"`, no horizontal overflow and no axe violation: the toggle is on no page of the
+  template, so the check starts from the stored choice.
+
+<!-- @i18n-end -->
+
 - **Screen routes.** `tests/e2e/screen-routes.ts` builds the list from `src/app/nav.ts`, so a nav
   entry is covered with no edit. A route that is not in the nav (an auth screen) is added to
   `AUTH_ROUTES`; a route that needs an account is added to `SIGNED_IN_ROUTES` instead, because
