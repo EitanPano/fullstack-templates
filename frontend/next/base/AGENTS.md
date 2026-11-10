@@ -91,6 +91,11 @@ action, never through `fetch` in the browser.
 2. If the server's contract changed, run `bun run api:types`. `src/shared/api/generated/` is
    regenerated and committed; never edit it. Only `*/server/*` files import `@/shared/api/client`
    and the SDK functions.
+In the blocks, `getApiPost`, `patchApiPostById`, `listPosts`, `PostRow`, `PostListSkeleton`,
+`renamePost` and `RENAME_POST_COPY` are the example feature's own names: they exist once the
+server has the endpoint, `bun run api:types` has run and the recipe's steps are done.
+Everything else in the blocks already exists in the template.
+
 3. A read is an entity loader (Reads has the rules):
 
    ```ts
@@ -166,12 +171,21 @@ action, never through `fetch` in the browser.
 the skip link and the page's one `main`. A product's chrome is a component in
 `shared/ui/pattern/` (this template's home for app-wide components; it takes the nav table and
 slots such as the theme control as props, because `shared` never imports `app` or a widget) that
-the layout renders between `<SkipLink />` and `<main>`. `ThemeToggle` and `UserMenu` are ready to
-place there.
+the layout renders between `<SkipLink />` and `<main>`. `UserMenu` is the control to place: it
+carries the theme items. `ThemeToggle` is only those items (it throws outside a menu), for a
+`DropdownMenuContent` the product writes, as `AccountMenu` uses it.
 
 <!-- @server:auth-start -->
 
-With the server's auth, the layout builds the account slot from `widget/account-menu`.
+With the server's auth, place `widget/account-menu` in the chrome. It reads the session at
+request time, so it sits in `Suspense`; without it `next build` fails under Cache Components
+(the e2e and the image), not `check`:
+
+```tsx
+<Suspense fallback={<AccountMenuSkeleton />}>
+  <AccountMenu />
+</Suspense>
+```
 
 <!-- @server:auth-end -->
 
@@ -359,10 +373,10 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
 - **Patterns** in `src/shared/ui/pattern/`: `SkipLink`, `Page` (the container: width, gutters,
   vertical padding), `PageHeader`, `Section`, `EmptyState`, `ErrorState` (with retry),
   `ListSkeleton`, `CardSkeleton`, `AuthCard` (with the server's auth), `FormActions` (sticky on
-  phones) and `ConfirmDialog`. Two components are for the product to place: `ThemeToggle` (the
-  theme choices as menu items) and `UserMenu` (avatar trigger, email, items slot, `ThemeToggle`;
-  the `email` prop is the account menu's, it stays when auth is off because the pattern is one
-  component). Use a pattern before writing a layout by hand. The `(site)` layout renders the skip
+  phones) and `ConfirmDialog`. `UserMenu` is the control for the product to place (avatar trigger, email,
+  items slot, the theme items; the `email` prop is the account menu's, it stays when auth is off
+  because the pattern is one component); `ThemeToggle` is those theme items alone, for a
+  `DropdownMenuContent` the product writes, and throws outside a menu. Use a pattern before writing a layout by hand. The `(site)` layout renders the skip
   link and `main`, which has no width or padding: a page, `loading.tsx`, `error.tsx` and
   `not-found.tsx` wrap their content in `Page` and never add a landmark set.
 - **Forms** use the bindings in `src/shared/ui/form/`, never a raw `input`.
@@ -425,7 +439,8 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
 - E2E tests live in `tests/e2e/` (Playwright with `@axe-core/playwright`): one test per user
   journey, each with an axe scan (`support.ts` has the scan; `auth-support.ts` the sign-up, sign-in
   and sign-out helpers). Install the browser once with `bun x playwright install chromium` (add
-  `--with-deps` on Linux). Scan a settled page: a closed menu, a widget past its skeleton.
+  `--with-deps` on Linux). Scan a settled page: a closed menu, a widget past its skeleton. `openMenu` (`support.ts`) clicks a
+  Radix trigger until its first item shows, because a click before hydration opens nothing.
 - `bun run test:e2e` tests the **production build**, not the dev server. Playwright starts two web
   servers, both with `reuseExistingServer: false` (stop a dev server on port 3000 first):
   - the API, fresh every run, with `RATE_LIMIT_SCALE=100` so the suite does not trip the rate limits,
