@@ -2,9 +2,17 @@ import type { ReactNode } from 'react'
 
 import { cn } from '@/shared/lib/cn'
 
-// The page rhythm inside the shell's `main`: a vertical stack with one gap.
+// The page container inside `main`: width, centring, gutters, vertical padding and a vertical
+// stack with one gap. `main` has none of these, so a full-bleed screen skips `Page`. Every other
+// screen that renders in `main` (route-level `loading.tsx`, `error.tsx`, `not-found.tsx`)
+// wraps its content in it.
 export function Page({ className, ...props }: React.ComponentProps<'div'>) {
-  return <div className={cn('flex flex-col gap-6', className)} {...props} />
+  return (
+    <div
+      className={cn('mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-8', className)}
+      {...props}
+    />
+  )
 }
 
 // The one `h1` of a page, with an optional description and actions that wrap under it on phones.
