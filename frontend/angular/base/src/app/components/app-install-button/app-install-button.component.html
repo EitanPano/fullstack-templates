@@ -1,0 +1,5 @@
+@if (install.canInstall()) {
+  <app-button variant="ghost" size="sm" (click)="installApp()">
+    {{ 'pwa.install' | t }}
+  </app-button>
+}

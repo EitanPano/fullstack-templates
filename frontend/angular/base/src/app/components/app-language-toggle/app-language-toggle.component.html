@@ -1,0 +1,11 @@
+<app-button
+  variant="ghost"
+  size="sm"
+  [ariaLabel]="'language.toggle' | t: { name: nextName() | t }"
+  (click)="switchLanguage()"
+>
+  {{ nextName() | t }}
+</app-button>
+<span class="visually-hidden" role="status">
+  {{ 'language.current' | t: { name: currentName() | t } }}
+</span>

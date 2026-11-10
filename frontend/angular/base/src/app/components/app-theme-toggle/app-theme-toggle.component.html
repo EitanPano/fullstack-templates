@@ -1,0 +1,11 @@
+<app-button
+  variant="ghost"
+  size="icon"
+  [ariaLabel]="'theme.toggle' | t: { current: current() | t, next: next() | t }"
+  (click)="theme.cycle()"
+>
+  <app-icon [name]="themeIcon()" />
+</app-button>
+<span class="visually-hidden" role="status">
+  {{ 'theme.current' | t: { current: current() | t } }}
+</span>

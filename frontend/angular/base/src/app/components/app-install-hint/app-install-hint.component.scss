@@ -1,0 +1,15 @@
+@use 'setup/functions';
+
+:host {
+  display: block;
+}
+
+.install-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: functions.space(2);
+  padding-block: functions.space(2);
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+}
