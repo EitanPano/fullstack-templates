@@ -6,10 +6,7 @@ function HomePage() {
   return (
     <Page className="home-page">
       <title>__PROJECT_DISPLAY_NAME__</title>
-      <PageHeader
-        title="__PROJECT_DISPLAY_NAME__"
-        description="Replace this page with the first screen."
-      />
+      <PageHeader title="__PROJECT_DISPLAY_NAME__" description="Replace this page with the first screen." />
     </Page>
   )
 }

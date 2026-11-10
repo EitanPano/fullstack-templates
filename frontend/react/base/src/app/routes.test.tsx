@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { AppMainError } from '@/components/app-main-error'
 import { AppMainLayout } from '@/components/app-main-layout'
@@ -33,34 +34,63 @@ describe('the route table', () => {
     expect(container.querySelector('main > .page')).not.toBeNull()
   })
 
-  it('renders the group error boundary inside main, as the page container', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const router = createMemoryRouter(
-      [
-        {
-          element: <AppMainLayout />,
-          children: [
-            {
-              ErrorBoundary: AppMainError,
-              children: [
-                {
-                  path: '/',
-                  loader: () => {
-                    throw new Error('boom')
-                  },
-                  element: <p>never</p>,
-                },
-              ],
-            },
-          ],
-        },
-      ],
-      { initialEntries: ['/'] },
-    )
-    const { container } = render(<RouterProvider router={router} />)
+  // A loader that fails once, then answers: the group boundary shows the ApiError's own copy, never
+  // the server's text, and Try again revalidates the loaders.
+  describe('the group error boundary', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/something went wrong/i)
-    expect(container.querySelector('main > .page')).not.toBeNull()
-    vi.restoreAllMocks()
+    function setupFailingOnce() {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      let healthy = false
+      const router = createMemoryRouter(
+        [
+          {
+            element: <AppMainLayout />,
+            children: [
+              {
+                ErrorBoundary: AppMainError,
+                children: [
+                  {
+                    path: '/',
+                    loader: () => {
+                      if (healthy) return null
+                      throw Object.assign(new Error('db down: hunter2'), {
+                        code: 'upstream_unavailable',
+                        message: 'The service is unavailable right now. Try again in a moment.',
+                      })
+                    },
+                    element: <p>Back</p>,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        { initialEntries: ['/'] },
+      )
+      const view = render(<RouterProvider router={router} />)
+      return { view, recover: () => (healthy = true) }
+    }
+
+    it('renders inside main, in the page container, with the safe copy only', async () => {
+      const { view } = setupFailingOnce()
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/unavailable right now/i)
+      expect(view.container.querySelector('main > .page')).not.toBeNull()
+      expect(document.body).not.toHaveTextContent('hunter2')
+    })
+
+    it('renders the page once Try again finds the loader healthy', async () => {
+      const { recover } = setupFailingOnce()
+      await screen.findByRole('alert')
+
+      recover()
+      await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+      expect(await screen.findByText('Back')).toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
   })
 })
