@@ -173,7 +173,7 @@ the skip link and the page's one `main`. A product's chrome is a component in
 slots such as the theme control as props, because `shared` never imports `app` or a widget) that
 the layout renders between `<SkipLink />` and `<main>`. `UserMenu` is the control to place: it
 carries the theme items. `ThemeToggle` is only those items (it throws outside a menu), for a
-`DropdownMenuContent` the product writes, as `AccountMenu` uses it.
+`DropdownMenuContent` the product writes, as `UserMenu` uses it.
 
 <!-- @server:auth-start -->
 
