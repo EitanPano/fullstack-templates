@@ -51,6 +51,18 @@ test('an unknown URL renders not-found inside main', async ({ page }) => {
   ).toBeVisible()
 })
 
+// The layout is a column at least the viewport high with `main` taking the rest, so a full-bleed
+// screen fills the viewport without a layout prop and a footer a product adds sits at the bottom.
+test('main reaches the bottom of the viewport on a short page', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+  const gap = await page
+    .locator('main')
+    .evaluate((element) => window.innerHeight - element.getBoundingClientRect().bottom)
+  expect(gap).toBeLessThanOrEqual(1)
+})
+
 // `data-density="compact"` is a generation setting; setting it here exercises the same CSS
 // without a second build. Compact tightens the page container's spacing, here its block padding.
 test('compact density tightens the page container', async ({ page }) => {
