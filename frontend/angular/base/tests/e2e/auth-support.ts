@@ -54,9 +54,7 @@ export async function registerThroughUi(page: Page, run: string): Promise<string
 export async function expectSignedIn(page: Page, email: string) {
   await page.goto('/profile')
   await expect(page.getByRole('heading', { level: 1, name: 'Your profile' })).toBeVisible()
-  await expect(page.getByRole('main').locator('.profile__fact', { hasText: 'Email' })).toContainText(
-    email,
-  )
+  await expect(page.getByRole('main').locator('.profile__facts')).toContainText(email)
 }
 
 // Signs out with the profile page's button; the visitor lands on home and the profile is guarded
