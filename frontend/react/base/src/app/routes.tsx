@@ -17,8 +17,10 @@ import type { AppStore } from '@/store'
 // The route table: paths to components and loaders, nothing else. A route group is a pathless
 // route with its own HydrateFallback (loading) and ErrorBoundary (error), nested inside the
 // group's layout so a failure renders inside the layout's main. It is a function of the store so a test
-// renders the table against its own.
-export function createRoutes(store: AppStore): RouteObject[] {
+// renders the table against its own; only the guarded and auth routes read it, so without auth the
+// parameter is unused.
+export function createRoutes(store: AppStore): RouteObject[] { // @server:auth
+export function createRoutes(_store: AppStore): RouteObject[] { // @noserver:auth
   return [
     {
       path: '/',
