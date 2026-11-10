@@ -121,8 +121,20 @@ action, never through `fetch` in the browser.
    // widget/post-list/ui/post-list.tsx
    export async function PostList() {
      await connection()
-     const posts = await listPosts()
-     return posts.map((post) => <PostRow key={post.id} post={post} />)
+     const result = await load()
+     if (!result.ok) return <ErrorState title="Posts" description={result.message} />
+     return result.posts.map((post) => <PostRow key={post.id} post={post} />)
+   }
+
+   // The catch lives in a helper, not around JSX; Next's own signals pass through.
+   async function load() {
+     try {
+       return { ok: true as const, posts: await listPosts() }
+     } catch (error) {
+       unstable_rethrow(error)
+       const message = error instanceof ActionError ? error.message : DEFAULT_COPY.internal
+       return { ok: false as const, message }
+     }
    }
    ```
 
@@ -152,9 +164,17 @@ action, never through `fetch` in the browser.
 
 **The shell.** The template renders no header, navigation or footer: `app/(site)/layout.tsx` is
 the skip link and the page's one `main`. A product's chrome is a component in
-`shared/ui/pattern/` (this template's home for app-wide components; it takes the nav table and an
-account slot as props, because `shared` never imports `app` or a widget) that the layout renders
-between `<SkipLink />` and `<main>`, building the account slot from `widget/account-menu`.
+`shared/ui/pattern/` (this template's home for app-wide components; it takes the nav table and
+slots such as the theme control as props, because `shared` never imports `app` or a widget) that
+the layout renders between `<SkipLink />` and `<main>`. `ThemeToggle` and `UserMenu` are ready to
+place there.
+
+<!-- @server:auth-start -->
+
+With the server's auth, the layout builds the account slot from `widget/account-menu`.
+
+<!-- @server:auth-end -->
+
 `main` has no width and no padding: a screen gets its container from `Page`, and a full-bleed
 screen skips it.
 
@@ -172,7 +192,7 @@ has no API, so no data is fetched at build.
   value in.
 - **The widget**: `await connection()` is its first line, then the loader. It catches in a helper
   (not around JSX), calls `unstable_rethrow(error)`, and renders `ErrorState` with the
-  `ActionError` message. `PostList` above is the pattern.
+  `ActionError` message. The `PostList` block in step 5 is the pattern.
 
 <!-- @server:auth-start -->
 
