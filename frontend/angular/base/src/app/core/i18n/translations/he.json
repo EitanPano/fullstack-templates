@@ -4,14 +4,10 @@
     "loading": "טוען"
   },
   "nav": {
-    "primary": "ראשי",
-    "open": "פתיחת התפריט",
-    "close": "סגירת התפריט",
     "home": "דף הבית"
   },
-  "shell": {
-    "offline": "אין חיבור",
-    "footer": "© {{year}} {{name}}"
+  "home": {
+    "description": "החליפו את הדף הזה במסך הראשון."
   },
   "language": {
     "toggle": "החלפת שפה ל{{name}}",
@@ -80,20 +76,6 @@
     "close": "סגירה",
     "confirm": "אישור",
     "cancel": "ביטול"
-  },
-  "health": {
-    "title": "מצב המערכת",
-    "description": "האם השרת פעיל ועונה.",
-    "refresh": "רענון",
-    "version": "גרסה",
-    "uptime": "זמן פעילות",
-    "uptimeValue": "{{seconds}} שניות",
-    "checked": "נבדק לאחרונה",
-    "status": {
-      "label": "מצב",
-      "ok": "תקין",
-      "degraded": "פגיעה בביצועים"
-    }
   },
   "pwa": {
     "updateReady": "גרסה חדשה מוכנה.",
