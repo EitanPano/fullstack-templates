@@ -1,6 +1,8 @@
 @use 'setup/functions';
 
+// A centred child of the page container would shrink to its content, so it takes the width first.
 .not-found {
+  inline-size: 100%;
   max-inline-size: 40rem;
   margin-block: functions.space(10);
   margin-inline: auto;

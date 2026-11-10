@@ -53,16 +53,11 @@ describe('the compiled styles tree', () => {
     expect(coarse).toMatch(/\.button\s*\{[^}]*min-inline-size:\s*(44px|2\.75rem)/)
   })
 
-  it.each(['.button--sm', '.header__brand', '.nav-links__link'])(
-    'floors %s at 44 px under a coarse pointer',
-    (selector) => {
-      const own = new RegExp(
-        String.raw`${selector.replace('.', String.raw`\.`)}\s*\{[^}]*min-block-size:\s*(44px|2\.75rem)`,
-      )
-
-      expect(media('(pointer: coarse)')).toMatch(own)
-    },
-  )
+  it('floors .button--sm at 44 px under a coarse pointer', () => {
+    expect(media('(pointer: coarse)')).toMatch(
+      /\.button--sm\s*\{[^}]*min-block-size:\s*(44px|2\.75rem)/,
+    )
+  })
 
   // .button--icon sets no height of its own: it is a .button, which carries the floor.
   it('floors an icon button through .button under a coarse pointer', () => {

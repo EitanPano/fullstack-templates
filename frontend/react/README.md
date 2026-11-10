@@ -8,6 +8,10 @@ session glue (same-origin HttpOnly cookies, one refresh on a 401, route guards, 
 sign-up). Generated alone or as the `frontend` of the `react-python-fastapi` or `react-bun-express`
 stack. The shape it follows is ADR 0007 and `docs/conventions.md › Frontend, single-page app`.
 
+A generated app has no header, navigation, footer or example screen: `AppMainLayout` is a skip link
+and one `main`, and `pages/home/` is an index route of one `h1`; the product builds its own chrome
+(ADR 0010).
+
 ## Layout
 
 - `template.yaml`: the manifest (commands, contract, HTTP surface).

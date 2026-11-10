@@ -24,19 +24,17 @@ The layer map of this package. Commands are in `package.json`; the contract code
 <!-- @server:auth-end -->
 
 - `components/`: the app-wide components, every file `app-*` with its `.scss` beside it when
-  styled. The shells: `app-main-layout` (`AppMainLayout` takes the nav table as a prop, because
-  `components/` never imports `app/`), `app-main-loading` (the group's `HydrateFallback`),
-  `app-main-error` (its `ErrorBoundary`); and what they compose: `app-header` (with an offline
-  badge), `app-nav-links`, `app-mobile-nav` (the phone sheet, closed when the viewport reaches
-  `md`), `app-footer`, `app-user-menu`, `app-theme-menu`, `app-account-slot` (the account menu
-  with the server's auth, the theme menu alone without). A component goes here when a shell
-  composes it or it reads the store, the theme or the session; a reusable control or pattern
-  goes to `shared/components/`.
+  styled. The layout and its group screens: `app-main-layout` (`AppMainLayout`: the skip link and
+  the one `main`), `app-main-loading` (the group's `HydrateFallback`), `app-main-error` (its
+  `ErrorBoundary`). Components the product places in its own shell, rendered by no template file:
+  `app-user-menu` (an avatar menu with the theme choices) and `app-theme-menu`. A component goes
+  here when a layout or the product's shell composes it or it reads the store, the theme or the
+  session; a reusable control or pattern goes to `shared/components/`.
 
 <!-- @server:auth-start -->
 
-`app-account-menu` and `app-auth-layout` (a centred `<main id="main">`, no shell) with
-`app-auth-loading` and `app-auth-error`.
+`app-account-menu` (a component the product places) and `app-auth-layout` (a centred
+`<main id="main">`, no skip link) with `app-auth-loading` and `app-auth-error`.
 
 <!-- @server:auth-end -->
 
@@ -44,21 +42,29 @@ The layer map of this package. Commands are in `package.json`; the contract code
   noun, flat: `<module>.routes.tsx` (`<module>Routes(store)`), the routed `<name>-page.tsx` files
   beside it each with its `<name>-page.scss`, when needed `<module>.form.ts` and
   `<module>.copy.ts`; `components/` is the one sub-directory, for the module's own pieces. A page
-  never imports another module. `health/` is the worked example; `not-found/` is the `*` route,
-  last in the main group, so a 404 keeps the shell.
+  never imports another module. `home/` is the index route (one `h1`, no data call); `not-found/`
+  is the `*` route, last in the main group, so a 404 keeps the layout.
 
 <!-- @server:auth-start -->
 
-`auth/` (sign-in, sign-up; `auth.form.ts`, `auth.copy.ts`), `user/` (profile, loader
-`requireAccount`: the guarded-page example), `forbidden/` (where `requireRole` sends a wrong role).
+`auth/` (sign-in, sign-up; `auth.form.ts`, `auth.copy.ts`), `user/` (profile with its Sign out
+button, loader `requireAccount`: the guarded-page example), `forbidden/` (where `requireRole` sends
+a wrong role).
 
 <!-- @server:auth-end -->
 
 - `store/`: `index.ts` (`createStore(preloaded?)`, `AppStore`, `RootState`), `hooks.ts`
   (`useAppDispatch`, `useAppSelector`), `theme.slice.ts` (`themeChanged`, `themeRestored`,
   `selectTheme`), `listeners.ts` (`createListeners`).
+
+<!-- @server:auth-start -->
+
+`use-sign-out.ts` (`useSignOut`: the one sign-out action).
+
+<!-- @server:auth-end -->
+
 - `services/`: the data layer, the only importer of the generated runtime. `api.ts` (the one
-  `createApi`, its `tagTypes`), `call.ts` (`call`, `DEFAULT_COPY`), `refetchIfRejected` in `api.ts`, `health.api.ts`,
+  `createApi`, its `tagTypes`), `call.ts` (`call`, `DEFAULT_COPY`), `refetchIfRejected` in `api.ts`,
   `generated/` (Hey API output; committed, never edited).
 
 <!-- @server:auth-start -->
@@ -75,7 +81,8 @@ The layer map of this package. Commands are in `package.json`; the contract code
   `confirm-dialog`). `components/form/`: `form`, `field-frame`, `use-field`, the `*-field` bindings
   (`text`, `textarea`, `number`, `select`, `checkbox`, `password`, `date-time`), `report-failure`.
   `hooks/`: `useMediaQuery`, `useOnlineStatus` (both on `useSyncExternalStore`) and
-  `useDebouncedValue`, which no component calls yet: it is there for the first search box. Hooks
+  `useDebouncedValue`; no template file calls them, they are for the product's shell and its first
+  search box. Hooks
   over the store stay in `store/hooks.ts`; `src/hooks/` is an unknown file.
   `utils/`: `cn`, `date`, `storage` (`localStorage` that never throws), `zod-messages`.
 
@@ -86,7 +93,7 @@ The layer map of this package. Commands are in `package.json`; the contract code
 <!-- @server:auth-end -->
 
 - `models/`: one file per glossary noun: the contract's types re-exported, UI-only shapes, pure
-  helpers. `api-error.ts` (`ApiError`, `isApiError`, `withCopy`), `health.ts`, `nav.ts`.
+  helpers. `api-error.ts` (`ApiError`, `isApiError`, `withCopy`), `nav.ts`.
 
 <!-- @server:auth-start -->
 
@@ -114,11 +121,12 @@ The layer map of this package. Commands are in `package.json`; the contract code
 | State shared across pages (client-only)       | `store/<name>.slice.ts`; its side effect in `store/listeners.ts`   |
 | A route                                       | `pages/<module>/<module>.routes.tsx`, composed in `app/routes.tsx` |
 | A primitive (button, input, dialog)           | `shared/components/<name>.tsx` + `<name>.scss` beside it           |
-| An app-wide component (header, menu)          | `components/app-<name>.tsx` + `app-<name>.scss` beside it          |
+| An app-wide component (a menu, the header)    | `components/app-<name>.tsx` + `app-<name>.scss` beside it          |
 | A pattern (`Page`, `EmptyState`, …)           | `shared/components/`                                               |
 | A form field binding                          | `shared/components/form/`                                          |
 | A formatting or date helper                   | `shared/utils/`                                                    |
 | A product-agnostic hook                       | `shared/hooks/use-<name>.ts` + its test                            |
+| A hook a page and an app-wide component share | `store/use-<name>.ts`: pages never import `components/`           |
 | A route guard (with the server's auth)        | `core/auth/guards.ts`                                              |
 | An environment variable                       | `core/config/env.ts` plus `.env.example`                           |
 | A navigation entry                            | `app/nav.ts`                                                       |
@@ -166,9 +174,11 @@ the page's own origin (see Deployment), so the bundle carries no API URL.
 
 The data flows one way: **component -> RTK Query hook (`services/<module>.api.ts`) -> `call` ->
 generated SDK -> fetch client**. A component never calls `fetch` or the SDK; a one-off request
-needs an endpoint first. `pages/health`, `services/health.api.ts`, `models/health.ts` and
-`pages/health/home-page.scss` are the worked example. For a new server module (the noun, by its
-`.doc/glossary.md` name):
+needs an endpoint first. For a new server module (the noun, by its `.doc/glossary.md` name; `post`
+below). In the blocks, `Post`, `PostRow`, `PostList`, `getApiPost`, `patchApiPostById`, the `'Post'` tag
+and the `postApi` hooks are the example feature's own names: they exist once the server has the
+endpoint, `bun run api:types` has regenerated the client and `models/post.ts` exists. Everything
+else in the blocks already exists in the template.
 
 1. **Glossary and contract.** Name the noun and the actions in `.doc/glossary.md`. If the contract
    changed, run `bun run api:types`: `src/services/generated/` is regenerated and committed.
@@ -177,12 +187,24 @@ needs an endpoint first. `pages/health`, `services/health.api.ts`, `models/healt
    `providesTags`, a `build.mutation` per write with `invalidatesTags`, the exported hooks. Add
    the tag to `tagTypes` in `services/api.ts`.
 
+   A read and a mutation:
+
    ```ts
-   getHealth: build.query<HealthView, void>({
-     queryFn: () => call(getApiHealth()),
-     forceRefetch: refetchIfRejected,
-     providesTags: ['Health'],
-   }),
+   // services/post.api.ts
+   export const postApi = api.injectEndpoints({
+     endpoints: (build) => ({
+       listPosts: build.query<Post[], void>({
+         queryFn: () => call(getApiPost()),
+         forceRefetch: refetchIfRejected,
+         providesTags: ['Post'],
+       }),
+       renamePost: build.mutation<Post, { id: string; title: string }>({
+         queryFn: ({ id, title }) => call(patchApiPostById({ path: { id }, body: { title } })),
+         invalidatesTags: ['Post'],
+       }),
+     }),
+   })
+   export const { useListPostsQuery, useRenamePostMutation } = postApi
    ```
 
 4. **Routes** `pages/<noun>/<noun>.routes.tsx`: `<noun>Routes(store)` with a prefetching loader
@@ -190,15 +212,23 @@ needs an endpoint first. `pages/health`, `services/health.api.ts`, `models/healt
    A gated page uses `requireAccount(store, returnToOf(request))` or `requireRole` as its loader.
 
    ```tsx
-   loader: async () => {
-     const subscription = store.dispatch(healthApi.endpoints.getHealth.initiate())
-     try {
-       return await subscription.unwrap()
-     } finally {
-       subscription.unsubscribe()
-     }
-   },
-   lazy: () => import('./home-page'),
+   // pages/post/post.routes.tsx
+   export function postRoutes(store: AppStore): RouteObject[] {
+     return [
+       {
+         path: 'post',
+         loader: async () => {
+           const subscription = store.dispatch(postApi.endpoints.listPosts.initiate())
+           try {
+             return await subscription.unwrap()
+           } finally {
+             subscription.unsubscribe()
+           }
+         },
+         lazy: () => import('./post-page'),
+       },
+     ]
+   }
    ```
 
    The entry stays cached after `unsubscribe`, so the page's hook finds it: one request. A
@@ -206,9 +236,45 @@ needs an endpoint first. `pages/health`, `services/health.api.ts`, `models/healt
 
 5. **Page** `pages/<noun>/<page>-page.tsx`: exports the page as `Component` (the `lazy`
    contract): a `Page` with a `<title>`, a `PageHeader` and the module's components.
+
+   ```tsx
+   // pages/post/post-page.tsx
+   function PostPage() {
+     return (
+       <Page>
+         <title>Posts · __PROJECT_DISPLAY_NAME__</title>
+         <PageHeader title="Posts" />
+         <PostList />
+       </Page>
+     )
+   }
+
+   export { PostPage as Component }
+   ```
+
 6. **Components** `pages/<noun>/components/*`: read the hook; a skeleton with the same layout
    while `isLoading`, `ErrorState` on `isError` with `refetch` as `onRetry`, the data otherwise.
    `<noun>.form.ts` (the zod schema) and `<noun>.copy.ts` (the copy tables) when needed.
+
+   ```tsx
+   // pages/post/components/post-list.tsx
+   export function PostList() {
+     const { data, error, isLoading, isError, isFetching, refetch } = useListPostsQuery()
+     if (isLoading) return <ListSkeleton />
+     if (isError) {
+       return (
+         <ErrorState
+           title="Posts"
+           description={isApiError(error) ? error.message : 'Something went wrong. Try again.'}
+           retrying={isFetching}
+           onRetry={() => void refetch()}
+         />
+       )
+     }
+     return data?.map((post) => <PostRow key={post.id} post={post} />)
+   }
+   ```
+
 7. **Styles** a sibling `<page>-page.scss` with the page's stem, imported last by the page
    (`import './<page>-page.scss'`); the same for a component. BEM classes.
 8. **Navigation.** A top-level screen adds `{ to, label }` to `NAV` in `app/nav.ts`.
@@ -217,6 +283,19 @@ needs an endpoint first. `pages/health`, `services/health.api.ts`, `models/healt
     declared in its zod schema and listed in `.env.example`. Never a secret.
 11. **No scaffolder.** Never run a generator inside this package. A new primitive is a file in
     `shared/components/` with its sibling `.scss`.
+
+**The shell.** The template renders no header, navigation or footer: `AppMainLayout` is the skip
+link and the page's one `main`. A product's chrome is a component in `components/` (this
+template's home for app-wide components) that `AppMainLayout` renders between the skip link and
+`main`. The nav table lives in `app/nav.ts` and `components/` never imports `app/`, so
+`app/routes.tsx` passes it in: give `AppMainLayout` a prop, such as `nav`, for the chrome to read.
+`AppUserMenu` and `AppThemeMenu` are ready to place there.
+
+<!-- @server:auth-start -->
+
+With the server's auth, the account control is `AppAccountMenu`.
+
+<!-- @server:auth-end -->
 
 The features in use, so a new page does not reinvent them: `useId` for label and error ids,
 React 19's `<title>` in a page, lazy route modules, error boundaries, RTK Query's generated hooks,
@@ -235,14 +314,15 @@ and the three `shared/hooks/`. Not used, on purpose: `useTransition`, `useDeferr
 
 ### Mutations
 
-- The `queryFn` is `call(post…({ body }))`. The component awaits `trigger(arg).unwrap()` and shows
-  the outcome **after the await**: a toast, or `reportFailure(form, error)` for a form. Never a
-  toast from an effect, a listener or `onQueryStarted`.
+- The `queryFn` is `call(post…({ body }))`. The component awaits `trigger(arg).unwrap()` (`rename`
+  below, from `useRenamePostMutation()`) and shows the outcome **after the await**: a toast, or
+  `reportFailure(form, error)` for a form. Never a toast from an effect, a listener or
+  `onQueryStarted`.
 
   ```tsx
   try {
-    await trigger().unwrap()
-    toast.success(REFRESH_COPY.success)
+    await rename({ id, title }).unwrap()
+    toast.success('Post renamed')
   } catch (error) {
     toast.error(isApiError(error) ? error.message : 'Something went wrong.')
   }
@@ -282,7 +362,7 @@ React Hook Form with `zodResolver` and the mutation hook; `SignInForm` is the pa
   on in production, a mutation's action carries its arguments. `main.tsx` creates the one store; `renderRoutes` a fresh one per
   test, so no module holds a singleton. `setupListeners` is off unless a plan turns it on.
 - A slice is `store/<name>.slice.ts` (`createSlice` with `selectors`) for **client-only** state two
-  or more pages or the shell read (`theme.slice.ts`); read with `useAppSelector`, write with
+  or more pages or the product's shell read (`theme.slice.ts`); read with `useAppSelector`, write with
   `useAppDispatch`. Server state is the RTK Query cache, never copied into a slice. A side effect
   of a slice action is a listener in `store/listeners.ts`, not a reducer. State stays serializable:
   plain objects, no `Date`, no class instances.
@@ -317,9 +397,9 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
     a 5xx or a network error does not, because they say nothing about the cookie.
 - **The session is the `getMe` cache entry.** There is no auth slice (a second source of truth).
   `getMe` resolves a visitor's 401 to `null`; any other failure stays an `ApiError`. The root route
-  has no loader: the shell renders at once and the header's `useGetMeQuery` is the session read.
-  RTK Query deduplicates it with a guard's `initiate()` for the same key, so a visitor costs one
-  `/api/user/me`.
+  has no loader: the layout renders at once and a guard's `initiate()` or the account menu's
+  `useGetMeQuery` is the session read. RTK Query deduplicates them for the same key, so a visitor
+  costs one `/api/user/me`.
 - **Guards.** `core/auth/guards.ts`: `readSession(store)` returns the `User` or `null`, failing
   closed (logged, except the 401); `requireAccount(store, returnTo?)` throws a redirect to
   `/sign-in?next=…`; `requireRole(store, 'admin', returnTo?)` also sends another role to `/forbidden`; `redirectIfSignedIn(store)` sends an account home. A loader calls
@@ -329,15 +409,17 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
   protection.
 - **Sign-in and sign-up.** `login` and `register` resolve to the user only (the tokens never enter
   the store). Inside their `queryFn`, before returning, they set the hint and write the account
-  into the `getMe` cache, so the header flips without a request and the next loader finds the
+  into the `getMe` cache, so the account menu flips without a request and the next loader finds the
   account. The form (`next` is a prop, not a schema field) navigates to `safeNextPath(next)` after the await: a path on this site, else
   `/` (it compares the decoded, lowercased path with the auth screens).
 - **Sign-out.** `logout`'s `queryFn` calls the API, logs a failure, clears the hint whatever the
-  API said and resolves `{ revoked: boolean }`. `SignOutItem` toasts a warning after the await when
-  the API could not revoke, then dispatches `api.util.resetApiState()` and navigates to `/sign-in`.
-- **The account slot** is `AccountSlot`. `AccountMenu` has three states: a skeleton while `getMe`
-  loads, a "Sign in" link and the theme menu for a visitor, the avatar menu (email, theme, "Sign
-  out") for an account. The email is in the menu, never header text.
+  API said and resolves `{ revoked: boolean }`. `useSignOut` (`store/use-sign-out.ts`) is the one
+  action the profile page's `SignOutButton` and the account menu's item both run: it toasts a
+  warning after the await when the API could not revoke, then dispatches `api.util.resetApiState()`
+  and navigates to `/sign-in`.
+- **The account menu** is `AppAccountMenu`, placed by the product. It has three states: a skeleton
+  while `getMe` loads, a "Sign in" link and the theme menu for a visitor, the avatar menu (email,
+  theme, "Sign out") for an account. The email is in the menu, never header text.
 - **Staff pages.** Put them under a pathless route whose loader calls
   `requireRole(store, 'admin', returnToOf(request))`, and give every staff loader the same call.
   No staff page ships.
@@ -357,7 +439,7 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
   `.scss` with its stem and imports it as `import './x.scss'`, the last import of the file; it
   `@use`s `setup/...` only and is never layered, so its rules win over the global ones. A partial
   two sibling files share (`controls.scss`: `input.tsx`, `textarea.tsx`) is imported by each. A
-  component renders BEM classes (`.button--primary`, `.header__brand`) composed with `cn` from
+  component renders BEM classes (`.button--primary`, `.page-header__title`) composed with `cn` from
   `@/shared/utils/cn`. `main.tsx` imports Inter, `themes/brand.css`, then `styles.scss`.
   `tests/unit/styles-tree.test.ts` enforces it: `src/styles/` holds only the global tree, every
   sheet has its owner, the owner's import is last, imports are siblings, no `style` attribute,
@@ -387,8 +469,11 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
   from the theme slice by `AppProviders`). No scaffolder.
 - **Patterns** in `shared/components/`: `Page`, `PageHeader`, `Section`, `EmptyState`,
   `ErrorState` (with retry), `ListSkeleton`, `CardSkeleton`, `FormActions` (sticky on phones),
-  `ConfirmDialog`; `AuthCard` with auth. `AppUserMenu` and the shell (skip link, header with the nav
-  inline from `md` and in a sheet on phones, account slot, one `main`, footer) are in `components/`.
+  `ConfirmDialog`; `AuthCard` with auth. `Page` is the container: `main` has no width and no
+  padding, so every route that renders in it (a page, the 404, the group's loading and error) is
+  wrapped in `Page`, which carries the width, the gutters and the vertical padding (tighter under
+  compact density); a full-bleed screen is a route that renders without it. `AppUserMenu` and
+  `AppThemeMenu` in `components/` are the controls the product places in its header.
   Use a pattern before writing a layout by hand. A page never adds a landmark set; it sets its
   title with a `<title>` element.
 - **Forms** use `shared/components/form/`. **Status** is a `Badge` by meaning
@@ -400,7 +485,7 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
 - Every route has a loading and an error state, its own or its group's: `app-main-loading.tsx` and
   `app-main-error.tsx` for the main group, `app-auth-loading.tsx` and `app-auth-error.tsx` for the auth screens,
   `app/root-error.tsx` for what no group caught. A group is a pathless route inside the group's
-  layout, so its boundary renders inside the shell. Every data section has a skeleton that matches
+  layout, so its boundary renders inside `main`, in a `Page`. Every data section has a skeleton that matches
   its layout. Messages are user-safe: no stack trace, query text, internal URL or secret. A
   boundary logs the cause with `console.error`; its Try again button calls `revalidate()`. A lazy
   chunk missing after a redeploy fires `vite:preloadError`; `main.tsx` reloads the page.
@@ -474,10 +559,13 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
   one is tagged `{ tag: '@phone' }` or `{ tag: '@desktop' }` and the other project's `grepInvert`
   leaves it out, so nothing skips at run time. `retries: 0`, a trace is kept on failure: a test
   that passes only on a retry is a failure.
-- **Specs.** `shell.spec.ts`: landmarks, skip link, no overflow, 44 px targets (phone), 36 and 32 px
-  densities (desktop), the theme switch through `data-theme`; a `--density compact` build must pass
-  its phone tests. `smoke.spec.ts` reaches the API through the page. `auth.spec.ts` (with auth):
-  sign-up, sign-out, sign-in, a wrong password, a taken email on its field, the guarded redirect.
+- **Specs.** `shell.spec.ts`: skip link, one `main`, no overflow, the 404 inside `main`, 44 px
+  targets (phone), 36 and 32 px densities and the page container's compact padding (desktop), the
+  theme script's CSP; a `--density compact` build must pass its phone tests. `smoke.spec.ts`: the
+  index route is one `h1` and passes axe, and `GET /api/health` answers 200 through the page's
+  origin. `auth.spec.ts` (with auth): sign-up, sign-out (the profile page's button), sign-in, a
+  wrong password, a taken email on its field, the guarded redirect; `expectSignedIn` reads the
+  email on `/profile`.
   `screens.spec.ts` captures every `NAV` route (with auth also sign-in and sign-up) in phone and
   desktop, light and dark, to `test-results/screens/<route>-<viewport>-<theme>.png` (QA reads them),
   and checks each: no axe violation of WCAG A and AA (in dark this is the contrast measurement), no

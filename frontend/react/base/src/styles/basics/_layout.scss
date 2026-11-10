@@ -1,28 +1,13 @@
-@use '../setup/breakpoints';
-@use '../setup/functions';
-@use '../setup/variables';
-
 @layer basics {
-  // The shell is a column: header, main, footer. There is no side navigation; the primary
-  // navigation sits in the header from md and in a sheet below it.
+  // The layout is a column: the skip link and main. A product's header and footer sit around main.
   .shell {
     display: flex;
     flex-direction: column;
     min-block-size: 100dvh;
   }
 
+  // Main carries no width and no padding: the Page pattern owns the container and the gutters.
   .main {
-    --page-gutter: #{functions.space(4)};
-
     flex: 1;
-    inline-size: 100%;
-    max-inline-size: variables.$container-max;
-    margin-inline: auto;
-    padding-block: functions.space(6);
-    padding-inline: var(--page-gutter);
-
-    @include breakpoints.up(md) {
-      --page-gutter: #{functions.space(8)};
-    }
   }
 }

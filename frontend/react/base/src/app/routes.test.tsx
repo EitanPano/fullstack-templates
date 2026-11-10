@@ -1,108 +1,96 @@
-import { act, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMemoryRouter } from 'react-router'
+import { RouterProvider } from 'react-router/dom'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { AppMainError } from '@/components/app-main-error'
+import { AppMainLayout } from '@/components/app-main-layout'
 import { stubApi } from '@/testing/stub-api'
 import { renderRoutes } from '@/testing/render-routes'
 
-const HEALTH = { status: 'ok', uptimeSeconds: 12, version: '1.2.3' }
-const unavailable = () =>
-  Response.json(
-    { error: { code: 'upstream_unavailable', message: 'db down: hunter2' }, requestId: 'r1' },
-    { status: 503 },
-  )
-
-const isHealth = (request: Request) => new URL(request.url).pathname === '/api/health'
-
-beforeEach(() => {
-  vi.spyOn(console, 'error').mockImplementation(() => undefined)
-})
-afterEach(() => {
-  vi.restoreAllMocks()
-})
-
 describe('the route table', () => {
-  it('renders the home route with the heading, the status badge and exactly one fetch', async () => {
-    const fetchMock = stubApi({ 'GET /api/health': Response.json(HEALTH) })
+  it('renders the home route as one h1 and one line of copy, with no data call', async () => {
+    const fetchMock = stubApi({})
 
     renderRoutes()
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument()
-    expect(await screen.findByRole('status')).toHaveTextContent('API v1.2.3')
-    expect(screen.getByRole('button', { name: 'Refresh' })).toBeVisible()
-    // The page header is a <header> too, so the shell is checked by its navigation.
-    expect(screen.getByRole('navigation', { name: 'Primary' })).toBeVisible()
+    expect(
+      await screen.findByRole('heading', { level: 1, name: '__PROJECT_DISPLAY_NAME__' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Replace this page with the first screen.')).toBeVisible()
+    expect(screen.getByRole('main')).toContainElement(screen.getByRole('heading', { level: 1 }))
     await new Promise((resolve) => setTimeout(resolve, 50))
-    // The session read, when the server has auth, is a different request.
-    expect(fetchMock.mock.calls.filter(([request]) => isHealth(request))).toHaveLength(1)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('renders the group boundary on a 503, inside the shell, without the server text', async () => {
-    stubApi({ 'GET /api/health': unavailable })
-
-    renderRoutes()
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(/unavailable right now/i)
-    expect(screen.getByRole('banner')).toBeVisible()
-    expect(document.body).not.toHaveTextContent('hunter2')
-  })
-
-  it('retries with a click and renders the page once the API answers', async () => {
-    let healthy = false
-    const fetchMock = stubApi({
-      'GET /api/health': () => (healthy ? Response.json(HEALTH) : unavailable()),
-    })
-    renderRoutes()
-    await screen.findByRole('alert')
-
-    healthy = true
-    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
-
-    expect(await screen.findByRole('status')).toHaveTextContent('API v1.2.3')
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    expect(fetchMock.mock.calls.filter(([request]) => isHealth(request))).toHaveLength(2)
-  })
-
-  it('refetches a rejected read inside the cache window, so Try again can recover', async () => {
-    let healthy = true
-    const fetchMock = stubApi({
-      'GET /api/health': () => (healthy ? Response.json(HEALTH) : unavailable()),
-    })
-    const { router } = renderRoutes()
-    await waitFor(() => {
-      expect(screen.getByRole('status')).toHaveTextContent('API v1.2.3')
-    })
-
-    // The refresh fails: the entry now holds an error next to its old, still fresh, timestamp.
-    healthy = false
-    await userEvent.click(screen.getByRole('button', { name: 'Refresh' }))
-    // The card's alert, not the toast the button raises with the same copy (it mounts a tick later).
-    expect(await screen.findByRole('alert')).toHaveTextContent(/unavailable right now/i)
-
-    await act(() => router.navigate('/no/such/page'))
-    await screen.findByRole('heading', { name: 'Page not found' })
-    await act(() => router.navigate('/'))
-    expect(await screen.findByRole('alert')).toHaveTextContent(/unavailable right now/i)
-
-    healthy = true
-    const before = fetchMock.mock.calls.length
-    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
-
-    await waitFor(() => {
-      expect(screen.getByRole('status')).toHaveTextContent('API v1.2.3')
-    })
-    expect(fetchMock.mock.calls.length).toBeGreaterThan(before)
-  })
-
-  it('renders Page not found inside the shell for an unknown URL', async () => {
+  it('renders Page not found inside main, as the page container, for an unknown URL', async () => {
     stubApi({})
 
-    renderRoutes({ initialEntries: ['/no/such/page'] })
+    const { container } = renderRoutes({ initialEntries: ['/no/such/page'] })
 
     expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument()
-    expect(screen.getByRole('banner')).toBeVisible()
-    await waitFor(() => {
-      expect(screen.getByRole('navigation', { name: 'Primary' })).toBeVisible()
+    expect(screen.getByRole('main')).toContainElement(screen.getByText('Page not found'))
+    expect(container.querySelector('main > .page')).not.toBeNull()
+  })
+
+  // A loader that fails once, then answers: the group boundary shows the ApiError's own copy, never
+  // the server's text, and Try again revalidates the loaders.
+  describe('the group error boundary', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    function setupFailingOnce() {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      let recovered = false
+      const router = createMemoryRouter(
+        [
+          {
+            element: <AppMainLayout />,
+            children: [
+              {
+                ErrorBoundary: AppMainError,
+                children: [
+                  {
+                    path: '/',
+                    loader: () => {
+                      if (recovered) return null
+                      throw Object.assign(new Error('db down: hunter2'), {
+                        code: 'upstream_unavailable',
+                        message: 'The service is unavailable right now. Try again in a moment.',
+                      })
+                    },
+                    element: <p>Back</p>,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        { initialEntries: ['/'] },
+      )
+      const view = render(<RouterProvider router={router} />)
+      return { view, recover: () => (recovered = true) }
+    }
+
+    it('renders inside main, in the page container, with the safe copy only', async () => {
+      const { view } = setupFailingOnce()
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/unavailable right now/i)
+      expect(view.container.querySelector('main > .page')).not.toBeNull()
+      expect(document.body).not.toHaveTextContent('hunter2')
+    })
+
+    it('renders the page once Try again finds the loader answering', async () => {
+      const { recover } = setupFailingOnce()
+      await screen.findByRole('alert')
+
+      recover()
+      await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+      expect(await screen.findByText('Back')).toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })
   })
 })

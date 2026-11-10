@@ -16,7 +16,6 @@ export const api = createApi({
   reducerPath: 'api',
   baseQuery: fakeBaseQuery<ApiError>(),
   tagTypes: [
-    'Health',
     'User', // @server:auth
   ],
   endpoints: () => ({}),
