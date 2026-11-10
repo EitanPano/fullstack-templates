@@ -2,26 +2,25 @@ import { screen } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Component } from 'vue'
 
-import { NAV } from '@/app/nav'
 import { createAppI18n } from '@/core/i18n/i18n'
 import he from '@/core/i18n/translations/he.json'
+import HomePage from '@/pages/home/home-page.vue'
 import NotFoundPage from '@/pages/not-found/not-found-page.vue'
 import { renderWithApp } from '@/testing/render'
 
-import AppFooter from './app-footer.vue'
-import AppHeader from './app-header.vue'
-import AppSideNav from './app-side-nav.vue'
-import AppToastHost from './app-toast-host.vue'
+import AppLanguageToggle from './app-language-toggle.vue'
 import AppMainLayout from './app-main-layout.vue'
+import AppThemeToggle from './app-theme-toggle.vue'
+import AppToastHost from './app-toast-host.vue'
 
 const root = document.documentElement
 
-const SHELL: [string, Component, Record<string, unknown>?][] = [
-  ['AppHeader', AppHeader],
-  ['AppFooter', AppFooter],
-  ['SideNav', AppSideNav, { entries: NAV }],
+const PARTS: [string, Component][] = [
+  ['AppThemeToggle', AppThemeToggle],
+  ['AppLanguageToggle', AppLanguageToggle],
   ['ToastHost', AppToastHost],
-  ['MainLayout', AppMainLayout, { nav: NAV }],
+  ['MainLayout', AppMainLayout],
+  ['HomePage', HomePage],
   ['NotFoundPage', NotFoundPage],
 ]
 
@@ -32,9 +31,9 @@ function hebrew() {
   return i18n
 }
 
-// Every layout component and a page, mounted the way the app is after the language switched to
+// Every layout, component and page, mounted the way the app is after the language switched to
 // Hebrew: <html dir="rtl">, the Hebrew table installed.
-describe('the shell under dir="rtl"', () => {
+describe('the layout and the components a product places under dir="rtl"', () => {
   beforeEach(() => {
     root.setAttribute('lang', 'he')
     root.setAttribute('dir', 'rtl')
@@ -46,22 +45,21 @@ describe('the shell under dir="rtl"', () => {
     vi.restoreAllMocks()
   })
 
-  it.each(SHELL)(
+  it.each(PARTS)(
     'renders %s in Hebrew without a missing key or a Vue warning',
-    async (_, component, props) => {
+    async (_, component) => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
-      await renderWithApp(component, { i18n: hebrew(), props })
+      await renderWithApp(component, { i18n: hebrew() })
 
       expect(root.getAttribute('dir')).toBe('rtl')
       expect(warn).not.toHaveBeenCalled()
     },
   )
 
-  it('puts the shell copy in Hebrew', async () => {
-    await renderWithApp(AppMainLayout, { i18n: hebrew(), props: { nav: NAV } })
+  it('puts the layout copy in Hebrew', async () => {
+    await renderWithApp(AppMainLayout, { i18n: hebrew() })
 
-    expect(screen.getAllByRole('button', { name: he.nav.open }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('link', { name: he.app.skipToContent }).length).toBeGreaterThan(0)
   })
 

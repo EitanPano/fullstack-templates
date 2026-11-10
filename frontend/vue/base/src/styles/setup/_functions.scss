@@ -10,7 +10,7 @@
   @return map.get(variables.$spacing, $step);
 }
 
-// Reads the stacking order: `z(header)`.
+// Reads the stacking order: `z(toast)`.
 @function z($layer) {
   @if not map.has-key(variables.$z-index, $layer) {
     @error 'Unknown stacking layer `#{$layer}`.';

@@ -27,13 +27,13 @@ describe('toApiError', () => {
   })
 
   it('carries the context of a converted cause and nothing else', () => {
-    expect(toApiError(new TypeError('x'), 'health.load')).toEqual({
+    expect(toApiError(new TypeError('x'), 'post.load')).toEqual({
       code: 'network',
-      context: 'health.load',
+      context: 'post.load',
     })
-    expect(toApiError(new Error('x'), 'health.load')).toEqual({
+    expect(toApiError(new Error('x'), 'post.load')).toEqual({
       code: 'unknown',
-      context: 'health.load',
+      context: 'post.load',
     })
   })
 

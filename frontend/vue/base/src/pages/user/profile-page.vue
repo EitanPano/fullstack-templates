@@ -14,6 +14,7 @@ import ConfirmDialog from '@/shared/components/confirm-dialog.vue'
 import ErrorState from '@/shared/components/error-state.vue'
 import FormActions from '@/shared/components/form-actions.vue'
 import FormField from '@/shared/components/form-field.vue'
+import PageContainer from '@/shared/components/page-container.vue'
 import PageHeader from '@/shared/components/page-header.vue'
 import { relativeTime } from '@/shared/utils/relative-time'
 import { applyFieldErrors } from '@/shared/validators/server-errors'
@@ -75,76 +76,80 @@ async function signOut(): Promise<void> {
 </script>
 
 <template>
-  <section class="profile">
-    <PageHeader :heading="$t('profile.title')" :description="$t('profile.description')">
-      <template #actions>
-        <BaseButton variant="secondary" @click="signOut">{{ $t('auth.menu.signOut') }}</BaseButton>
+  <PageContainer>
+    <section class="profile">
+      <PageHeader :heading="$t('profile.title')" :description="$t('profile.description')">
+        <template #actions>
+          <BaseButton variant="secondary" @click="signOut">{{
+            $t('auth.menu.signOut')
+          }}</BaseButton>
+        </template>
+      </PageHeader>
+
+      <ErrorState v-if="failed && !profile" :description="$t(errorKey)" @retry="store.load()" />
+      <template v-else-if="profile">
+        <dl class="profile__facts">
+          <div class="profile__fact">
+            <dt>{{ $t('profile.email') }}</dt>
+            <dd>{{ profile.email }}</dd>
+          </div>
+          <div class="profile__fact">
+            <dt>{{ $t('profile.role') }}</dt>
+            <dd>{{ $t(roleKey) }}</dd>
+          </div>
+          <div class="profile__fact">
+            <dt>{{ $t('profile.created') }}</dt>
+            <dd>{{ relativeTime(profile.createdAt, locale) }}</dd>
+          </div>
+          <div class="profile__fact">
+            <dt>{{ $t('profile.verification') }}</dt>
+            <dd>
+              <template v-if="profile.emailVerifiedAt">{{ $t('profile.verified') }}</template>
+              <template v-else>
+                {{ $t('profile.unverified') }}
+                <BaseButton variant="ghost" size="sm" :to="VERIFY_OTP_PATH">{{
+                  $t('profile.verify')
+                }}</BaseButton>
+              </template>
+            </dd>
+          </div>
+        </dl>
+
+        <form class="profile__form" novalidate @submit.prevent="save">
+          <FormField
+            :label="$t('profile.phone')"
+            :hint="$t('profile.phoneHint')"
+            :error="form.errorText('phone')"
+          >
+            <BaseInput
+              v-model="form.values.phone"
+              type="tel"
+              name="phone"
+              autocomplete="tel"
+              inputmode="tel"
+              @blur="form.touch('phone')"
+            />
+          </FormField>
+          <FormActions submit-key="profile.save" :pending="loading" />
+        </form>
       </template>
-    </PageHeader>
+      <div v-else class="profile__loading" role="status" aria-busy="true">
+        <span class="visually-hidden">{{ $t('app.loading') }}</span>
+        <BaseSkeleton variant="block" size="md" />
+        <BaseSkeleton :lines="3" />
+      </div>
 
-    <ErrorState v-if="failed && !profile" :description="$t(errorKey)" @retry="store.load()" />
-    <template v-else-if="profile">
-      <dl class="profile__facts">
-        <div class="profile__fact">
-          <dt>{{ $t('profile.email') }}</dt>
-          <dd>{{ profile.email }}</dd>
-        </div>
-        <div class="profile__fact">
-          <dt>{{ $t('profile.role') }}</dt>
-          <dd>{{ $t(roleKey) }}</dd>
-        </div>
-        <div class="profile__fact">
-          <dt>{{ $t('profile.created') }}</dt>
-          <dd>{{ relativeTime(profile.createdAt, locale) }}</dd>
-        </div>
-        <div class="profile__fact">
-          <dt>{{ $t('profile.verification') }}</dt>
-          <dd>
-            <template v-if="profile.emailVerifiedAt">{{ $t('profile.verified') }}</template>
-            <template v-else>
-              {{ $t('profile.unverified') }}
-              <BaseButton variant="ghost" size="sm" :to="VERIFY_OTP_PATH">{{
-                $t('profile.verify')
-              }}</BaseButton>
-            </template>
-          </dd>
-        </div>
-      </dl>
-
-      <form class="profile__form" novalidate @submit.prevent="save">
-        <FormField
-          :label="$t('profile.phone')"
-          :hint="$t('profile.phoneHint')"
-          :error="form.errorText('phone')"
-        >
-          <BaseInput
-            v-model="form.values.phone"
-            type="tel"
-            name="phone"
-            autocomplete="tel"
-            inputmode="tel"
-            @blur="form.touch('phone')"
-          />
-        </FormField>
-        <FormActions submit-key="profile.save" :pending="loading" />
-      </form>
-    </template>
-    <div v-else class="profile__loading" role="status" aria-busy="true">
-      <span class="visually-hidden">{{ $t('app.loading') }}</span>
-      <BaseSkeleton variant="block" size="md" />
-      <BaseSkeleton :lines="3" />
-    </div>
-
-    <ConfirmDialog
-      v-model:open="leaving.open.value"
-      :title="$t('guards.unsaved.title')"
-      :message="$t('guards.unsaved.message')"
-      :confirm-label="$t('guards.unsaved.leave')"
-      danger
-      @confirm="leaving.confirm"
-      @cancel="leaving.cancel"
-    />
-  </section>
+      <ConfirmDialog
+        v-model:open="leaving.open.value"
+        :title="$t('guards.unsaved.title')"
+        :message="$t('guards.unsaved.message')"
+        :confirm-label="$t('guards.unsaved.leave')"
+        danger
+        @confirm="leaving.confirm"
+        @cancel="leaving.cancel"
+      />
+    </section>
+  </PageContainer>
 </template>
 
 <style lang="scss" src="./profile-page.scss"></style>

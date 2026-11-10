@@ -10,7 +10,7 @@ describe('createAppI18n', () => {
     const i18n = createAppI18n()
 
     expect(i18n.global.t('app.skipToContent')).toBe('Skip to content')
-    expect(i18n.global.t('shell.footer', { year: 2030, name: 'Acme' })).toBe('© 2030 Acme')
+    expect(i18n.global.t('errors.minlength', { min: 8 })).toBe('Enter at least 8 characters')
   })
 
   it('runs in the Composition API mode with English as locale and fallback', () => {

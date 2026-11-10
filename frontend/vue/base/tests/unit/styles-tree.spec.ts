@@ -241,7 +241,7 @@ describe('the styles tree', () => {
     expect(sheets(REAL_SRC).length).toBeGreaterThan(10)
   })
 
-  it('scans the shell, the pages, the shared components and the entry', () => {
+  it('scans the layouts, the pages, the shared components and the entry', () => {
     const names = sources(REAL_SRC).map((file) => file.name)
 
     expect(names).toEqual(
@@ -249,10 +249,10 @@ describe('the styles tree', () => {
         'main.ts',
         'app/App.vue',
         'components/app-main-layout.vue',
-        'components/app-header.vue',
-        'components/app-side-nav.vue',
+        'components/app-theme-toggle.vue',
         'components/app-toast-host.vue',
         'shared/components/base-button.vue',
+        'shared/components/page-container.vue',
         'pages/not-found/not-found-page.vue',
       ]),
     )
