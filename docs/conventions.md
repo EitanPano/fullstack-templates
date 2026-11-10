@@ -81,18 +81,18 @@ that enforces them, and where an addition goes. The rationale is in
    server's text never reaches the user; a toast fires from the handler after the await, never
    from an effect or an interceptor. Every route has a loading and an error state; every data
    section has a skeleton that matches its layout.
-4. **Shell** (ADR 0004, U1). A skip link to `#main`, first in the tab order; `<header>` with the
-   display name linking to `/`; `<nav aria-label="Primary">` built from one nav table; the page's
-   one `<main id="main">`; `<footer>`. A feature adds a nav entry and renders inside `main`, never
-   a second landmark set.
+4. **Shell** (ADR 0010; amends ADR 0004 U1). A skip link to `#main`, first in the tab order, and
+   the page's one `<main id="main">`; nothing else. Header, navigation, footer and the places of
+   the theme toggle and the account menu are product code. `app/nav.ts` is the one table of
+   top-level routes.
 5. **Mobile first.** No horizontal overflow at any viewport. Controls are at least 44 x 44 px on
    a coarse pointer, icon buttons included; one component is the one place for a button.
 6. **Brand and theme.** The generator's inputs (`--display-name`, `--brand-primary`,
    `--brand-neutral`, `--radius`, `--font`, `--theme`, `--density`), its contrast checks and its
    OKLCH token names are the one semantic set across frontends. Light values in `:root`, dark
    values under a selector the template declares (`.dark` or `[data-theme="dark"]`). Light, dark
-   and system, the default from the brand input, a theme toggle in the shell (the user menu or
-   the header, as the template's `AGENTS.md › Styling` says). The no-flash theme script is a file,
+   and system, the default from the brand input, a theme toggle component the product places
+   (`AGENTS.md › Styling` names it). The no-flash theme script is a file,
    never inline: the deployed pages carry `script-src 'self'`. Spacing is a 4 px base and a
    template never adds a `--spacing-N` key (ADR 0004, U2). The inputs are recorded in
    provenance under `answers.brand`; defaults: the project name in title case, `#1d4ed8` on a
@@ -103,10 +103,10 @@ that enforces them, and where an addition goes. The rationale is in
 7. **Auth glue**, only with `server:auth`. Guards for account and role; `/forbidden` for a wrong
    role; a 401 becomes one refresh and a retry, and concurrent refreshes collapse into one; the
    session hint is a `localStorage` flag that is never a token, set after sign-in and cleared on
-   sign-out and on a refresh 400, 401 or 403; a user menu with avatar, email and sign out; the
-   theme toggle sits in the shell where the template's `AGENTS.md › Styling` puts it.
+   sign-out and on a refresh 400, 401 or 403; an account menu component the product places
+   (avatar, email and sign out), and Sign out on the profile page.
 8. **Gates.** typecheck, lint, format and unit tests, without Docker. E2E on `phone` (`Pixel 7`,
-   touch) and `desktop` (`Desktop Chrome`): `shell.spec` (landmarks, skip link, overflow,
+   touch) and `desktop` (`Desktop Chrome`): `shell.spec` (skip link, one `main`, overflow,
    targets), `screens.spec` (every nav route plus the auth screens, both themes, axe WCAG A and
    AA, no horizontal scroll, one `h1`, `SIGNED_IN_ROUTES`), the auth journeys, `E2E_BASE_URL`,
    the `e2eDb && start` chain, `RATE_LIMIT_SCALE=100`, `retries: 0`. Unit tests of the template's
@@ -122,7 +122,8 @@ that enforces them, and where an addition goes. The rationale is in
 10. **The agents file.** The headings `Adding a feature`, `Styling`, `Errors`, `Tests` and
     `Deployment`; the layer map; the import rules with the lint that enforces them; and under
     `Adding a feature` the recipe for a new module, file by file. The recipe is documentation, as
-    the server's `Adding a module` is; a template never ships placeholder code. `validate` checks
+    the server's `Adding a module` is; a template never ships placeholder code, nor an example screen: the index route is one `h1` and
+    one line of copy. `validate` checks
     the five headings; the layer map is not a checked heading.
 
 **E2E** (ADR 0004, U4; amended). Playwright serves the production build and starts the server
@@ -136,7 +137,7 @@ value counts as unset) nothing is started (CONTRIBUTING). A check for one projec
 `@phone` or `@desktop`, and the other project's `grepInvert` leaves it out; never a runtime
 `test.skip`. The development database is never touched. The `phone` project runs every journey
 with its accessibility scan; the `desktop` project runs `shell.spec` and `screens.spec`.
-`tests/e2e/shell.spec.ts` asserts the landmarks, the skip link, no horizontal overflow, the 44 px
+`tests/e2e/shell.spec.ts` asserts the skip link, the one `main`, no horizontal overflow, the 44 px
 targets on the touch project, the density on the desktop project and that `data-density="compact"`
 does not shrink a touch target. `tests/e2e/screens.spec.ts` captures every nav route, plus sign-in
 and sign-up when auth is on, on phone and desktop in light and dark, to
