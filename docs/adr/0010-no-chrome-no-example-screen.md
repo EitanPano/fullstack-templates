@@ -191,3 +191,23 @@ A failed spike is a stop that returns to Eitan with its evidence, never a fallba
 The index route's copy line; the extracted components' selectors and class names; which i18n
 keys leave with the chrome; the agents files' code blocks and wording; the changelog tables; the
 `index.yaml` summaries.
+
+## Decisions made while building
+
+Where the code as built differs from the text above, this section wins. Each is a ruling of the
+build session (harness plan 023), recorded before the template it concerns was built.
+
+- **Vue and Angular gain a page pattern (spike S0; ruling R6).** D1 gives the container to "the
+  page pattern component … its equivalent in Vue and Angular", and neither template had one: a
+  page was a `section` with a page header, inside a `main` that carried the width. Each gains a
+  component that owns the container, the gutters and the compact-density padding: Vue
+  `shared/components/page-container.vue`, Angular `shared/components/page/` (`app-page`). Every
+  page inside `main` wraps its root in it; a full-bleed page does not. The page header cannot own
+  the container, because a full-bleed page has a header too.
+- **Angular's install control is two components (ruling R7).** D2 lists `app-install-button/`
+  "with the iOS hint". The hint is a full-width dismissible row and the button a toolbar control,
+  so one component would need a mode input and two placements. Angular ships
+  `app-install-button/` and `app-install-hint/`, both under the `pwa` flag's `onlyPaths`.
+- **The compact-density spacing check stays (ruling R8).** D5's `shell.spec` row lists what the
+  suite must assert; it does not remove a template's check that compact density tightens the
+  page's spacing. That check now reads the page pattern's container instead of `main`.
