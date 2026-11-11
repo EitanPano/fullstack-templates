@@ -1,6 +1,6 @@
 'use client'
 
-import { ErrorState } from '@/shared/components/error-state'
+import { ErrorState } from '@/shared/components/error-state/error-state'
 import './error.scss'
 
 // Error boundaries must be Client Components. Keep the message user-safe; the cause is in

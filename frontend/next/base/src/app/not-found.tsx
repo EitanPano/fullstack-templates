@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-import { Button } from '@/shared/components/button'
+import { Button } from '@/shared/components/button/button'
 import './not-found.scss'
 
 // The fallback for a URL outside every route group; the site group has its own inside `main`.

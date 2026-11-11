@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
-import { Button } from '@/shared/components/button'
-import { Page, PageHeader } from '@/shared/components/page'
+import { Button } from '@/shared/components/button/button'
+import { Page, PageHeader } from '@/shared/components/page/page'
 import './page.scss'
 
 export const metadata: Metadata = { title: 'Access denied', robots: { index: false } }

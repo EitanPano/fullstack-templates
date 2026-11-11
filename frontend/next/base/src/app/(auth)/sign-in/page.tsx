@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
 
-import { AppAuthLoading } from '@/components/app-auth-loading'
-import { SignIn } from './_components/sign-in'
+import { AppAuthLoading } from '@/layout/app-auth-loading/app-auth-loading'
+import { SignIn } from './_components/sign-in/sign-in'
 
 export const metadata: Metadata = { title: 'Sign in' }
 

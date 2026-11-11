@@ -203,7 +203,7 @@ stack; production does not refuse its credentials if you export them.
   `.angular/` copy exclude in the generator; `server/bun-express` 2.4.3 and `server/python-fastapi`
   1.2.2 cache a frontend's hashed build output immutable whatever its layout.
 - v1.12.0: `frontend/next` 4.0.0 takes the layer names of the single-page templates (`app/` as the
-  pages layer, `components/`, `services/`, `actions/`, `models/`, `shared/`, `core/`, `styles/`) and
+  pages layer, `layout/`, `services/`, `actions/`, `models/`, `shared/`, `core/`, `styles/`) and
   their SCSS tree, with a kit layer; Tailwind and shadcn leave
   ([ADR 0012](docs/adr/0012-next-spa-tree-colocated-scss.md)). The other templates are unchanged.
 - Next: mongodb, redis, and a worker with rabbitmq.

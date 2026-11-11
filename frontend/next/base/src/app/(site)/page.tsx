@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 
-import { Page, PageHeader } from '@/shared/components/page'
+import { Page, PageHeader } from '@/shared/components/page/page'
 import './page.scss'
 
 export const metadata: Metadata = { title: 'Home' }

@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { env } from '@/core/config/env'
-import type { AuthTokens } from '@/models/auth'
+import type { AuthTokens } from '@/models/auth/type'
 
 // The Next server keeps the API's tokens in its own cookies, on the Next origin: the browser
 // never sees a token in JavaScript (HttpOnly) and never talks to the API. Both cookies are

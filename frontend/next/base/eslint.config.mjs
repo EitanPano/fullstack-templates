@@ -7,7 +7,7 @@ import tseslint from 'typescript-eslint'
 import { clientServerImport } from './eslint-rules/client-server-import.mjs'
 import { routeComponents } from './eslint-rules/route-components.mjs'
 
-// The layer map (AGENTS.md › Layers): app → components → actions → services → core → shared →
+// The layer map (AGENTS.md › Layers): app → layout → actions → services → core → shared →
 // models, each layer importing only what the table allows. Every import the layers forbid is a
 // `boundaries/dependencies` error whose message names the layer to use. A file under src/ that no
 // layer claims is a `boundaries/no-unknown-files` error. tests/unit/eslint-boundaries.test.ts
@@ -19,7 +19,7 @@ import { routeComponents } from './eslint-rules/route-components.mjs'
 // from the selector lists below and each block states every selector that applies to it.
 const ALL = [
   'app',
-  'components',
+  'layout',
   'actions',
   'services',
   'services-generated',
@@ -31,73 +31,82 @@ const ALL = [
 const except = (...types) => ALL.filter((type) => !types.includes(type))
 
 // Later policies override earlier ones, so each forbidden edge comes first and its exceptions after.
+// The generated client's functions are imported by services/ alone; every other layer reads the
+// contract's types (import type) and actions/ takes the zod schemas it extends.
 const policies = [
   {
     from: { element: { type: except('app') } },
     disallow: { to: { element: { type: 'app' } } },
     message:
-      'only app/ is allowed to import app/: routes compose components, nothing imports a route',
+      'only app/ is allowed to import app/: routes compose layout and shared components, nothing imports a route',
   },
   {
     from: { element: { type: 'actions' } },
-    disallow: { to: { element: { type: ['components', 'store'] } } },
+    disallow: { to: { element: { type: ['layout', 'store'] } } },
     message:
-      'actions/ imports services/, core/, shared/ and models/ only: an action is a server mutation, it never knows a component or the store',
+      'actions/ imports services/, core/, shared/ and models/ only: an action is a server mutation, it never knows layout/ or the store',
   },
   {
     from: { element: { type: 'services' } },
-    disallow: { to: { element: { type: ['components', 'actions', 'store', 'shared'] } } },
+    disallow: { to: { element: { type: ['layout', 'actions', 'store', 'shared'] } } },
     message:
-      'services/ imports services/, core/ and models/ only: it reads data, it never knows a component, an action, the store or shared/',
+      'services/ imports services/, core/ and models/ only: it reads data, it never knows layout/, an action, the store or shared/',
   },
   {
     from: { element: { type: 'store' } },
-    disallow: { to: { element: { type: ['components', 'actions', 'services'] } } },
+    disallow: { to: { element: { type: ['layout', 'actions', 'services'] } } },
     message:
-      'store/ imports core/, shared/ and models/ only: client state never reads data or calls an action; do that in a component or a route',
+      'store/ imports core/, shared/ and models/ only: client state never reads data or calls an action; do that in layout/ or a route',
   },
   {
     from: { element: { type: 'core' } },
-    disallow: { to: { element: { type: ['components', 'actions', 'store'] } } },
+    disallow: { to: { element: { type: ['layout', 'actions', 'store'] } } },
     message:
-      'core/ imports services/, shared/, models/ and core/ only: the session and the config sit below actions, components and the store',
+      'core/ imports services/, shared/, models/ and core/ only: the session and the config sit below actions, layout/ and the store',
   },
   {
     from: { element: { type: 'shared' } },
     disallow: { to: { element: { type: except('shared', 'models') } } },
     message:
-      'shared/ is product-agnostic: it imports shared/ and models/ only. Move the code to components/, core/ or services/, or pass it in as props',
+      'shared/ is product-agnostic: it imports shared/ and models/ only. Move the code to layout/, core/ or services/, or pass it in as props',
   },
   {
     from: { element: { type: 'models' } },
     disallow: { to: { element: { type: except('models') } } },
     message:
-      'models/ imports models/ and the generated contract (import type; values only from zod.gen) only: the runtime stays in services/',
+      'models/ imports models/ and the generated contract (import type only) only: a schema or a helper is not an entity file, the runtime stays in services/',
   },
   {
-    from: { element: { type: ['app', 'components', 'store', 'shared'] } },
+    from: { element: { type: ['app', 'layout', 'store', 'shared'] } },
     disallow: { to: { element: { type: 'services-generated' } } },
     message:
-      "read the contract's types through models/<noun>.ts; only services/, core/, actions/ and models/ import the generated files",
+      "read the contract's types through models/<entity>/type.ts; only services/ imports the generated client's functions",
   },
   {
-    // The contract's types reach models/ through import type; the runtime stays in services/.
-    from: { element: { type: 'models' } },
+    from: { element: { type: ['actions', 'core'] } },
+    disallow: { to: { element: { type: 'services-generated' } } },
+    message:
+      "call the API through services/<entity>.ts; only services/ imports the generated client's functions",
+  },
+  {
+    // The contract's types reach models/, actions/ and core/ through import type; the runtime
+    // stays in services/.
+    from: { element: { type: ['models', 'actions', 'core'] } },
     dependency: { kind: 'type' },
     allow: { to: { element: { type: 'services-generated' } } },
   },
   {
-    // A form schema extends the generated zod schemas (limits are never copied).
-    from: { element: { type: 'models' } },
+    // A form schema extends the generated zod schema (limits are never copied).
+    from: { element: { type: ['actions', 'core'] } },
     allow: { to: { element: { type: 'services-generated', fileInternalPath: 'zod.gen.ts' } } },
   },
 ]
 
 const RAW_CONTROLS = [
-  ['button', 'Button from @/shared/components/button'],
-  ['input', 'Input from @/shared/components/input'],
-  ['select', 'Select from @/shared/components/select'],
-  ['textarea', 'Textarea from @/shared/components/textarea'],
+  ['button', 'Button from @/shared/components/button/button'],
+  ['input', 'Input from @/shared/components/form/input'],
+  ['select', 'Select from @/shared/components/form/select/select'],
+  ['textarea', 'Textarea from @/shared/components/form/textarea'],
 ].map(([tag, use]) => ({
   selector: `JSXOpeningElement[name.type='JSXIdentifier'][name.name='${tag}']`,
   message: `Use ${use}, not a raw <${tag}>: only shared/components renders the browser controls`,
@@ -173,6 +182,8 @@ export default defineConfig([
       parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
     },
     rules: {
+      // models/<entity>/interface.ts holds interfaces and every other file a type alias, so the
+      // file names mean what they say (the override below).
       '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
       '@typescript-eslint/no-unused-vars': [
         'error',
@@ -211,7 +222,7 @@ export default defineConfig([
       // A file matches every element that fits, so the nested generated folder stops the search.
       'boundaries/elements': [
         { type: 'app', pattern: 'src/app', partialMatch: false },
-        { type: 'components', pattern: 'src/components', partialMatch: false },
+        { type: 'layout', pattern: 'src/layout', partialMatch: false },
         { type: 'actions', pattern: 'src/actions', partialMatch: false },
         {
           type: 'services-generated',
@@ -236,6 +247,10 @@ export default defineConfig([
       ...restrictSyntax(RAW_CONTROLS, NETWORK, STYLE),
       ...STYLESHEETS,
     },
+  },
+  {
+    files: ['src/models/*/interface.ts'],
+    rules: { '@typescript-eslint/consistent-type-definitions': ['error', 'interface'] },
   },
   {
     // The browser controls live here, wrapped once; everything else uses the wrappers.

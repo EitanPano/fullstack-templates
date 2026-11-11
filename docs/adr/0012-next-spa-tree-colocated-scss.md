@@ -4,8 +4,9 @@ Status: accepted on the session's reading of Eitan's "start plan 025" (2026-11-1
 the program he approved on 2026-11-10 (decisions 4 and 5: "Next tree = SPA mirror", "Next styling =
 co-located SCSS"; he chose the second over the session's recommendation to keep Tailwind and
 shadcn). The rows marked ▲ are the session's, made while writing this record, and stand for his
-review; the kit layer of N3 is his choice on the spike's result. Built by harness plan 025 on
-`feat/next-spa-tree`. Catalog release `v1.12.0`:
+review; the kit layer of N3 is his choice on the spike's result, and the folder rules that close
+N1 are his words of 2026-11-11, given before the release. Built by harness plan 025 on
+`feat/next-spa-tree` and `feat/next-entity-folders`. Catalog release `v1.12.0`:
 `frontend/next` 4.0.0; the other frontends and the servers are unchanged. Amends
 [ADR 0005](0005-frontend-foundation.md) (Next's Feature-Sliced layers, the shadcn design system and
 Tailwind leave), [ADR 0006](0006-per-framework-frontends-and-angular.md) (the SCSS tree reaches
@@ -39,16 +40,16 @@ The ten invariants of `docs/conventions.md › Frontend` hold; invariant 6 loses
 | Old (3.x) | New (4.0.0) |
 | --- | --- |
 | `app/**` route files | unchanged. `app/` is the pages layer: a route's own pieces live in `app/<route>/_components/` (Next never routes a `_` folder) |
-| `widget/<s>/ui/*`, `feature/<a>/ui/*`, `entity/<n>/ui/*` | the route's `_components/`; `components/app-<name>.tsx` when a layout or more than one route renders it |
-| `entity/<n>/model.ts`, `feature/<a>/model.ts` | `models/<noun>.ts`: types, mappers, labels, a form's zod schema and its copy table |
-| `entity/<n>/server/<n>.ts` | `services/<noun>.ts`: the reads (`server-only`; a public read starts with `'use cache'`) |
-| `shared/api/{client,call,index}.ts`, `shared/api/generated/` | `services/{client,call}.ts`, `services/generated/`; the contract's types reach the rest through `models/<noun>.ts` |
+| `widget/<s>/ui/*`, `feature/<a>/ui/*`, `entity/<n>/ui/*` | the route's `_components/`; `layout/app-<name>` when a layout or more than one route renders it |
+| `entity/<n>/model.ts`, `feature/<a>/model.ts` | `models/<entity>/{interface,type,enum,constant}.ts`: the entity's shapes and constants, nothing else. A form's zod schema is `actions/<noun>.form.ts`, its copy `actions/<noun>.copy.ts`, a pure helper `shared/utils/` |
+| `entity/<n>/server/<n>.ts` | `services/<noun>.ts`: the entity's API calls, reads and writes (`server-only`; a public read starts with `'use cache'`) |
+| `shared/api/{client,call,index}.ts`, `shared/api/generated/` | `services/{client,call}.ts`, `services/generated/`; the contract's types reach the rest through `models/<entity>/type.ts` |
 | `feature/<a>/server/action.ts` | `actions/<noun>.ts` (`'use server'`): one file per noun, one export per action |
 | `shared/lib/{safe-action,action-error}.ts` | `core/actions/` |
 | `shared/auth/*`, `shared/config/env.ts` | `core/auth/`, `core/config/env.ts` |
 | `shared/lib/{cn,date,zod-messages}.ts` | `shared/utils/` |
-| `shared/ui/*`, `shared/ui/pattern/*`, `shared/ui/form/*` (shadcn) | `shared/components/*` and `shared/components/form/*`, each with its sibling `.scss`, ported from `frontend/react/base/src/shared/components` (N4) |
-| `shared/ui/pattern/{theme-toggle,user-menu}.tsx`, `widget/account-menu` | `components/app-theme-menu.tsx`, `components/app-user-menu.tsx`, `components/app-account-menu.tsx` |
+| `shared/ui/*`, `shared/ui/pattern/*`, `shared/ui/form/*` (shadcn) | `shared/components/<name>/` (a folder per component of two or more files) and `shared/components/form/` (the controls, `Form` and the bindings), each with its sibling `.scss`, ported from `frontend/react/base/src/shared/components` (N4) |
+| `shared/ui/pattern/{theme-toggle,user-menu}.tsx`, `widget/account-menu` | `layout/app-theme-menu/`, `layout/app-user-menu/`, `layout/app-account-menu/` |
 | `app/globals.css` | `styles/{styles.scss,setup/,themes/,basics/}`, React's tree (N3) |
 | `tests/unit/*` | beside their source as `*.test.ts(x)`; `tests/unit/` keeps the tooling checks (N7) |
 
@@ -60,20 +61,26 @@ The ten invariants of `docs/conventions.md › Frontend` hold; invariant 6 loses
 - ▲ **`actions/` is keyed by noun, not by action**, so it reads like `services/`: `actions/auth.ts`
   exports `signIn`, `signUp` and `signOut`. The glossary still lists each action as a verb.
 - A page is `page.tsx`, and its sheet is `page.scss` beside it; the route folder names both.
+- **The owner's folder rules (2026-11-11).** `models/` is a folder per entity holding only
+  `interface.ts`, `type.ts`, `enum.ts` and `constant.ts`, each when needed. `services/` is the
+  facades of libraries and the API calls per entity; a pure utility facade is `shared/utils/`.
+  One folder is named `components` (`shared/components/`): the app's chrome is `layout/`, and a
+  page's own pieces sit in its route folder. The form controls sit in `shared/components/form/`.
+  A component of two or more files is a folder named for it; one file stays a file.
 
 ### N2. Import rules and lint
 
 | From | May import |
 | --- | --- |
-| `app/` (route files and `_components/`) | components, services (not from a `'use client'` file), actions, store, core, shared, models |
+| `app/` (route files and `_components/`) | layout, services (not from a `'use client'` file), actions, store, core, shared, models |
 | `app/<route>/_components/*` | as `app/`; imported only by files in the folder that holds that `_components/`, or below it |
-| `components/` | services (not from a `'use client'` file), actions, store, core, shared, models; never `app/` |
+| `layout/` | services (not from a `'use client'` file), actions, store, core, shared, models; never `app/` |
 | `actions/` | services, core, shared, models |
 | `services/` | `services/generated`, core, models |
 | `store/` | core, shared, models |
 | `core/` | services (the session read), shared, models, each other |
 | `shared/` | shared, models |
-| `models/` | models; the generated types (`import type`) and zod schemas |
+| `models/` | models; the generated types (`import type`) |
 
 - `eslint-plugin-boundaries` carries the table (`no-unknown-files` on, as in React), each message
   naming the layer to use instead.
@@ -82,7 +89,7 @@ The ten invariants of `docs/conventions.md › Frontend` hold; invariant 6 loses
 - A new local rule, `route-components`: a file under a `_components/` folder is imported only from
   the folder that holds it or a folder below it, so a route and its nested routes share their
   pieces as a React module's pages share `pages/<module>/components/`. Unrelated routes that need
-  one piece move it to `components/app-<name>`.
+  one piece move it to `layout/app-<name>`.
 - Kept, re-pathed: `button`, `input`, `select` and `textarea` JSX only in `shared/components/`;
   `fetch(` and `revalidatePath` only in `services/`; `process.env` only in `core/config/env.ts`.
   New, from React: no `style` attribute; a stylesheet import is the owner's sibling
@@ -133,7 +140,7 @@ The ten invariants of `docs/conventions.md › Frontend` hold; invariant 6 loses
 - Next's own pieces stay Next's: `form/action-form.ts` (`ignoreNavigation`, `unplacedMessage`),
   the `useHookFormAction` wiring, `Toaster` themed from `next-themes`. React's `report-failure`,
   its store and its hooks are not ported.
-- No scaffolder: a new primitive is a file in `shared/components/` with its sibling sheet.
+- No scaffolder: a new primitive is a folder in `shared/components/` with its sibling sheet.
 
 ### N5. Reads, mutations, auth
 
@@ -141,10 +148,12 @@ Behaviour is unchanged; only the homes move.
 
 - A read is `services/<noun>.ts`; a section that shows it is an async Server Component in the
   route's `_components/` with a skeleton of the same layout, inside `Suspense`.
-- A mutation is an export of `actions/<noun>.ts` built from `core/actions/safe-action.ts`; its
-  schema and copy table are in `models/<noun>.ts`, so the action and the client form share them.
-- Auth: `core/auth/` (session, cookies, refresh, token, next-path), `models/user.ts`,
-  `models/auth.ts`, `services/user.ts`, `actions/auth.ts`, the screens' pieces in
+- A mutation is an export of `actions/<noun>.ts` built from `core/actions/safe-action.ts`, over a
+  write of `services/<noun>.ts` that returns the client's result for the action's `call`; its
+  schema is `actions/<noun>.form.ts` and its copy `actions/<noun>.copy.ts`, plain modules the
+  action and the client form share.
+- Auth: `core/auth/` (session, cookies, refresh, token, next-path), `models/user/`,
+  `models/auth/`, `services/auth.ts`, `services/user.ts`, `actions/auth{,.form,.copy}.ts`, the screens' pieces in
   `app/(auth)/<route>/_components/`, `GuestOnly` in `app/(auth)/_components/`.
 
 ### N6. Tools
@@ -199,8 +208,11 @@ The lock bump, and the wording that names Next's old layers or its utility class
 
 ## Consequences
 
-- One vocabulary across the four frontends for a noun's model, its reads and its sheet; Next adds
+- One vocabulary across the four frontends for a noun's reads and its sheet; Next adds
   `actions/` and keeps `app/` as its pages layer.
+- Next is the first template on the owner's folder rules. Until their own majors, React, Vue and
+  Angular keep `components/app-*`; React keeps `models/<noun>.ts` and flat kit files, Vue flat
+  kit files, and Vue, Angular and the servers spell the constants file `constants.ts`.
 - The kit is a port: a fix to a React primitive's sheet is copied to Next by hand until the kit is
   a shared part (out of scope).
 - A brief that names Tailwind or shadcn no longer matches a template; the harness's bootstrap
@@ -240,12 +252,11 @@ sheet, which carried the whole kit; the build time did not move.
   'sass-embedded', loadPaths: [<src/styles>] }`; it works under Turbopack in `next dev` and
   `next build`. Vitest stubs a stylesheet import by default, so `vitest.config.mts` needs no Sass
   option; the density test compiles the tree itself.
-- **`models/zod-messages.ts`, not `shared/utils/` (C2).** A form schema lives in `models/<noun>.ts`
-  and imports zod's configuration for its side effect, and `models/` imports only `models/`. The
-  configuration is the one file in `models/` that is not a noun.
-- **`services/generated` is a lint element of its own (C2)**, so "types anywhere, values only from
-  `zod.gen`" is enforceable for `models/`: `actions/`, `core/`, `services/` and `models/` may
-  import it; `app/`, `components/`, `store/` and `shared/` read the contract through a model.
+- **`shared/utils/zod-messages.ts` (C2, moved by C6).** C2 kept it in `models/` because a form
+  schema lived there; the schema is in `actions/` since C6, which may import `shared/`.
+- **`services/generated` is a lint element of its own (C2)**, so "types only" is enforceable for
+  `models/`: `actions/`, `core/` and `services/` may import it, `models/` by `import type`;
+  `app/`, `layout/`, `store/` and `shared/` read the contract through a model.
 - **`onlyWhen` lists files of `services/`, not the folder (C2).** `validate` refuses a folder
   under one selection with a file inside it under another, and `services/user.ts` exists only
   with the server's auth.
@@ -256,15 +267,32 @@ sheet, which carried the whole kit; the build time did not move.
 - **`toaster.scss` uses `!important` (C3).** Sonner injects an unlayered stylesheet, which beats a
   layered rule; an important declaration in a layer beats it back. It is the one kit sheet that
   styles a third party's markup, and the six declarations sit on Sonner's root only.
-- **`components/app-auth-loading`** replaces the `AuthCardSkeleton` pattern (C3), as React has it.
+- **`layout/app-auth-loading`** replaces the `AuthCardSkeleton` pattern (C3), as React has it.
   The Sass load path is `path.join(import.meta.dirname, 'src/styles')`.
 - **From the review (C5).** `app/global-error.tsx` loads the global tree as `app/layout.tsx`
   does: it replaces the root layout and renders its own document, and without the import it drew
   with no tokens, font or reset. `route-components` lets a nested route import its parent's
   `_components/` (N2, first written as the holding folder only): the strict form pushed a
-  module's own pieces into the app-wide `components/`. Both local rules also check a dynamic
+  module's own pieces into the app-wide layer. Both local rules also check a dynamic
   `import()`. Every file of `services/` imports `server-only` itself.
 - **Lightning CSS rewrites the layer statement and the tokens (S5).** It emits only the part of
   the `@layer` order statement that names a layer with no block in that file (`@layer kit;`,
   after the `basics` block) and keeps the global blocks in source order, so the order holds. It
   writes each `oklch()` token as a hex value with a `lab()` block under `@supports`.
+- **The owner's folder rules, applied (C6).** Built on `feat/next-entity-folders` before the
+  release, so 4.0.0 ships one tree. The session's readings, for his review: the schema and the
+  copy of a form go to `actions/`, not the route folder as in React, because the action validates
+  with the schema and `actions/` never imports `app/`; `initials()` goes to `shared/utils/`; the
+  chrome keeps its `app-` file names inside `layout/`; `_components/` keeps its name (the lint
+  keys on it); `form/form.tsx` and its test count as already in a folder named for them; the
+  constants file is `constant.ts`, his spelling. `consistent-type-definitions` is `interface` in
+  `models/*/interface.ts` and `type` elsewhere. `tests/unit/folders.test.ts` enforces the
+  `models/` file names and the component folders.
+- **Every API call is in `services/<entity>.ts` (C7, the owner's rule 2).** `services/auth.ts`
+  holds `login`, `signup` (his name for it; the endpoint stays `POST /api/auth/register`),
+  `logout` and `refresh`; `services/user.ts` holds `getMe`, memoised per request, and
+  `getProfile`, which the profile page reads instead of taking the session's copy; the
+  actions, `core/auth/refresh.ts` and `core/auth/session.ts` called the generated client
+  themselves before. Lint lets only `services/` import the generated client's functions;
+  `actions/` and `core/` keep its types and `zod.gen`. `getCurrentUser` moved to
+  `core/auth/session.ts`, or `services/user.ts` and the session would import each other.

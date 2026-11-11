@@ -1,4 +1,4 @@
-import { AppAuthLoading } from '@/components/app-auth-loading'
+import { AppAuthLoading } from '@/layout/app-auth-loading/app-auth-loading'
 
 // The loading state of every screen in the group, inside the layout's `main`.
 export default function Loading() {
