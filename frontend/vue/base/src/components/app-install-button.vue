@@ -2,7 +2,8 @@
 import BaseButton from '@/shared/components/base-button.vue'
 import { useInstallPromptStore } from '@/store/install-prompt.store'
 
-// The header's install control: present only while the browser offers to install the app.
+// The install control, which the product places: present only while the browser offers to
+// install the app.
 const install = useInstallPromptStore()
 
 function onInstall(): void {

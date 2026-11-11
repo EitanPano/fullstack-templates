@@ -2,7 +2,7 @@ schemaVersion: 1
 id: react
 kind: frontend
 name: React 19 SPA (Vite)
-version: 4.0.0
+version: 5.0.0
 summary: "Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives styled by co-located SCSS on a global token tree"
 runtime: { language: typescript, platform: node, minVersion: "24" }
 tools:
@@ -52,6 +52,7 @@ onlyWhen:
     - src/shared/components/auth-card.tsx
     - src/shared/utils/next-path.test.ts
     - src/shared/utils/next-path.ts
+    - src/store/use-sign-out.ts
     - src/testing/auth-fixtures.ts
     - src/testing/render-in-router.tsx
     - tests/e2e/auth-support.ts

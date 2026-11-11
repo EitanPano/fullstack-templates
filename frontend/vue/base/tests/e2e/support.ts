@@ -1,13 +1,11 @@
 import AxeBuilder from '@axe-core/playwright'
-import { expect, type Locator, type Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 
 import { STORAGE_KEYS } from '../../src/core/config/constants'
 
 // WCAG 2.0 and 2.1, levels A and AA, with no rule disabled and no element excluded. In dark this
 // is also the contrast measurement.
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
-
-export const isPhone = (project: string) => project === 'phone'
 
 // One line per violation, naming the rule, its impact and the elements.
 export async function axeProblems(page: Page): Promise<string[]> {
@@ -30,23 +28,10 @@ export async function expectNoHorizontalOverflow(page: Page) {
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0)
 }
 
-// A drawer slides in and a box read mid-slide is fractional (43.99998 px for a 44 px button). Wait
-// for the finite animations under the element, then measure; the thresholds stay exact.
-export async function settled(locator: Locator) {
-  await locator.evaluate((element) =>
-    Promise.all(
-      element
-        .getAnimations({ subtree: true })
-        .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
-        .map((animation) => animation.finished),
-    ),
-  )
-}
-
 // Every visible control (button, link, field) at least `minimum` px wide and tall. The skip link is
-// clipped until it is focused, so it is outside this set. Run it with the drawer open to cover the
-// navigation links, which are hidden while it is closed.
-export async function expectTouchTargets(page: Page, minimum = 44) {
+// clipped until it is focused, so it is outside this set. `count` is the number of controls the
+// screen really has: a page that lost its controls must fail here, not pass on an empty set.
+export async function expectTouchTargets(page: Page, minimum: number, count: number) {
   const sizes = await page
     .locator('button, a[href], input:not([type="hidden"]), select, textarea')
     .evaluateAll((elements) =>
@@ -58,7 +43,7 @@ export async function expectTouchTargets(page: Page, minimum = 44) {
         return [{ name: `${element.tagName.toLowerCase()} "${name}"`, width, height }]
       }),
     )
-  expect(sizes.length).toBeGreaterThan(0)
+  expect(sizes.map((size) => size.name)).toHaveLength(count)
   const small = sizes.filter((size) => size.width < minimum || size.height < minimum)
   expect(small, `controls under ${String(minimum)} px`).toEqual([])
 }

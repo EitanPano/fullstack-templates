@@ -2,7 +2,7 @@ import { Pipe, PipeTransform, inject } from '@angular/core'
 
 import { Translator } from '../i18n/translator'
 
-// `{{ 'nav.open' | t }}` and `{{ 'toast.saved' | t: { name } }}`. Impure so it re-reads the key
+// `{{ 'nav.home' | t }}` and `{{ 'toast.saved' | t: { name } }}`. Impure so it re-reads the key
 // when the language changes; reading `lang()` ties the call to the signal.
 @Pipe({ name: 't', pure: false })
 export class TranslatePipe implements PipeTransform {

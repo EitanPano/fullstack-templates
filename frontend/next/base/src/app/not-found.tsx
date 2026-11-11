@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-// The fallback for a URL outside every route group; the site group has its own with the shell.
+// The fallback for a URL outside every route group; the site group has its own inside `main`.
 export default function NotFound() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-4 p-4">

@@ -3,7 +3,7 @@ import { CardSkeleton } from '@/shared/components/skeletons'
 import './app-main-loading.scss'
 
 // The group HydrateFallback: shown while a page module or its loader is pending, inside the
-// shell, so the header does not flash away.
+// layout, so the skip link and main stay put.
 export function AppMainLoading() {
   return (
     <Page className="main-loading" role="status" aria-busy="true">

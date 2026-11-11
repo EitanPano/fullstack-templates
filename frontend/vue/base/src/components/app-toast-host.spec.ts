@@ -24,9 +24,9 @@ describe('ToastHost', () => {
   it('translates the message with the params it was queued with', async () => {
     await renderWithApp(AppToastHost)
 
-    useNotificationStore().showInfo('shell.footer', { year: 2030, name: 'Acme' })
+    useNotificationStore().showInfo('errors.minlength', { min: 8 })
 
-    expect(await screen.findAllByText('© 2030 Acme')).not.toHaveLength(0)
+    expect(await screen.findAllByText('Enter at least 8 characters')).not.toHaveLength(0)
   })
 
   it('removes a toast when its dismiss button is pressed', async () => {

@@ -25,7 +25,7 @@ function isStandalone(): boolean {
 }
 
 // The install prompt. Chromium offers it once through `beforeinstallprompt`; the store keeps the
-// event so the header can show an install button and open the prompt on a click. iOS Safari has no
+// event so `app-install-button` can show one and open the prompt on a click. iOS Safari has no
 // such event (the user installs through the share sheet), so `showIosHint` says when to explain it,
 // until the user dismisses it (remembered in local storage). Start it early (pwa.initializer.ts):
 // the event can fire before any component is mounted.

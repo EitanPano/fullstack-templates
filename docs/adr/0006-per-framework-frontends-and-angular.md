@@ -7,6 +7,7 @@ Amends: `docs/conventions.md` (the frontend and SPA contracts), ADR 0003 M5-1, A
 Follow-ups it opens: ADR 0007 (React on Redux and RTK Query, its own structure), ADR 0008 (Next on
 the global SCSS tree; amended by [ADR 0008](0008-vue-pinia.md), which took the number for Vue)
 Amended by [ADR 0009](0009-pages-components-colocated-styles.md) (2.0.0 of this template): A2 the Angular tree, A2.4 styling.
+Amended by [ADR 0010](0010-no-chrome-no-example-screen.md) (v1.10.0): invariants 4, 6, 7, 8 and 10 of `docs/conventions.md › Frontend`.
 
 ## Context
 

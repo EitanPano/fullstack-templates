@@ -30,7 +30,8 @@ export function installPlugins(app: App): Promise<void> {
   })
   // @server:auth-start
   // One roles ref from the auth store serves both halves: the directive (a hook cannot inject) and
-  // ROLES_KEY for components (the side nav). The restore starts here and never blocks the mount.
+  // ROLES_KEY for components (a product's navigation). The restore starts here and never blocks
+  // the mount.
   const { roles } = storeToRefs(useAuthStore())
   app.directive('has-role', createHasRoleDirective(roles))
   app.provide(ROLES_KEY, roles)

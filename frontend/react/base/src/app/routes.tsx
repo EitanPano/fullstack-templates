@@ -1,10 +1,9 @@
 import { Outlet, type RouteObject } from 'react-router'
 
-import { NAV } from '@/app/nav'
 import RootError from '@/app/root-error'
 import { authRoutes } from '@/pages/auth/auth.routes' // @server:auth
 import { forbiddenRoutes } from '@/pages/forbidden/forbidden.routes' // @server:auth
-import { healthRoutes } from '@/pages/health/health.routes'
+import { homeRoutes } from '@/pages/home/home.routes'
 import { notFoundRoutes } from '@/pages/not-found/not-found.routes'
 import { userRoutes } from '@/pages/user/user.routes' // @server:auth
 import { AppAuthError } from '@/components/app-auth-error' // @server:auth
@@ -17,9 +16,11 @@ import type { AppStore } from '@/store'
 
 // The route table: paths to components and loaders, nothing else. A route group is a pathless
 // route with its own HydrateFallback (loading) and ErrorBoundary (error), nested inside the
-// group's layout so a failure renders inside the shell. It is a function of the store so a test
-// renders the table against its own.
-export function createRoutes(store: AppStore): RouteObject[] {
+// group's layout so a failure renders inside the layout's main. It is a function of the store so a test
+// renders the table against its own; only the guarded and auth routes read it, so without auth the
+// parameter is unused.
+export function createRoutes(store: AppStore): RouteObject[] { // @server:auth
+export function createRoutes(_store: AppStore): RouteObject[] { // @noserver:auth
   return [
     {
       path: '/',
@@ -27,7 +28,7 @@ export function createRoutes(store: AppStore): RouteObject[] {
       ErrorBoundary: RootError,
       children: [
         {
-          element: <AppMainLayout nav={NAV} />,
+          element: <AppMainLayout />,
           children: [
             {
               // React Router shows the nearest HydrateFallback at or above the first route whose
@@ -35,7 +36,7 @@ export function createRoutes(store: AppStore): RouteObject[] {
               HydrateFallback: AppMainLoading,
               ErrorBoundary: AppMainError,
               children: [
-                ...healthRoutes(store),
+                ...homeRoutes(),
                 ...userRoutes(store), // @server:auth
                 ...forbiddenRoutes(), // @server:auth
                 ...notFoundRoutes(),

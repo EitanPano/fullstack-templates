@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import Profile, { metadata } from '@/app/(site)/profile/page'
 
@@ -8,13 +9,40 @@ import Profile, { metadata } from '@/app/(site)/profile/page'
 vi.mock('@/widget/profile/ui/profile-card', () => ({
   ProfileCard: () => <p>the profile card</p>,
 }))
+vi.mock('@/feature/auth/server/action', () => ({
+  signOut: vi.fn(),
+  signIn: vi.fn(),
+  signUp: vi.fn(),
+}))
+
+const { signOut } = await import('@/feature/auth/server/action')
 
 describe('the profile page', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   it('has a title and its one h1, and places the card', () => {
     render(<Profile />)
 
     expect(metadata.title).toBe('Profile')
     expect(screen.getByRole('heading', { level: 1, name: 'Profile' })).toBeInTheDocument()
     expect(screen.getByText('the profile card')).toBeInTheDocument()
+  })
+
+  it('runs the sign-out action from its Sign out button', async () => {
+    vi.mocked(signOut).mockResolvedValue({})
+    render(<Profile />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+
+    expect(signOut).toHaveBeenCalledTimes(1)
+  })
+
+  it('signs nobody out until the button is pressed', () => {
+    render(<Profile />)
+
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
+    expect(signOut).not.toHaveBeenCalled()
   })
 })

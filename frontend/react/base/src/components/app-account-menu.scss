@@ -1,6 +1,6 @@
 @use 'setup/variables';
 
-// A round placeholder the size of the avatar trigger, so the header does not shift when the
+// A round placeholder the size of the avatar trigger, so the toolbar does not shift when the
 // account arrives. The three control sizes come from the same variables as the button.
 .account-menu__skeleton {
   inline-size: variables.$control-height;

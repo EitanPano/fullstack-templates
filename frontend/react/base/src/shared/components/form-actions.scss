@@ -3,7 +3,7 @@
 
 // Phones: stacked, full width, stuck to the bottom of the viewport so the primary action stays
 // in thumb reach. From md: inline, end-aligned, in the flow. The negative margin cancels the
-// page gutter that `.main` defines.
+// page gutter that `.page` defines.
 .form-actions {
   position: sticky;
   inset-block-end: 0;

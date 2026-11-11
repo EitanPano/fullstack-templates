@@ -8,6 +8,7 @@ Superseded in part by ADR 0005: the component-library and theme-switching exclus
 set, U3's 44 px on every pointer and `shared/ui/button` as the one button, the U1 shell path
 (`shared/ui/app-shell` is `AppShell` in `shared/ui/pattern/`), U4's `chromium` project (now
 `desktop`; journeys run on `phone` only) and U5's development-database rule (see [ADR 0005](0005-frontend-foundation.md), "What this supersedes").
+Amended by [ADR 0010](0010-no-chrome-no-example-screen.md) (v1.10.0): U1 the shell is a skip link and one `main`, U4 `shell.spec` asserts those.
 
 ## Context
 

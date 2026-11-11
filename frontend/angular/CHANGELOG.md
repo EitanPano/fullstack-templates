@@ -1,5 +1,54 @@
 # Changelog
 
+## 3.0.0 — 2026-11-11
+
+No template chrome and no example screen ([ADR 0010](../../docs/adr/0010-no-chrome-no-example-screen.md)). A generated app is a skip link, one `main` and an index route of one `h1` and one line of copy. A project generated from 2.x keeps its header, footer, side nav and status page as its own code; there is no migration tool.
+
+### Breaking
+
+All paths are under `src/`.
+
+| What | Before | Now, and what a project generated before does |
+| --- | --- | --- |
+| Main layout | `app-main-layout` rendered the skip link, `app-header`, `app-side-nav`, `main` and `app-footer` in a grid, with the drawer state | The skip link and the one `main`, nothing else. Header, navigation and footer are product code: a component in `app/components/app-<name>/` that the layout renders between the skip link and `<main>` (`AGENTS.md › The shell`). An old project keeps its header and drawer as its own components. |
+| `app/components/app-header/`, `app-footer/`, `app-side-nav/` | The chrome | Deleted, with `.shell*` in `styles/basics/_layout.scss`, `$side-nav-width` and the `drawer` z-indexes. The drawer's `model()` leaves with the side nav (ADR 0009 C3). |
+| Components for the product to place | The theme, language, install and account controls were inline in the header | Extracted, each with a unit test and rendered by no template file: `app-theme-toggle/`; with auth `app-account-menu/`; with `i18n` `app-language-toggle/`; with `pwa` `app-install-button/` (the toolbar button) and `app-install-hint/` (the iOS hint, a full-width dismissible row). The gated ones are listed in `template.yaml` (`onlyWhen: server:auth`, the flags' `onlyPaths`). |
+| Page container | `.main` carried the width limit, the gutters and the compact padding | `main` has no width and no padding; `shared/components/page/` (`app-page`) owns them (`:host` and `:host-context([data-density='compact'])`). The layout's host is a column at least `100dvh` high and `.main` (now in the layout's own stylesheet, no longer a global rule) takes the rest, so a full-bleed screen fills the viewport (`shell.spec`: main reaches the bottom of the viewport on a short page). The not-found, forbidden, profile and index pages wrap their template in it; a page without it is full-bleed. An old project that adopts `app-page` must drop the container from its `.main`, or the two stack. |
+| Example screen | `pages/health/`, `services/health.service.ts`, `store/health.store.ts`, `models/health/`, the `health.*`, `shell.*` and `nav.open`, `nav.close`, `nav.primary` keys and the `api` data group of `ngsw-config.json` | Deleted. The index route is `pages/home/` (route file, page, stylesheet): the display name as its one `h1` and `home.description` ("Replace this page with the first screen."); it calls no API. The server keeps `/api/health` for deploy probes. The service worker caches no API answer. |
+| Auth layout | The brand link, the card and `app-footer` | The footer went with `app-footer`; the brand link and the centred `main` stay. |
+| Sign out | The header's account menu, and the profile page's button | The profile page's button only (it was already there); `app-account-menu` stays as a component for the product to place. |
+| `AGENTS.md` | The health files were "the worked example" | `Adding a feature` is a code block per step (models, service, store, page and route) over the server's `module` endpoints, and a paragraph, "The shell"; the layer list and `Styling` name the components the product places. |
+| e2e | `shell.spec.ts` asserted the landmarks, the drawer and the theme toggle; `smoke.spec.ts` anchored on the status and Refresh; the auth journeys read the account menu | See the pairs below. `expectTouchTargets(page, minimum, count)` takes the exact number of controls and `isPhone` is gone; `openAccountMenu` is gone, `expectSignedIn` (the profile page names the account) replaces it; `signOutThroughUi` keeps its signature but goes to `/profile`. |
+
+### Changed
+
+- `tests/unit/eslint-boundaries.spec.ts` invents `pages/post` where it named the health module; every case is the same.
+- The global `.container` helper and its compact rule, and `$header-height`, are gone; `app-install-hint` carries its own inline padding. `pages/home/home.routes.ts` has a default export, like the other route files.
+- `auth.interceptor.spec.ts` drives its requests through `UserService.me()` (`/api/user/me`) where it used `HealthService`; every case is the same.
+- The translator, notification, toast and data-table specs use other keys as sample copy where they used `shell.footer` and `nav.*`; the assertions are the same.
+
+### Assertions and their successors
+
+No assertion is dropped without a successor; nothing is skipped or focused.
+
+| Dropped | Now covered by |
+| --- | --- |
+| `shell.spec`: the page has the header, a Primary navigation, `main` and the footer, as banner, main and contentinfo landmarks | `shell.spec`: exactly one `main` with id `main`; `app-main-layout.component.spec.ts`: skip link first, one `main`, no banner, navigation or contentinfo landmark. The header, navigation and footer are gone with ADR D1. |
+| `shell.spec`: an unknown URL renders not-found inside the shell, banner visible | `shell.spec`: an unknown URL renders not-found inside `main` |
+| `shell.spec`: every control is a 44 px target on the home screen and with the drawer open, also at compact density | `shell.spec` `@phone`: the 404's control (exactly one) is a 44 px target, also at compact density (the controls it measured, and the drawer, are gone with ADR D1 and D3) |
+| `shell.spec` `@desktop`: compact tightens spacing, the Refresh button keeps 40 px, `main`'s padding shrinks | `shell.spec` `@desktop`: compact tightens the page container's padding (`app-page`, ADR ruling R8) and the 404's home control keeps 40 px in both densities. Refresh is gone with ADR D3. |
+| `shell.spec`: the theme toggle switches to dark and the choice survives a reload | The write: `app-theme-toggle.component.spec.ts` proves the control asks `ThemeService` for the next theme and announces it, and `theme.service.spec.ts` proves the choice is stored. The read: `screens.spec.ts` stores a theme before the page loads and asserts `data-theme` after it, so a stored choice is applied on load. The reload round trip itself is no longer asserted end to end. |
+| `smoke.spec`: the home screen reaches the API and shows its status; Refresh asks the API again | Gone with the example screen (ADR D3). `smoke.spec`: the index route is one `h1` inside `main` and passes axe, and `/api/health` answers through the page's origin. The index page's copy is proven by `home.component.spec.ts`, which a product replaces with the page. |
+| `auth.spec`: sign-up lands on the status screen with the account menu open and no Sign in link | `auth.spec`: sign-up lands on the index route (its `h1` is the display name) and `expectSignedIn` finds the account on `/profile`; `app-account-menu.component.spec.ts` covers the visitor's Sign in link and the menu |
+| `auth.spec`: sign-in opens the account menu and follows its Profile link; the profile's Sign out shows the Sign in link and no menu | `expectSignedIn` and `signOutThroughUi` (the profile's button, then home, then `/profile` redirects to sign-in); `profile.component.spec.ts` runs sign-out from the button |
+| `auth.spec`: two calls that expire together share one `/api/auth/refresh` (two Refresh clicks) | `auth.interceptor.spec.ts`: "collapses two concurrent 401s into one refresh and replays both requests once". The browser-level journey is no longer asserted end to end: the Refresh button that fired the two calls is gone with ADR D3. |
+| `app-header.component.spec.ts`: the brand, the offline badge, the navigation toggle | Gone with the header (ADR D1). The theme, language, install and account tests moved to the specs of `app-theme-toggle`, `app-language-toggle`, `app-install-button`, `app-install-hint` and `app-account-menu`. |
+| `app-side-nav.component.spec.ts`, `app-footer.component.spec.ts`; the NAV links, the drawer and the `lg` listener tests of `app-main-layout.component.spec.ts` | Gone with the side nav, footer and drawer (ADR D1) |
+| `app-auth-layout.component.spec.ts`: has a footer | The auth layout has no footer; the spec asserts none, and no navigation |
+| `health-badge`, `health-status`, `health.service` and `health.store` specs | Gone with the health slices (ADR D3) |
+| `ngsw-config.spec.ts`: caches only the health check, freshness, `maxAge` 10 s, timeout 3 s | `ngsw-config.spec.ts` keeps its two guards (no `!` pattern in a data group; no group matches `/api/user/**` or `/api/auth/**`, through the glob helpers); they hold trivially with no data group and guard the product's first one. The `api` group and the assertions about it left with ADR D3. |
+| `app.config.spec.ts`: the home path routes to the health feature | The home path routes to `HomeComponent` inside the layout |
+
 ## 2.0.0 — 2026-11-09
 
 The template's tree on `pages/`, `components/` and co-located styles

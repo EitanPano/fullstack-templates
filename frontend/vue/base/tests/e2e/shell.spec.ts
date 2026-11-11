@@ -1,50 +1,15 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
 import {
   collectConsoleProblems,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   expectTouchTargets,
-  isPhone,
-  settled,
 } from './support'
 
-// Below lg the navigation is a drawer behind the header's toggle; from lg it is a column.
-async function openDrawer(page: Page) {
-  await page.getByRole('button', { name: 'Open navigation' }).click()
-  const drawer = page.getByRole('dialog', { name: 'Menu' })
-  await expect(drawer).toBeVisible()
-  await settled(drawer)
-  return drawer
-}
-
-test('the page has the shell landmarks', async ({ page }) => {
-  await page.goto('/')
-
-  await expect(page.locator('header')).toHaveCount(1)
-  await expect(page.locator('main#main')).toHaveCount(1)
-  await expect(page.locator('main')).toHaveCount(1)
-  await expect(page.locator('footer')).toHaveCount(1)
-  await expect(page.getByRole('banner')).toBeVisible()
-  await expect(page.getByRole('main')).toBeVisible()
-  await expect(page.getByRole('contentinfo')).toBeVisible()
-  // The one nav table renders once: inline from lg, inside the drawer below it (the drawer's
-  // content is not in the document while it is closed).
-  if (isPhone(test.info().project.name)) await openDrawer(page)
-  await expect(page.locator('nav[aria-label="Primary"]')).toHaveCount(1)
-  await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible()
-
-  await expectNoAxeViolations(page)
-})
-
-test('the header names the product and links home', async ({ page }) => {
-  await page.goto('/no/such/page')
-
-  await page.getByRole('banner').getByRole('link').first().click()
-
-  await expect(page).toHaveURL(/\/$/)
-  await expect(page.getByRole('heading', { level: 1, name: 'System status' })).toBeVisible()
-})
+// The 404 is the template's one screen with a control, so the control checks run on it.
+const NOT_FOUND = '/no/such/page'
+const HOME_CONTROL = { name: 'Back to the home page' }
 
 test('the skip link is first in the tab order and moves focus to main', async ({ page }) => {
   await page.goto('/')
@@ -55,23 +20,19 @@ test('the skip link is first in the tab order and moves focus to main', async ({
 
   await page.keyboard.press('Enter')
   await expect(page.locator('main#main')).toBeFocused()
+  expect(new URL(page.url()).pathname).toBe('/')
 
   await expectNoAxeViolations(page)
 })
 
-test('the skip link works on a nested screen too', async ({ page }) => {
-  await page.goto('/no/such/page')
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+test('the page has exactly one main, with the id the skip link points at', async ({ page }) => {
+  await page.goto('/')
 
-  await page.keyboard.press('Tab')
-  await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused()
-  await page.keyboard.press('Enter')
-
-  await expect(page.locator('main#main')).toBeFocused()
-  expect(new URL(page.url()).pathname).toBe('/no/such/page')
+  await expect(page.locator('main')).toHaveCount(1)
+  await expect(page.locator('main')).toHaveAttribute('id', 'main')
 })
 
-for (const path of ['/', '/no/such/page']) {
+for (const path of ['/', NOT_FOUND]) {
   test(`${path} has no horizontal overflow`, async ({ page }) => {
     await page.goto(path)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
@@ -81,158 +42,130 @@ for (const path of ['/', '/no/such/page']) {
   })
 }
 
-test('an unknown URL renders not-found inside the shell', async ({ page }) => {
-  await page.goto('/no/such/page')
+test('an unknown URL renders not-found inside main', async ({ page }) => {
+  await page.goto(NOT_FOUND)
 
-  await expect(page.getByRole('banner')).toBeVisible()
-  await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible()
+  await expect(page.locator('main')).toHaveCount(1)
+  await expect(
+    page.getByRole('main').getByRole('heading', { level: 1, name: 'Page not found' }),
+  ).toBeVisible()
 })
+
+// The layout is a column at least the viewport high with `main` taking the rest, so a full-bleed
+// screen fills the viewport without a layout prop and a footer a product adds sits at the bottom.
+test('main reaches the bottom of the viewport on a short page', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+  const gap = await page
+    .locator('main')
+    .evaluate((element) => window.innerHeight - element.getBoundingClientRect().bottom)
+  expect(gap).toBeLessThanOrEqual(1)
+})
+
+// `data-density="compact"` is a generation setting; setting it here exercises the same CSS
+// without a second build. Compact tightens the page container's spacing, here its block padding.
+test('compact density tightens the page container', async ({ page }) => {
+  await page.goto(NOT_FOUND)
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  const padding = () =>
+    page
+      .locator('main .page-container')
+      .evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingBlockStart))
+
+  await page.evaluate(() => {
+    document.documentElement.removeAttribute('data-density')
+  })
+  expect(await padding()).toBe(24)
+
+  await page.evaluate(() => {
+    document.documentElement.setAttribute('data-density', 'compact')
+  })
+  expect(await padding()).toBe(16)
+})
+
+// The 404 has one control, its way home; the skip link is clipped until focused, so it is outside
+// the set. Counting it keeps the check from passing on an empty page.
+test('the 404 control is a 44 px touch target', { tag: '@phone' }, async ({ page }) => {
+  await page.goto(NOT_FOUND)
+  await expect(page.getByRole('link', HOME_CONTROL)).toBeVisible()
+
+  await expectTouchTargets(page, 44, 1)
+  await expectNoAxeViolations(page)
+})
+
+// Compact tightens spacing and never shrinks a touch target.
+test(
+  'compact density does not shrink the 404 control on the phone project',
+  { tag: '@phone' },
+  async ({ page }) => {
+    await page.goto(NOT_FOUND)
+    await expect(page.getByRole('link', HOME_CONTROL)).toBeVisible()
+    await page.evaluate(() => {
+      document.documentElement.setAttribute('data-density', 'compact')
+    })
+
+    await expectTouchTargets(page, 44, 1)
+  },
+)
+
+test(
+  'the 404 control keeps the desktop densities on the desktop project',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    await page.goto(NOT_FOUND)
+    await expect(page.getByRole('link', HOME_CONTROL)).toBeVisible()
+
+    // The generated density is not the test's business: clear it for the comfortable size, then
+    // set compact. Polled because the control sizes animate.
+    const height = async () => (await page.getByRole('link', HOME_CONTROL).boundingBox())?.height
+
+    await page.evaluate(() => {
+      document.documentElement.removeAttribute('data-density')
+    })
+    await expect.poll(height).toBe(36)
+
+    await page.evaluate(() => {
+      document.documentElement.setAttribute('data-density', 'compact')
+    })
+    await expect.poll(height).toBe(32)
+
+    await expectNoAxeViolations(page)
+  },
+)
+
+// @i18n-start
+// The language toggle is on no page of the template, so the click cannot be driven end to end.
+// This stores the Hebrew choice the way the language store persists it (the JSON-encoded key, as
+// screens.spec does for the theme), before the page loads, and checks the layout holds in RTL.
+test('a stored Hebrew choice is applied on load: rtl, no overflow, no axe violation', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('lang', JSON.stringify('he'))
+  })
+  await page.goto('/')
+  const html = page.locator('html')
+  await expect(html).toHaveAttribute('lang', 'he')
+  await expect(html).toHaveAttribute('dir', 'rtl')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+  await expectNoHorizontalOverflow(page)
+  await expectNoAxeViolations(page)
+})
+// @i18n-end
 
 test('the page logs no console error or warning', async ({ page }) => {
   const problems = collectConsoleProblems(page)
 
   await page.goto('/')
-  await expect(page.getByRole('heading', { level: 1, name: 'System status' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await page.waitForLoadState('networkidle')
   await page.goto('/no/such/page')
   await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible()
 
   expect(problems).toEqual([])
 })
-
-test('every control is a 44 px touch target', { tag: '@phone' }, async ({ page }) => {
-  await page.goto('/')
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-
-  await expectTouchTargets(page, 44)
-  await openDrawer(page)
-  await expectTouchTargets(page, 44)
-  await expectNoAxeViolations(page)
-})
-
-// `data-density="compact"` is a generation setting; setting it here exercises the same CSS
-// without a second build. Compact tightens spacing and never shrinks a touch target.
-test(
-  'compact density does not shrink a touch target on the phone project',
-  { tag: '@phone' },
-  async ({ page }) => {
-    await page.goto('/')
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    await page.evaluate(() => {
-      document.documentElement.setAttribute('data-density', 'compact')
-    })
-
-    await expectTouchTargets(page, 44)
-    await openDrawer(page)
-    await expectTouchTargets(page, 44)
-  },
-)
-
-test(
-  'controls keep the desktop densities on the desktop project',
-  { tag: '@desktop' },
-  async ({ page }) => {
-    await page.goto('/')
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-
-    // The generated density is not the test's business: clear it for the comfortable sizes, then
-    // set compact. Polled because the control sizes animate.
-    const size = (name: string | RegExp, dimension: 'width' | 'height') => async () =>
-      (await page.getByRole('button', { name }).boundingBox())?.[dimension]
-
-    await page.evaluate(() => {
-      document.documentElement.removeAttribute('data-density')
-    })
-    await expect.poll(size('Refresh', 'height')).toBe(36)
-    await expect.poll(size(/^Theme:/, 'width')).toBe(36)
-    await expect.poll(size(/^Theme:/, 'height')).toBe(36)
-
-    await page.evaluate(() => {
-      document.documentElement.setAttribute('data-density', 'compact')
-    })
-    await expect.poll(size('Refresh', 'height')).toBe(32)
-    await expect.poll(size(/^Theme:/, 'width')).toBe(32)
-    await expect.poll(size(/^Theme:/, 'height')).toBe(32)
-
-    await expectNoAxeViolations(page)
-  },
-)
-
-test('the theme toggle switches to dark and the choice survives a reload', async ({ page }) => {
-  await page.goto('/')
-  const html = page.locator('html')
-
-  // Cycle (light, dark, system) until dark, whatever theme was generated as the default. After
-  // each click wait for the stored choice to change: reading the page earlier sees the old state
-  // and clicks past dark.
-  const toggle = page.getByRole('button', { name: /^Theme:/ })
-  const stored = () => page.evaluate(() => localStorage.getItem('theme'))
-  const isDark = async () => /^Theme: Dark\./.test((await toggle.getAttribute('aria-label')) ?? '')
-  await expect(toggle).toBeVisible()
-  for (let step = 0; step < 3 && !(await isDark()); step++) {
-    const before = await stored()
-    await toggle.click()
-    await expect.poll(stored).not.toBe(before)
-    const choice = JSON.parse((await stored()) ?? '"system"') as string
-    await expect(toggle).toHaveAttribute(
-      'aria-label',
-      new RegExp(`^Theme: ${choice[0]?.toUpperCase() ?? ''}${choice.slice(1)}[.]`),
-    )
-  }
-  await expect(html).toHaveAttribute('data-theme', 'dark')
-  await expect.poll(stored).toBe('"dark"')
-
-  await page.reload()
-  await expect(html).toHaveAttribute('data-theme', 'dark')
-  await expectNoAxeViolations(page)
-})
-
-test(
-  'the drawer traps focus, closes on Escape and gives focus back',
-  { tag: '@phone' },
-  async ({ page }) => {
-    await page.goto('/')
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    const toggle = page.getByRole('button', { name: 'Open navigation' })
-
-    const drawer = await openDrawer(page)
-    await expect(page.locator('main')).toHaveAttribute('inert', '')
-
-    // Tab never leaves the drawer: after more presses than it has controls, focus is still in it.
-    for (let press = 0; press < 6; press++) await page.keyboard.press('Tab')
-    expect(await drawer.evaluate((element) => element.contains(document.activeElement))).toBe(true)
-
-    await page.keyboard.press('Escape')
-    await expect(drawer).toHaveCount(0)
-    await expect(toggle).toBeFocused()
-    await expect(page.locator('main')).not.toHaveAttribute('inert', '')
-  },
-)
-
-// @i18n-start
-test('the language toggle flips the direction and the choice survives a reload', async ({
-  page,
-}) => {
-  await page.goto('/')
-  const html = page.locator('html')
-  await expect(html).toHaveAttribute('lang', 'en')
-  // English is the document's default direction: the attribute is set only by a language switch.
-  await expect(html).not.toHaveAttribute('dir', 'rtl')
-
-  await page.getByRole('button', { name: 'Switch language to עברית' }).click()
-  await expect(html).toHaveAttribute('lang', 'he')
-  await expect(html).toHaveAttribute('dir', 'rtl')
-  await expectNoHorizontalOverflow(page)
-  await expectNoAxeViolations(page)
-
-  await page.reload()
-  await expect(html).toHaveAttribute('dir', 'rtl')
-
-  // The page is Hebrew now, so the button's name is in Hebrew: find it by its class.
-  await page.locator('.header__language').click()
-  await expect(html).toHaveAttribute('dir', 'ltr')
-})
-// @i18n-end
 
 // The no-flash theme script is a file because the deployed pages carry `script-src 'self'`. In
 // container mode this is the nginx or server image's own answer; `vite preview` sets no CSP, so
@@ -298,12 +231,21 @@ test('the bundle runs under a CSP that forbids eval', async ({ page }) => {
   })
 
   await page.goto('/')
-  await expect(page.getByRole('heading', { level: 1, name: 'System status' })).toBeVisible()
   await expect(
-    page.locator('.health-status__fact', { hasText: 'Status' }).locator('dd'),
-  ).toHaveText('Operational')
+    page.getByRole('heading', { level: 1, name: '__PROJECT_DISPLAY_NAME__' }),
+  ).toBeVisible()
+  // @server:auth-start
+  // The form's first parse runs zod, which probes `new Function('')` unless it runs jitless.
+  await page.goto('/auth/register')
+  await expect(page.getByRole('heading', { level: 1, name: 'Create your account' })).toBeVisible()
+  await page.getByLabel('Email').fill('csp@example.com')
+  await page.getByLabel('Password', { exact: true }).fill('short')
+  await page.getByLabel('Confirm password').fill('short')
+  await page.getByRole('button', { name: 'Create account' }).click()
+  await expect(page.getByText('Enter at least 8 characters')).toBeVisible()
+  // @server:auth-end
 
-  // No violation so far: nothing in the bundle (zod's parser probe included) tried to evaluate code.
+  // No violation so far: nothing in the bundle tried to evaluate code.
   expect(
     await page.evaluate(() => (window as unknown as { cspViolations: string[] }).cspViolations),
   ).toEqual([])

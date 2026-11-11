@@ -147,16 +147,21 @@ The checklist is what `validate` and the cases prove.
       A frontend declares no `auth` flag of its own.
 - [ ] The invariants hold in the template's own terms: the generated client in a committed directory
       the agents file names; the API at relative `/api` with no compiled-in URL, no CORS and a dev
-      proxy; one env module; the shell landmarks built from one nav table; the brand placeholders
+      proxy; one env module; the shell a skip link and one `main` filling a viewport-high
+      column, with no header, navigation or footer, no example screen, an index route of one `h1`,
+      and the page pattern owning the container
+      ([ADR 0010](docs/adr/0010-no-chrome-no-example-screen.md)); the brand placeholders
       (`__THEME_LIGHT__`, `__THEME_DARK__`, `__THEME_RADIUS__`, `__THEME_FONT_STACK__`,
       `__THEME_DENSITY__`, `__PROJECT_DISPLAY_NAME__`) in the files that carry the tokens, with the
       dark selector the template declares; `theme-init.js` a file, never inline; with auth, the guards,
       `/forbidden`, the 401 refresh that collapses and the session hint.
-- [ ] The tests the template owns: its own glue once (the shell nav, the error mapping, theme
+- [ ] The tests the template owns: its own glue once (the main layout's unit test, the one nav
+      table that `screens.spec` reads, the components the template ships for the product to place
+      (the theme toggle, the account menu), each with its unit test, the error mapping, theme
       toggling, form bindings and, with auth, the session helpers, every auth action's success and
       failure and a refresh that two concurrent 401s trigger once); the e2e `shell.spec`,
-      `screens.spec`, `smoke.spec` and the auth journeys on the `phone` and `desktop` projects, with
-      `reuseExistingServer: false`, `RATE_LIMIT_SCALE`, the API's command chained as `e2eDb && start`
+      `screens.spec`, `smoke.spec` (structure, never the placeholder's words) and the auth
+      journeys on the `phone` and `desktop` projects, with `reuseExistingServer: false`, `RATE_LIMIT_SCALE`, the API's command chained as `e2eDb && start`
       (no `globalSetup`), `E2E_BASE_URL` and `retries: 0`.
 - [ ] The boundaries test: a spec in `tests/unit/` lints one violation and one allowed case per import
       rule through ESLint's Node API and the real `eslint.config.mjs`, and each message names the
@@ -563,17 +568,21 @@ the lockfiles is still to be configured.
   existing file invalid bumps it. v1.4.0 added optional fields (`answers.brand`, `onlyWhen`, the case
   fields for a server's flags, the `e2eDb` command, the provider's `e2e` URL); v1.4.1 adds the case
   field `brand`; v1.5.0 and v1.5.1 add none.
-- This release is `v1.9.0`, a minor: `frontend/react` 4.0.0, `frontend/vue` 2.0.0 and
-  `frontend/angular` 2.0.0, three template majors (the trees move to `pages/` and `components/`
-  with co-located SCSS on a layered global tree;
-  [ADR 0009](docs/adr/0009-pages-components-colocated-styles.md)); `frontend/next` 2.1.2 and both
-  servers unchanged; `schemaVersion` 1; no tool change. The previous release, `v1.8.0`, a minor,
-  was `frontend/vue` 1.0.0 with the stacks `vue-bun-express` and `vue-python-fastapi` (Pinia setup
-  stores, Vue Router and Reka UI on the global SCSS tree; [ADR 0008](docs/adr/0008-vue-pinia.md));
-  it left the other templates and `schemaVersion` unchanged and had no tool change. Before it,
-  `v1.7.0`, a minor, was `frontend/react` 3.0.0, a template's own major (its layout moves every
-  file: Redux Toolkit with RTK Query, Radix primitives on the global SCSS tree, features by server
-  module; [ADR 0007](docs/adr/0007-react-redux-rtk-scss.md)). Before it, `v1.6.0`, a
+- This release is `v1.10.0`, a minor: `frontend/next` 3.0.0, `frontend/react` 5.0.0,
+  `frontend/vue` 3.0.0 and `frontend/angular` 3.0.0, four template majors (the template's header,
+  navigation, footer and health example screen leave; the main layout is a skip link and one
+  `main`; [ADR 0010](docs/adr/0010-no-chrome-no-example-screen.md)); both servers unchanged;
+  `schemaVersion` 1; no tool change. The previous release, `v1.9.0`, a minor, was
+  `frontend/react` 4.0.0, `frontend/vue` 2.0.0 and `frontend/angular` 2.0.0, three template majors
+  (the trees move to `pages/` and `components/` with co-located SCSS on a layered global tree;
+  [ADR 0009](docs/adr/0009-pages-components-colocated-styles.md)); it left `frontend/next` 2.1.2
+  and both servers unchanged, with `schemaVersion` 1 and no tool change. Before it, `v1.8.0`, a
+  minor, was `frontend/vue` 1.0.0 with the stacks `vue-bun-express` and `vue-python-fastapi` (Pinia
+  setup stores, Vue Router and Reka UI on the global SCSS tree;
+  [ADR 0008](docs/adr/0008-vue-pinia.md)); it left the other templates and `schemaVersion`
+  unchanged and had no tool change. Before it, `v1.7.0`, a minor, was `frontend/react` 3.0.0, a
+  template's own major (its layout moves every file: Redux Toolkit with RTK Query, Radix
+  primitives on the global SCSS tree, features by server module; [ADR 0007](docs/adr/0007-react-redux-rtk-scss.md)). Before it, `v1.6.0`, a
   minor, added `frontend/angular` 1.0.0 with the stacks `angular-bun-express` and
   `angular-python-fastapi` and split the frontend contract into invariants
   ([ADR 0006](docs/adr/0006-per-framework-frontends-and-angular.md)); it carried `frontend/next`

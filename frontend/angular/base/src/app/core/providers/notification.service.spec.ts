@@ -34,13 +34,13 @@ describe('NotificationService', () => {
   })
 
   it('renders the queue through the toast component on the overlay', () => {
-    notifications.showSuccess('shell.footer', { year: 2026, name: 'App' })
+    notifications.showSuccess('auth.otp.description', { email: 'ada@example.com' })
     notifications.showError('errors.unexpected')
     TestBed.tick()
     const container = document.querySelector('.cdk-overlay-container')
     const items = Array.from(container?.querySelectorAll('.toast') ?? [])
     expect(items.map((item) => item.getAttribute('role'))).toEqual(['status', 'alert'])
-    expect(items[0]?.textContent).toContain('© 2026 App')
+    expect(items[0]?.textContent).toContain('a six-digit code to ada@example.com')
     expect(container?.querySelector('[aria-live="polite"]')).not.toBeNull()
   })
 

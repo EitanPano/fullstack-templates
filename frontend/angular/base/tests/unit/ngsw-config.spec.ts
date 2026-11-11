@@ -18,7 +18,7 @@ interface DataGroup {
 interface NgswConfig {
   index: string
   assetGroups: AssetGroup[]
-  dataGroups: DataGroup[]
+  dataGroups?: DataGroup[]
   navigationUrls: string[]
 }
 
@@ -26,14 +26,8 @@ const config = JSON.parse(
   readFileSync(fileURLToPath(new URL('../../ngsw-config.json', import.meta.url)), 'utf8'),
 ) as NgswConfig
 
-function group(name: string): DataGroup {
-  const found = config.dataGroups.find((item) => item.name === name)
-  if (!found) throw new Error(`no data group ${name}`)
-  return found
-}
-
 // Angular's service worker has no negation in `dataGroups[].urls`: a `!` pattern is read as a
-// literal path, so it excludes nothing. The api group is therefore an allowlist of public reads.
+// literal path, so it excludes nothing. A data group is therefore an allowlist of public reads.
 // This turns a `dataGroups` glob into the regular expression the worker builds (`**` any path,
 // `*` one segment, `?` one character; `#` stands in for `**` while it is converted).
 function matches(glob: string, path: string): boolean {
@@ -48,37 +42,29 @@ function matches(glob: string, path: string): boolean {
   return new RegExp(`^${source}$`).test(path)
 }
 
+const groups = config.dataGroups ?? []
 const cachedBy = (path: string) =>
-  config.dataGroups.filter((item) => item.urls.some((url) => matches(url, path)))
+  groups.filter((item) => item.urls.some((url) => matches(url, path)))
 
 describe('ngsw-config.json', () => {
+  // The template declares no data group, so these hold trivially; a product that caches a public
+  // read adds its group and both tests keep guarding it.
   it('uses no negative pattern in a data group (the worker ignores the `!`)', () => {
-    for (const item of config.dataGroups) {
+    for (const item of groups) {
       for (const url of item.urls) expect(url.startsWith('!'), `${item.name}: ${url}`).toBe(false)
     }
   })
 
-  it('caches only public reads: the health check, never account or auth endpoints', () => {
-    expect(group('api').urls).toEqual(['/api/health', '/api/health/**'])
-    expect(cachedBy('/api/health').map((item) => item.name)).toEqual(['api'])
-    expect(cachedBy('/api/health/ready').map((item) => item.name)).toEqual(['api'])
+  it('never caches account or auth endpoints', () => {
     for (const path of [
       '/api/user/me',
       '/api/user',
       '/api/user/42',
       '/api/auth/refresh',
       '/api/auth/otp',
-      '/api/anything-else',
     ]) {
       expect(cachedBy(path), path).toEqual([])
     }
-  })
-
-  it('keeps API answers fresh: freshness strategy, a short maxAge and a timeout', () => {
-    const { cacheConfig } = group('api')
-    expect(cacheConfig.strategy).toBe('freshness')
-    expect(cacheConfig.maxAge).toBe('10s')
-    expect(cacheConfig.timeout).toBe('3s')
   })
 
   it('prefetches the shell: index.html and the manifest', () => {
@@ -90,7 +76,7 @@ describe('ngsw-config.json', () => {
   })
 
   it('versions the copy tables with the app: an asset group, not a data group', () => {
-    expect(config.dataGroups.map((item) => item.name)).not.toContain('i18n')
+    expect(groups.map((item) => item.name)).not.toContain('i18n')
     const assets = config.assetGroups.find((item) => item.resources.files.includes('/i18n/**'))
     expect(assets?.installMode).toBe('lazy')
     expect(assets?.updateMode).toBe('prefetch')

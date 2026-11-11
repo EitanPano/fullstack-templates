@@ -1,6 +1,5 @@
 @use '../setup/functions';
 @use '../setup/mixins';
-@use '../setup/variables';
 
 @layer basics {
   .visually-hidden {
@@ -26,12 +25,5 @@
     }
 
     @include mixins.touch-target;
-  }
-
-  .container {
-    inline-size: 100%;
-    max-inline-size: variables.$container-max;
-    margin-inline: auto;
-    padding-inline: functions.space(4);
   }
 }

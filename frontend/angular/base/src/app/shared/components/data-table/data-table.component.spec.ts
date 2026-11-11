@@ -11,14 +11,14 @@ interface Row {
 }
 
 const COLUMNS: TableColumn[] = [
-  { key: 'name', labelKey: 'nav.primary' },
-  { key: 'id', labelKey: 'nav.open', align: 'end' },
+  { key: 'name', labelKey: 'form.submit' },
+  { key: 'id', labelKey: 'form.cancel', align: 'end' },
 ]
 
 @Component({
   imports: [DataTableComponent],
   template: `
-    <app-data-table [columns]="columns" [rows]="rows()" caption="nav.close">
+    <app-data-table [columns]="columns" [rows]="rows()" caption="modal.close">
       @if (custom()) {
         <ng-template #cell let-row let-column="column">{{ column.key }}={{ row.name }}</ng-template>
       }
@@ -47,7 +47,7 @@ describe('DataTableComponent', () => {
   it('renders a column header with scope and a translated label per column', async () => {
     const { element } = await render()
     const headers = [...element.querySelectorAll('th')]
-    expect(headers.map((th) => th.textContent.trim())).toEqual(['Primary', 'Open navigation'])
+    expect(headers.map((th) => th.textContent.trim())).toEqual(['Submit', 'Cancel'])
     expect(headers.every((th) => th.getAttribute('scope') === 'col')).toBe(true)
     expect(headers[1].getAttribute('data-align')).toBe('end')
   })
@@ -73,10 +73,10 @@ describe('DataTableComponent', () => {
   it('hides the caption visually but keeps it for screen readers', async () => {
     const { element } = await render()
     const caption = element.querySelector('caption') as HTMLElement
-    expect(caption.textContent.trim()).toBe('Close navigation')
+    expect(caption.textContent.trim()).toBe('Close')
     expect(caption.classList.contains('visually-hidden')).toBe(true)
     expect(element.querySelector('.data-table')?.getAttribute('aria-label')).toBe(
-      'Close navigation',
+      'Close',
     )
   })
 

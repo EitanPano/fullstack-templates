@@ -6,9 +6,9 @@ import { useRouter } from 'vue-router'
 import BaseButton from '@/shared/components/base-button.vue'
 import { useAuthStore } from '@/store/auth.store'
 
-// The header's account slot (slots.ts): a visitor gets a sign-in link, an account an avatar button
-// that opens a panel with the email, the profile link and sign-out. There is no theme control
-// here; the header has its own. The avatar draws the initials from `data-initials` in CSS, so the
+// The account menu, which the product places: a visitor gets a sign-in link, an account an avatar
+// button that opens a panel with the email, the profile link and sign-out. There is no theme
+// control here (app-theme-toggle is its own component). The avatar draws the initials from `data-initials` in CSS, so the
 // button's accessible name is its label alone (visible text the name lacks fails WCAG 2.5.3).
 const auth = useAuthStore()
 const { user, isLoggedIn } = storeToRefs(auth)

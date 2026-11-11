@@ -5,8 +5,6 @@ import { USER, envelope } from '@/testing/auth-fixtures'
 import { renderRoutes } from '@/testing/render-routes'
 import { stubApi } from '@/testing/stub-api'
 
-const HEALTH = { status: 'ok', uptimeSeconds: 12, version: '1.2.3' }
-
 beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => undefined)
 })
@@ -21,7 +19,7 @@ describe('the auth routes', () => {
     renderRoutes({ initialEntries: ['/sign-in'] })
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Sign in' })).toBeInTheDocument()
-    expect(screen.queryByRole('banner')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Skip to content' })).not.toBeInTheDocument()
     expect(screen.getAllByRole('main')).toHaveLength(1)
   })
 
@@ -36,10 +34,7 @@ describe('the auth routes', () => {
   })
 
   it.each(['/sign-in', '/sign-up'])('keeps a signed-in account out of %s', async (path) => {
-    stubApi({
-      'GET /api/user/me': Response.json(USER),
-      'GET /api/health': Response.json(HEALTH),
-    })
+    stubApi({ 'GET /api/user/me': Response.json(USER) })
 
     const { router } = renderRoutes({ initialEntries: [path] })
 
@@ -60,7 +55,7 @@ describe('the auth routes', () => {
     renderRoutes({ initialEntries: ['/sign-in'] })
 
     expect(await screen.findByRole('status', { name: 'Loading' })).toBeInTheDocument()
-    expect(screen.queryByRole('banner')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Skip to content' })).not.toBeInTheDocument()
 
     release(envelope('unauthenticated', 401))
 

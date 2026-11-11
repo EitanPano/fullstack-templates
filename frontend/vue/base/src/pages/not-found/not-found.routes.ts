@@ -1,6 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router'
 
-// The catch-all, inside the main layout: an unknown path shows the shell around a not-found page.
+// The catch-all, inside the main layout: an unknown path shows a not-found page inside the main layout.
 // app/routes.ts puts it last.
 const routes: RouteRecordRaw[] = [
   {

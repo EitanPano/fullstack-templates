@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 
-import { NAV } from '@/app/nav'
 import { routes } from '@/app/routes'
 
 import notFoundRoutes from './not-found.routes'
@@ -15,7 +14,7 @@ describe('not-found routes', () => {
   it('sits inside the main layout of the route table, after every feature', () => {
     const layout = routes[0]
 
-    expect(layout?.props).toEqual({ nav: NAV })
+    expect(layout?.props).toBeUndefined()
     expect(layout?.children?.at(-1)?.path).toBe('/:pathMatch(.*)*')
   })
 })

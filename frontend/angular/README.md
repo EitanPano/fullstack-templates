@@ -6,7 +6,8 @@ OpenAPI contract (Hey API's Angular client), Vitest through `ng test` and Playwr
 the stack's server has its `auth` flag on it adds the session glue (same-origin HttpOnly cookies, one
 refresh on a 401, route guards, sign-in and sign-up). Generated alone or as the `frontend` of the
 `angular-bun-express` or `angular-python-fastapi` stack. The shape it follows is ADR 0006 and
-`docs/conventions.md`.
+`docs/conventions.md`. The app is a skip link, one `main` and an index route of one `h1`: no header,
+navigation, footer or example screen (ADR 0010); the product builds its chrome.
 
 ## Flags
 
@@ -21,7 +22,9 @@ refresh on a 401, route guards, sign-in and sign-up). Generated alone or as the 
   files that exist only with the server's `auth` flag (`server:auth`) or `database` capability, and
   `// @server:auth` markers cover the lines inside shared files.
 - `base/`: the files copied into the generated package, including `AGENTS.md`, `bun.lock` and the
-  committed `src/app/services/generated/`.
+  committed `src/app/services/generated/`. Its `src/app/components/` holds the two layouts and the
+  components the product places: `app-theme-toggle`, with auth `app-account-menu`, with `i18n`
+  `app-language-toggle`, with `pwa` `app-install-button` and `app-install-hint`.
 - `base/Dockerfile`, `base/nginx/`: the `dist` and `serve` image targets and the nginx config
   template and headers snippet of the `split` mode.
 - `compose.yaml`: the Compose service body, keyed by the package directory at generation and written

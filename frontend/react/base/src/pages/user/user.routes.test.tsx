@@ -15,15 +15,12 @@ afterEach(() => {
 })
 
 describe('the user routes', () => {
-  it('costs a visitor exactly one session request, and the header shows Sign in', async () => {
-    const fetchMock = stubApi({
-      'GET /api/health': Response.json({ status: 'ok', uptimeSeconds: 1, version: '1' }),
-      'GET /api/user/me': () => envelope('unauthenticated', 401),
-    })
+  it('costs a visitor exactly one session request on the guarded page', async () => {
+    const fetchMock = stubApi({ 'GET /api/user/me': () => envelope('unauthenticated', 401) })
 
-    renderRoutes()
+    renderRoutes({ initialEntries: ['/profile'] })
 
-    expect(await screen.findByRole('link', { name: 'Sign in' })).toBeVisible()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible()
     await new Promise((resolve) => setTimeout(resolve, 100))
     const session = fetchMock.mock.calls.filter(
       ([request]) => new URL(request.url).pathname === '/api/user/me',
@@ -56,13 +53,13 @@ describe('the user routes', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it('renders the forbidden page inside the shell', async () => {
+  it('renders the forbidden page inside main', async () => {
     stubApi({ 'GET /api/user/me': Response.json(USER) })
 
     renderRoutes({ initialEntries: ['/forbidden'] })
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Access denied' })).toBeVisible()
-    expect(screen.getByRole('navigation', { name: 'Primary' })).toBeInTheDocument()
+    expect(within(screen.getByRole('main')).getByText('Access denied')).toBeVisible()
   })
   it('signs out from /profile and lands on the sign-in screen, not the home page', async () => {
     setSessionHint()
@@ -78,8 +75,7 @@ describe('the user routes', () => {
     })
 
     const { router } = renderRoutes({ initialEntries: ['/profile'] })
-    await user.click(await screen.findByRole('button', { name: /^Account menu/ }))
-    await user.click(screen.getByRole('menuitem', { name: 'Sign out' }))
+    await user.click(await screen.findByRole('button', { name: 'Sign out' }))
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible()
     expect(router.state.location.pathname).toBe('/sign-in')
@@ -113,7 +109,6 @@ describe('the user routes', () => {
     renderRoutes({ initialEntries: ['/profile'] })
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Profile' })).toBeVisible()
-    await screen.findByRole('button', { name: /^Account menu/ })
     await new Promise((resolve) => setTimeout(resolve, 100))
     const session = fetchMock.mock.calls.filter(
       ([request]) => new URL(request.url).pathname === '/api/user/me',

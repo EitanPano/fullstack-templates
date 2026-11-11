@@ -15,7 +15,7 @@ import './app-user-menu.scss'
 
 // An avatar trigger with an items slot above the theme choices. Without an account the slot is
 // empty and the menu is the theme menu. An account passes its email (the first line of the menu,
-// never in the header) and its items, such as Sign out.
+// never beside the trigger) and its items, such as Sign out.
 export function AppUserMenu({
   children,
   initials,

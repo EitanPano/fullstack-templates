@@ -53,16 +53,13 @@ describe('the compiled styles tree', () => {
     expect(coarse).toMatch(/\.button\s*\{[^}]*min-inline-size:\s*(44px|2\.75rem)/)
   })
 
-  it.each(['.button--sm', '.header__brand', '.side-nav__link'])(
-    'floors %s at 44 px under a coarse pointer',
-    (selector) => {
-      const own = new RegExp(
-        String.raw`${selector.replace('.', String.raw`\.`)}\s*\{[^}]*min-block-size:\s*(44px|2\.75rem)`,
-      )
+  it.each(['.button--sm'])('floors %s at 44 px under a coarse pointer', (selector) => {
+    const own = new RegExp(
+      String.raw`${selector.replace('.', String.raw`\.`)}\s*\{[^}]*min-block-size:\s*(44px|2\.75rem)`,
+    )
 
-      expect(media('(pointer: coarse)')).toMatch(own)
-    },
-  )
+    expect(media('(pointer: coarse)')).toMatch(own)
+  })
 
   // .button--icon sets no height of its own: it is a .button, which carries the floor.
   it('floors an icon button through .button under a coarse pointer', () => {
@@ -81,6 +78,14 @@ describe('the compiled styles tree', () => {
 
   it('applies compact density to a fine pointer only', () => {
     expect(topLevel).not.toMatch(/\[data-density=['"]?compact['"]?\] \.button/)
+  })
+
+  it('tightens the page container under compact density, and main has no padding or width', () => {
+    expect(topLevel).toMatch(/\.page-container\s*\{[^}]*padding-block:\s*(24px|1\.5rem)/)
+    expect(topLevel).toMatch(
+      /\[data-density=['"]?compact['"]?\] \.page-container\s*\{[^}]*padding-block:\s*(16px|1rem)/,
+    )
+    expect(css).not.toMatch(/\.main\s*\{[^}]*(padding|max-inline-size)/)
   })
 
   it('themes dark by attribute and never by a class', () => {
