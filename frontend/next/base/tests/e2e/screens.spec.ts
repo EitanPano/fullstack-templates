@@ -59,7 +59,7 @@ function slug(route: string): string {
 // Opens the route in the theme, saves the screenshot and returns what the checks found.
 async function capture(page: Page, route: string, theme: Theme): Promise<string[]> {
   await page.goto(route)
-  await expect(page.locator('html')).toHaveClass(theme === 'dark' ? /dark/ : /^(?!.*dark)/)
+  await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
   await page.waitForLoadState('networkidle')
   await page.evaluate(() => document.fonts.ready)
 

@@ -11,7 +11,7 @@ const SRC = path.resolve(__dirname, '../../src')
 const DIRECTIVE = /^\s*['"]use cache(?::\s*\w+)?['"]/m
 const FORBIDDEN = [
   { name: 'next/headers', test: /from\s+['"]next\/headers['"]/ },
-  { name: '@/shared/auth/*', test: /from\s+['"]@\/shared\/auth\// },
+  { name: '@/core/auth/*', test: /from\s+['"]@\/core\/auth\// },
   { name: 'createRequestApi', test: /\bcreateRequestApi\b/ },
 ]
 
@@ -32,7 +32,7 @@ function sources(dir: string): string[] {
 describe("the 'use cache' rule on seeded sources", () => {
   it.each([
     ['next/headers', "import { cookies } from 'next/headers'"],
-    ['@/shared/auth/*', "import { requireAccount } from '@/shared/auth/session'"],
+    ['@/core/auth/*', "import { requireAccount } from '@/core/auth/session'"],
     ['createRequestApi', 'const api = await createRequestApi()'],
   ])('refuses a cached file that uses %s', (name, line) => {
     expect(forbiddenIn(`'use cache'\n${line}\n`)).toEqual([name])
@@ -40,7 +40,7 @@ describe("the 'use cache' rule on seeded sources", () => {
 
   it('allows a cached file that calls the API with the plain client', () => {
     const source =
-      "'use cache: remote'\nimport { createApi } from '@/shared/api/client'\ncreateApi()\n"
+      "'use cache: remote'\nimport { createApi } from '@/services/client'\ncreateApi()\n"
 
     expect(forbiddenIn(source)).toEqual([])
   })

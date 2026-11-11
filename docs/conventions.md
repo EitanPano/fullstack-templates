@@ -91,10 +91,11 @@ that enforces them, and where an addition goes. The rationale is in
 6. **Brand and theme.** The generator's inputs (`--display-name`, `--brand-primary`,
    `--brand-neutral`, `--radius`, `--font`, `--theme`, `--density`), its contrast checks and its
    OKLCH token names are the one semantic set across frontends. Light values in `:root`, dark
-   values under a selector the template declares (`.dark` or `[data-theme="dark"]`). Light, dark
+   values under `[data-theme="dark"]`. Light, dark
    and system, the default from the brand input, a theme control the template ships and the
-   product places (`AGENTS.md › Styling` names it). The no-flash theme script is a file,
-   never inline: the deployed pages carry `script-src 'self'`. Spacing is a 4 px base and a
+   product places (`AGENTS.md › Styling` names it). The no-flash theme script of a single-page
+   template is a file, because its deployed pages carry `script-src 'self'`; the Next template
+   uses `next-themes`' own script and ships no Content-Security-Policy. Spacing is a 4 px base and a
    template never adds a `--spacing-N` key (ADR 0004, U2). The inputs are recorded in
    provenance under `answers.brand`; defaults: the project name in title case, `#1d4ed8` on a
    `#64748b` neutral, `md`, `system`, `system`, `comfortable`. The generator fails, naming the

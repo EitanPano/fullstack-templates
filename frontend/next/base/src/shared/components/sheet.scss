@@ -1,0 +1,97 @@
+@use 'setup/functions';
+
+@layer kit {
+  // Radix Dialog as a side panel from the inline start. The state hooks are Radix's data attributes.
+  .sheet__overlay {
+    position: fixed;
+    inset: 0;
+    z-index: functions.z(drawer-backdrop);
+    background: var(--backdrop);
+
+    &[data-state='open'] {
+      animation: sheet-fade-in 200ms ease;
+    }
+
+    &[data-state='closed'] {
+      animation: sheet-fade-out 150ms ease;
+    }
+  }
+
+  .sheet {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    z-index: functions.z(drawer);
+    display: flex;
+    flex-direction: column;
+    gap: functions.space(4);
+    inline-size: min(20rem, 85vw);
+    padding: functions.space(4);
+    border-inline-end: 1px solid var(--border-strong);
+    overflow-y: auto;
+    background: var(--background);
+    color: var(--foreground);
+    box-shadow: var(--shadow-2);
+    // The panel enters from its inline start edge; translate is physical, so rtl flips the sign.
+    --sheet-from: -100%;
+
+    &:dir(rtl) {
+      --sheet-from: 100%;
+    }
+
+    &[data-state='open'] {
+      animation: sheet-slide-in 250ms ease;
+    }
+
+    &[data-state='closed'] {
+      animation: sheet-slide-out 200ms ease;
+    }
+  }
+
+  .sheet__header {
+    display: grid;
+    gap: functions.space(1);
+    // Room for the close button at the inline end.
+    padding-inline-end: functions.space(12);
+  }
+
+  .sheet__title {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-semibold);
+  }
+
+  .sheet__description {
+    color: var(--muted-foreground);
+    font-size: var(--text-sm);
+  }
+
+  .sheet__close {
+    position: absolute;
+    inset-block-start: functions.space(3);
+    inset-inline-end: functions.space(3);
+  }
+
+  @keyframes sheet-fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes sheet-fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes sheet-slide-in {
+    from {
+      translate: var(--sheet-from) 0;
+    }
+  }
+
+  @keyframes sheet-slide-out {
+    to {
+      translate: var(--sheet-from) 0;
+    }
+  }
+}

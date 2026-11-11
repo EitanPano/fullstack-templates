@@ -1,0 +1,19 @@
+@layer setup {
+  // The font stack comes from the brand; the scale and line heights are the template's.
+  :root {
+    --font-sans: __THEME_FONT_STACK__;
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
+    --text-base: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.25rem;
+    --text-2xl: 1.5rem;
+    --text-3xl: 1.875rem;
+    --leading-tight: 1.25;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+    --weight-normal: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+  }
+}

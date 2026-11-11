@@ -1,5 +1,37 @@
 # Changelog
 
+## 4.0.0 — unreleased
+
+The layer names of the single-page templates, and their styling system (ADR 0012). `app/` stays as the pages layer, and `widget/`, `feature/`, `entity/` and the Feature-Sliced `shared/` give way to `components/`, `services/`, `actions/`, `store/`, `models/`, `shared/`, `core/` and `styles/`; Tailwind and the copied shadcn primitives give way to React's kit on a global SCSS tree in cascade layers, with a sibling `.scss` beside every page and component. A project generated from 3.x keeps its tree; there is no migration tool.
+
+### Breaking
+
+| What | Before | Now, and what a project generated before does |
+| --- | --- | --- |
+| Tree | `app/` for routing, `widget/<section>/`, `feature/<action>/`, `entity/<noun>/`, `shared/{ui,lib,api,auth,config}` | `app/` is the pages layer (a route's own pieces in `app/<route>/_components/`), `components/app-<name>`, `services/<noun>.ts` (reads), `actions/<noun>.ts` (one `'use server'` file per noun), `store/` (named, ships no file), `models/<noun>.ts` (types, mappers, form schema, copy table), `shared/{components,utils}`, `core/{actions,auth,config}`, `styles/`. An old project keeps its folders; `AGENTS.md` and the lint rules no longer describe them. |
+| Generated client | `src/shared/api/generated/`, `client.ts`, `call.ts`, `index.ts` | `src/services/generated/`, `services/client.ts`, `services/call.ts`; the contract's types reach the rest of the code through `models/<noun>.ts`. `openapi-ts.config.ts` writes to the new path: re-run `bun run api:types` after moving. |
+| Kit and its API | `shared/ui/*` (shadcn, class lists), `shared/ui/pattern/*`, `shared/ui/form/*` | `shared/components/*` and `shared/components/form/*`, ported from `frontend/react/base`, each with its sibling sheet. Only `confirm-dialog`, `error-state`, `toaster` and the `form/` bindings are Client Components. `AuthCard` and the patterns keep their names; `AuthCardSkeleton` is `components/app-auth-loading`; `SkipLink` is inline in `app/(site)/layout.tsx`; `UserMenu`, `ThemeToggle` and the account menu are `AppUserMenu`, `AppThemeMenu` and `AppAccountMenu` in `components/`; `NavEntry` is `models/nav.ts`. `Button` variants are `primary`, `secondary`, `ghost`, `danger` and `link` (`default` is `primary`, `destructive` is `danger`, `outline` is gone) and `size` is `sm` or `icon` (`xs`, `lg` and the other icon sizes are gone). `page-layout.tsx` is `page.tsx`. |
+| Styling system | Tailwind 4 utility classes, one `app/globals.css` with `@theme inline`, `cn` over `tailwind-merge` | Global tree `styles/{styles.scss,setup/,themes/,basics/}` in `@layer setup, themes, basics, kit`; BEM classes composed with `cn` (`clsx`); a sheet under `shared/components/` is in `@layer kit { }`, every other sibling sheet is unlayered and beats it. `app/layout.tsx` imports Inter, `themes/brand.css` and `styles.scss`. An old project keeps Tailwind. |
+| Packages | `tailwindcss`, `@tailwindcss/turbopack` (and its loader rule in `next.config.ts`), `tw-animate-css`, `tailwind-merge`, `class-variance-authority`, the shadcn CLI step and `components.json` | Removed. `sass-embedded` arrives; `next.config.ts` sets `sassOptions` with `src/styles` as the load path. |
+| Theme attribute | `next-themes` with `attribute="class"`; dark values under `.dark` | `attribute="data-theme"`; dark values under `[data-theme='dark']` in `themes/brand.css`. The generator's brand block is unchanged in content. A product's `dark:` styles must move to `[data-theme='dark']`. |
+| Unit tests | All in `tests/unit/` | Beside their source (`src/**/*.test.ts(x)`); `tests/unit/` keeps the tooling checks `eslint-boundaries`, `styles-tree`, `density`, `use-cache`, `screen-routes`, `e2e-base-url` and, with a database, `e2e-database-url` (and `proxy-config` with auth). `vitest.config.mts` includes both places. |
+| Lint rules | Feature-Sliced element rules; `client-server-import` named `server/` folders | The layer table of `AGENTS.md` (`eslint-plugin-boundaries`, `no-unknown-files` on, `services/generated` an element of its own); `client-server-import` names `services/` and `core/auth/`; new `route-components` (a `_components/` file is imported only from the folder that holds it and the folders below it); a stylesheet import is the owner's sibling, and only `app/layout.tsx` and `app/global-error.tsx` load the global tree; new `style` attribute rule; `fetch(` and `revalidatePath` only in `services/`, `process.env` only in `core/config/env.ts`. |
+| `AGENTS.md` | Feature-Sliced layer map, shadcn and Tailwind styling | Rewritten on the new tree under the same five headings: the recipe is file by file (`models/post.ts`, `services/post.ts`, `actions/post.ts`, a route's `_components/`), Styling states the layers and the two homes. |
+
+### Added
+
+- `src/styles/` (React's tree: `setup/`, `themes/`, `basics/`) and a sibling `.scss` beside every page, layout and component; `tests/unit/styles-tree.test.ts` (owner, import-last, layer and `app-` scans) and `tests/unit/density.test.ts` (compiled 36, 32 and 44 px), both ported from React.
+- `eslint-rules/route-components.mjs`, and lint cases for it, for the `style` attribute and for stylesheet imports.
+- `models/zod-messages.ts`: zod's global messages, imported by every file that builds a schema.
+- `src/store/` as a named layer in the lint and `AGENTS.md`; no file ships.
+- The tools skip markers in `src/services/generated` (React and Vue, which share the directory, generate as before).
+
+### Removed
+
+- Tailwind, shadcn and their packages (see Breaking), `components.json`, `app/globals.css`.
+- `widget/`, `feature/`, `entity/` and the Feature-Sliced `shared/ui`, `shared/lib`, `shared/api`, `shared/auth` and `shared/config`.
+- The `.dark` class selector and `@custom-variant dark`.
+
 ## 3.1.0 — 2026-11-11
 
 Generates correctly without a server (ADR 0011). A stack's output is unchanged; a frontend generated alone now carries nothing that reaches a server.
