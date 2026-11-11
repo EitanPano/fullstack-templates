@@ -74,13 +74,12 @@ describe('generation from the real catalog', () => {
     })
   })
 
-  test('frontend/next alone keeps the default API server command', () => {
-    generated({ template: 'frontend/next' }, (out) => {
-      expect(existsSync(path.join(out, 'frontend', 'package.json'))).toBe(true)
-      expect(existsSync(path.join(out, 'backend'))).toBe(false)
-      expect(playwright(out)).toContain("command: 'bun run start'")
-      expect(playwright(out)).toContain("cwd: '../backend'")
-    })
+  // Until the template gates its server files on `server` (ADR 0011), a frontend alone fails
+  // generation at the first kept SERVER_* placeholder instead of assuming a server.
+  test('frontend/next alone is refused while a kept file uses a server placeholder', () => {
+    expect(() => generated({ template: 'frontend/next' }, () => undefined)).toThrow(
+      /unreplaced placeholder __SERVER_/,
+    )
   })
 })
 

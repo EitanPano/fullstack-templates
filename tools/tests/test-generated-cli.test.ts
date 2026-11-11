@@ -39,7 +39,7 @@ describe('test-generated CLI', () => {
     expect(line).not.toBeNull()
     expect(existsSync((line as RegExpMatchArray)[1] as string)).toBe(true)
   })
-  test('--e2e skips the e2e suite of a package generated without a server', () => {
+  test('--e2e runs the e2e suite of a package generated without a server', () => {
     const root = copyFixture('catalog')
     editManifest(
       root,
@@ -49,8 +49,9 @@ describe('test-generated CLI', () => {
     )
     writeFileSync(path.join(root, 'frontend/mini-ui/base/fail.ts'), 'process.exit(3)\n')
     const result = run(root, '--case', 'frontend/mini-ui/alone', '--e2e')
-    expect(result.status).toBe(0)
-    expect(result.stdout).toContain('SKIP e2e frontend: no server in the plan')
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain('FAIL frontend/mini-ui/alone')
+    expect(result.stdout).not.toContain('SKIP e2e')
   })
   test('--install-browsers is accepted and does nothing for a package without e2e', () => {
     const result = run(FIXTURE, '--case', 'server/mini/default', '--e2e', '--install-browsers')

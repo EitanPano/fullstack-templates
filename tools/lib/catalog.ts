@@ -76,6 +76,17 @@ export interface DependencyChange {
   add?: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> }
 }
 
+export interface OnlyWhenSpec {
+  onlyPaths?: string[]
+  dependencies?: { remove: string[] }
+  scripts?: { remove: string[] }
+}
+
+// Both forms of an onlyWhen value as one shape.
+export function onlyWhenSpec(value: string[] | OnlyWhenSpec): OnlyWhenSpec {
+  return Array.isArray(value) ? { onlyPaths: value } : value
+}
+
 export type DependencyAdapter = 'npm' | 'pyproject'
 
 export interface FlagSpec {
@@ -152,9 +163,10 @@ export interface TemplateManifest {
   gitignore?: string[]
   postGenerate?: CommandName[]
   dropAfterPostGenerate?: string[]
-  // Frontend only: files kept only while a `server:<name>` selection is on, as a flag's onlyPaths
-  // are kept only while the flag is.
-  onlyWhen?: Record<string, string[]>
+  // Frontend only: what exists only while a selection is on: `server` (the plan has a server
+  // package) or `server:<name>` (a flag or capability kind of that server). A path list, or the
+  // object form that also removes dependencies and scripts, as a flag does.
+  onlyWhen?: Record<string, string[] | OnlyWhenSpec>
   defaultStack?: string
   // Frontend only: the directory the build writes, which the server serves in the single mode.
   static?: { out: string }
@@ -330,15 +342,17 @@ function checkTemplateFiles(
       )
     }
   }
-  for (const [name, paths] of Object.entries(manifest.onlyWhen ?? {})) {
+  for (const [name, value] of Object.entries(manifest.onlyWhen ?? {})) {
     if (manifest.kind === 'server') {
       problems.push(`${templatePath}: onlyWhen is not for a server template, which has no ${name}`)
     }
-    for (const only of paths) {
+    const spec = onlyWhenSpec(value)
+    for (const only of spec.onlyPaths ?? []) {
       if (!existsSync(path.join(base, only))) {
         problems.push(`${templatePath}: onlyWhen "${name}" path "${only}" does not exist in base/`)
       }
     }
+    checkOnlyWhenRemovals(templatePath, base, manifest, name, spec, problems)
   }
   for (const [name, flag] of Object.entries(manifest.flags ?? {})) {
     if (manifest.dependencies?.adapter === 'pyproject' && flag.dependencies !== undefined) {
@@ -350,6 +364,75 @@ function checkTemplateFiles(
       if (!existsSync(path.join(base, only))) {
         problems.push(`${templatePath}: flag "${name}" onlyPath "${only}" does not exist in base/`)
       }
+    }
+  }
+}
+
+// An onlyWhen entry removes only what the template has: dependencies of the base manifest, scripts
+// of its package.json. The pyproject adapter takes none (markers do that), and a name that a flag
+// of the same template already removes would be removed twice.
+function checkOnlyWhenRemovals(
+  templatePath: string,
+  base: string,
+  manifest: TemplateManifest,
+  name: string,
+  spec: OnlyWhenSpec,
+  problems: string[],
+): void {
+  const dependencies = spec.dependencies?.remove ?? []
+  const scripts = spec.scripts?.remove ?? []
+  if (dependencies.length === 0 && scripts.length === 0) return
+  const declared = manifest.dependencies
+  if (declared === undefined) {
+    problems.push(
+      `${templatePath}: onlyWhen "${name}" removes dependencies or scripts, but the template declares no dependencies manifest`,
+    )
+    return
+  }
+  if (declared.adapter !== 'npm') {
+    problems.push(
+      `${templatePath}: onlyWhen "${name}" dependencies and scripts are not allowed with the ${declared.adapter} adapter: use markers`,
+    )
+    return
+  }
+  const file = path.join(base, declared.manifest)
+  let pkg: Record<string, unknown> = {}
+  if (existsSync(file)) {
+    try {
+      pkg = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>
+    } catch {
+      problems.push(
+        `${templatePath}: onlyWhen "${name}": base/${declared.manifest} is not valid JSON`,
+      )
+      return
+    }
+  }
+  const mapOf = (key: string): Record<string, unknown> => {
+    const value = pkg[key]
+    return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {}
+  }
+  for (const dependency of dependencies) {
+    if (
+      mapOf('dependencies')[dependency] === undefined &&
+      mapOf('devDependencies')[dependency] === undefined
+    ) {
+      problems.push(
+        `${templatePath}: onlyWhen "${name}" dependency "${dependency}" is not in base/${declared.manifest}`,
+      )
+    }
+    for (const [flagName, flag] of Object.entries(manifest.flags ?? {})) {
+      if (flag.dependencies?.remove?.includes(dependency) === true) {
+        problems.push(
+          `${templatePath}: onlyWhen "${name}" dependency "${dependency}" is also removed by flag "${flagName}"`,
+        )
+      }
+    }
+  }
+  for (const script of scripts) {
+    if (mapOf('scripts')[script] === undefined) {
+      problems.push(
+        `${templatePath}: onlyWhen "${name}" script "${script}" is not in base/${declared.manifest} scripts`,
+      )
     }
   }
 }
@@ -463,19 +546,20 @@ function checkCaseCoverage(template: LoadedTemplate, problems: string[]): void {
   }
 }
 
-// An onlyWhen key must be `server:<name>` for a flag or capability kind some server declares.
+// An onlyWhen key must be `server` or `server:<name>` for a flag or capability kind some server declares.
 function checkOnlyWhenNames(
   template: LoadedTemplate,
   serverNames: readonly string[],
   problems: string[],
 ): void {
   for (const name of Object.keys(template.manifest.onlyWhen ?? {})) {
+    if (name === 'server') continue
     if (
       !name.startsWith(SERVER_PREFIX) ||
       !serverNames.includes(name.slice(SERVER_PREFIX.length))
     ) {
       problems.push(
-        `${template.path}: onlyWhen "${name}" is not a server selection; use server:<flag or capability kind> of a server template (${serverNames.map((n) => SERVER_PREFIX + n).join(', ')})`,
+        `${template.path}: onlyWhen "${name}" is not a server selection; use server, or server:<flag or capability kind> of a server template (${serverNames.map((n) => SERVER_PREFIX + n).join(', ')})`,
       )
     }
   }

@@ -77,6 +77,35 @@ function applyNpmScripts(file: string, scripts: Record<string, string>, where: s
   writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n')
 }
 
+function removeNpmScripts(file: string, names: readonly string[], where: string): void {
+  const pkg = readManifest(file, where)
+  const scripts = isRecord(pkg.scripts) ? { ...(pkg.scripts as Record<string, string>) } : {}
+  for (const name of names) {
+    if (!(name in scripts))
+      throw new DependencyError(`${where}: script ${name} is missing from ${file}`)
+    delete scripts[name]
+  }
+  pkg.scripts = scripts
+  writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n')
+}
+
+export function removeScripts(
+  manifestPath: string,
+  adapter: DependencyAdapter,
+  names: readonly string[],
+  where: string,
+): void {
+  switch (adapter) {
+    case 'npm':
+      removeNpmScripts(manifestPath, names, where)
+      return
+    case 'pyproject':
+      throw pyprojectUnreachable(where)
+    default:
+      throw new DependencyError(`${where}: unknown dependency adapter ${String(adapter)}`)
+  }
+}
+
 // The loader refuses a clashing script too; this is the last line before a write.
 export function applyScripts(
   manifestPath: string,
