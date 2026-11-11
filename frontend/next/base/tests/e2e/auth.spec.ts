@@ -32,6 +32,27 @@ test('sign up creates the account and lands signed in', async ({ page }) => {
   await expectNoSeriousViolations(page)
 })
 
+// Until the page hydrates, a submit is the browser's own. The scripts never load here, so the form
+// stays in that state: a GET form would put the password in the URL, in history and in access logs.
+test('a form submitted before the page hydrates keeps its fields out of the URL', async ({ page }) => {
+  await page.route('**/_next/static/**/*.js', (route) => route.abort())
+  await page.goto('/sign-in')
+  await (await visibleField(page, 'Email')).fill(uniqueEmail())
+  await (await visibleField(page, 'Password', true)).fill(PASSWORD)
+  const navigations: string[] = []
+  page.on('request', (request) => {
+    if (request.isNavigationRequest()) {
+      navigations.push(`${request.method()} ${new URL(request.url()).search}`)
+    }
+  })
+
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await page.waitForLoadState()
+
+  expect(navigations).toEqual(['POST '])
+  expect(new URL(page.url()).search).toBe('')
+})
+
 // An action that ends in redirect() makes next-safe-action reject with Next's navigation error.
 // The forms absorb it (ignoreNavigation); an unhandled one would land in the console, so this
 // journey, which signs up, signs out and signs in, fails on any NEXT_REDIRECT error there.

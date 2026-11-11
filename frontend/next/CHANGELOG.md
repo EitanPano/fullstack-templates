@@ -19,6 +19,11 @@ Generates correctly without a server (ADR 0011). A stack's output is unchanged; 
 
 - The lint rules in `eslint.config.mjs` (and their cases in `eslint-boundaries.test.ts` and `use-cache.test.ts`) still name `shared/api` and `shared/config/env.ts`: they lint invented files and hold when the server's client arrives.
 
+### Fixed
+
+- `Form` renders `method="post"`. Until a page hydrates, a submit is the browser's own, and a form without a method is a GET: a visitor who pressed "Sign in" before the scripts ran got the email and the password in the URL (`/sign-in?email=…&password=…`), so in the browser's history and in access logs. A POST to the page re-renders it. Present since 2.0.0. `auth.spec` proves it with the page's scripts blocked.
+- `Form` sets `data-hydrated` once React owns it, and the e2e helpers `fillSignIn` and `fillSignUp` wait for it: a click that won the race against hydration failed a journey at random.
+
 ## 3.0.0 — 2026-11-11
 
 No template chrome and no example screen (ADR 0010). A generated app is a skip link, one `main` and an index route of one `h1` and one line of copy. A project generated from 2.x keeps its header, footer and status page as its own code; there is no migration tool.
