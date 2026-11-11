@@ -1,6 +1,6 @@
 # Changelog
 
-## 5.0.0 — 2026-11-10
+## 5.0.0 — 2026-11-11
 
 No template chrome and no example screen ([ADR 0010](../../docs/adr/0010-no-chrome-no-example-screen.md)). A generated app is a skip link, one `main` and an index route of one `h1` and one line of copy. A project generated from 4.x keeps its header, footer and status page as its own code; there is no migration tool.
 
