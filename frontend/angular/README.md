@@ -48,10 +48,10 @@ navigation, footer or example screen (ADR 0010); the product builds its chrome.
 
 ## Contract
 
-`bun run api:types` regenerates `src/app/services/generated/` from the server's `openapi.json`.
-Generated without a server, the package keeps the committed output (produced from
-`server/python-fastapi` with `auth` on), so `check` still passes. A project generated with a server
-regenerates it from that server's own contract.
+With a server, `bun run api:types` regenerates `src/app/services/generated/` from the server's
+`openapi.json`; the package ships the committed output (produced from `server/python-fastapi` with
+`auth` on). Generated without a server, the package has no generated client, no `api:types` script
+and no `/api` wiring; the harness adds them with a server (`base/AGENTS.md`).
 
 ## Deploy modes
 

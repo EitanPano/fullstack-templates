@@ -9,7 +9,7 @@ import FormField from '@/shared/components/form-field.vue'
 import { renderWithApp } from '@/testing/render'
 
 import { match } from './match'
-import { applyFieldErrors } from './server-errors'
+import { applyFieldErrors } from './server-errors' // @server
 import { useZodForm } from './zod-form'
 
 const INITIAL = { email: '', password: '', confirm: '' }
@@ -26,7 +26,8 @@ const zCredentials = z.object({
 
 type Form = ReturnType<typeof useZodForm<typeof zCredentials, typeof INITIAL>>
 
-// A register-like form over the generated credentials schema, with the confirm rule.
+// A register-like form over the generated credentials schema, with the confirm rule. // @server
+// A register-like form over the credentials schema above, with the confirm rule. // @noserver
 function harness(
   onSubmit: (value: unknown) => void | Promise<void> = () => undefined,
   capture: (form: Form) => void = () => undefined,
@@ -188,6 +189,7 @@ describe('useZodForm', () => {
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
+  // @server-start
   it('writes a server field error by path, marks it touched and clears it on edit', async () => {
     let form: Form | undefined
     await renderWithApp(
@@ -213,6 +215,7 @@ describe('useZodForm', () => {
 
     expect(screen.queryByText('This value is not valid')).not.toBeInTheDocument()
   })
+  // @server-end
 
   it('resets values, touched fields, the submitted flag and server errors', async () => {
     let form: Form | undefined

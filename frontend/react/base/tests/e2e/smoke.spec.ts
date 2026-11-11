@@ -11,6 +11,7 @@ test('the index route is one h1 inside main and passes the axe scan', async ({ p
   await expectNoSeriousViolations(page)
 })
 
+// @server-start
 // The proxy proof: the page's own origin forwards /api to the server, in dev, preview and the
 // containers. A request, not UI: the template has no screen that calls the API.
 test('the API answers through the page origin', async ({ request }) => {
@@ -18,3 +19,4 @@ test('the API answers through the page origin', async ({ request }) => {
 
   expect(response.status()).toBe(200)
 })
+// @server-end

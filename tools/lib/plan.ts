@@ -404,6 +404,7 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
     const consumer =
       member.template.manifest.contract !== undefined &&
       'consumes' in member.template.manifest.contract
+    const contractSkipped = consumer && server === undefined
     const plan: PackagePlan = {
       dir: member.dir,
       template: member.template,
@@ -426,8 +427,11 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
       serverPort: server?.template.manifest.http?.port ?? null,
       frontendDir: frontend?.dir ?? null,
       serverDevCommand: null,
-      contractSkipped: consumer && server === undefined,
+      contractSkipped,
     }
+    // A contract consumer without a server has no contract to run: provenance, the case runner and
+    // the harness never see the command (ADR 0011).
+    if (contractSkipped) delete plan.commands.contract
     return plan
   })
 

@@ -1,3 +1,4 @@
+// @server-start
 // A dependency-free static server for the e2e suite: it serves `dist/` the way the nginx image does
 // (an extension-less path is the SPA shell, a missing file with an extension is a 404, a dotfile
 // or a traversal is refused) and forwards /api to the API, so the page and the API share one
@@ -5,6 +6,16 @@
 //
 // PORT is the listening port (0 picks a free one), API_URL the API's origin, DIST_DIR the folder to
 // serve (default: dist beside this script's folder). E2E_STATIC_LOG=1 logs one line per request.
+// @server-end
+// @noserver-start
+// A dependency-free static server for the e2e suite: it serves `dist/` the way the nginx image does
+// (an extension-less path is the SPA shell, a missing file with an extension is a 404, a dotfile
+// or a traversal is refused). It is the counterpart of `vite preview`; Playwright starts it after
+// `bun run build`.
+//
+// PORT is the listening port (0 picks a free one), DIST_DIR the folder to serve (default: dist
+// beside this script's folder). E2E_STATIC_LOG=1 logs one line per request.
+// @noserver-end
 import { createReadStream, realpathSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import http from 'node:http'
@@ -65,6 +76,7 @@ function serveFile(req, res, file, size) {
     .pipe(res)
 }
 
+// @server-start
 // Streams the request to the API and the answer back: method, headers, body and cookies pass
 // through unchanged, and the client address is appended to x-forwarded-for.
 function proxy(req, res, target) {
@@ -93,10 +105,17 @@ function proxy(req, res, target) {
   res.on('close', () => upstream.destroy())
   req.pipe(upstream)
 }
+// @server-end
 
+// @server-start
 export function createStaticServer({ root, apiUrl, log = false }) {
   const base = resolve(root)
   const target = new URL(apiUrl)
+// @server-end
+// @noserver-start
+export function createStaticServer({ root, log = false }) {
+  const base = resolve(root)
+// @noserver-end
   const handle = async (req, res) => {
     if (log) res.on('finish', () => console.log(`${req.method} ${req.url} ${res.statusCode}`))
     // A target such as // or /// is not a valid URL path for the parser: a client fault, not a crash.
@@ -108,10 +127,12 @@ export function createStaticServer({ root, apiUrl, log = false }) {
       return
     }
 
+    // @server-start
     if (pathname === '/api' || pathname.startsWith('/api/')) {
       proxy(req, res, target)
       return
     }
+    // @server-end
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       plain(res, 405, 'Method not allowed')
       return
@@ -150,12 +171,14 @@ export function createStaticServer({ root, apiUrl, log = false }) {
 const here = fileURLToPath(import.meta.url)
 if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(here)) {
   const port = Number(process.env.PORT ?? '__PORT__')
-  const apiUrl = process.env.API_URL ?? 'http://127.0.0.1:__SERVER_PORT__'
+  const apiUrl = process.env.API_URL ?? 'http://127.0.0.1:__SERVER_PORT__' // @server
   const root = process.env.DIST_DIR ?? join(dirname(here), '..', 'dist')
-  const server = createStaticServer({ root, apiUrl, log: Boolean(process.env.E2E_STATIC_LOG) })
+  const server = createStaticServer({ root, apiUrl, log: Boolean(process.env.E2E_STATIC_LOG) }) // @server
+  const server = createStaticServer({ root, log: Boolean(process.env.E2E_STATIC_LOG) }) // @noserver
   server.listen(port, '127.0.0.1', () => {
     const address = server.address()
     const listening = typeof address === 'object' && address ? address.port : port
-    console.log(`e2e static server on http://127.0.0.1:${String(listening)} (api ${apiUrl})`)
+    console.log(`e2e static server on http://127.0.0.1:${String(listening)} (api ${apiUrl})`) // @server
+    console.log(`e2e static server on http://127.0.0.1:${String(listening)}`) // @noserver
   })
 }

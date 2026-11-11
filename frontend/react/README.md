@@ -17,8 +17,9 @@ and one `main`, and `pages/home/` is an index route of one `h1`; the product bui
 - `template.yaml`: the manifest (commands, contract, HTTP surface).
 - `base/`: the files copied into the generated package, including `AGENTS.md`, `bun.lock` and
   the committed `src/services/generated/`. `onlyWhen` in the manifest lists the files that exist
-  only with the server's `auth` flag (`server:auth`) or `database` capability, and
-  `// @server:auth` markers cover the lines inside shared files.
+  only with a server (`server`: the generated client and the data layer), with its `auth` flag
+  (`server:auth`) or its `database` capability, and `// @server` and `// @server:auth` markers
+  cover the lines inside shared files.
 - `base/Dockerfile`, `base/nginx/`: the `dist` and `serve` image targets and the nginx config
   template and headers snippet of the `split` mode.
 - `compose.yaml`: the Compose service body, keyed by the package directory at generation and
@@ -43,9 +44,9 @@ and one `main`, and `pages/home/` is an index route of one `h1`; the product bui
 ## Contract
 
 `bun run api:types` regenerates `src/services/generated/` from the server's `openapi.json`.
-Generated without a server, the package keeps the committed output (produced from
-`server/python-fastapi` with `auth` on), so `check` still passes. A project generated with a server
-regenerates it from that server's own contract.
+Generated without a server, the package has no `contract` command, no generated client and no data
+layer (ADR 0011); the harness adds them with the server. A project generated with a server
+regenerates the client from that server's own contract.
 
 ## Deploy modes
 

@@ -15,6 +15,8 @@ cases:
     server: { flags: { auth: false }, capabilities: { database: postgres } }
   - name: python
     stack: next-python-fastapi
+  # The frontend alone, no server: no generated client, no API address, no API web server; the
+  # e2e starts only the production build.
   - name: alone
   # Non-default brand values through every gate: the cases above all generate the default brand.
   - name: brand

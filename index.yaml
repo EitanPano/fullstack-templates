@@ -13,22 +13,22 @@ templates:
   - id: angular
     kind: frontend
     path: frontend/angular
-    version: 3.0.0
+    version: 3.1.0
     summary: "Angular 22 single-page app on standalone components and signals, @ngrx/signals stores, co-located SCSS on a global token tree and Hey API's Angular client, with Transloco and the service worker behind flags"
   - id: next
     kind: frontend
     path: frontend/next
-    version: 3.0.0
+    version: 3.1.0
     summary: "Next.js 16 App Router with a typed client generated from the server's contract"
   - id: react
     kind: frontend
     path: frontend/react
-    version: 5.0.0
+    version: 5.1.0
     summary: "Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives styled by co-located SCSS on a global token tree"
   - id: vue
     kind: frontend
     path: frontend/vue
-    version: 3.0.0
+    version: 3.1.0
     summary: "Vite and Vue 3 single-page app: Vue Router 5, Pinia 4 setup stores over a client generated from the server's contract, Reka UI primitives styled by co-located SCSS on a global token tree, vue-i18n and the service worker behind flags"
 stacks:
   - id: angular-bun-express

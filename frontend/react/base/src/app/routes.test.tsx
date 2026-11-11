@@ -34,8 +34,14 @@ describe('the route table', () => {
     expect(container.querySelector('main > .page')).not.toBeNull()
   })
 
+  // @server-start
   // A loader that fails once, then answers: the group boundary shows the ApiError's own copy, never
   // the server's text, and Try again revalidates the loaders.
+  // @server-end
+  // @noserver-start
+  // A loader that fails once, then answers: the group boundary shows its generic line, never the
+  // error's text, and Try again revalidates the loaders.
+  // @noserver-end
   describe('the group error boundary', () => {
     afterEach(() => {
       vi.restoreAllMocks()
@@ -77,7 +83,8 @@ describe('the route table', () => {
     it('renders inside main, in the page container, with the safe copy only', async () => {
       const { view } = setupFailingOnce()
 
-      expect(await screen.findByRole('alert')).toHaveTextContent(/unavailable right now/i)
+      expect(await screen.findByRole('alert')).toHaveTextContent(/unavailable right now/i) // @server
+      expect(await screen.findByRole('alert')).toHaveTextContent(/Something went wrong\. Try again\./) // @noserver
       expect(view.container.querySelector('main > .page')).not.toBeNull()
       expect(document.body).not.toHaveTextContent('hunter2')
     })

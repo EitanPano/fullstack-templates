@@ -20,8 +20,10 @@ type Analysis = {
   valid: boolean
 }
 
-// The copy for one zod issue. The rules come from the generated schema, so the numbers in the
-// message are the schema's, never a copy of the server's limits.
+// The copy for one zod issue. The rules come from the generated schema, so the numbers in the // @server
+// message are the schema's, never a copy of the server's limits. // @server
+// The copy for one zod issue. The numbers in the // @noserver
+// message are the schema's, never a copy of a limit. // @noserver
 function describe(issue: z.core.$ZodIssue): FieldError {
   switch (issue.code) {
     case 'invalid_type':
@@ -48,8 +50,10 @@ function describe(issue: z.core.$ZodIssue): FieldError {
   }
 }
 
-// A form over a generated zod request schema (`zCredentials`, ...): the rules are the server's
-// contract, written once. Call it in a component's setup (it reads the app's `t`).
+// A form over a generated zod request schema (`zCredentials`, ...): the rules are the server's // @server
+// contract, written once. Call it in a component's setup (it reads the app's `t`). // @server
+// A form over a zod schema: the rules are written once. Call it in a component's setup // @noserver
+// (it reads the app's `t`). // @noserver
 //
 // - `values` is the reactive object the controls bind to with `v-model`. Fields are flat: a
 //   nested value would need a deep read in the validation below.

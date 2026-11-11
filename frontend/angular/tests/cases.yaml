@@ -12,6 +12,8 @@ cases:
     stack: angular-python-fastapi
     deploy: single
     withApp: true
+  # The frontend without a server: no generated client, no proxy, no API web server. Its e2e runs
+  # the built app alone (ADR 0011).
   - name: alone
   - name: auth-off
     stack: angular-bun-express
@@ -32,6 +34,9 @@ cases:
   - name: flags-off
     stack: angular-bun-express
     deploy: single
+    flags: { i18n: false, pwa: false }
+  # The smallest project: the frontend alone with i18n and pwa off.
+  - name: alone-lean
     flags: { i18n: false, pwa: false }
   # Non-default brand values through every gate: the cases above all generate the default brand.
   - name: brand

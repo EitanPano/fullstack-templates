@@ -21,11 +21,13 @@ screen are product code (ADR 0010, `base/AGENTS.md › The shell`).
 ## Layout
 
 - `template.yaml`: the manifest (commands, contract, HTTP surface, flags). `onlyWhen` lists the
-  files that exist only with the server's `auth` flag (`server:auth`) or `database` capability, and
+  files that exist only with a server (`server`: the generated client, its wrapper, interceptors,
+  error models and stores, with the `api:types` script and `@hey-api/openapi-ts`), with the
+  server's `auth` flag (`server:auth`) or `database` capability, and `// @server` and
   `// @server:auth` markers cover the lines inside shared files. A `.vue` file takes template block
   markers only, so no template file imports a file that exists only with a flag.
-- `base/`: the files copied into the generated package, including `AGENTS.md`, `bun.lock` and the
-  committed `src/services/generated/`. Its `src/` is `app/` (routes, nav table), `components/`
+- `base/`: the files copied into the generated package, including `AGENTS.md`, `bun.lock` and, in a
+  stack, the committed `src/services/generated/`. Its `src/` is `app/` (routes, nav table), `components/`
   (`app-main-layout`, `app-toast-host`, and the components a product places: `app-theme-toggle`,
   with the flags `app-account-menu`, `app-language-toggle`, `app-install-button`), `pages/`
   (`home/`, `not-found/`, and with auth `auth/`, `user/`, `forbidden/`), `shared/components/`
@@ -35,7 +37,7 @@ screen are product code (ADR 0010, `base/AGENTS.md › The shell`).
 - `compose.yaml`: the Compose service body, keyed by the package directory at generation and
   written per deploy mode (`single`: build-only, `split`: nginx on its own port).
 - `tests/cases.yaml`: the generated variants the catalog gates (`default`, `split`, `python`,
-  `alone`, `auth-off`, `postgres`, `i18n-off`, `pwa-off`, `flags-off`, `brand`).
+  `alone`, `alone-lean`, `auth-off`, `postgres`, `i18n-off`, `pwa-off`, `flags-off`, `brand`).
 - `CHANGELOG.md`: version history.
 
 ## Commands
@@ -55,9 +57,9 @@ screen are product code (ADR 0010, `base/AGENTS.md › The shell`).
 ## Contract
 
 `bun run api:types` regenerates `src/services/generated/` from the server's `openapi.json`.
-Generated without a server, the package keeps the committed output (produced from
-`server/python-fastapi` with `auth` on), so `check` still passes. A project generated with a server
-regenerates it from that server's own contract.
+Generated without a server, the package has no generated client, no `api:types` script and no
+`/api` proxy (ADR 0011); the harness adds them with a server. A project generated with a server
+regenerates the folder from that server's own contract.
 
 ## Deploy modes
 

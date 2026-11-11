@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.1.0 — 2026-11-11
+
+A frontend generated without a server ([ADR 0011](../../docs/adr/0011-frontend-without-a-server.md)) carries nothing that reaches one. A stack's output is unchanged, byte for byte.
+
+### Added
+
+- `alone-lean` case: the frontend alone with `i18n` and `pwa` off. The `alone` case now runs its e2e.
+
+### Changed
+
+- Gated on `server` (`onlyWhen.server` and bare `@server` markers; absent without a server): `openapi-ts.config.ts`, `src/services/generated/`, `core/config/api-client.*`, `core/interceptors/{error,http.provider,loading}.interceptor.*`, `models/api/`, `store/request-status.*`, `store/loading.store.*`, `shared/validators/server-errors.*`, `testing/stub-api.*`; the `api:types` script and the `@hey-api/openapi-ts` package; `installInterceptors` in `app/plugins.ts`; the dev and preview proxy in `vite.config.ts` and the service worker's `/api` rules (`navigateFallbackDenylist`, the runtime-cache note); nginx's `/api` upstream and resolver; the Playwright config's API web server; the API sentences of `.env.example`, `env.ts` and `AGENTS.md`.
+- Gated specs, each with its successor: `smoke.spec.ts` › "the API answers on the page origin" (`GET /api/health`) is gated; the index route's `h1` and axe test stays and is the lone frontend's smoke. `plugins.spec.ts` › "registers the error interceptor on the generated client" and `zod-form.spec.ts` › "writes a server field error by path" are gated with the code they test. `shell.spec.ts` and `screens.spec.ts` run unchanged.
+- `en.json` keeps its `errors.*` copy keys: JSON takes no markers, `he.json` must match them, and `zod-form` and the stores that arrive with a server read them.
+- Kept in a lone frontend, because they take no markers or are one policy for both outputs: `eslint.config.mjs` and `tests/unit/eslint-boundaries.spec.ts` (the layer fences, so a server added later arrives inside them), `.prettierignore` and `tsconfig.node.json`.
+- `AGENTS.md` (`@server` markers; a short no-server text where a reader needs one): gated are the generated-runtime and fetch-wrapper rules, the data steps of `Adding a feature` (contract, service, store, page, route, specs; a no-server recipe replaces them), the guarding and session-hint paragraphs, the form recipe, the `Errors` body, the stub and the two-mode e2e bullets, the `smoke.spec` sentence, and the Deployment lines for the dev proxy, `/api` routing, the service worker's `/api` rules, the deploy modes, nginx's `/api` upstream, Compose, `TRUST_PROXY`, cookies and body size. A list under `Adding a feature` names what arrives with a server and says the harness adds it (`scripts/scaffold.mjs`). The layer map keeps naming the data layer.
+
 ## 3.0.0 — 2026-11-11
 
 No template chrome and no example screen ([ADR 0010](../../docs/adr/0010-no-chrome-no-example-screen.md)). A generated app is a skip link, one `main` and an index route of one `h1` and one line of copy. A project generated from 2.x keeps its header, footer, side nav and status page as its own code; there is no migration tool.

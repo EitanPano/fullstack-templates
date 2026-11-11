@@ -236,20 +236,14 @@ describe('catalogIdentity', () => {
 })
 
 describe('generate: edges', () => {
-  test('packagePlaceholders falls back to the conventional server when the plan has none', () => {
+  test('packagePlaceholders defines no SERVER_* value when the plan has no server', () => {
     const plan = resolveRequest(
       catalog,
       request(tempDir(), { stack: undefined, template: 'frontend/mini-ui' }),
     )
-    const lines: string[] = []
-    const values = packagePlaceholders(plan, plan.packages[0]!, (l) => lines.push(l))
-    expect(values).toMatchObject({
-      SERVER_DIR: 'backend',
-      SERVER_PORT: '4000',
-      SERVER_DEV_COMMAND: 'bun run dev',
-      PORT: '3000',
-    })
-    expect(lines).toHaveLength(1)
+    const values = packagePlaceholders(plan, plan.packages[0]!)
+    expect(values.PORT).toBe('3000')
+    expect(Object.keys(values).filter((name) => name.startsWith('SERVER_'))).toEqual([])
   })
 
   test('a frontend gets the server start command, the e2eDb command and the e2e database URL', () => {
@@ -304,18 +298,7 @@ describe('generate: edges', () => {
     expect(frontendOf(noUrl)).toThrow(/e2e URL/)
   })
 
-  test('without a server the start command falls back to the conventional one', () => {
-    const plan = resolveRequest(
-      catalog,
-      request(tempDir(), { stack: undefined, template: 'frontend/mini-ui' }),
-    )
-    expect(packagePlaceholders(plan, plan.packages[0]!)).toMatchObject({
-      SERVER_START_COMMAND: 'bun run start',
-      SERVER_E2E_DB_COMMAND: '',
-    })
-  })
-
-  test('a lone frontend with a compose fragment logs the server assumption once', () => {
+  test('a lone frontend logs no server assumption', () => {
     const lines: string[] = []
     generate(
       catalog,
@@ -325,7 +308,7 @@ describe('generate: edges', () => {
       ),
       { log: (l) => lines.push(l) },
     )
-    expect(lines.filter((l) => /server references/.test(l))).toHaveLength(1)
+    expect(lines.filter((l) => /server/.test(l))).toEqual([])
   })
 
   test('a missing onlyPaths entry fails and names the path', () => {
@@ -521,12 +504,16 @@ describe('generate: compose and the reserved server selection', () => {
   const composeOf = (out: string) =>
     parse(readFileSync(path.join(out, 'docker-compose.yml'), 'utf8'))
 
-  test('a lone frontend has no depends_on and no API_URL', () => {
+  test('a lone frontend writes no Compose file', () => {
     const out = tempDir()
     generate(catalog, only(out, 'frontend/mini-ui'))
-    const frontend = composeOf(out).services.frontend
-    expect(frontend.depends_on).toBeUndefined()
-    expect(frontend.environment?.API_URL).toBeUndefined()
+    expect(existsSync(path.join(out, 'docker-compose.yml'))).toBe(false)
+  })
+
+  test('a lone server still writes a Compose file', () => {
+    const out = tempDir()
+    generate(catalog, only(out, 'server/mini'))
+    expect(Object.keys(composeOf(out).services)).toEqual(['backend'])
   })
 
   test('a frontend in a stack with a server keeps both lines', () => {
@@ -1070,6 +1057,34 @@ describe('generate: the deploy modes', () => {
           new RegExp(`^deploy: ${expected}$`, 'm'),
         )
     }
+  })
+
+  test('a lone frontend rerun into a folder with a server warns and points at --stack', () => {
+    const out = tempDir()
+    generate(catalog, spa(out))
+    removeTree(path.join(out, 'frontend'))
+    const lines: string[] = []
+    generate(
+      catalog,
+      resolveRequest(catalog, request(out, { stack: undefined, template: 'frontend/mini-spa' })),
+      { log: (l) => lines.push(l) },
+    )
+    expect(
+      lines.filter((l) => /^warning: .*records a server package.*--stack/.test(l)),
+    ).toHaveLength(1)
+  })
+
+  test('a lone frontend into an empty folder does not warn', () => {
+    const lines: string[] = []
+    generate(
+      catalog,
+      resolveRequest(
+        catalog,
+        request(tempDir(), { stack: undefined, template: 'frontend/mini-spa' }),
+      ),
+      { log: (l) => lines.push(l) },
+    )
+    expect(lines.filter((l) => /warning/.test(l))).toEqual([])
   })
 
   test('a rerun that adds one package keeps the mode recorded earlier', () => {

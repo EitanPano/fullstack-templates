@@ -1,4 +1,9 @@
+<!-- @server-start -->
 The layer map of this package. Commands are in `package.json`; the contract code in `src/app/services/generated/` is generated, never edited.
+<!-- @server-end -->
+<!-- @noserver-start -->
+The layer map of this package. Commands are in `package.json`.
+<!-- @noserver-end -->
 
 **`src/`**
 
@@ -9,8 +14,13 @@ The layer map of this package. Commands are in `package.json`; the contract code
   `app.config.ts` hands the table to `components/` through the `NAV_ENTRIES` token in `core/config/`).
   No business logic here.
   - `core/`: singletons wired once in `app.config.ts`, never imported by `shared/`.
+<!-- @server-start -->
     `config/` (`constants.ts` with the `STORAGE_KEYS`, `api-client.ts` the generated client's
     configuration, `api-client.provider.ts` its provider, `app-config.token.ts`, `http-context.ts`),
+<!-- @server-end -->
+<!-- @noserver-start -->
+    `config/` (`constants.ts` with the `STORAGE_KEYS`, `app-config.token.ts`, `http-context.ts`),
+<!-- @noserver-end -->
     `interceptors/`, `guards/`, `initializers/`, `providers/` (storage, logger, notification,
     theme, network, loading, install-prompt and app-update; the last two with the `pwa` flag),
     `i18n/` (the translator binding in `translator.provider.ts`; with the `i18n`
@@ -24,18 +34,43 @@ The layer map of this package. Commands are in `package.json`; the contract code
     composes it or it reads the store, the theme or the session; a reusable control or pattern goes
     to `shared/components/`.
   - `pages/<module>/`: one glossary noun or screen group, flat. `<module>.routes.ts`,
+<!-- @server-start -->
     `<module>.form.ts` (typed form builders over the generated zod schemas), one folder per routed
+<!-- @server-end -->
+<!-- @noserver-start -->
+    `<module>.form.ts` (typed form builders), one folder per routed
+<!-- @noserver-end -->
     page, `<page>/<page>.component.*` (reads the store; its `.scss` beside it), and
     `components/<component>/` (the module's own presentational pieces). A page module never imports
     another one. `home/` is the index route; `not-found/` is the `**` route.
+<!-- @server-start -->
   - `store/`: `@ngrx/signals` stores, one per noun, and `with-request-status.ts`.
+<!-- @server-end -->
+<!-- @noserver-start -->
+  - `store/`: `@ngrx/signals` stores, one per noun.
+<!-- @noserver-end -->
+<!-- @server-start -->
   - `services/`: one facade per server module over the generated SDK; `generated/` is the Hey API
     output (types, zod, the Angular client, the flat SDK; committed, lint-ignored).
+<!-- @server-end -->
+<!-- @noserver-start -->
+  - `services/`: one facade per server module; the folder arrives with a server.
+<!-- @noserver-end -->
   - `shared/`: product-agnostic. `components/` (the browser controls wrapped once), `directives/`,
     `pipes/`, `validators/`, `utils/`, `i18n/`.
+<!-- @server-start -->
   - `models/`: a noun's types (re-exports of the generated types plus UI-only shapes), enums,
+<!-- @server-end -->
+<!-- @noserver-start -->
+  - `models/`: a noun's types (UI-only shapes), enums,
+<!-- @noserver-end -->
     constants.
+<!-- @server-start -->
 - `environments/`: `production` and nothing else (no API URL, no secret).
+<!-- @server-end -->
+<!-- @noserver-start -->
+- `environments/`: `production` and nothing else (no secret).
+<!-- @noserver-end -->
 - `styles/`: global and app-wide CSS only: `styles.scss`, `setup/`, `themes/`, `basics/` (see Styling).
 
 **No scaffolder.** Never run `ng new` or `ng generate` (or any other generator): they scatter files
@@ -47,7 +82,9 @@ copying the nearest sibling.
 | Addition                                    | Home                                               |
 | ------------------------------------------- | -------------------------------------------------- |
 | A noun's types, enums, labels               | `app/models/<noun>/`                               |
+<!-- @server-start -->
 | A read or write on a server module          | `app/services/<module>.service.ts`                 |
+<!-- @server-end -->
 | State a page reads, and the methods on it   | `app/store/<noun>.store.ts`                        |
 | A routed screen                             | `app/pages/<module>/<page>/`                       |
 | A presentational piece of one page module   | `app/pages/<module>/components/<name>/`            |
@@ -76,21 +113,45 @@ directory stay relative.
 | `pages/<m>/<page>/`                                         | store, shared, models, `core/config`, `core/providers`, its own module's `components/` and `*.form.ts` |
 | `pages/<m>/components/`                                     | shared, models                                                                                         |
 | `pages/<m>/*.routes.ts`                                     | `core/guards`, its own pages                                                                           |
+<!-- @server-start -->
 | `pages/<m>/*.form.ts`                                       | `shared/validators`, models, the generated zod schemas                                                 |
+<!-- @server-end -->
+<!-- @noserver-start -->
+| `pages/<m>/*.form.ts`                                       | `shared/validators`, models                                                                            |
+<!-- @noserver-end -->
 | `store/`                                                    | services, models, `core/providers`, `core/config`                                                      |
+<!-- @server-start -->
 | `services/`                                                 | models, `core/config`, `services/generated`                                                            |
+<!-- @server-end -->
 | `core/guards`, `core/interceptors`, `core/initializers`     | store, services, core, shared, models (they are the wiring)                                            |
 | `core/config`, `core/providers`, `core/i18n`, `core/errors` | each other, shared, models                                                                             |
 | `shared/`                                                   | shared, models                                                                                         |
+<!-- @server-start -->
 | `models/`                                                   | models; the generated types with `import type` only                                                    |
+<!-- @server-end -->
+<!-- @noserver-start -->
+| `models/`                                                   | models                                                                                                 |
+<!-- @noserver-end -->
 
+<!-- @server-start -->
 - A page module never imports another page module. A page that needs a one-off request adds a service
   and a store method first.
+<!-- @server-end -->
+<!-- @noserver-start -->
+- A page module never imports another page module. A page that needs shared state adds a store
+  method first.
+<!-- @noserver-end -->
+<!-- @server-start -->
 - `@angular/common/http` is imported only in `services/`, `core/interceptors/` and `core/config/`
   (`no-restricted-imports`). The generated client's runtime is imported only in `services/`, and by
   `core/config/api-client.provider.ts`, which hands it the `HttpClient`; `models/` and `core/config/`
   take its types with `import type`. `api-client.ts` (the generator's `runtimeConfigPath`) imports
   types only, because the generated client imports that file back.
+<!-- @server-end -->
+<!-- @noserver-start -->
+- `@angular/common/http` is imported only in `services/`, `core/interceptors/` and `core/config/`
+  (`no-restricted-imports`).
+<!-- @noserver-end -->
 - `<button>`, `<input>`, `<select>` and `<textarea>` appear only inside `shared/components/`;
   `tests/unit/restricted-elements.spec.ts` scans every template for them.
 - The boundary rule is silent on an import it cannot resolve, so `eslint-import-resolver-typescript`
@@ -103,17 +164,41 @@ throwaway project built from the real `eslint.config.mjs`. A new rule gets a cas
 boundaries-ignored. The page layers are two levels deep (`pages/<m>/<page>/`), so a module's own
 `*.routes.ts` and `*.form.ts` are matched by their rows, not read as pages.
 
+<!-- @server-start -->
 The API is always reached at relative `/api` on the page's own origin (see Deployment), so the
 bundle carries no API URL.
 
+<!-- @server-end -->
 ## Adding a feature
 
+<!-- @noserver-start -->
+This package was generated without a server. What arrives with one, and only through the
+harness's `scripts/scaffold.mjs` (never a hand copy):
+
+- the typed client, SDK and zod schemas in `src/app/services/generated/`, with `openapi-ts.config.ts`,
+  the `api:types` script and `@hey-api/openapi-ts`;
+- the client wiring (`core/config/api-client*.ts`, `provideApiClient()` in `app.config.ts`);
+- the error envelope: `models/api/`, `error.interceptor.ts`, `server-errors.ts`,
+  `with-request-status.ts` and `file-upload.service.ts`;
+- the dev proxy's `/api` entry (`proxy.conf.mjs`, which `angular.json` names), the `/api` rules of
+  the e2e static server and the nginx config, and the API web server and health journey of the e2e
+  suite.
+
+<!-- @noserver-end -->
+<!-- @server-start -->
 The data flows one way: **page -> store -> service -> generated SDK**. A page injects the store and
 never a service or `HttpClient`; `@angular/common/http` appears only in `services/`,
 `core/interceptors/`, `core/config/` and one named exception, Transloco's loader
 `core/i18n/transloco-http.loader.ts` (the `i18n` flag; it marks its call `BACKGROUND`). The server's
 `module` endpoints stand in for a product noun below; file by file:
+<!-- @server-end -->
+<!-- @noserver-start -->
+A page injects the store and never `HttpClient`; `@angular/common/http` appears only in `services/`,
+`core/interceptors/`, `core/config/` and one named exception, Transloco's loader
+`core/i18n/transloco-http.loader.ts` (the `i18n` flag; it marks its call `BACKGROUND`). File by file:
+<!-- @noserver-end -->
 
+<!-- @server-start -->
 1. **Glossary and contract.** Name the noun and the action in `.doc/glossary.md`. If the server's
    contract changed, run `bun run api:types` (the input is the server's `openapi.json`):
    `src/app/services/generated/` is regenerated and committed, never edited.
@@ -204,6 +289,7 @@ never a service or `HttpClient`; `@angular/common/http` appears only in `service
    )
    ```
 
+<!-- @server-end -->
    <!-- @server:auth-start -->
 
    **Account data.** A store that holds an account's data (`UserStore` is the example)
@@ -212,6 +298,7 @@ never a service or `HttpClient`; `@angular/common/http` appears only in `service
    drops the old value before it calls, and ignores an answer that arrives after sign-out.
 
    <!-- @server:auth-end -->
+<!-- @server-start -->
 
 5. **Page module and route.** `app/pages/<module>/<module>.routes.ts` (the default export,
    lazy-loads the page) and `<page>/` (the routed page; injects the store; a skeleton while loading,
@@ -246,6 +333,27 @@ never a service or `HttpClient`; `@angular/common/http` appears only in `service
    through `t` and never branch on the flag.
 8. **Specs** beside each file (see Tests): service, store, page, component.
 
+<!-- @server-end -->
+<!-- @noserver-start -->
+1. **Page module and route.** `app/pages/<module>/<module>.routes.ts` (the default export,
+   lazy-loads the page) and `<page>/` (the routed page; injects the store; a skeleton while loading,
+   `app-error-state` with retry on failure, the loaded view, all inside `<app-page>`). A lazy
+   `loadChildren` in `app/app.routes.ts` inside the main shell mounts it; a top-level screen also
+   gets an entry in `app/nav.ts` (`{ path: '/module', labelKey: 'module.title' }`).
+
+   ```ts
+   // app/app.routes.ts, inside the main shell's children
+   { path: 'module', loadChildren: () => import('./pages/module/module.routes') },
+   ```
+
+2. **Styles.** A sibling `<stem>.component.scss` named in the component's `styleUrl`. BEM classes;
+   no inline `styles:`.
+3. **Copy** in `core/i18n/translations/en.json` **and `he.json`** (the `i18n` flag; the parity
+   test `tests/unit/translation-parity.spec.ts` fails when a key or a `{{param}}` is missing from
+   one): the page's keys. Use every key through `t` and never branch on the flag.
+4. **Specs** beside each file (see Tests): store, page, component.
+
+<!-- @noserver-end -->
 **The shell.** The template renders no header, navigation or footer: `app-main-layout` is the skip
 link and the page's one `main`. A product's chrome is its own component in `components/app-<name>/`
 that the layout renders between the skip link and `<main>`; `app-theme-toggle` is ready to place
@@ -280,8 +388,14 @@ no `zone.js` polyfill and no `provideZoneChangeDetection`; state that a template
 `@defer` is for a non-landmark block whose first paint can wait; the template has none, because its
 one candidate, the toast, is a CDK overlay portal. `linkedSignal` is for local state that must reset when an input changes; the template
 has none (the controls keep no such state), so none is used. Not used, on purpose: `resource` and
+<!-- @server-start -->
 `httpResource` (the data path is page, store, service, SDK, one path) and Signal Forms.
+<!-- @server-end -->
+<!-- @noserver-start -->
+`httpResource` and Signal Forms.
+<!-- @noserver-end -->
 
+<!-- @server-start -->
 **Guarding a route (the server's `auth` flag; the files exist only then).** `core/guards/` holds
 `authGuard` (a `CanMatchFn`: a visitor is redirected, with a `RedirectCommand`, to
 `/auth/login?next=<attempted path and query>`), `guestGuard` (login and register: an account goes
@@ -311,6 +425,7 @@ request schema (`zCredentials`, `zOtpVerificationBody.pick({ code: true })`), so
 page calls the function in a field initializer, submits only a valid form, awaits a store method
 that returns whether it worked, and on `validation_failed` calls `applyFieldErrors`.
 
+<!-- @server-end -->
 ## Styling
 
 Two homes. `src/styles/` is the global and app-wide CSS and nothing else, loaded by
@@ -360,8 +475,13 @@ basics;`), then setup, themes, basics; the rules of those six global partials si
   CDK overlay. A toast may carry one action (`{ labelKey, run }`, a copy key and a callback; only
   `showInfo` and `showWarning` take it): it never times out and is dismissed when the action runs.
 - **Theme toggle.** One toggle for everyone, `app-theme-toggle`: a ghost icon button that cycles
+<!-- @server-start -->
   light, dark and system. The product places it once, in its header (The shell). An account menu
   holds avatar, email, profile and sign out, and no theme control.
+<!-- @server-end -->
+<!-- @noserver-start -->
+  light, dark and system. The product places it once, in its header (The shell).
+<!-- @noserver-end -->
 - **Copy.** Every user-visible string in a template goes through the `t` pipe
   (`{{ 'notFound.title' | t }}`) with its key in `core/i18n/translations/en.json`, nested by area,
   `{{param}}` for values, and the same key in `he.json` when the `i18n` flag is on. Code asks
@@ -418,6 +538,7 @@ first control inside it, once after render), `shared/pipes` (`t`; `relativeTime`
 grouped display, anything else unchanged) and `shared/utils/time.ts` (pure: `parseTime`,
 `differenceIn`, `isSameDay`).
 
+<!-- @server-start -->
 **The form recipe.** A page module's `<module>.form.ts` builds the typed `FormGroup` with
 `{ validators: zodValidator(zCredentials) }` over the generated zod request schema
 (`services/generated/zod.gen`), so a rule is written once, in the server's contract: a limit is
@@ -430,6 +551,15 @@ as a group error on the form (`form.errors.zod`; no template page toasts it). A 
 validator; a field the contract names is never re-validated by hand, even when the control needs
 a looser shape (`user.form.ts` widens the generated phone rule to accept `''`, meaning "remove the
 number", and keeps the rule itself). The page composes
+<!-- @server-end -->
+<!-- @noserver-start -->
+**The form recipe.** A page module's `<module>.form.ts` builds the typed `FormGroup`; `zodValidator`
+writes each issue of a zod schema onto the control its path names
+(`errors.zod = { messageKey, params }`, copy `errors.required|minlength|maxlength|min|max|email|
+pattern|invalid`), clears it when the value is fixed, and returns an issue that matches no control
+as a group error on the form (`form.errors.zod`; no template page toasts it).
+`shared/validators/match.ts` (a confirm field) is the one other validator. The page composes
+<!-- @noserver-end -->
 `<form [formGroup]="form" (ngSubmit)="submit()">`, one `<app-form-field [label]="'auth.email' | t">`
 around each control (`<app-input formControlName="email" type="email" autocomplete="email" />`), and
 `<app-form-actions [pending]="store.loading()" />`. The field finds its control through
@@ -442,6 +572,7 @@ checkbox carries its own label: give its field no `label`.
 
 ## Errors
 
+<!-- @server-start -->
 The error interceptor maps an `HttpErrorResponse` to an `ApiError` and nothing else; the page or
 store method that awaited the call shows the outcome.
 
@@ -495,6 +626,12 @@ store method that awaited the call shows the outcome.
   for them (none: nothing). Any other code toasts its own copy. A store method behind a form does not
   toast `validation_failed` itself; it leaves the error in the store for the page. A field error is
   never also a toast.
+<!-- @server-end -->
+<!-- @noserver-start -->
+Without a server there is no request to fail: the `ApiError` envelope, its copy table, the error
+interceptor and `applyFieldErrors` arrive with one (see Adding a feature).
+
+<!-- @noserver-end -->
 - **Toasts.** A toast (`NotificationService.showError('errors.unexpected')`, a key of the copy
   table) fires from the handler that awaited the work, never from an interceptor or an `effect`.
 - **Failure state.** A page whose load failed shows `app-error-state` with the mapped description and
@@ -518,12 +655,14 @@ store method that awaited the call shows the outcome.
   folder in `components/` starts with `app-` and its class with `App`; the global partials sit in
   their layer and no component sheet does. The control sizing contract (36, 32, 44 px) is asserted by
   the e2e (`shell.spec`) on the rendered page, not by a compile test.
+<!-- @server-start -->
 - **A facade or an interceptor** is tested with `provideHttpClient(withInterceptors([...]))`,
   `provideHttpClientTesting()` and, for the SDK, `provideApiClient()` (from
   `core/config/api-client.provider`). The generated client issues its request after one internal
   `await`, so a spec yields a microtask before `expectOne`:
   `const result = service.get(); await Promise.resolve(); http.expectOne(...).flush(...); await result`.
   Call `http.verify()` in `afterEach`.
+<!-- @server-end -->
 - **A store** is tested with its service replaced by `{ provide: Service, useValue: { ... } }`; a
   page with the store replaced by plain signals and a `vi.fn()` for each method.
 - **A spec that renders text** provides `provideTestTranslator()` (`core/i18n/translator.testing`),
@@ -533,6 +672,7 @@ store method that awaited the call shows the outcome.
 - E2E tests live in `tests/e2e/` (Playwright with `@axe-core/playwright`) and run with
   `bun run test:e2e`. Install the browser once with `bunx playwright install chromium` (add
   `--with-deps` on Linux).
+<!-- @server-start -->
 - **Two modes.** By default `playwright.config.ts` starts the API fresh (`reuseExistingServer:
 false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && node scripts/e2e-static.mjs`: a
   dependency-free static server for `dist/` on the template's port that forwards `/api` to the
@@ -541,8 +681,19 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && node scripts/e2e-stat
   against the Compose stack. The API there runs at rate-limit scale 1 with one per-address bucket,
   so the suite can run about once per 15 minutes per stack, and it leaves its accounts in that
   stack's database.
+<!-- @server-end -->
+<!-- @noserver-start -->
+- **Two modes.** By default `playwright.config.ts` starts `bun run build && node scripts/e2e-static.mjs`:
+  a dependency-free static server for `dist/` on the template's port. With `E2E_BASE_URL` set (a blank
+  value counts as unset) it tests that URL and starts nothing.
+<!-- @noserver-end -->
 - **Service workers are blocked** (`serviceWorkers: 'block'`), so a registered worker never serves
+<!-- @server-start -->
   a stale shell or API answer to a test. `retries: 0`, `forbidOnly`, and a trace is kept on
+<!-- @server-end -->
+<!-- @noserver-start -->
+  a stale shell to a test. `retries: 0`, `forbidOnly`, and a trace is kept on
+<!-- @noserver-end -->
   failure: a test that passes only on a retry is a failure.
   The trace stores request bodies (the synthetic test password and e-mails) under `test-results/`
   (git-ignored), so never point the suite at real accounts.
@@ -566,7 +717,12 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && node scripts/e2e-stat
   `main` with id `main`, no horizontal overflow, the 404 inside `main`, its control at 44 px (phone,
   also with `data-density="compact"`) and the desktop densities and compact spacing; a product's
   header and navigation add their own assertions there. `smoke.spec.ts` asserts that the index
+<!-- @server-start -->
   route is one `h1` inside `main` and that `/api/health` answers through the page's origin. `screens.spec.ts` captures every screen
+<!-- @server-end -->
+<!-- @noserver-start -->
+  route is one `h1` inside `main`. `screens.spec.ts` captures every screen
+<!-- @noserver-end -->
   in phone and desktop, light and dark, to `test-results/screens/<route>-<viewport>-<theme>.png`
   (QA reads them) and checks each: no axe violation of the WCAG A and AA tags (in dark this is the
   contrast measurement), no horizontal scroll, exactly one `h1`. A failure names the route, theme
@@ -588,10 +744,16 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && node scripts/e2e-stat
   profile page, a wrong password and the guarded redirect with `next`. Two calls that expire
   together sharing one `/api/auth/refresh` is the interceptor's unit test.
 
-<!-- @server:auth-end -->
 
+<!-- @server:auth-end -->
+<!-- @server-start -->
 - The data rule: a journey creates its data through the API or the UI with a name unique per run
   (`uniqueEmail`), and never takes the database's contents as a precondition.
+<!-- @server-end -->
+<!-- @noserver-start -->
+- The data rule: a journey creates its data through the UI with a name unique per run, and never
+  takes stored contents as a precondition.
+<!-- @noserver-end -->
 - Every new behaviour gets a test for the happy path and at least one for a failure or empty
   path. No `.skip`, `.only`, `test.fixme` or `describe.skip`; a removed test is named in the
   report.
@@ -600,21 +762,36 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && node scripts/e2e-stat
 
 ## Deployment
 
+<!-- @server-start -->
 - `bun run dev` serves the app (`ng serve`) and proxies `/api` to the server's port through
-  `proxy.conf.json`.
+  `proxy.conf.mjs`.
 - `bun run build` writes `dist/` with `index.html` and the hashed files at its root. The app calls
   the API at relative `/api`, so whatever serves `dist/` also routes `/api` to the server.
+<!-- @server-end -->
+<!-- @noserver-start -->
+- `bun run dev` serves the app (`ng serve`).
+- `bun run build` writes `dist/` with `index.html` and the hashed files at its root.
+<!-- @noserver-end -->
 - **Service worker (the `pwa` flag).** `ngsw-config.json` is read by the production build, which
   emits `ngsw-worker.js` and `ngsw.json` into `dist/`; the worker registers once the app is
   stable or after 30 s (`registerWhenStable:30000`) and never in development. It prefetches the
   shell (`index.html`, the manifest, the hashed JS and CSS), caches icons and media lazily, and
   serves `/i18n/**` as an asset group (lazy install, prefetched on update), so the copy tables
+<!-- @server-start -->
   change with the app and a new key never renders raw after a deploy. There is no data group: no API
   answer is cached. Angular's worker has no `!` negation in `dataGroups[].urls` (it reads one as a
   literal path), so nothing is excluded by pattern: anything not listed is never cached. A product
   that caches a public read adds a group of explicit URLs that carry no session or personal data,
   never `/api/**`; `tests/unit/ngsw-config.spec.ts` rejects a `!` entry and any group that matches
   `/api/user/**` or `/api/auth/**`. The iOS install hint can be dismissed and stays dismissed.
+<!-- @server-end -->
+<!-- @noserver-start -->
+  change with the app and a new key never renders raw after a deploy. There is no data group: only the
+  app itself is cached. Angular's worker has no `!` negation in `dataGroups[].urls` (it reads one as a
+  literal path), so nothing is excluded by pattern: anything not listed is never cached. A product
+  that caches a public read adds a group of explicit URLs that carry no session or personal data;
+  `tests/unit/ngsw-config.spec.ts` guards these rules. The iOS install hint can be dismissed and stays dismissed.
+<!-- @noserver-end -->
 - **How an update reaches the user.** The worker downloads a new version in the background
   (`AppUpdateService` checks at start, hourly once stable and on window focus). When it is
   ready, an info toast offers `pwa.reload`; the action activates the version and reloads the
@@ -628,9 +805,15 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && node scripts/e2e-stat
 - **Flag off.** Without `pwa` the manifest, icons, services, initializer and the two install components are
   gone, `@angular/service-worker` stays installed, and the build still emits an unregistered
   `ngsw-worker.js` and `ngsw.json` in `dist/` (the `serviceWorker` build option stays).
+<!-- @server-start -->
 - The app calls the API at relative `/api` on its own origin in every environment: no API URL is
   compiled into the bundle and there is no CORS. Whatever serves `dist/` must also route `/api` to
   the server (a reverse proxy, or the server serving the files itself).
+<!-- @server-end -->
+<!-- @noserver-start -->
+- Whatever serves `dist/` needs only the static files and a fallback to `index.html`.
+<!-- @noserver-end -->
+<!-- @server-start -->
 - **Two modes**, chosen at generation (`--deploy`).
   - `single` (default): one container. The server serves `dist/` and `/api` on its own port
     (published on every interface), so the page is on the server's port and the template's port is
@@ -638,22 +821,42 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && node scripts/e2e-stat
   - `split`: two containers. This package's nginx serves the files on the template's port
     (published on every interface, the public edge) and proxies `/api/` to the server, which is
     published on loopback only.
+<!-- @server-end -->
+<!-- @noserver-start -->
+- **No deploy mode.** A lone frontend writes no `docker-compose.yml`; it ships as its own image (the
+  `serve` target below) or as `dist/` on a static host.
+<!-- @noserver-end -->
 - **`Dockerfile` targets.** `build` is `node:24-alpine` with the Bun binary copied in (the Angular
   CLI runs on Node; Bun installs and drives it): a frozen install and `bun run build`. `dist` is
+<!-- @server-start -->
   `FROM scratch` and holds only the built files at `/dist`: the server's image copies it
   (`COPY --from=spa /dist ./public`). `serve`, the last and so the default target, is
+<!-- @server-end -->
+<!-- @noserver-start -->
+  `FROM scratch` and holds only the built files at `/dist`. `serve`, the last and so the default target, is
+<!-- @noserver-end -->
   `nginxinc/nginx-unprivileged:1.31.7-alpine` with the files at `/usr/share/nginx/html`; it runs as
   uid 101, listens on `PORT` and has a `wget` healthcheck. `.dockerignore` keeps environment files,
   tests, `.angular` and source maps out of every image.
 - **nginx files**, in `nginx/`. `default.conf` is the config template (copied to
   `/etc/nginx/templates/default.conf.template`; the entrypoint renders it with `envsubst` over
+<!-- @server-start -->
   `PORT` and `API_URL`). Cache policy per file class: the hashed root files (`main-`, `polyfills-`,
+<!-- @server-end -->
+<!-- @noserver-start -->
+  `PORT`). Cache policy per file class: the hashed root files (`main-`, `polyfills-`,
+<!-- @noserver-end -->
   `chunk-`, `styles-` and an eight-character hash) and `/media/*` are `immutable` for a year;
   `/icons/*` one day; `index.html`, `ngsw.json`, `ngsw-worker.js`, `safety-worker.js`,
   `worker-basic.min.js`, `manifest.webmanifest`, `/i18n/*` and any other file are `no-cache`; an
   extension-less path is `index.html`; a missing file with an extension, a dotfile and a bare
   `/icons/`, `/media/` or `/i18n/` are 404 (never a listing); a path above the root is nginx's own
+<!-- @server-start -->
   400; `/api/` is proxied with `X-Forwarded-For` and the server's own headers pass through.
+<!-- @server-end -->
+<!-- @noserver-start -->
+  400.
+<!-- @noserver-end -->
   Keep three rules when editing: no `add_header` at server level (a location with its own drops
   the inherited ones), no dollar sign in a comment (`envsubst` rewrites it), and no environment
   variable named like an nginx variable (`host`, `uri`).
@@ -663,6 +866,7 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && node scripts/e2e-stat
   script that the policy blocks), `worker-src 'self'` for the service worker and `manifest-src
 'self'`. A project that loads a font, an image or an API from another origin widens the matching
   directive there, and nowhere else.
+<!-- @server-start -->
 - **Compose fragment** (`compose.yaml`), per mode. `single`: `build: { context, target: dist }`
   with `scale: 0`, so the image is built and no container runs; the server's build reads it as
   `additional_contexts: spa: service:<dir>`. This needs **Docker Compose 2.35.0 or newer**.
@@ -682,7 +886,17 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && node scripts/e2e-stat
 - **Body size.** nginx's `client_max_body_size` is its 1 MB default, as is the servers' cap, so an
   oversize body gets nginx's own 413 page. To accept more, raise the server's limit and set
   `client_max_body_size` in the `/api/` location to match.
+<!-- @server-end -->
+<!-- @noserver-start -->
+- **Image.** `docker build --target serve` builds the nginx image; `PORT` sets its listening port.
+<!-- @noserver-end -->
+<!-- @server-start -->
 - **What a project changes.** The brand colours in `public/manifest.webmanifest`, the icons in
   `public/icons/`, the CSP directives for any origin it adds, `client_max_body_size`, and the
   Compose lines when it switches mode (copy the other mode's lines from `compose.yaml` of the
   catalog's template).
+<!-- @server-end -->
+<!-- @noserver-start -->
+- **What a project changes.** The brand colours in `public/manifest.webmanifest`, the icons in
+  `public/icons/` and the CSP directives for any origin it adds.
+<!-- @noserver-end -->

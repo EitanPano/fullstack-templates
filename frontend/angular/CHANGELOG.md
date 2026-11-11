@@ -1,5 +1,28 @@
 # Changelog
 
+## 3.1.0 — 2026-11-11
+
+The template generates correctly without a server ([ADR 0011](../../docs/adr/0011-frontend-without-a-server.md)). A generation with a server is unchanged except for the dev proxy file (below).
+
+### Gated on `server`
+
+- `onlyWhen: server`: `openapi-ts.config.ts`; `core/config/api-client.ts` and `api-client.provider.ts`; `core/interceptors/error.interceptor.ts` and its spec; `models/api/` (the error envelope, `error-copy` and their specs); `services/generated/`; `services/file-upload.service.ts` and its spec; `shared/validators/server-errors.ts` and its spec; `store/with-request-status.ts` and its spec. Dependency `@hey-api/openapi-ts` and script `api:types` go with them.
+- `@server` markers: `provideApiClient()` in `app.config.ts`; `errorInterceptor` in `http.provider.ts` and its spec; the API lines of `.env.example`, `nginx/default.conf` and `app-config.token.ts`; the API web server, the proxy and the `/api` stub of the e2e static server (`scripts/e2e-static.mjs`) and its unit spec; the API web server of `playwright.config.ts`; the `GET /api/health` test of `smoke.spec.ts`.
+- In `tests/unit/e2e-static.spec.ts` the stub API and the proxy tests are gated with the proxy; the rest (static serving, SPA shell, traversal refusal, 405) runs alone. No test is deleted.
+
+### Changed
+
+- `AGENTS.md`, gated or reworded for a lone project (a stack's file is unchanged except for the proxy file name): the generated client in the layer map, the import table (`services/`, forms over the generated schemas, `models/`) and rules, the "A read or write on a server module" row, the relative `/api` paragraph, the worked example of "Adding a feature" (contract, models, service, store and page snippet), the guard, session hint and form recipe paragraphs, the whole `Errors` envelope, the facade test bullet, the API web server of the e2e modes, the `smoke.spec` health sentence, and the Deployment lines on `/api`, the proxy, the deploy modes, the Compose fragment, `TRUST_PROXY`, cookies and body size. A noserver line replaces each where a reader needs one.
+- The dev proxy is `proxy.conf.mjs` (was `proxy.conf.json`): JSON cannot carry a marker, and `angular.json` names the file, so without a server the file stays and exports `{}`. `ng serve` works alone; with a server the proxy is the same `/api` entry. A project generated from 3.0.0 keeps `proxy.conf.json`.
+
+### Tests
+
+- Cases: `alone` runs its e2e without a server; `alone-lean` is the same with `i18n` and `pwa` off.
+
+### Kept without a server
+
+`ngsw-config.json` (`navigationUrls` excludes `/api/**`; a JSON file cannot be gated, and the entry is harmless), the `errors.*` keys of the Transloco files and the lint rules and their specs for `services/generated/` (they guard a folder that arrives with a server).
+
 ## 3.0.0 — 2026-11-11
 
 No template chrome and no example screen ([ADR 0010](../../docs/adr/0010-no-chrome-no-example-screen.md)). A generated app is a skip link, one `main` and an index route of one `h1` and one line of copy. A project generated from 2.x keeps its header, footer, side nav and status page as its own code; there is no migration tool.
