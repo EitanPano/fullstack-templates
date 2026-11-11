@@ -30,8 +30,8 @@ const next = computed(() => {
   const value = route.query[NEXT_PARAM]
   return typeof value === 'string' ? value : undefined
 })
-const registerLink = computed(() =>
-  next.value ? { path: '/auth/register', query: { [NEXT_PARAM]: next.value } } : '/auth/register',
+const signupLink = computed(() =>
+  next.value ? { path: '/auth/signup', query: { [NEXT_PARAM]: next.value } } : '/auth/signup',
 )
 
 async function submit(): Promise<void> {
@@ -78,7 +78,7 @@ async function submit(): Promise<void> {
     <template #footer>
       <p class="login__alt">
         {{ $t('auth.login.noAccount') }}
-        <RouterLink :to="registerLink">{{ $t('auth.login.registerLink') }}</RouterLink>
+        <RouterLink :to="signupLink">{{ $t('auth.login.signupLink') }}</RouterLink>
       </p>
     </template>
   </AuthCard>

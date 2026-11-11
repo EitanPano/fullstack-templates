@@ -395,7 +395,7 @@ With `pwa`, so is `app-install-button`.
 <!-- @server-start -->
 **Guarding a route (the server's `auth` flag; the files exist only then).** `core/guards/` holds
 `authGuard` (a visitor is redirected to `/auth/login?next=<attempted path and query>`),
-`guestGuard` (login and register: an account goes home) and `roleGuard`. They are
+`guestGuard` (login and signup: an account goes home) and `roleGuard`. They are
 `beforeEnter` guards on the route in the module's `*.routes.ts`: `{ path: '', beforeEnter:
 authGuard, component: ... }`, and for a role `{ beforeEnter: roleGuard, meta: { roles: ['admin']
 }, ... }` (a visitor goes to login, another role to `/forbidden`). Each awaits `authStore.ready`
@@ -414,7 +414,7 @@ hint (`STORAGE_KEYS.sessionHint`, the value `'1'`, through `core/providers/sessi
 browser signed in". With the hint, start-up reads `GET /api/user/me`
 (`core/initializers/session.initializer.ts` starts `authStore.restoreSession()`, never awaited by
 the mount) and a 401 may trigger a refresh; without it a visitor's page load calls neither. A
-login or register sets it, a sign-out or a refused refresh clears it, and a network error or an
+login or signup sets it, a sign-out or a refused refresh clears it, and a network error or an
 outage keeps it. Never store anything else under it, and never branch on it outside the auth
 store, the session initializer and the auth interceptor. The restore is capped at 5 s
 (`SESSION_RESTORE_TIMEOUT_MS`): after the cap the app is a visitor for good, a late answer is
@@ -423,7 +423,7 @@ discarded, and a guarded deep link lands on sign-in with `next`.
 
 <!-- @server-start -->
 **The form recipe, by example.** `pages/auth/auth.form.ts` is the pattern: one function per form
-(`loginForm()`, `registerForm()` with `match('password', 'confirm')` as its rule, `otpForm()`),
+(`loginForm()`, `signupForm()` with `match('password', 'confirm')` as its rule, `otpForm()`),
 each `useZodForm(schema, initial, rules?)` (`shared/validators/zod-form.ts`) over the generated
 request schema (`zCredentials`, `zOtpVerificationBody.pick({ code: true })`), so no limit is
 copied. The file's first import is `@/shared/validators/zod-config` (see below). `useZodForm`
@@ -593,7 +593,7 @@ awaited the call shows the outcome.
   store for anything else.
 - **401 and the session (with auth).** `withRefresh` turns a 401 into one refresh and one replay,
   only for the app's own `/api/` (same origin), when the session hint is set and the request is not
-  an exempt call (`/api/auth/login`, `register`, `refresh`, `otp`, `otp/verification`: they answer
+  an exempt call (`/api/auth/login`, `signup`, `refresh`, `otp`, `otp/verification`: they answer
   401 for reasons a refresh cannot fix; the exemption is by URL). It does the refresh itself with
   the global `fetch`, never through the store. Concurrent 401s share the one in-flight refresh; a
   replay that fails again reaches the caller, and so does the original 401 when the refresh fails.
@@ -610,12 +610,12 @@ awaited the call shows the outcome.
   session may be fine; the hint stays).
 - **Field errors.** The auth store's `Overrides` map gives one code a better message for one call;
   a `null` value means "the page shows this code itself": the store toasts nothing. The store never
-  toasts `validation_failed`, and `register` passes `{ conflict: null }`. On a `validation_failed`
+  toasts `validation_failed`, and `signup` passes `{ conflict: null }`. On a `validation_failed`
   the page calls `applyFieldErrors(form, error)` (`shared/validators/server-errors.ts`): each path
   in `fieldErrors` that names a field gets `errors.invalid` and shows in its field; the unmapped
   paths come back and the page toasts `errors.validation_failed` once for them (none: nothing). A
-  taken email (`conflict`) lands on the email field with `auth.register.conflict`
-  (`form.serverErrors.email = { messageKey: 'auth.register.conflict' }` and `form.touch('email')`).
+  taken email (`conflict`) lands on the email field with `auth.signup.conflict`
+  (`form.serverErrors.email = { messageKey: 'auth.signup.conflict' }` and `form.touch('email')`).
   A field error is never also a toast, and any other code toasts its own copy.
 <!-- @server-end -->
 <!-- @noserver-start -->
@@ -740,9 +740,9 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && bun run preview`: the
 <!-- @server:auth-start -->
 
 - **Signed in.** `SIGNED_IN_ROUTES` (`/profile`, `/auth/verify-otp`) are captured after
-  `registerThroughApi`, which signs up through the API (the cookies land in the browser context)
+  `signupThroughApi`, which signs up through the API (the cookies land in the browser context)
   and plants the session hint (`localStorage` key `session-hint`, the JSON string `"1"`). Entries
-  share one account per project because the register route is rate limited. `auth.spec.ts` covers
+  share one account per project because the sign-up route is rate limited. `auth.spec.ts` covers
   sign-up, sign-in, the profile, sign-out, a wrong password, a taken email on its field, the
   guarded redirect with `next`.
   An e2e that forces a theme writes the JSON-quoted value (`setTheme`).

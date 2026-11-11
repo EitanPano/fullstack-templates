@@ -10,7 +10,7 @@ import AppMainLayout from '@/layout/app-main-layout/app-main-layout.vue'
 
 // The route table, composed here and nowhere else. Every feature contributes one lazy
 // `*.routes.ts` file under the main layout (the skip link, `main` and the toasts); the catch-all
-// comes last. The account screens (sign-in, register, the OTP step) sit under the auth layout.
+// comes last. The account screens (sign-in, signup, the OTP step) sit under the auth layout.
 export const routes: RouteRecordRaw[] = [
   {
     path: '',

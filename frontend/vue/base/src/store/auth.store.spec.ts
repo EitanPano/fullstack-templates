@@ -237,23 +237,23 @@ describe('useAuthStore', () => {
     })
   })
 
-  describe('register', () => {
+  describe('signup', () => {
     it('signs the new account in and sets the hint', async () => {
-      stubApi({ 'POST /api/auth/register': Response.json(SESSION, { status: 201 }) })
+      stubApi({ 'POST /api/auth/signup': Response.json(SESSION, { status: 201 }) })
       const store = useAuthStore()
 
-      const worked = await store.register(CREDENTIALS)
+      const worked = await store.signup(CREDENTIALS)
 
       expect(worked).toBe(true)
       expect(store.user).toEqual(USER)
       expect(hasSessionHint()).toBe(true)
     })
 
-    it('leaves a register conflict in error for the page and toasts nothing', async () => {
-      stubApi({ 'POST /api/auth/register': envelope('conflict', 409) })
+    it('leaves a signup conflict in error for the page and toasts nothing', async () => {
+      stubApi({ 'POST /api/auth/signup': envelope('conflict', 409) })
       const store = useAuthStore()
 
-      const worked = await store.register(CREDENTIALS)
+      const worked = await store.signup(CREDENTIALS)
 
       expect(worked).toBe(false)
       expect(store.error?.code).toBe('conflict')

@@ -17,7 +17,7 @@ const routes = [
   { path: '/', component: Page },
   { path: '/profile', component: Page },
   { path: '/auth/login', component: LoginPage },
-  { path: '/auth/register', component: Page },
+  { path: '/auth/signup', component: Page },
 ]
 
 const toastKeys = () => useNotificationStore().toasts.map((toast) => toast.messageKey)
@@ -52,16 +52,16 @@ describe('LoginPage', () => {
     focus.mockRestore()
     expect(screen.getByRole('link', { name: 'Create an account' })).toHaveAttribute(
       'href',
-      '/auth/register',
+      '/auth/signup',
     )
   })
 
-  it('carries next to the register link', async () => {
+  it('carries next to the signup link', async () => {
     await open('/auth/login?next=%2Fprofile')
 
     expect(screen.getByRole('link', { name: 'Create an account' })).toHaveAttribute(
       'href',
-      '/auth/register?next=/profile',
+      '/auth/signup?next=/profile',
     )
   })
 

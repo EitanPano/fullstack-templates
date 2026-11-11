@@ -13,7 +13,7 @@ export function loginForm() {
 
 // The confirm field is not in the contract; `match` compares it with the password, and the parsed
 // value the handler receives has only the credentials.
-export function registerForm() {
+export function signupForm() {
   return useZodForm(zCredentials, { email: '', password: '', confirm: '' }, [
     match('password', 'confirm'),
   ])

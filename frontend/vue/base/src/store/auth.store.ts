@@ -136,8 +136,8 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
-  function register(credentials: Credentials): Promise<boolean> {
-    return enter('register', () => authService.register(credentials), {
+  function signup(credentials: Credentials): Promise<boolean> {
+    return enter('signup', () => authService.signup(credentials), {
       conflict: null,
     })
   }
@@ -213,7 +213,7 @@ export const useAuthStore = defineStore('auth', () => {
     roles,
     restoreSession,
     login,
-    register,
+    signup,
     logout,
     forget,
     requestOtp,

@@ -14,9 +14,9 @@ import { applyFieldErrors } from '@/shared/validators/server-errors'
 import { useAuthStore } from '@/store/auth.store'
 import { useNotificationStore } from '@/store/notification.store'
 
-import { registerForm } from '../auth.form'
+import { signupForm } from '../auth.form'
 
-// The register screen: creates the account, which signs it in, and sends it to `next` or home.
+// The signup screen: creates the account, which signs it in, and sends it to `next` or home.
 // Failures follow the login screen's rule (the store toasts, validation lands on the fields);
 // a taken email lands on the email field.
 const auth = useAuthStore()
@@ -24,7 +24,7 @@ const { loading } = storeToRefs(auth)
 const notifications = useNotificationStore()
 const route = useRoute()
 const router = useRouter()
-const form = registerForm()
+const form = signupForm()
 
 const next = computed(() => {
   const value = route.query[NEXT_PARAM]
@@ -33,13 +33,13 @@ const next = computed(() => {
 
 async function submit(): Promise<void> {
   await form.submit(async (credentials) => {
-    if (await auth.register(credentials)) {
+    if (await auth.signup(credentials)) {
       await router.push(safeNextPath(next.value))
       return
     }
     const error = auth.error
     if (error?.code === 'conflict') {
-      form.serverErrors.email = { messageKey: 'auth.register.conflict' }
+      form.serverErrors.email = { messageKey: 'auth.signup.conflict' }
       form.touch('email')
       return
     }
@@ -53,8 +53,8 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <AuthCard :heading="$t('auth.register.title')" :description="$t('auth.register.description')">
-    <form class="register__form" novalidate @submit.prevent="submit">
+  <AuthCard :heading="$t('auth.signup.title')" :description="$t('auth.signup.description')">
+    <form class="signup__form" novalidate @submit.prevent="submit">
       <FormField :label="$t('auth.email')" :error="form.errorText('email')">
         <BaseInput
           v-model="form.values.email"
@@ -84,15 +84,15 @@ async function submit(): Promise<void> {
           @blur="form.touch('confirm')"
         />
       </FormField>
-      <FormActions submit-key="auth.register.submit" :pending="loading" />
+      <FormActions submit-key="auth.signup.submit" :pending="loading" />
     </form>
     <template #footer>
-      <p class="register__alt">
-        {{ $t('auth.register.hasAccount') }}
-        <RouterLink to="/auth/login">{{ $t('auth.register.loginLink') }}</RouterLink>
+      <p class="signup__alt">
+        {{ $t('auth.signup.hasAccount') }}
+        <RouterLink to="/auth/login">{{ $t('auth.signup.loginLink') }}</RouterLink>
       </p>
     </template>
   </AuthCard>
 </template>
 
-<style lang="scss" src="./register-page.scss"></style>
+<style lang="scss" src="./signup-page.scss"></style>

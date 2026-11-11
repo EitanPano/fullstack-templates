@@ -11,13 +11,13 @@ import { renderWithApp } from '@/testing/render'
 import { stubApi } from '@/testing/stub-api'
 import { Page } from '@/testing/stubs'
 
-import RegisterPage from './register-page.vue'
+import SignupPage from './signup-page.vue'
 
 const routes = [
   { path: '/', component: Page },
   { path: '/profile', component: Page },
   { path: '/auth/login', component: Page },
-  { path: '/auth/register', component: RegisterPage },
+  { path: '/auth/signup', component: SignupPage },
 ]
 
 const toastKeys = () => useNotificationStore().toasts.map((toast) => toast.messageKey)
@@ -29,7 +29,7 @@ async function fill(email: string, password: string, confirm: string) {
   await userEvent.type(screen.getByLabelText('Confirm password'), confirm)
 }
 
-describe('RegisterPage', () => {
+describe('SignupPage', () => {
   beforeAll(() => {
     installInterceptors()
   })
@@ -39,7 +39,7 @@ describe('RegisterPage', () => {
   })
 
   it('shows the card with a link to sign in', async () => {
-    await renderWithApp(RegisterPage, { route: '/auth/register', routes })
+    await renderWithApp(SignupPage, { route: '/auth/signup', routes })
 
     expect(
       screen.getByRole('heading', { level: 1, name: 'Create your account' }),
@@ -49,9 +49,9 @@ describe('RegisterPage', () => {
 
   it('creates the account, signs it in and sends only the credentials', async () => {
     const fetchMock = stubApi({
-      'POST /api/auth/register': Response.json(SESSION, { status: 201 }),
+      'POST /api/auth/signup': Response.json(SESSION, { status: 201 }),
     })
-    const { router } = await renderWithApp(RegisterPage, { route: '/auth/register', routes })
+    const { router } = await renderWithApp(SignupPage, { route: '/auth/signup', routes })
 
     await fill(USER.email, PASSWORD, PASSWORD)
     await userEvent.click(screen.getByRole('button', { name: 'Create account' }))
@@ -64,9 +64,9 @@ describe('RegisterPage', () => {
   })
 
   it('follows next after signing up', async () => {
-    stubApi({ 'POST /api/auth/register': Response.json(SESSION, { status: 201 }) })
-    const { router } = await renderWithApp(RegisterPage, {
-      route: '/auth/register?next=%2Fprofile',
+    stubApi({ 'POST /api/auth/signup': Response.json(SESSION, { status: 201 }) })
+    const { router } = await renderWithApp(SignupPage, {
+      route: '/auth/signup?next=%2Fprofile',
       routes,
     })
 
@@ -78,7 +78,7 @@ describe('RegisterPage', () => {
 
   it('puts errors.match on the confirm field and sends nothing', async () => {
     const fetchMock = stubApi({})
-    await renderWithApp(RegisterPage, { route: '/auth/register', routes })
+    await renderWithApp(SignupPage, { route: '/auth/signup', routes })
 
     await fill(USER.email, PASSWORD, 'another-password')
     await userEvent.click(screen.getByRole('button', { name: 'Create account' }))
@@ -89,8 +89,8 @@ describe('RegisterPage', () => {
   })
 
   it('puts a taken address on the email field and stays', async () => {
-    stubApi({ 'POST /api/auth/register': envelope('conflict', 409) })
-    const { router } = await renderWithApp(RegisterPage, { route: '/auth/register', routes })
+    stubApi({ 'POST /api/auth/signup': envelope('conflict', 409) })
+    const { router } = await renderWithApp(SignupPage, { route: '/auth/signup', routes })
 
     await fill(USER.email, PASSWORD, PASSWORD)
     await userEvent.click(screen.getByRole('button', { name: 'Create account' }))
@@ -100,7 +100,7 @@ describe('RegisterPage', () => {
     ).toBeInTheDocument()
     expect(screen.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'true')
     expect(toastKeys()).toEqual([])
-    expect(router.currentRoute.value.path).toBe('/auth/register')
+    expect(router.currentRoute.value.path).toBe('/auth/signup')
     expect(hasSessionHint()).toBe(false)
 
     await userEvent.type(screen.getByLabelText('Email'), 'x')
@@ -110,11 +110,11 @@ describe('RegisterPage', () => {
 
   it('puts a server validation failure on its field', async () => {
     stubApi({
-      'POST /api/auth/register': envelope('validation_failed', 422, [
+      'POST /api/auth/signup': envelope('validation_failed', 422, [
         { path: 'password', message: 'x' },
       ]),
     })
-    await renderWithApp(RegisterPage, { route: '/auth/register', routes })
+    await renderWithApp(SignupPage, { route: '/auth/signup', routes })
 
     await fill(USER.email, PASSWORD, PASSWORD)
     await userEvent.click(screen.getByRole('button', { name: 'Create account' }))

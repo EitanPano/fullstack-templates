@@ -6,7 +6,7 @@ import { useThemeStore } from '@/store/theme.store'
 
 import AppToastHost from '../app-toast-host/app-toast-host.vue'
 
-// The frame of the sign-in, register and verification screens: a skip link, the product name
+// The frame of the sign-in, signup and verification screens: a skip link, the product name
 // linking home, one centred <main id="main">. A visitor has nowhere else to go yet. The toast host stays,
 // because the store toasts a failed sign-in.
 const main = useTemplateRef<HTMLElement>('main')

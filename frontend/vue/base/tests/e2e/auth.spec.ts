@@ -5,8 +5,8 @@ import {
   fillSignIn,
   fillSignUp,
   expectSignedIn,
-  registerThroughApi,
-  registerThroughUi,
+  signupThroughApi,
+  signupThroughUi,
   signOutThroughUi,
 } from './auth-support'
 import { expectNoAxeViolations, uniqueEmail } from './support'
@@ -18,7 +18,7 @@ import { expectNoAxeViolations, uniqueEmail } from './support'
 
 test('sign up creates the account and lands signed in', async ({ page }) => {
   const email = uniqueEmail('sign-up')
-  await page.goto('/auth/register')
+  await page.goto('/auth/signup')
   await expect(page.getByRole('heading', { level: 1, name: 'Create your account' })).toBeVisible()
   await expectNoAxeViolations(page)
 
@@ -33,7 +33,7 @@ test('sign up creates the account and lands signed in', async ({ page }) => {
 })
 
 test('sign in, see the profile, sign out', async ({ page }) => {
-  const email = await registerThroughUi(page, 'profile')
+  const email = await signupThroughUi(page, 'profile')
   await signOutThroughUi(page, email)
 
   await page.goto('/auth/login')
@@ -66,13 +66,13 @@ test('a wrong password shows our copy and signs nobody in', async ({ page }) => 
 test('a taken email is refused on its field and the visitor stays on the form', async ({
   page,
 }) => {
-  const email = await registerThroughApi(page, 'taken')
-  // The account exists; a visitor tries to register it again.
+  const email = await signupThroughApi(page, 'taken')
+  // The account exists; a visitor tries to signup it again.
   await page.context().clearCookies()
   await page.addInitScript(() => {
     localStorage.clear()
   })
-  await page.goto('/auth/register')
+  await page.goto('/auth/signup')
 
   await fillSignUp(page, email)
 
@@ -81,12 +81,12 @@ test('a taken email is refused on its field and the visitor stays on the form', 
   ).toBeVisible()
   await expect(page.getByLabel('Email')).toHaveAttribute('aria-invalid', 'true')
   await expect(page.locator('.toast__message')).toHaveCount(0)
-  await expect(page).toHaveURL(/\/auth\/register$/)
+  await expect(page).toHaveURL(/\/auth\/signup$/)
   await expectNoAxeViolations(page)
 })
 
 test('the form checks its fields before it sends anything', async ({ page }) => {
-  await page.goto('/auth/register')
+  await page.goto('/auth/signup')
   const sent: string[] = []
   page.on('request', (request) => {
     if (request.url().includes('/api/auth/')) sent.push(request.url())
@@ -100,7 +100,7 @@ test('the form checks its fields before it sends anything', async ({ page }) => 
 })
 
 test('a guarded page sends a visitor to sign in and back after signing in', async ({ page }) => {
-  const email = await registerThroughApi(page, 'guard')
+  const email = await signupThroughApi(page, 'guard')
   // The account exists; forget its session so the visitor is signed out.
   await page.context().clearCookies()
   await page.addInitScript(() => {
@@ -121,7 +121,7 @@ test('a guarded page sends a visitor to sign in and back after signing in', asyn
 })
 
 test('a signed-in visitor on the sign-in screen is sent home', async ({ page }) => {
-  const email = await registerThroughApi(page, 'guest')
+  const email = await signupThroughApi(page, 'guest')
 
   await page.goto('/auth/login')
 

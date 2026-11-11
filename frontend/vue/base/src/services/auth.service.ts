@@ -12,12 +12,12 @@ import {
   postApiAuthOtp,
   postApiAuthOtpVerification,
   postApiAuthRefresh,
-  postApiAuthRegister,
+  postApiAuthSignup,
 } from './generated/sdk.gen'
 
 // The facade over the auth module of the generated SDK. The session itself lives in HttpOnly
 // cookies the server sets, so no call here reads or keeps a token. The refresh wrapper
-// (core/interceptors/auth.interceptor.ts) skips the refresh for login, register, refresh and the
+// (core/interceptors/auth.interceptor.ts) skips the refresh for login, signup, refresh and the
 // two OTP calls by their URL. `refresh` is here for the contract's completeness: the wrapper
 // calls the endpoint itself.
 export const authService = {
@@ -26,8 +26,8 @@ export const authService = {
     return data
   },
 
-  async register(body: Credentials): Promise<AuthSession> {
-    const { data } = await postApiAuthRegister({ body, throwOnError: true })
+  async signup(body: Credentials): Promise<AuthSession> {
+    const { data } = await postApiAuthSignup({ body, throwOnError: true })
     return data
   },
 
