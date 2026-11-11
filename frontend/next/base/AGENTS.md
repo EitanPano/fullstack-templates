@@ -1,4 +1,5 @@
-The layer map of this package. Commands are in `package.json`; the contract code in `src/shared/api/generated/` is generated, never edited.
+The layer map of this package. Commands are in `package.json`; the contract code in `src/shared/api/generated/` is generated, never edited. <!-- @server -->
+The layer map of this package. Commands are in `package.json`. <!-- @noserver -->
 
 **`src/`**
 
@@ -28,9 +29,11 @@ The layer map of this package. Commands are in `package.json`; the contract code
   - `ui/` shadcn primitives, `ui/pattern/` layout patterns, `ui/form/` field bindings.
   - `lib/`: `cn`, `safe-action` (the action clients), `action-error` (`ActionError`), `date`
     (zone-aware dates), `zod-messages`.
+<!-- @server-start -->
   - `api/`: `generated/` (Hey API output: types, SDK, fetch client, zod; committed, lint-ignored),
     `client.ts` (`createApi`), `call.ts` (`call` and the default copy), `index.ts` (the contract's
     types).
+<!-- @server-end -->
 
 <!-- @server:auth-start -->
 
@@ -40,15 +43,18 @@ The layer map of this package. Commands are in `package.json`; the contract code
 
 <!-- @server:auth-end -->
 
+<!-- @server-start -->
 - `config/env.ts`: the only reader of `process.env`, parsed with zod; browser-visible values
   are `NEXT_PUBLIC_*`.
+<!-- @server-end -->
 
 **Where does X go**
 
 | Addition                                             | Home                                       |
 | ---------------------------------------------------- | ------------------------------------------ |
 | A domain object's type, mapper, label, badge or card | `entity/<noun>/`                           |
-| A read from the API                                  | `entity/<noun>/server/<noun>.ts`           |
+| A read from the API                                  | `entity/<noun>/server/<noun>.ts`           | <!-- @server -->
+| A read of the product's data                         | `entity/<noun>/server/<noun>.ts`           | <!-- @noserver -->
 | A mutation and the button or form that runs it       | `feature/<action>/`                        |
 | A page section that combines reads and actions       | `widget/<section>/`                        |
 | A route, its layout, loading and error               | `app/(group)/…`                            |
@@ -57,7 +63,7 @@ The layer map of this package. Commands are in `package.json`; the contract code
 | A form field binding                                 | `shared/ui/form/`                          |
 | Formatting and date helpers                          | `shared/lib/`                              |
 | A server-only auth check                             | `shared/auth/` (with the server's auth)    |
-| An environment variable                              | `shared/config/env.ts` plus `.env.example` |
+| An environment variable                              | `shared/config/env.ts` plus `.env.example` | <!-- @server -->
 | A navigation entry                                   | `app/nav.ts`                               |
 
 **Import rules** (`eslint-plugin-boundaries`; each lint message names the layer to use instead):
@@ -67,13 +73,16 @@ The layer map of this package. Commands are in `package.json`; the contract code
 - A slice never imports a sibling slice in its own layer. An entity imports another entity only
   with `import type` from its `model.ts`.
 - A `'use client'` file imports from `server/` only an `action.ts` (or types).
+<!-- @server-start -->
 - `shared/api` is imported by `*/server/*` files. A `model.ts` may also
   `import type` from `@/shared/api` (the contract's types) and import the generated zod schemas
   from `@/shared/api/generated/zod.gen` (to extend them); nothing else of `shared/api` is
   reachable from `model.ts`, `ui/` or `app/`.
+<!-- @server-end -->
 - `button`, `input`, `select` and `textarea` JSX elements are errors outside `shared/ui`: use
   the primitive. `revalidatePath` and a bare `fetch(` are errors outside `shared/api`.
-- `process.env` is read only in `shared/config/env.ts`.
+- `process.env` is read only in `shared/config/env.ts`. <!-- @server -->
+- `process.env` is read only in `shared/config/env.ts`, which the first environment variable creates. <!-- @noserver -->
 
 `tests/unit/eslint-boundaries.test.ts` lints one violation and one allowed case per rule, in a
 throwaway project built from the real `eslint.config.mjs`. A new rule gets a case there. Use
@@ -84,17 +93,31 @@ state, effects or browser APIs. Data reaches client components through props or 
 action, never through `fetch` in the browser.
 
 ## Adding a feature
+<!-- @noserver-start -->
+
+This package has no server. What arrives with one: the typed client generated from its contract
+(`src/shared/api/generated/`, `openapi-ts.config.ts`, the `api:types` script and `@hey-api/openapi-ts`),
+the `createApi` wrapper and `call` with the error-envelope copy (`src/shared/api/`), the API address
+(`src/shared/config/env.ts`, `.env.example`), their unit tests, and the API web server in the e2e
+config. The harness adds them (`scripts/scaffold.mjs`); never copy them by hand.
+<!-- @noserver-end -->
 
 1. Name the noun and the action in `.doc/glossary.md`. The noun is an entity (`entity/<noun>/`
    with `model.ts`, `server/<noun>.ts` and `ui/`); the action is a feature (`feature/<action>/`
    with `model.ts`, `server/action.ts` and the `'use client'` leaf in `ui/`).
+<!-- @server-start -->
 2. If the server's contract changed, run `bun run api:types`. `src/shared/api/generated/` is
    regenerated and committed; never edit it. Only `*/server/*` files import `@/shared/api/client`
    and the SDK functions.
+<!-- @server-end -->
+2. There is no server yet, so no typed client: keep data in the browser or in Next's own server code. <!-- @noserver -->
+<!-- @server-start -->
 In the blocks, `getApiPost`, `patchApiPostById`, `listPosts`, `PostRow`, `PostListSkeleton`,
 `renamePost` and `RENAME_POST_COPY` are the example feature's own names: they exist once the
 server has the endpoint, `bun run api:types` has run and the recipe's steps are done.
 Everything else in the blocks already exists in the template.
+<!-- @server-end -->
+In the blocks, `listPosts`, `PostRow`, `PostListSkeleton` and `renamePost` are the example feature's own names; everything else in them already exists in the template. <!-- @noserver -->
 
 3. A read is an entity loader (Reads has the rules):
 
@@ -104,11 +127,13 @@ Everything else in the blocks already exists in the template.
      'use cache'
      cacheTag('post')
      cacheLife('minutes')
-     return call(getApiPost({ client: createApi() }))
+     return call(getApiPost({ client: createApi() })) <!-- @server -->
+     return [] // your own source <!-- @noserver -->
    }
    ```
 
-4. A mutation is a feature's action (the block under Mutations) and a client leaf that runs it:
+4. A mutation is a feature's action (the block under Mutations) and a client leaf that runs it: <!-- @server -->
+4. A mutation is a feature's action (Mutations has the rules) and a client leaf that runs it: <!-- @noserver -->
 
    ```tsx
    // feature/rename-post/ui/rename-post-button.tsx
@@ -137,7 +162,8 @@ Everything else in the blocks already exists in the template.
        return { ok: true as const, posts: await listPosts() }
      } catch (error) {
        unstable_rethrow(error)
-       const message = error instanceof ActionError ? error.message : DEFAULT_COPY.internal
+       const message = error instanceof ActionError ? error.message : DEFAULT_COPY.internal <!-- @server -->
+       const message = error instanceof ActionError ? error.message : 'Something went wrong.' <!-- @noserver -->
        return { ok: false as const, message }
      }
    }
@@ -162,8 +188,11 @@ Everything else in the blocks already exists in the template.
    ```
 
 7. A top-level screen also gets its entry in `src/app/nav.ts` (`{ href, label }`).
+<!-- @server-start -->
 8. Configuration comes only through `src/shared/config/env.ts`. A browser-visible value is
    `NEXT_PUBLIC_*`, declared in a separate public schema, and listed in the example env file.
+<!-- @server-end -->
+8. Configuration comes only through `src/shared/config/env.ts`, which the first environment variable creates, with `.env.example`. <!-- @noserver -->
 9. Add a primitive with `bunx shadcn@4.21.4 add <name>` (see Styling). Never run `shadcn init`
    or any other scaffolder.
 
@@ -198,12 +227,15 @@ A widget is a request-time hole. `next.config.ts` turns on Cache Components, so 
 a route is built once and everything that needs data streams in at request time. The image build
 has no API, so no data is fetched at build.
 
+<!-- @server-start -->
 - **Public data** (the same for every visitor): the entity loader starts with `'use cache'`, then
   `cacheTag('<noun>')` and `cacheLife('<profile>')` (`seconds`, `minutes`, `hours`, `days`),
   then `call(getApiX({ client: createApi() }))`. No `try/catch` in the loader: it throws on failure
   (a thrown loader is never cached) and Next's prerender signals must pass through. Cookies and
   headers are forbidden inside `'use cache'` (the build fails); read them outside and pass the
   value in.
+<!-- @server-end -->
+- **Public data** (the same for every visitor): the entity loader starts with `'use cache'`, then `cacheTag('<noun>')` and `cacheLife('<profile>')`, and returns its data. No `try/catch`: it throws on failure (a thrown loader is never cached) and Next's prerender signals must pass through. Cookies and headers are forbidden inside `'use cache'`; read them outside and pass the value in. <!-- @noserver -->
 - **The widget**: `await connection()` is its first line, then the loader. It catches in a helper
   (not around JSX), calls `unstable_rethrow(error)`, and renders `ErrorState` with the
   `ActionError` message. The `PostList` block in step 5 is the pattern.
@@ -225,6 +257,7 @@ has no API, so no data is fetched at build.
 
 `shared/lib/safe-action.ts` holds the client every action starts from: `action`.
 
+<!-- @server-start -->
 ```ts
 // feature/<action>/server/action.ts
 'use server'
@@ -242,7 +275,10 @@ export const renamePost = action.inputSchema(renamePostSchema).action(async ({ p
   return post
 })
 ```
+<!-- @server-end -->
+An action is `action.inputSchema(schema).action(handler)`, and the handler ends with `updateTag('<noun>')`. <!-- @noserver -->
 
+<!-- @server-start -->
 - An action builds its client with `await createRequestApi()` (it adds the visitor's address when
   `CLIENT_IP_HEADER` is set); a public cached loader uses plain `createApi()`.
   Never use the module-level `client` the generated code exports: it is shared by every request and
@@ -254,6 +290,7 @@ export const renamePost = action.inputSchema(renamePostSchema).action(async ({ p
   `options.fields` (`{ conflict: 'email' }`) puts a code on one field instead of a toast.
   `options.discriminator` reads a second key from the envelope when the product's contract adds
   one (`conflict:slot_taken`).
+<!-- @server-end -->
 - `handleServerError` returns an `ActionError`'s message as `serverError` and logs and masks
   everything else.
 - A page that redirects after a success does it in the action (`redirect()`), after cookies are set.
@@ -272,11 +309,14 @@ export const renamePost = action.inputSchema(renamePostSchema).action(async ({ p
 React Hook Form with `zodResolver`, wired by `useHookFormAction` (from
 `@next-safe-action/adapter-react-hook-form/hooks`). `SignInForm` is the pattern.
 
+<!-- @server-start -->
 - The schema is in `feature/<action>/model.ts` and extends the generated request schema
   (`zPostApiXBody.extend({ … })`); limits are never copied. A field whose message is ours sets
   that message itself, whatever the generated schema carries (the servers' schemas differ: one has
   an email format check and one has none; `feature/auth/model.ts` runs both checks in one
   `superRefine`). The same schema goes to `.inputSchema` and to `zodResolver`.
+<!-- @server-end -->
+- The schema is in `feature/<action>/model.ts`; the same schema goes to `.inputSchema` and to `zodResolver`. <!-- @noserver -->
 - `<Form form={form} onSubmit={ignoreNavigation(handleSubmitWithAction)}>` provides the context; `TextField`,
   `TextareaField`, `NumberField`, `SelectField`, `CheckboxField`, `PasswordField` and
   `DateTimeField` (all in `shared/ui/form/`) take a `name` and a `label`. An error shows under its
@@ -393,6 +433,7 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
   `error.tsx` and `not-found.tsx` per route group, `global-error.tsx` at the root. Every widget has
   a skeleton that matches its layout. Error messages are user-safe: no stack trace, no query
   text, no internal URL or secret. The cause stays in the server log.
+<!-- @server-start -->
 - The generated client does not throw on an HTTP error status: it returns
   `{ data, error, response }`, and on a network failure `response` is undefined and `error` is the
   thrown value. `call` (`src/shared/api/call.ts`) handles both, in that order, and is the only
@@ -416,6 +457,8 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
 
   A feature overrides the entries that need its own words (`SIGN_IN_COPY` maps 401 to "Email or
   password is wrong." because the API cannot tell the two apart by design).
+<!-- @server-end -->
+- A failure in an action is an `ActionError` whose message is copy we wrote; `handleServerError` hands it to the browser and masks everything else. <!-- @noserver -->
 
 - A public cached loader lets the `ActionError` propagate; the widget renders `ErrorState`. An
   unexpected error is thrown and reaches the nearest `error.tsx`.
@@ -441,6 +484,7 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
   and sign-out helpers). Install the browser once with `bun x playwright install chromium` (add
   `--with-deps` on Linux). Scan a settled page: a closed menu, a widget past its skeleton. `openMenu` (`support.ts`) clicks a
   Radix trigger until its first item shows, because a click before hydration opens nothing.
+<!-- @server-start -->
 - `bun run test:e2e` tests the **production build**, not the dev server. Playwright starts two web
   servers, both with `reuseExistingServer: false` (stop a dev server on port 3000 first):
   - the API, fresh every run, with `RATE_LIMIT_SCALE=100` so the suite does not trip the rate limits,
@@ -448,6 +492,8 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
   - this app: `scripts/e2e-server.mjs` runs `bun run build`, copies `.next/static` and `public/`
     into `.next/standalone` and runs `server.js`, the server the image runs. `next start` would
     also work but warns under `output: 'standalone'`.
+<!-- @server-end -->
+- `bun run test:e2e` tests the **production build**, not the dev server. Playwright starts only this app (`reuseExistingServer: false`; stop a dev server on port 3000 first): `scripts/e2e-server.mjs` runs `bun run build`, copies `.next/static` and `public/` into `.next/standalone` and runs `server.js`, the server the image runs. <!-- @noserver -->
 
 <!-- @server:database-start -->
 
@@ -462,11 +508,14 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
 
 <!-- @server:database-end -->
 
+<!-- @server-start -->
 - `E2E_BASE_URL` set (a blank value counts as unset): nothing is started and the tests target that origin (the catalog's case runner
   sets it against the Compose stack, `withApp`). There the API is the production one, with its normal
   rate limits and its own database, so the journeys register few accounts. The limit is 10 registrations
   per 15 minutes for the one shared per-IP bucket, and a run sends eight: run it once per 15 minutes per
   stack. It leaves eight users in that stack's `app` database.
+<!-- @server-end -->
+- `E2E_BASE_URL` set (a blank value counts as unset): nothing is started and the tests target that origin. <!-- @noserver -->
 - Playwright has two projects: `phone` (`Pixel 7`, touch) runs every spec, so every journey and its axe
   scan run on the phone; `desktop` (`Desktop Chrome`) runs `shell.spec.ts` and `screens.spec.ts` only.
   A check for one project carries a `@phone` or `@desktop` tag and the other project filters it out
@@ -534,15 +583,22 @@ and it is not served by the server.
   standalone output, its static files and `public/` are copied. The container runs as the
   non-root `node` user and listens on `3000`. The build needs no API: every data widget is a
   request-time hole.
+<!-- @server-start -->
 - **Compose service.** The root `docker-compose.yml` builds the package from its `Dockerfile`
   under the `app` profile, so `docker compose --profile app up --build` starts it. With a server
   in the plan it gets `API_URL` (the server's name and port on the Compose network) and waits
   for the server. Stop it with `docker compose --profile app down`: a plain `down` does not see
   profile services.
+<!-- @server-end -->
+- **Compose.** A package generated alone has no `docker-compose.yml`: build and run the image from its `Dockerfile` (port `3000`). <!-- @noserver -->
+<!-- @server-start -->
 - **Port.** Published as `3000:3000`, which Docker binds on every interface; the default is for a
   local run. In production only a proxy you control may reach it (see the production recipe below);
   the server behind it is published on loopback only. API calls are made by the Next.js server
   through `API_URL`, not by the browser.
+<!-- @server-end -->
+- **Port.** The container listens on `3000`; in production only a proxy you control may reach it. <!-- @noserver -->
+<!-- @server-start -->
 - **`TRUST_PROXY`.** Not read here. The server's Compose service defaults it to `1` because this
   server counts as the one proxy hop in front of it. Anything placed in front of this container
   adds a hop: raise the server's `TRUST_PROXY` to match.
@@ -573,6 +629,7 @@ and it is not served by the server.
   the person is signed out everywhere. That is the server's reuse-detection policy, and the cost of
   rotation. `proxy.ts` keeps the window short by refreshing at the start of a request, before any
   slow work; do not move the refresh later in the request.
+<!-- @server-end -->
 - **Cache.** `'use cache'` stores results in memory, per server instance. With more than one
   replica each has its own cache, and `updateTag` expires only the instance that ran the action, so
   another replica serves its copy until the `cacheLife` ends. Keep lifetimes short for data that must

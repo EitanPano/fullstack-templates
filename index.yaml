@@ -18,7 +18,7 @@ templates:
   - id: next
     kind: frontend
     path: frontend/next
-    version: 3.0.0
+    version: 3.1.0
     summary: "Next.js 16 App Router with a typed client generated from the server's contract"
   - id: react
     kind: frontend

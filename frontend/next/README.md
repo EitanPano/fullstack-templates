@@ -15,7 +15,8 @@ A generated app has no header, navigation, footer or example screen: `src/app/(s
 - `template.yaml`: the manifest (commands, contract, HTTP surface).
 - `base/`: the files copied into the generated package, including `AGENTS.md`, `bun.lock` and
   the committed `src/shared/api/generated/`. `onlyWhen` in the manifest lists the files that exist
-  only with the server's `auth` flag (`server:auth`), and `// @server:auth` markers cover the lines
+  only with a server (`server`: the generated client, `createApi`, the env module, `.env.example`) or
+  with its `auth` flag (`server:auth`), and `@server` and `@server:auth` markers cover the lines
   inside shared files.
 - `compose.yaml`: the Compose service body, keyed by the package directory at generation.
 - `tests/cases.yaml`: the generated variants the catalog gates (`default`, `auth-off` and
@@ -39,6 +40,6 @@ A generated app has no header, navigation, footer or example screen: `src/app/(s
 ## Contract
 
 `bun run api:types` (Hey API, `base/openapi-ts.config.ts`) regenerates `src/shared/api/generated/` from the server's `openapi.json`.
-Generated without a server, the package keeps the committed output, so `check` still passes.
+Generated without a server, the package has no generated client, no `api:types` script, no API address and no API web server in the e2e config (ADR 0011); the harness adds them with a server.
 
 The layer map of the generated package is in `base/AGENTS.md`.

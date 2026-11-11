@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.1.0 — unreleased
+
+Generates correctly without a server (ADR 0011). A stack's output is unchanged; a frontend generated alone now carries nothing that reaches a server.
+
+### Added
+
+- `onlyWhen.server` (object form) gates what exists only with a server: `src/shared/api/` (the generated client, `createApi`, `call` and the error-envelope copy), `src/shared/config/env.ts`, `.env.example`, `openapi-ts.config.ts`, and the unit tests of those (`api-client`, `call`, `config-client-ip`). It removes the `api:types` script and the `@hey-api/openapi-ts` package.
+- `@server` markers in shared files: the API web server of `playwright.config.ts` (its `API_URL` for the app), and the matching lines of `README.md` and `AGENTS.md`. `AGENTS.md › Adding a feature` lists what arrives with a server and says the harness adds it (`scripts/scaffold.mjs`).
+- Case `alone` runs its e2e: Playwright starts only the production build; `smoke.spec`, `shell.spec` and `screens.spec` run as in a stack. No spec is gated or removed.
+
+### Changed
+
+- `AGENTS.md` for a lone package: the client-specific parts of the Adding-a-feature recipe (`call(getApiX(...))`, the env step), Reads, Mutations, Forms (generated request schema), Errors (the client, `call` and the copy table) and Deployment (Compose service, `API_URL`, client address, production recipe, refresh rotation) are `@server` text; a one-line variant stands where the reader needs one.
+- `tools/tests/real-catalog.test.ts` (the one tools file this task may edit): "frontend/next alone is refused while a kept file uses a server placeholder" is replaced by "frontend/next alone generates without a server" (no contract command, no Compose file, no `shared/api`, no `api:types`, no `@hey-api`, no `__SERVER_` in the Playwright config).
+
+### Kept
+
+- The lint rules in `eslint.config.mjs` (and their cases in `eslint-boundaries.test.ts` and `use-cache.test.ts`) still name `shared/api` and `shared/config/env.ts`: they lint invented files and hold when the server's client arrives.
+
 ## 3.0.0 — 2026-11-11
 
 No template chrome and no example screen (ADR 0010). A generated app is a skip link, one `main` and an index route of one `h1` and one line of copy. A project generated from 2.x keeps its header, footer and status page as its own code; there is no migration tool.

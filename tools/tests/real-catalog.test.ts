@@ -74,12 +74,19 @@ describe('generation from the real catalog', () => {
     })
   })
 
-  // Until the template gates its server files on `server` (ADR 0011), a frontend alone fails
-  // generation at the first kept SERVER_* placeholder instead of assuming a server.
-  test('frontend/next alone is refused while a kept file uses a server placeholder', () => {
-    expect(() => generated({ template: 'frontend/next' }, () => undefined)).toThrow(
-      /unreplaced placeholder __SERVER_/,
-    )
+  // ADR 0011: a frontend alone has no server-coupled file, no SERVER_* value and no contract command.
+  test('frontend/next alone generates without a server', () => {
+    generated({ template: 'frontend/next' }, (out) => {
+      const recorded = parse(readFileSync(path.join(out, '.fullstack', 'catalog.yaml'), 'utf8'))
+      expect(recorded.packages.frontend.commands.contract).toBeUndefined()
+      expect(existsSync(path.join(out, 'docker-compose.yml'))).toBe(false)
+      expect(existsSync(path.join(out, 'frontend', 'src', 'shared', 'api'))).toBe(false)
+      expect(existsSync(path.join(out, 'frontend', 'openapi-ts.config.ts'))).toBe(false)
+      const manifest = readFileSync(path.join(out, 'frontend', 'package.json'), 'utf8')
+      expect(manifest).not.toContain('api:types')
+      expect(manifest).not.toContain('@hey-api')
+      expect(playwright(out)).not.toMatch(/__SERVER_|api\/health/)
+    })
   })
 })
 
