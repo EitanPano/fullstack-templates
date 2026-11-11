@@ -31,7 +31,7 @@ export async function fillSignIn(page: Page, email: string, password = PASSWORD)
 }
 
 // Signs up through the form and waits until the profile page shows the account.
-export async function registerThroughUi(page: Page, email = uniqueEmail()): Promise<string> {
+export async function signupThroughUi(page: Page, email = uniqueEmail()): Promise<string> {
   await page.goto('/sign-up')
   await fillSignUp(page, email)
   await expect(page).toHaveURL(/\/$/, { timeout: 15_000 })

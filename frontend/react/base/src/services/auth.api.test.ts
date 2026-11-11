@@ -22,10 +22,10 @@ afterEach(() => {
 const cachedAccount = (store: ReturnType<typeof createStore>) =>
   userApi.endpoints.getMe.select()(store.getState())
 
-describe('login and register', () => {
+describe('login and signup', () => {
   it.each([
     ['login', 'POST /api/auth/login', authApi.endpoints.login],
-    ['register', 'POST /api/auth/register', authApi.endpoints.register],
+    ['signup', 'POST /api/auth/signup', authApi.endpoints.signup],
   ])(
     '%s sets the hint and fills the getMe cache without a request',
     async (_n, route, endpoint) => {
@@ -66,11 +66,11 @@ describe('login and register', () => {
   })
 
   it('a taken email is a conflict the form words and puts on the email field', async () => {
-    stubApi({ 'POST /api/auth/register': () => envelope('conflict', 409) })
+    stubApi({ 'POST /api/auth/signup': () => envelope('conflict', 409) })
     const store = createStore()
 
     const error: unknown = await store
-      .dispatch(authApi.endpoints.register.initiate(CREDENTIALS))
+      .dispatch(authApi.endpoints.signup.initiate(CREDENTIALS))
       .unwrap()
       .catch((cause: unknown) => cause)
 

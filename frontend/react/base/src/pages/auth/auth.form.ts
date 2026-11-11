@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { zPostApiAuthLoginBody, zPostApiAuthRegisterBody } from '@/services/generated/zod.gen'
+import { zPostApiAuthLoginBody, zPostApiAuthSignupBody } from '@/services/generated/zod.gen'
 
 // The form schemas extend the generated request schemas, so the limits (password length, email
 // size) come from the server's contract and are never copied. The generated email carries no
@@ -16,7 +16,7 @@ const email = z.string().superRefine((value, ctx) => {
 
 export const signInSchema = zPostApiAuthLoginBody.extend({ email })
 
-export const signUpSchema = zPostApiAuthRegisterBody
+export const signUpSchema = zPostApiAuthSignupBody
   .extend({ email, confirm: z.string() })
   .refine((value) => value.password === value.confirm, {
     path: ['confirm'],

@@ -26,6 +26,10 @@ The owner's folder rules on the tree: `models/` holds one folder per entity and 
 | `models/user.ts` `ROLES` | `models/user/constant.ts` |
 | `models/user.ts` `isUser`, `initials`; `models/user.test.ts` | `shared/utils/is-user.ts`, `shared/utils/initials.ts` with their tests; `initials` takes `{ email: string }` |
 
+### Sign-up is `signup`, not `register`
+
+The servers' endpoint is `POST /api/auth/signup`. The committed client follows (`postApiAuthRegister` → `postApiAuthSignup`, with its zod and type names); the public-path list in `core/config/api-client.ts`, the RTK Query endpoint `register` → `signup` and its hook `useRegisterMutation` → `useSignupMutation`, the `'POST /api/auth/register'` test stubs and the e2e helper `registerThroughUi` → `signupThroughUi` follow. The `/sign-up` URL, `signUpSchema` and `sign-up-form` keep their names; the copy is unchanged.
+
 ### Changed
 
 - `eslint.config.mjs`: the `components` element is `layout` (`src/layout`) and its messages say so; the `RAW_CONTROLS` messages name `@/shared/components/button/button`, `form/input`, `form/select/select`, `form/textarea`; `@typescript-eslint/consistent-type-definitions` is `interface` in `src/models/*/interface.ts` and `type` everywhere else.

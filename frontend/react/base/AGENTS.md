@@ -73,7 +73,7 @@ a wrong role).
 
 <!-- @server:auth-start -->
 
-`auth.api.ts` (`login`, `register`, `logout`), `user.api.ts` (`getMe`, tag `User`).
+`auth.api.ts` (`login`, `signup`, `logout`), `user.api.ts` (`getMe`, tag `User`).
 
 <!-- @server:auth-end -->
 
@@ -376,7 +376,7 @@ and the three `shared/hooks/`. Not used, on purpose: `useTransition`, `useDeferr
   from `error.details`. The lookup is `TABLE['code:second']`, then `TABLE[code]`, then the error's
   message; `validation_failed:<path>` words one field. The server's text never reaches the page.
 - A cache write or stored flag that must follow a success happens inside the `queryFn`, before it
-  returns, so every `unwrap()` caller sees it (`login`, `register`); `onQueryStarted` runs after the
+  returns, so every `unwrap()` caller sees it (`login`, `signup`); `onQueryStarted` runs after the
   caller. Never `api.util.resetApiState()` inside a running mutation: it aborts it; reset after
   the await.
 
@@ -452,7 +452,7 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
   API's answer, never a claim in a token; a guard only keeps a visitor off a screen, the API checks
   every call. A guarded page's `noindex` tag is client-rendered; the loader's guard is the
   protection.
-- **Sign-in and sign-up.** `login` and `register` resolve to the user only (the tokens never enter
+- **Sign-in and sign-up.** `login` and `signup` resolve to the user only (the tokens never enter
   the store). Inside their `queryFn`, before returning, they set the hint and write the account
   into the `getMe` cache, so the account menu flips without a request and the next loader finds the
   account. The form (`next` is a prop, not a schema field) navigates to `safeNextPath(next)` after the await: a path on this site, else

@@ -28,9 +28,9 @@ afterEach(() => {
 })
 
 describe('SignUpForm', () => {
-  it('registers without the confirmation field, remembers the browser and goes home', async () => {
+  it('signs up without the confirmation field, remembers the browser and goes home', async () => {
     const fetchMock = stubApi({
-      'POST /api/auth/register': Response.json(SESSION, { status: 201 }),
+      'POST /api/auth/signup': Response.json(SESSION, { status: 201 }),
     })
     renderInRouter(<SignUpForm />, { route: '/sign-up' })
 
@@ -46,8 +46,8 @@ describe('SignUpForm', () => {
     expect(hasSessionHint()).toBe(true)
   })
 
-  it('goes to the safe next page after registering', async () => {
-    stubApi({ 'POST /api/auth/register': Response.json(SESSION, { status: 201 }) })
+  it('goes to the safe next page after signing up', async () => {
+    stubApi({ 'POST /api/auth/signup': Response.json(SESSION, { status: 201 }) })
     renderInRouter(<SignUpForm next="/profile" />, { route: '/sign-up' })
 
     await fill('a@b.co', 'correct horse')
@@ -58,7 +58,7 @@ describe('SignUpForm', () => {
   })
 
   it('shows a taken email on the email field and not as a toast', async () => {
-    stubApi({ 'POST /api/auth/register': () => envelope('conflict', 409) })
+    stubApi({ 'POST /api/auth/signup': () => envelope('conflict', 409) })
     renderInRouter(<SignUpForm />, { route: '/sign-up' })
 
     await fill('a@b.co', 'correct horse')
@@ -71,7 +71,7 @@ describe('SignUpForm', () => {
   })
 
   it('reports the rate limit in a toast', async () => {
-    stubApi({ 'POST /api/auth/register': () => envelope('rate_limited', 429) })
+    stubApi({ 'POST /api/auth/signup': () => envelope('rate_limited', 429) })
     renderInRouter(<SignUpForm />, { route: '/sign-up' })
 
     await fill('a@b.co', 'correct horse')

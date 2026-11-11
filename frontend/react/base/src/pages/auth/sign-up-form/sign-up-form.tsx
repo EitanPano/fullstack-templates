@@ -6,7 +6,7 @@ import { SIGN_UP_COPY } from '@/pages/auth/auth.copy'
 import { signUpSchema, type SignUpInput } from '@/pages/auth/auth.form'
 import { withCopy } from '@/services/with-copy'
 import { isApiError } from '@/shared/utils/is-api-error'
-import { useRegisterMutation } from '@/services/auth.api'
+import { useSignupMutation } from '@/services/auth.api'
 import { Button } from '@/shared/components/button/button'
 import { FormActions } from '@/shared/components/form/form-actions/form-actions'
 import { Form } from '@/shared/components/form/form'
@@ -22,12 +22,12 @@ export function SignUpForm({ next }: { next?: string }) {
     resolver: zodResolver(signUpSchema),
     defaultValues: { email: '', password: '', confirm: '' },
   })
-  const [register, { isLoading }] = useRegisterMutation()
+  const [signup, { isLoading }] = useSignupMutation()
   const navigate = useNavigate()
 
   const onSubmit = form.handleSubmit(async ({ email, password }) => {
     try {
-      await register({ email, password }).unwrap()
+      await signup({ email, password }).unwrap()
     } catch (error) {
       reportFailure(
         form,

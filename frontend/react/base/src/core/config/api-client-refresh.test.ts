@@ -8,7 +8,7 @@ import {
   postApiAuthOtp,
   postApiAuthOtpVerification,
   postApiAuthRefresh,
-  postApiAuthRegister,
+  postApiAuthSignup,
 } from '@/services/generated/sdk.gen'
 
 // A 401 becomes one refresh and one retry for a browser that signed in (the session hint).
@@ -161,7 +161,7 @@ describe('the 401 refresh', () => {
 
   it.each([
     ['sign-in', () => postApiAuthLogin({ body: { email: 'a@b.co', password: 'password1' } })],
-    ['sign-up', () => postApiAuthRegister({ body: { email: 'a@b.co', password: 'password1' } })],
+    ['sign-up', () => postApiAuthSignup({ body: { email: 'a@b.co', password: 'password1' } })],
     ['the refresh itself', () => postApiAuthRefresh({ body: {} })],
     [
       'an OTP request',

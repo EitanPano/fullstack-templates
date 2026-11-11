@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteApiModuleByIdData, DeleteApiModuleByIdErrors, DeleteApiModuleByIdResponses, GetApiHealthData, GetApiHealthErrors, GetApiHealthReadyData, GetApiHealthReadyErrors, GetApiHealthReadyResponses, GetApiHealthResponses, GetApiModuleByIdData, GetApiModuleByIdErrors, GetApiModuleByIdResponses, GetApiModuleData, GetApiModuleErrors, GetApiModuleResponses, GetApiUserByIdData, GetApiUserByIdErrors, GetApiUserByIdResponses, GetApiUserData, GetApiUserErrors, GetApiUserMeData, GetApiUserMeErrors, GetApiUserMeResponses, GetApiUserResponses, PatchApiModuleByIdData, PatchApiModuleByIdErrors, PatchApiModuleByIdResponses, PatchApiUserMeData, PatchApiUserMeErrors, PatchApiUserMeResponses, PostApiAuthLoginData, PostApiAuthLoginErrors, PostApiAuthLoginResponses, PostApiAuthLogoutData, PostApiAuthLogoutErrors, PostApiAuthLogoutResponses, PostApiAuthOtpData, PostApiAuthOtpErrors, PostApiAuthOtpResponses, PostApiAuthOtpVerificationData, PostApiAuthOtpVerificationErrors, PostApiAuthOtpVerificationResponses, PostApiAuthRefreshData, PostApiAuthRefreshErrors, PostApiAuthRefreshResponses, PostApiAuthRegisterData, PostApiAuthRegisterErrors, PostApiAuthRegisterResponses, PostApiModuleData, PostApiModuleErrors, PostApiModuleResponses } from './types.gen';
+import type { DeleteApiModuleByIdData, DeleteApiModuleByIdErrors, DeleteApiModuleByIdResponses, GetApiHealthData, GetApiHealthErrors, GetApiHealthReadyData, GetApiHealthReadyErrors, GetApiHealthReadyResponses, GetApiHealthResponses, GetApiModuleByIdData, GetApiModuleByIdErrors, GetApiModuleByIdResponses, GetApiModuleData, GetApiModuleErrors, GetApiModuleResponses, GetApiUserByIdData, GetApiUserByIdErrors, GetApiUserByIdResponses, GetApiUserData, GetApiUserErrors, GetApiUserMeData, GetApiUserMeErrors, GetApiUserMeResponses, GetApiUserResponses, PatchApiModuleByIdData, PatchApiModuleByIdErrors, PatchApiModuleByIdResponses, PatchApiUserMeData, PatchApiUserMeErrors, PatchApiUserMeResponses, PostApiAuthLoginData, PostApiAuthLoginErrors, PostApiAuthLoginResponses, PostApiAuthLogoutData, PostApiAuthLogoutErrors, PostApiAuthLogoutResponses, PostApiAuthOtpData, PostApiAuthOtpErrors, PostApiAuthOtpResponses, PostApiAuthOtpVerificationData, PostApiAuthOtpVerificationErrors, PostApiAuthOtpVerificationResponses, PostApiAuthRefreshData, PostApiAuthRefreshErrors, PostApiAuthRefreshResponses, PostApiAuthSignupData, PostApiAuthSignupErrors, PostApiAuthSignupResponses, PostApiModuleData, PostApiModuleErrors, PostApiModuleResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -31,8 +31,8 @@ export const getApiHealthReady = <ThrowOnError extends boolean = false>(options?
 /**
  * Create an account and start a session
  */
-export const postApiAuthRegister = <ThrowOnError extends boolean = false>(options?: Options<PostApiAuthRegisterData, ThrowOnError>): RequestResult<PostApiAuthRegisterResponses, PostApiAuthRegisterErrors, ThrowOnError> => (options?.client ?? client).post<PostApiAuthRegisterResponses, PostApiAuthRegisterErrors, ThrowOnError>({
-    url: '/api/auth/register',
+export const postApiAuthSignup = <ThrowOnError extends boolean = false>(options?: Options<PostApiAuthSignupData, ThrowOnError>): RequestResult<PostApiAuthSignupResponses, PostApiAuthSignupErrors, ThrowOnError> => (options?.client ?? client).post<PostApiAuthSignupResponses, PostApiAuthSignupErrors, ThrowOnError>({
+    url: '/api/auth/signup',
     ...options,
     headers: {
         'Content-Type': 'application/json',
