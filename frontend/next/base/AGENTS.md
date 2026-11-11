@@ -43,10 +43,8 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
 
 <!-- @server:auth-end -->
 
-<!-- @server-start -->
 - `config/env.ts`: the only reader of `process.env`, parsed with zod; browser-visible values
   are `NEXT_PUBLIC_*`.
-<!-- @server-end -->
 
 **Where does X go**
 
@@ -63,7 +61,7 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
 | A form field binding                                 | `shared/ui/form/`                          |
 | Formatting and date helpers                          | `shared/lib/`                              |
 | A server-only auth check                             | `shared/auth/` (with the server's auth)    |
-| An environment variable                              | `shared/config/env.ts` plus `.env.example` | <!-- @server -->
+| An environment variable                              | `shared/config/env.ts` plus `.env.example` |
 | A navigation entry                                   | `app/nav.ts`                               |
 
 **Import rules** (`eslint-plugin-boundaries`; each lint message names the layer to use instead):
@@ -81,8 +79,7 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
 <!-- @server-end -->
 - `button`, `input`, `select` and `textarea` JSX elements are errors outside `shared/ui`: use
   the primitive. `revalidatePath` and a bare `fetch(` are errors outside `shared/api`.
-- `process.env` is read only in `shared/config/env.ts`. <!-- @server -->
-- `process.env` is read only in `shared/config/env.ts`, which the first environment variable creates. <!-- @noserver -->
+- `process.env` is read only in `shared/config/env.ts`.
 
 `tests/unit/eslint-boundaries.test.ts` lints one violation and one allowed case per rule, in a
 throwaway project built from the real `eslint.config.mjs`. A new rule gets a case there. Use
@@ -95,11 +92,12 @@ action, never through `fetch` in the browser.
 ## Adding a feature
 <!-- @noserver-start -->
 
-This package has no server. What arrives with one: the typed client generated from its contract
-(`src/shared/api/generated/`, `openapi-ts.config.ts`, the `api:types` script and `@hey-api/openapi-ts`),
-the `createApi` wrapper and `call` with the error-envelope copy (`src/shared/api/`), the API address
-(`src/shared/config/env.ts`, `.env.example`), their unit tests, and the API web server in the e2e
-config. The harness adds them (`scripts/scaffold.mjs`); never copy them by hand.
+This package has no server. What arrives with one, added by the harness (`scripts/scaffold.mjs`; never copy it by hand):
+
+- the typed client generated from its contract (`src/shared/api/generated/`, `openapi-ts.config.ts`, the `api:types` script and `@hey-api/openapi-ts`)
+- the `createApi` wrapper and `call` with the error-envelope copy (`src/shared/api/`)
+- the API address in `src/shared/config/env.ts` and `.env.example`, and its unit tests
+- the API web server in the e2e config
 <!-- @noserver-end -->
 
 1. Name the noun and the action in `.doc/glossary.md`. The noun is an entity (`entity/<noun>/`
@@ -117,7 +115,7 @@ In the blocks, `getApiPost`, `patchApiPostById`, `listPosts`, `PostRow`, `PostLi
 server has the endpoint, `bun run api:types` has run and the recipe's steps are done.
 Everything else in the blocks already exists in the template.
 <!-- @server-end -->
-In the blocks, `listPosts`, `PostRow`, `PostListSkeleton` and `renamePost` are the example feature's own names; everything else in them already exists in the template. <!-- @noserver -->
+   In the blocks, `listPosts`, `PostRow`, `PostListSkeleton` and `renamePost` are the example feature's own names; everything else in them already exists in the template. <!-- @noserver -->
 
 3. A read is an entity loader (Reads has the rules):
 
@@ -188,11 +186,8 @@ In the blocks, `listPosts`, `PostRow`, `PostListSkeleton` and `renamePost` are t
    ```
 
 7. A top-level screen also gets its entry in `src/app/nav.ts` (`{ href, label }`).
-<!-- @server-start -->
 8. Configuration comes only through `src/shared/config/env.ts`. A browser-visible value is
    `NEXT_PUBLIC_*`, declared in a separate public schema, and listed in the example env file.
-<!-- @server-end -->
-8. Configuration comes only through `src/shared/config/env.ts`, which the first environment variable creates, with `.env.example`. <!-- @noserver -->
 9. Add a primitive with `bunx shadcn@4.21.4 add <name>` (see Styling). Never run `shadcn init`
    or any other scaffolder.
 

@@ -32,9 +32,7 @@ onlyWhen:
   server:
     onlyPaths:
       - openapi-ts.config.ts
-      - .env.example
       - src/shared/api
-      - src/shared/config/env.ts
       - tests/unit/api-client.test.ts
       - tests/unit/call.test.ts
       - tests/unit/config-client-ip.test.ts
