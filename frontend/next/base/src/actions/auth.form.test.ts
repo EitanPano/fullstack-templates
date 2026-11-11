@@ -15,7 +15,7 @@ async function loadModels(email: 'plain' | 'regex') {
             .max(254)
             .regex(/^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$/)
     const credentials = z.object({ email: field, password: z.string().min(8).max(128) })
-    return { zPostApiAuthLoginBody: credentials, zPostApiAuthRegisterBody: credentials }
+    return { zPostApiAuthLoginBody: credentials, zPostApiAuthSignupBody: credentials }
   })
   return import('./auth.form')
 }

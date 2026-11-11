@@ -33,7 +33,7 @@ describe('login and signup', () => {
     fetchMock.mockClear()
     fetchMock.mockResolvedValue(Response.json({ tokens }))
     await signup(credentials)
-    expect(new URL(sent().url).pathname).toBe('/api/auth/register')
+    expect(new URL(sent().url).pathname).toBe('/api/auth/signup')
   })
 
   it('resolve with the error envelope on a 401, without throwing', async () => {

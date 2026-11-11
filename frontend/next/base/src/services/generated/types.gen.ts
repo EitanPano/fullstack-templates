@@ -194,14 +194,14 @@ export type GetApiHealthReadyResponses = {
 
 export type GetApiHealthReadyResponse = GetApiHealthReadyResponses[keyof GetApiHealthReadyResponses]
 
-export type PostApiAuthRegisterData = {
+export type PostApiAuthSignupData = {
   body?: Credentials
   path?: never
   query?: never
-  url: '/api/auth/register'
+  url: '/api/auth/signup'
 }
 
-export type PostApiAuthRegisterErrors = {
+export type PostApiAuthSignupErrors = {
   /**
    * Validation failed
    */
@@ -220,17 +220,16 @@ export type PostApiAuthRegisterErrors = {
   500: ErrorBody
 }
 
-export type PostApiAuthRegisterError = PostApiAuthRegisterErrors[keyof PostApiAuthRegisterErrors]
+export type PostApiAuthSignupError = PostApiAuthSignupErrors[keyof PostApiAuthSignupErrors]
 
-export type PostApiAuthRegisterResponses = {
+export type PostApiAuthSignupResponses = {
   /**
    * The new user and its tokens (also set as cookies)
    */
   201: AuthSession
 }
 
-export type PostApiAuthRegisterResponse =
-  PostApiAuthRegisterResponses[keyof PostApiAuthRegisterResponses]
+export type PostApiAuthSignupResponse = PostApiAuthSignupResponses[keyof PostApiAuthSignupResponses]
 
 export type PostApiAuthLoginData = {
   body?: Credentials

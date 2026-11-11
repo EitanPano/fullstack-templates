@@ -7,7 +7,7 @@ import {
   postApiAuthLogin,
   postApiAuthLogout,
   postApiAuthRefresh,
-  postApiAuthRegister,
+  postApiAuthSignup,
 } from './generated'
 
 // The auth endpoints of the API. Each returns the generated client's result
@@ -17,7 +17,7 @@ export async function login(body: Credentials) {
 }
 
 export async function signup(body: Credentials) {
-  return postApiAuthRegister({ client: await createRequestApi(), body })
+  return postApiAuthSignup({ client: await createRequestApi(), body })
 }
 
 export async function logout(accessToken: string) {

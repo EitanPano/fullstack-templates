@@ -20,6 +20,7 @@ The layer names of the single-page templates, and their styling system (ADR 0012
 
 ### Added
 
+- The sign-up endpoint is `POST /api/auth/signup` (the servers renamed `register`): the regenerated client calls `postApiAuthSignup`, the form extends `zPostApiAuthSignupBody`, and the e2e helper is `signupThroughUi` (was `registerThroughUi`). The `/sign-up` URL is unchanged. A project generated before keeps `postApiAuthRegister` until it regenerates against a server on the new contract.
 - `src/styles/` (React's tree: `setup/`, `themes/`, `basics/`) and a sibling `.scss` beside every page, layout and component; `tests/unit/styles-tree.test.ts` (owner, import-last, layer and `app-` scans) and `tests/unit/density.test.ts` (compiled 36, 32 and 44 px), both ported from React.
 - `eslint-rules/route-components.mjs`, and lint cases for it, for the `style` attribute and for stylesheet imports.
 - `shared/utils/zod-messages.ts`: zod's global messages, imported by every file that builds a schema.

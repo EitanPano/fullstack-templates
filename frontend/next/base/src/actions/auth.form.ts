@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { zPostApiAuthLoginBody, zPostApiAuthRegisterBody } from '@/services/generated/zod.gen'
+import { zPostApiAuthLoginBody, zPostApiAuthSignupBody } from '@/services/generated/zod.gen'
 import '@/shared/utils/zod-messages'
 
 // The form schemas extend the generated request schemas, so the limits (password length, email
@@ -21,7 +21,7 @@ export const signInSchema = zPostApiAuthLoginBody.extend({
   next: z.string().optional(),
 })
 
-export const signUpSchema = zPostApiAuthRegisterBody
+export const signUpSchema = zPostApiAuthSignupBody
   .extend({ email, confirm: z.string(), next: z.string().optional() })
   .refine((value) => value.password === value.confirm, {
     path: ['confirm'],
