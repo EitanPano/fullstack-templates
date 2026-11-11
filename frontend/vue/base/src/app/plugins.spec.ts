@@ -1,7 +1,7 @@
 import { useNotificationStore } from '@/store/notification.store'
 import { createApp } from 'vue'
 import { inject } from 'vue' // @server:auth
-import { client } from '@/services/generated/client.gen'
+import { client } from '@/services/generated/client.gen' // @server
 import { describe, expect, it, vi } from 'vitest'
 
 import { i18n } from '@/core/i18n/i18n' // @i18n
@@ -26,11 +26,13 @@ describe('installPlugins', () => {
     expect(app.config.globalProperties.$t('app.skipToContent')).toBe('Skip to content')
   })
 
+  // @server-start
   it('registers the error interceptor on the generated client', async () => {
     await installPlugins(createApp(Blank))
 
     expect(client.interceptors.error.fns.length).toBeGreaterThan(0)
   })
+  // @server-end
 
   it('answers an error a component threw with one errors.unexpected toast', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)

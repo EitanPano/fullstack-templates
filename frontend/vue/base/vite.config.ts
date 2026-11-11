@@ -5,10 +5,12 @@ import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa' // @pwa
 import { defineConfig } from 'vite'
 
+// @server-start
 // The browser always calls relative /api on its own origin. The dev server and the preview server
 // (the e2e suite runs the production build behind it) forward it to the API; changeOrigin stays
 // false so the API sees the page's own Host.
 const api = { '/api': { target: 'http://127.0.0.1:__SERVER_PORT__', changeOrigin: false } }
+// @server-end
 
 export default defineConfig({
   plugins: [
@@ -42,10 +44,10 @@ export default defineConfig({
       workbox: {
         // The shell and its assets are precached; a new build replaces them together.
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        // The worker never answers an /api navigation with the shell.
-        navigateFallbackDenylist: [/^\/api\//],
-        // No API response is cached. A page module adds a `runtimeCaching` rule for a public read
-        // that carries no session or personal data, never for /api/user/** or /api/auth/**.
+        // The worker never answers an /api navigation with the shell. // @server
+        navigateFallbackDenylist: [/^\/api\//], // @server
+        // No API response is cached. A page module adds a `runtimeCaching` rule for a public read // @server
+        // that carries no session or personal data, never for /api/user/** or /api/auth/**. // @server
       },
     }),
     // @pwa-end
@@ -57,7 +59,13 @@ export default defineConfig({
       scss: { loadPaths: [fileURLToPath(new URL('./src/styles', import.meta.url))] },
     },
   },
+  // @server-start
   server: { port: Number('__PORT__'), strictPort: true, proxy: api },
   preview: { port: Number('__PORT__'), strictPort: true, host: '127.0.0.1', proxy: api },
+  // @server-end
+  // @noserver-start
+  server: { port: Number('__PORT__'), strictPort: true },
+  preview: { port: Number('__PORT__'), strictPort: true, host: '127.0.0.1' },
+  // @noserver-end
   build: { sourcemap: false },
 })

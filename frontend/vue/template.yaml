@@ -2,7 +2,7 @@ schemaVersion: 1
 id: vue
 kind: frontend
 name: Vue 3 SPA (Vite)
-version: 3.0.0
+version: 3.1.0
 summary: "Vite and Vue 3 single-page app: Vue Router 5, Pinia 4 setup stores over a client generated from the server's contract, Reka UI primitives styled by co-located SCSS on a global token tree, vue-i18n and the service worker behind flags"
 runtime: { language: typescript, platform: node, minVersion: "24" }
 tools:
@@ -62,10 +62,39 @@ flags:
       - src/testing/pwa-register.stub.ts
     dependencies:
       remove: ["vite-plugin-pwa", "workbox-window"]
-# The auth glue (server:auth) and the database-only files exist while the stack's server has the
+# Everything that reaches the server exists while the plan has one (ADR 0011): the generated
+# client, its wrapper and interceptors, the error envelope's models and copy table, the form
+# helper that reads a server field error, the request stores and the fetch stub of the specs.
+# Lines inside shared files carry // @server markers (a .vue file takes template block markers
+# only). The auth glue (server:auth) and the database-only files exist while the stack's server has the
 # flag or capability. Lines inside shared files carry // @server:auth and // @server:database
 # markers; a .vue file takes template block markers only.
 onlyWhen:
+  server:
+    onlyPaths:
+      - openapi-ts.config.ts
+      - src/core/config/api-client.spec.ts
+      - src/core/config/api-client.ts
+      - src/core/interceptors/error.interceptor.spec.ts
+      - src/core/interceptors/error.interceptor.ts
+      - src/core/interceptors/http.provider.spec.ts
+      - src/core/interceptors/http.provider.ts
+      - src/core/interceptors/loading.interceptor.spec.ts
+      - src/core/interceptors/loading.interceptor.ts
+      - src/models/api
+      - src/services/generated
+      - src/shared/validators/server-errors.spec.ts
+      - src/shared/validators/server-errors.ts
+      - src/store/loading.store.spec.ts
+      - src/store/loading.store.ts
+      - src/store/request-status.spec.ts
+      - src/store/request-status.ts
+      - src/testing/stub-api.spec.ts
+      - src/testing/stub-api.ts
+    dependencies:
+      remove: ["@hey-api/openapi-ts"]
+    scripts:
+      remove: ["api:types"]
   server:auth:
     - src/app/auth-routes.spec.ts
     - src/components/app-account-menu.scss

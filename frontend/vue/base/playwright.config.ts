@@ -2,11 +2,18 @@ import { defineConfig, devices } from '@playwright/test'
 
 import { e2eDatabaseUrl } from './scripts/e2e-database-url' // @server:database
 
+// @server-start
 // Two modes. By default Playwright starts the API and the production build of this app
 // (`vite build`, then `vite preview` on the template's port, which forwards /api to the API), so
 // a journey exercises the real contract on the bundle the image serves. With E2E_BASE_URL set
 // (the catalog's case runner does, against the Compose stack) it starts nothing and targets that
 // origin.
+// @server-end
+// @noserver-start
+// Two modes. By default Playwright builds this app and serves the production bundle (`vite build`,
+// then `vite preview` on the template's port), the bundle the image serves. With E2E_BASE_URL set
+// it starts nothing and targets that origin.
+// @noserver-end
 // A blank value (a CI variable exported empty) counts as unset.
 const external = process.env.E2E_BASE_URL?.trim() || undefined
 const origin = external ?? 'http://127.0.0.1:__PORT__'
@@ -49,6 +56,7 @@ export default defineConfig({
   webServer: external
     ? undefined
     : [
+        // @server-start
         {
           // A fresh API every run (never a leftover one with someone's data), with its limits
           // scaled so the suite does not trip them. Playwright starts web servers before its
@@ -56,7 +64,9 @@ export default defineConfig({
           // the API connects to it.
           // The two halves join with && when the server has a database.
           command: [
+          // @server-end
             '__SERVER_E2E_DB_COMMAND__', // @server:database
+          // @server-start
             '__SERVER_START_COMMAND__',
           ].join(' && '),
           cwd: '../__SERVER_DIR__',
@@ -65,15 +75,24 @@ export default defineConfig({
           timeout: 120_000,
           env: {
             RATE_LIMIT_SCALE: '100',
+            // @server-end
             // @server:database-start
             E2E_DATABASE_URL: databaseUrl,
             DATABASE_URL: databaseUrl,
             // @server:database-end
+            // @server-start
           },
         },
+        // @server-end
         {
+          // @server-start
           // The production bundle behind `vite preview`, which proxies /api to the API above
           // (vite.config.ts). The build runs first, so a broken bundle fails here.
+          // @server-end
+          // @noserver-start
+          // The production bundle behind `vite preview`. The build runs first, so a broken bundle
+          // fails here.
+          // @noserver-end
           command: 'bun run build && bun run preview',
           url: origin,
           reuseExistingServer: false,

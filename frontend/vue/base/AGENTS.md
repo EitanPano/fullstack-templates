@@ -1,4 +1,9 @@
+<!-- @noserver-start -->
+The layer map of this package. Commands are in `package.json`.
+<!-- @noserver-end -->
+<!-- @server-start -->
 The layer map of this package. Commands are in `package.json`; the contract code in `src/services/generated/` is generated, never edited.
+<!-- @server-end -->
 
 **`src/`**
 
@@ -53,8 +58,10 @@ The layer map of this package. Commands are in `package.json`; the contract code
   module; with auth `auth` and `user`) and the app-state stores (`theme`, `notification`,
   `network`, `loading`; `language` with `i18n`; `app-update` and `install-prompt` with `pwa`),
   plus `request-status.ts`. The import rule is the same for both kinds.
+<!-- @server-start -->
 - `services/`: one facade per server module over the generated SDK; `generated/` is the Hey API
   output (types, the fetch client, the flat SDK, zod; committed, lint-ignored).
+<!-- @server-end -->
 - `shared/`: product-agnostic. `components/` (the `base-*` primitives that wrap the browser
   controls once, and the patterns, each with its `.scss` beside it), `directives/`,
   `composables/`, `validators/`, `utils/`.
@@ -118,6 +125,7 @@ the alias `@/*` (`src/*`); imports inside one page module stay relative. Specs s
 
 - A page module never imports another page module, and no page renders a `components/` shell piece. A page that needs a one-off request adds a facade
   method and a store method first.
+<!-- @server-start -->
 - The generated runtime (`client.gen`, `sdk.gen`, the barrel) is imported only in `services/` and
   `core/interceptors/http.provider.ts`; `zod.gen` is the one generated file a `*.form.ts` may also
   import. `store/`, `core/` and `models/` take the generated types with `import type`; every other
@@ -125,6 +133,7 @@ the alias `@/*` (`src/*`); imports inside one page module stay relative. Specs s
 - The two fetch wrappers (`loading.interceptor.ts`, `auth.interceptor.ts`) are leaves of the client
   config, which imports them: if one imported a store or a service the graph would be a cycle
   `client -> config -> wrapper -> store -> services -> client`.
+<!-- @server-end -->
 - `fetch(` (the global) is called only in `core/interceptors/auth.interceptor.ts`; `import.meta`
   only in `core/config/env.ts` (`no-restricted-syntax`).
 - `<button>`, `<input>`, `<select>` and `<textarea>` appear only inside `shared/components/`
@@ -141,11 +150,36 @@ the alias `@/*` (`src/*`); imports inside one page module stay relative. Specs s
 `tests/unit/eslint-boundaries.spec.ts` lints one violation and one allowed case per rule, through
 the real `eslint.config.mjs`. A new rule gets a case there.
 
+<!-- @server-start -->
 The API is always reached at relative `/api` on the page's own origin (see Deployment), so the
 bundle carries no API URL.
+<!-- @server-end -->
 
 ## Adding a feature
 
+<!-- @noserver-start -->
+This package has no server, so the sections below that read data (`services/`, the generated SDK,
+`ApiError`, interceptors, request stores, `stubApi`, the `/api` proxy) describe what arrives with
+one:
+
+- `openapi-ts.config.ts`, the `api:types` script, `@hey-api/openapi-ts` and `src/services/generated/`.
+- `core/config/api-client.ts`, `core/interceptors/`, `models/api/` and `store/request-status.ts`,
+  `store/loading.store.ts`.
+- `shared/validators/server-errors.ts` and `testing/stub-api.ts`.
+- The dev and preview proxy in `vite.config.ts`, nginx's `/api` upstream, the service worker's
+  `/api` rules and the e2e API web server.
+
+The harness adds them with the server (`scripts/scaffold.mjs`); never copy them by hand.
+The layer map and the lint fences above already name those layers (`services/`, `core/interceptors/`,
+the generated client); none of their files exists yet.
+
+A feature is a page module `pages/<noun>/` (`<noun>.routes.ts` with a lazy component and
+`meta: { titleKey }`, and `<noun>-page.vue` wrapped in `PageContainer` with its sibling `.scss`), a setup
+store in `store/` when state is shared, and types in `models/<noun>/`. Spread the routes into the main
+layout's `children` in `app/routes.ts`, add the nav entry in `app/nav.ts`, the copy in `en.json`, and
+a spec beside each file.
+<!-- @noserver-end -->
+<!-- @server-start -->
 The data flows one way: **page -> store -> facade -> generated SDK**. A page reads a store and never
 a service; the generated runtime is imported only in `services/` and `http.provider.ts`. A noun
 `post`, step by step; the names the contract generates (`getApiPost`, `patchApiPostById`, `Post`)
@@ -252,6 +286,7 @@ exist once step 1 has run.
      }
    }
    ```
+<!-- @server-end -->
 
 <!-- @server:auth-start -->
 
@@ -262,6 +297,7 @@ an answer that arrives after sign-out.
 
 <!-- @server:auth-end -->
 
+<!-- @server-start -->
 5. **A page** `pages/post/`: `post.routes.ts` (a default export, a lazy component and `meta:
 { titleKey }`) and `post-page.vue` with its `post-page.scss`. The page wraps its root in
    `PageContainer`, reads the store with `storeToRefs`, shows a skeleton while loading and
@@ -321,6 +357,7 @@ an answer that arrives after sign-out.
 7. **Copy** in `core/i18n/translations/en.json`: `post.title`, `nav.post` and the `errors.<code>`
    text for any new envelope code (the rules are under Styling, Copy).
 8. **Specs** beside each file (see Tests): service, store, page.
+<!-- @server-end -->
 
 **The shell.** The template renders no header, navigation or footer: `components/app-main-layout.vue`
 is the skip link, the page's one `main` and the toast host. A product's chrome is an `app-*`
@@ -349,6 +386,7 @@ With `pwa`, so is `app-install-button`.
 `main` has no width and no padding: a page gets its container from `PageContainer`
 (`shared/components/page-container.vue`), and a full-bleed page leaves it out.
 
+<!-- @server-start -->
 **Guarding a route (the server's `auth` flag; the files exist only then).** `core/guards/` holds
 `authGuard` (a visitor is redirected to `/auth/login?next=<attempted path and query>`),
 `guestGuard` (login and register: an account goes home) and `roleGuard`. They are
@@ -375,7 +413,9 @@ outage keeps it. Never store anything else under it, and never branch on it outs
 store, the session initializer and the auth interceptor. The restore is capped at 5 s
 (`SESSION_RESTORE_TIMEOUT_MS`): after the cap the app is a visitor for good, a late answer is
 discarded, and a guarded deep link lands on sign-in with `next`.
+<!-- @server-end -->
 
+<!-- @server-start -->
 **The form recipe, by example.** `pages/auth/auth.form.ts` is the pattern: one function per form
 (`loginForm()`, `registerForm()` with `match('password', 'confirm')` as its rule, `otpForm()`),
 each `useZodForm(schema, initial, rules?)` (`shared/validators/zod-form.ts`) over the generated
@@ -398,13 +438,23 @@ call while it runs; an invalid form calls nothing. The page composes
 control needs a looser shape (`user.form.ts` widens the generated phone rule to accept `''`,
 meaning "remove the number", and keeps the rule itself). A checkbox carries its own label: give its
 field no `label`.
+<!-- @server-end -->
 
+<!-- @server-start -->
 **zod and the CSP.** zod 4 probes `new Function('')` at its first parse, a violation of the
 deployed `script-src 'self'`. `shared/validators/zod-config.ts` calls `z.config({ jitless: true })`;
 `main.ts` imports it, and so must every module that imports `zod` or `@/services/generated/zod.gen`
 at run time, as its first import (the build splits shared code into chunks, so `main.ts` alone is
 not enough). A new `*.form.ts` begins `import '@/shared/validators/zod-config'`;
 `tests/unit/zod-config.spec.ts` fails the module that does not.
+<!-- @server-end -->
+<!-- @noserver-start -->
+**zod and the CSP.** zod 4 probes `new Function('')` at its first parse, a violation of the
+deployed `script-src 'self'`. `shared/validators/zod-config.ts` calls `z.config({ jitless: true })`;
+`main.ts` imports it, and so must every module that imports `zod` at run time, as its first import
+(the build splits shared code into chunks, so `main.ts` alone is not enough).
+`tests/unit/zod-config.spec.ts` fails the module that does not.
+<!-- @noserver-end -->
 
 ## Styling
 
@@ -507,6 +557,7 @@ grouped display with anything else unchanged, and the pure `time.ts`: `parseTime
 
 ## Errors
 
+<!-- @server-start -->
 The error interceptor maps a failed call to an `ApiError` and nothing else; the store method that
 awaited the call shows the outcome.
 
@@ -560,10 +611,17 @@ awaited the call shows the outcome.
   taken email (`conflict`) lands on the email field with `auth.register.conflict`
   (`form.serverErrors.email = { messageKey: 'auth.register.conflict' }` and `form.touch('email')`).
   A field error is never also a toast, and any other code toasts its own copy.
+<!-- @server-end -->
+<!-- @noserver-start -->
+No server, so no API errors yet: the `ApiError` mapping, the interceptors and the field errors arrive
+with one (`scripts/scaffold.mjs`).
+<!-- @noserver-end -->
 - **Toasts.** `useNotificationStore().showError('errors.unexpected')`, a key of the copy table,
   fires from the handler that awaited the work, never from an interceptor or a watcher.
+<!-- @server-start -->
 - **Failure state.** A page whose load failed shows `<ErrorState>` with the mapped description and
   a retry that calls the store method again.
+<!-- @server-end -->
 - **Last resort.** `installGlobalErrorHandler` (`core/errors/`) takes `app.config.errorHandler` and
   `unhandledrejection`, logs through the logger and calls back for one `errors.unexpected` toast;
   `core/errors` imports no store. An error a handler can name is shown there, not here.
@@ -576,6 +634,7 @@ awaited the call shows the outcome.
   starting with `// @vitest-environment node`. `vitest.config.mts` sets `allowOnly: false`,
   `passWithNoTests: false` and `unstubGlobals: true`; `vitest.setup.ts` supplies the `matchMedia`,
   `ResizeObserver` and pointer-capture stand-ins Reka needs.
+<!-- @server-start -->
 - **The API is the one boundary a test fakes.** `stubApi({ 'GET /api/post': Response.json([...]) })`
   (`src/testing/stub-api.ts`) replaces the global `fetch`, keyed `METHOD /path`; unlisted calls
   answer 404. A facade is tested through it, with the real generated client behind.
@@ -588,11 +647,19 @@ awaited the call shows the outcome.
   (`stubActions: false`), a memory-history router over the real route table and the English copy in
   memory, so assertions read the same with the `i18n` flag on or off. Query by role and name, as a
   user would.
+<!-- @server-end -->
+<!-- @noserver-start -->
+- **A page** is tested with `renderWithApp(Page, { route, initialState })` (`src/testing/render.ts`): a
+  testing Pinia (`stubActions: false`), a memory-history router over the real route table and the
+  English copy in memory, so assertions read the same with the `i18n` flag on or off. Query by role
+  and name, as a user would.
+<!-- @noserver-end -->
 - `src/testing/` is imported only by `*.spec.ts`; `auth-fixtures.ts` (auth only) holds the account
   fixtures.
 - E2E tests live in `tests/e2e/` (Playwright with `@axe-core/playwright`) and run with
   `bun run test:e2e`. Install the browser once with `bunx playwright install chromium` (add
   `--with-deps` on Linux).
+<!-- @server-start -->
 - **Two modes.** By default `playwright.config.ts` starts the API fresh (`reuseExistingServer:
 false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && bun run preview`: the production
   bundle behind `vite preview`, which forwards `/api` to the API, so the page and the API share one
@@ -600,6 +667,12 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && bun run preview`: the
   URL and starts nothing; the catalog's case runner does this against the Compose stack. The API
   there runs at rate-limit scale 1 with one per-address bucket, so the suite can run about once per
   15 minutes per stack, and it leaves its accounts in that stack's database.
+<!-- @server-end -->
+<!-- @noserver-start -->
+- **Two modes.** By default `playwright.config.ts` builds the app and serves it with
+  `bun run build && bun run preview`: the production bundle. With `E2E_BASE_URL` set (a blank value
+  counts as unset) it tests that URL and starts nothing.
+<!-- @noserver-end -->
 - **Service workers are blocked** (`serviceWorkers: 'block'`), so a registered worker never serves
   a stale shell or API answer to a test. `retries: 0`, `forbidOnly`, and a trace is kept on
   failure: a test that passes only on a retry is a failure. The trace stores request bodies (the
@@ -628,8 +701,14 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && bun run preview`: the
   inside `main`, its control's 44 px touch target (phone, also with `data-density="compact"`), the
   desktop densities, the compact padding of the page container, a clean console, the theme script
   served as a file and the bundle under a CSP that forbids eval.
+<!-- @noserver-start -->
+  `smoke.spec.ts` asserts the index route is one `h1` inside `main` and passes the axe scan.
+  `screens.spec.ts` captures every screen
+<!-- @noserver-end -->
+<!-- @server-start -->
   `smoke.spec.ts` asserts the index route is one `h1` inside `main` and that `GET /api/health` on
   the page's origin answers 200 (the proxy, by a request). `screens.spec.ts` captures every screen
+<!-- @server-end -->
   in phone and desktop, light and dark, to `test-results/screens/<route>-<viewport>-<theme>.png`
   (QA reads them) and checks each: no axe violation of the WCAG A and AA tags (in dark this is the
   contrast measurement), no horizontal scroll, exactly one `h1`. A failure names the route, theme
@@ -683,16 +762,30 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && bun run preview`: the
 
 ## Deployment
 
+<!-- @noserver-start -->
+- `bun run dev` serves the app (Vite) on the template's port.
+- `bun run build` writes `dist/` with `index.html` and the content-hashed files under `assets/`.
+<!-- @noserver-end -->
+<!-- @server-start -->
 - `bun run dev` serves the app (Vite) on the template's port and proxies `/api` to the server's
   port (`vite.config.ts`).
 - `bun run build` writes `dist/` with `index.html` and the content-hashed files under `assets/`.
   The app calls the API at relative `/api`, so whatever serves `dist/` also routes `/api` to the
   server.
+<!-- @server-end -->
+<!-- @server-start -->
 - **Service worker (the `pwa` flag).** `vite-plugin-pwa` (`registerType: 'prompt'`) emits the
   manifest, `sw.js`, `registerSW.js` and `workbox-*.js` into `dist/`; the worker registers in
   production only. It precaches the shell, never answers an `/api/` navigation with it, and caches
   no API response. A page module adds a URL to `runtimeCaching` in `vite.config.ts` only for a public
   read that carries no session or personal data; never `/api/**`.
+<!-- @server-end -->
+<!-- @noserver-start -->
+- **Service worker (the `pwa` flag).** `vite-plugin-pwa` (`registerType: 'prompt'`) emits the
+  manifest, `sw.js`, `registerSW.js` and `workbox-*.js` into `dist/`; the worker registers in
+  production only. It precaches the shell. A page module adds a URL to `runtimeCaching` in `vite.config.ts`
+  only for a public read that carries no session or personal data.
+<!-- @noserver-end -->
 - **How an update reaches the user.** `store/app-update.store.ts` holds `needRefresh` and
   `updateServiceWorker`; `core/initializers/pwa.initializer.ts` checks at start, hourly and on
   window focus. When a version is ready, an info toast offers `pwa.reload`; the action activates it
@@ -705,9 +798,12 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && bun run preview`: the
   places when the browser offers one; iOS Safari gets a hint toast (no install event there).
 - **Flag off.** Without `pwa` the plugin lines, `vite-plugin-pwa` and `workbox-window`, the icons,
   the stores, the initializer and `app-install-button` are gone, and the build emits no worker.
+<!-- @server-start -->
 - The app calls the API at relative `/api` on its own origin in every environment: no API URL is
   compiled into the bundle and there is no CORS. Whatever serves `dist/` must also route `/api` to
   the server (a reverse proxy, or the server serving the files itself).
+<!-- @server-end -->
+<!-- @server-start -->
 - **Two modes**, chosen at generation (`--deploy`).
   - `single` (default): one container. The server serves `dist/` and `/api` on its own port
     (published on every interface), so the page is on the server's port and the template's port is
@@ -715,12 +811,18 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && bun run preview`: the
   - `split`: two containers. This package's nginx serves the files on the template's port
     (published on every interface, the public edge) and proxies `/api/` to the server, which is
     published on loopback only.
+<!-- @server-end -->
+<!-- @noserver-start -->
+- Deployed alone, the image's `serve` target is nginx on the template's port; there is no Compose file
+  and no deploy mode.
+<!-- @noserver-end -->
 - **`Dockerfile` targets.** `build` is `oven/bun:1.4-alpine`: a frozen install and
   `bun run build`. `dist` is `FROM scratch` and holds only the built files at `/dist`: the
   server's image copies it. `serve`, the last and so the default target, is
   `nginxinc/nginx-unprivileged:1.31.7-alpine` with the files at `/usr/share/nginx/html`; it runs as
   uid 101, listens on `PORT` and has a `wget` healthcheck. `.dockerignore` keeps environment files,
   tests and source maps out of every image.
+<!-- @server-start -->
 - **nginx files**, in `nginx/`. `default.conf` is the config template (copied to
   `/etc/nginx/templates/default.conf.template`; the entrypoint renders it with `envsubst` over
   `PORT` and `API_URL`). Cache policy per file class: `/assets/*` is `immutable` for a year;
@@ -731,11 +833,24 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && bun run preview`: the
   server level (a location with its own drops the inherited ones), no dollar sign in a comment
   (`envsubst` rewrites it), and no environment variable named like an nginx variable (`host`,
   `uri`).
+<!-- @server-end -->
+<!-- @noserver-start -->
+- **nginx files**, in `nginx/`. `default.conf` is the config template (copied to
+  `/etc/nginx/templates/default.conf.template`; the entrypoint renders it with `envsubst` over
+  `PORT`). Cache policy per file class: `/assets/*` is `immutable` for a year;
+  `index.html`, the worker files (`pwa`) and any other file are `no-cache`; an extension-less path
+  is `index.html`; a missing file with an extension, a dotfile and a bare `/assets/` are 404 (never
+  a listing); a path above the root is nginx's own 400. Keep three rules when editing: no `add_header` at
+  server level (a location with its own drops the inherited ones), no dollar sign in a comment
+  (`envsubst` rewrites it), and no environment variable named like an nginx variable (`host`,
+  `uri`).
+<!-- @noserver-end -->
 - **Content Security Policy.** `security-headers.conf` holds the headers of helmet 8.3.0 and is
   included by each static location. `script-src 'self'` (no inline script: `theme-init.js` is a
   file, and zod runs in `jitless` mode, see Adding a feature). With `pwa` the policy also carries
   `worker-src 'self'` and `manifest-src 'self'` (the `# @pwa` lines). A project that loads a font,
   an image or an API from another origin widens the matching directive there, and nowhere else.
+<!-- @server-start -->
 - **Compose fragment** (`compose.yaml`), per mode. `single`: `build: { context, target: dist }`
   with `scale: 0`, so the image is built and no container runs; the server's build reads it as
   `additional_contexts: spa: service:<dir>`. This needs **Docker Compose 2.35.0 or newer**.
@@ -758,3 +873,8 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && bun run preview`: the
 - **What a project changes.** The brand colours and icons of the manifest, the CSP directives for
   any origin it adds, `client_max_body_size`, and the Compose lines when it switches mode (copy the
   other mode's lines from `compose.yaml` of the catalog's template).
+<!-- @server-end -->
+<!-- @noserver-start -->
+- **What a project changes.** The brand colours and icons of the manifest and the CSP directives for
+  any origin it adds.
+<!-- @noserver-end -->
