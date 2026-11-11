@@ -32,7 +32,7 @@ The layer names of the single-page templates, and their styling system (ADR 0012
 - `widget/`, `feature/`, `entity/` and the Feature-Sliced `shared/ui`, `shared/lib`, `shared/api`, `shared/auth` and `shared/config`.
 - The `.dark` class selector and `@custom-variant dark`.
 
-## 3.1.0 — unreleased
+## 3.1.0 — 2026-11-11
 
 Generates correctly without a server (ADR 0011). A stack's output is unchanged; a frontend generated alone now carries nothing that reaches a server.
 
@@ -50,6 +50,11 @@ Generates correctly without a server (ADR 0011). A stack's output is unchanged; 
 ### Kept
 
 - The lint rules in `eslint.config.mjs` (and their cases in `eslint-boundaries.test.ts` and `use-cache.test.ts`) still name `shared/api` and `shared/config/env.ts`: they lint invented files and hold when the server's client arrives.
+
+### Fixed
+
+- `Form` renders `method="post"`. Until a page hydrates, a submit is the browser's own, and a form without a method is a GET: a visitor who pressed "Sign in" before the scripts ran got the email and the password in the URL (`/sign-in?email=…&password=…`), so in the browser's history and in access logs. A POST to the page re-renders it. Present since 2.0.0. `auth.spec` proves it with the page's scripts blocked.
+- `Form` sets `data-hydrated` once React owns it, and the e2e helpers `fillSignIn` and `fillSignUp` wait for it: a click that won the race against hydration failed a journey at random.
 
 ## 3.0.0 — 2026-11-11
 

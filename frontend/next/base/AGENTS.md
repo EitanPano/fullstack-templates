@@ -331,6 +331,9 @@ React Hook Form with `zodResolver`, wired by `useHookFormAction` (from
   `TextareaField`, `NumberField`, `SelectField`, `CheckboxField`, `PasswordField` and
   `DateTimeField` (all in `shared/components/form/`) take a `name` and a `label`. An error shows
   under its field with `aria-invalid` and `aria-describedby`; the submit row is `FormActions`.
+- Every form is a `Form`, never a bare `<form>`: it renders `method="post"`, so a submit before
+  the page hydrates (the browser's own) never puts a field in the URL, and sets `data-hydrated`
+  once React owns it, which an e2e helper waits for before it submits.
 - A field error from the server arrives as `validationErrors` and the adapter places it on the
   field. The toast reports the outcome (`serverError`, a success) and never repeats a field error,
   except one for a field the form does not have (`unplacedMessage` in `form/action-form.ts` returns
