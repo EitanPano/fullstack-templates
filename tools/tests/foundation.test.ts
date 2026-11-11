@@ -525,18 +525,18 @@ describe('generated code and ignored brand options', () => {
   const serverOnly = { stack: undefined, template: 'server/mini' }
 
   test('the marker scan skips the generated client directory', () => {
-    const loaded = withFile('src/shared/api/generated/sdk.gen.ts')
+    const loaded = withFile('src/services/generated/sdk.gen.ts')
     const out = tempDir()
     generate(loaded, resolveRequest(loaded, request(out)))
-    expect(read(out, 'frontend', 'src', 'shared', 'api', 'generated', 'sdk.gen.ts')).toContain(
+    expect(read(out, 'frontend', 'src', 'services', 'generated', 'sdk.gen.ts')).toContain(
       '@ts-ignore',
     )
     expect(dryRunMarkers(loaded.templates.get('frontend/mini-ui')!, ['auth'])).toEqual([])
   })
 
   test.each([
-    'src/api/generated/sdk.gen.ts',
-    'src/shared/generated/sdk.gen.ts',
+    'src/shared/api/generated/sdk.gen.ts',
+    'src/app/services/generated/sdk.gen.ts',
     'generated/sdk.gen.ts',
   ])('a generated/ directory elsewhere (%s) is still scanned', (relative) => {
     const loaded = withFile(relative)
