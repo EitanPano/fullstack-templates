@@ -318,6 +318,12 @@ Markers are written in the file's own comment syntax (`//`, `--` in `.sql`, `#` 
   A template's `onlyWhen: { "server:auth": [paths] }` keeps those files only while it is on;
   `validate` dry-runs a frontend with each server selection on and off. A frontend manifest cannot
   declare a flag named `auth`, so `--flag auth=...` still means the server's.
+  The bare key `server` keeps its files only when the plan has a server package. A value is a path
+  list or an object `{ onlyPaths, dependencies: { remove }, scripts: { remove } }` (at least one key):
+  `onlyWhen: { server: { onlyPaths: ["src/api"], dependencies: { remove: ["@hey-api/openapi-ts"] },
+  scripts: { remove: ["api:types"] } } }`. A selection only removes; the loader checks that each named
+  path, dependency and script exists in `base/` and that no flag of the template removes the same
+  name; the pyproject adapter refuses dependency and script removal.
 - `server` (the plan has a server package) and `single` (the plan deploys as one image, which
   needs a server) are reserved selections; a manifest cannot declare a flag of either name.
 - A name that no flag or capability declares fails validation, as does an unbalanced block

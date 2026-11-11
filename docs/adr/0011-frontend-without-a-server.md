@@ -163,3 +163,9 @@ client; the harness refuses a lock that differs from provenance).
   for a fresh generation. A lone frontend generated into a folder that already has a Compose
   file still adds its service, as every rerun does; the harness generates into empty folders,
   so its two generations never meet this case.
+- **Angular's dev proxy is `proxy.conf.mjs`** (was `proxy.conf.json`), gated by `@server` markers:
+  JSON carries no markers and `angular.json` must name a file that exists. A stack's output differs
+  from 3.0.0 by that file name and its `angular.json` and `AGENTS.md` lines.
+- **JSON a template cannot mark stays as inert lines in a lone project:** Angular's `ngsw-config.json`
+  `!/api/**` navigation exclusion, and the `errors.*` keys of the Angular (Transloco) and Vue
+  (`en.json`, `he.json`) translation files.

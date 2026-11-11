@@ -21,7 +21,7 @@ The template generates correctly without a server ([ADR 0011](../../docs/adr/001
 
 ### Kept without a server
 
-`ngsw-config.json` (`navigationUrls` excludes `/api/**`; a JSON file cannot be gated, and the entry is harmless), the `error.*` keys of the Transloco files and the lint rules and their specs for `services/generated/` (they guard a folder that arrives with a server).
+`ngsw-config.json` (`navigationUrls` excludes `/api/**`; a JSON file cannot be gated, and the entry is harmless), the `errors.*` keys of the Transloco files and the lint rules and their specs for `services/generated/` (they guard a folder that arrives with a server).
 
 ## 3.0.0 — 2026-11-11
 

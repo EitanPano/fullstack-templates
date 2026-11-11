@@ -69,9 +69,10 @@ that enforces them, and where an addition goes. The rationale is in
 [ADR 0005](adr/0005-frontend-foundation.md); the shell and phone rules of
 [ADR 0004](adr/0004-ui-baseline.md) that it keeps are marked below.
 
-1. **Contract types.** `contract` generates the types, the client and the zod schemas into a
-   committed, never-edited directory the agents file names. No hand-written API types. A form
-   schema derives from the generated request schema and never copies a validation limit.
+1. **Contract types.** With a server, `contract` generates the types, the client and the zod
+   schemas into a committed, never-edited directory the agents file names; a frontend generated
+   without a server has no generated client and no `contract` command. No hand-written API types.
+   A form schema derives from the generated request schema and never copies a validation limit.
 2. **One origin.** The API is reached at relative `/api/*` on the page's origin in every deploy
    mode; the dev server proxies it; no API URL is compiled in; CORS stays off. One env module is
    the only reader of build-time environment, browser-visible values only, never a secret. A
@@ -236,6 +237,6 @@ language's own invocation. Only `check` is required.
 | `testDb` | Tests that need a database; added by a database capability overlay. |
 | `testE2e` | End-to-end tests with the accessibility scan; may start dev servers. |
 | `start` | Run the server once, with no file watcher; a frontend's e2e starts the API with it. |
-| `contract` | Server: write the OpenAPI document. Frontend: regenerate the typed client from it. |
+| `contract` | Server: write the OpenAPI document. Frontend: regenerate the typed client from it; exists only with a server. |
 | `migrate` | Apply schema migrations; added by a database capability overlay. |
 | `e2eDb` | Prepare the e2e database (create if missing, migrate, truncate; refuses a name not ending in `_e2e`); added by a database capability overlay. |
