@@ -1,10 +1,13 @@
-# Proves every listed template generates and passes its own gates (and e2e for frontends).
+# Proves the listed templates generate and pass their own gates.
+# - A pull request into `main` (a release), a manual run and a tag (release.yml) run every case
+#   with e2e, the app smoke and services.
+# - Any other pull request runs only the cases of the templates it touches, without e2e or
+#   browsers; a change to the generator or shared files runs every case, still without e2e.
 name: test-generated
 
 on:
   pull_request:
-  push:
-    branches: [main, dev]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,8 +22,11 @@ jobs:
     timeout-minutes: 10
     outputs:
       cases: ${{ steps.cases.outputs.cases }}
+      flags: ${{ steps.cases.outputs.flags }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.x
@@ -29,12 +35,26 @@ jobs:
         run: bun install --frozen-lockfile
       - name: List cases
         id: cases
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.base_ref }}
         run: |
-          cases=$(bun tools/test-generated.ts --list)
+          all=$(bun tools/test-generated.ts --list)
+          if [ "$EVENT" = pull_request ] && [ "$BASE" != main ]; then
+            flags="--with-services"
+            export ALL="$all"
+            export CHANGED=$(git diff --name-only "origin/$BASE...HEAD")
+            cases=$(bun .github/select-cases.ts)
+          else
+            flags="--e2e --install-browsers --with-services --with-app"
+            cases="$all"
+          fi
           echo "cases=$cases" >> "$GITHUB_OUTPUT"
+          echo "flags=$flags" >> "$GITHUB_OUTPUT"
 
   case:
     needs: list
+    if: needs.list.outputs.cases != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -65,4 +85,4 @@ jobs:
       - name: Log the Compose version
         run: docker compose version
       - name: Generate and test ${{ matrix.case }}
-        run: bun tools/test-generated.ts --case ${{ matrix.case }} --e2e --install-browsers --with-services --with-app
+        run: bun tools/test-generated.ts --case ${{ matrix.case }} ${{ needs.list.outputs.flags }}
