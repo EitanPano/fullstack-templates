@@ -1,8 +1,8 @@
 <app-auth-card
-  [heading]="'auth.register.title' | t"
-  [description]="'auth.register.description' | t"
+  [heading]="'auth.signup.title' | t"
+  [description]="'auth.signup.description' | t"
 >
-  <form class="register__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <form class="signup__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
     <app-form-field [label]="'auth.email' | t">
       <app-input
         appAutofocus
@@ -18,10 +18,10 @@
     <app-form-field [label]="'auth.confirm' | t">
       <app-input formControlName="confirm" type="password" autocomplete="new-password" />
     </app-form-field>
-    <app-form-actions submitKey="auth.register.submit" [pending]="store.loading()" />
+    <app-form-actions submitKey="auth.signup.submit" [pending]="store.loading()" />
   </form>
-  <p footer class="register__alt">
-    {{ 'auth.register.hasAccount' | t }}
-    <a routerLink="/auth/login">{{ 'auth.register.loginLink' | t }}</a>
+  <p footer class="signup__alt">
+    {{ 'auth.signup.hasAccount' | t }}
+    <a routerLink="/auth/login">{{ 'auth.signup.loginLink' | t }}</a>
   </p>
 </app-auth-card>

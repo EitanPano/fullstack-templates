@@ -5,8 +5,8 @@ import {
   expectSignedIn,
   fillSignIn,
   fillSignUp,
-  registerThroughApi,
-  registerThroughUi,
+  signupThroughApi,
+  signupThroughUi,
   signOutThroughUi,
 } from './auth-support'
 import { expectNoAxeViolations, uniqueEmail } from './support'
@@ -18,7 +18,7 @@ import { expectNoAxeViolations, uniqueEmail } from './support'
 
 test('sign up creates the account and lands signed in', async ({ page }) => {
   const email = uniqueEmail('sign-up')
-  await page.goto('/auth/register')
+  await page.goto('/auth/signup')
   await expect(page.getByRole('heading', { level: 1, name: 'Create your account' })).toBeVisible()
   await expectNoAxeViolations(page)
 
@@ -33,7 +33,7 @@ test('sign up creates the account and lands signed in', async ({ page }) => {
 })
 
 test('sign in, see the profile, sign out', async ({ page }) => {
-  const email = await registerThroughUi(page, 'profile')
+  const email = await signupThroughUi(page, 'profile')
   await signOutThroughUi(page, email)
 
   await page.goto('/auth/login')
@@ -61,7 +61,7 @@ test('a wrong password shows our copy and signs nobody in', async ({ page }) => 
 })
 
 test('a guarded page sends a visitor to sign in and back after signing in', async ({ page }) => {
-  const email = await registerThroughApi(page, 'guard')
+  const email = await signupThroughApi(page, 'guard')
   // The account exists; forget its session so the visitor is signed out.
   await page.context().clearCookies()
   await page.addInitScript(() => {

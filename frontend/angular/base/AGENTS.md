@@ -400,7 +400,7 @@ has none (the controls keep no such state), so none is used. Not used, on purpos
 <!-- @server-start -->
 **Guarding a route (the server's `auth` flag; the files exist only then).** `core/guards/` holds
 `authGuard` (a `CanMatchFn`: a visitor is redirected, with a `RedirectCommand`, to
-`/auth/login?next=<attempted path and query>`), `guestGuard` (login and register: an account goes
+`/auth/login?next=<attempted path and query>`), `guestGuard` (login and signup: an account goes
 home) and `roleGuard`. Put them on the route in the module's `*.routes.ts`:
 `{ path: '', canMatch: [authGuard], loadComponent: ... }`, and for a role
 `{ canMatch: [roleGuard], data: { roles: ['admin'] }, ... }` (a visitor goes to login, another role to
@@ -416,12 +416,12 @@ followed, anything else is `/`.
 **The session hint.** The session is two HttpOnly cookies; JavaScript never holds a token.
 `AuthStore` keeps a flag (`STORAGE_KEYS.session`, the value `'1'`, through `StorageService`): "this
 browser signed in". With the flag, start-up reads `GET /api/user/me` (`session.initializer.ts`) and a
-401 may trigger a refresh; without it a visitor's page load calls neither. A login or register sets
+401 may trigger a refresh; without it a visitor's page load calls neither. A login or signup sets
 it, a sign-out or a refused refresh clears it, and a network error or an outage keeps it. Never store
 anything else under it, and never branch on it outside the auth store and interceptor.
 
 **The form recipe, by example.** `pages/auth/auth.form.ts` is the pattern: one function per form
-(`loginForm()`, `registerForm()` with a `match('password', 'confirm')` confirm control,
+(`loginForm()`, `signupForm()` with a `match('password', 'confirm')` confirm control,
 `otpForm()`), each a `NonNullableFormBuilder` group validated by `zodValidator` over the generated
 request schema (`zCredentials`, `zOtpVerificationBody.pick({ code: true })`), so no limit is copied. The
 page calls the function in a field initializer, submits only a valid form, awaits a store method
@@ -599,7 +599,7 @@ store method that awaited the call shows the outcome.
   `HttpContext`, so only a request made with `HttpClient` directly can set it.
 - **401 and the session (with auth).** The auth interceptor, innermost, sends the cookies and turns a
   401 into one refresh and one replay, only when the session hint is set and the request is not one
-  of the exempt calls (`/api/auth/login`, `register`, `refresh`, `otp`, `otp/verification`: they answer
+  of the exempt calls (`/api/auth/login`, `signup`, `refresh`, `otp`, `otp/verification`: they answer
   401 for reasons a refresh cannot fix, and the generated client takes no `HttpContext`, so the
   exemption is by URL). Concurrent 401s share the one in-flight `AuthStore.refresh()`; a replay that
   fails again reaches the caller, and so does the original 401 when the refresh fails (a 400, 401 or
@@ -742,9 +742,9 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && node scripts/e2e-stat
 <!-- @server:auth-start -->
 
 - **Signed in.** `SIGNED_IN_ROUTES` (`/profile`, `/auth/verify-otp`) are captured after
-  `registerThroughApi`, which signs up through the API (the cookies land in the browser context)
+  `signupThroughApi`, which signs up through the API (the cookies land in the browser context)
   and plants the session hint (`localStorage` key `session`, the JSON string `"1"`). Entries share
-  one account per project because the register route is rate limited. `auth.spec.ts` covers
+  one account per project because the signup route is rate limited. `auth.spec.ts` covers
   sign-up, sign-in, the profile (`expectSignedIn` reads the account there), sign-out from the
   profile page, a wrong password and the guarded redirect with `next`. Two calls that expire
   together sharing one `/api/auth/refresh` is the interceptor's unit test.

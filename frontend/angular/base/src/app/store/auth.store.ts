@@ -131,9 +131,9 @@ export const AuthStore = signalStore(
           })
         },
 
-        register(credentials: Credentials): Promise<boolean> {
-          return enter('register', () => auth.register(credentials), {
-            conflict: 'auth.register.conflict',
+        signup(credentials: Credentials): Promise<boolean> {
+          return enter('signup', () => auth.signup(credentials), {
+            conflict: 'auth.signup.conflict',
           })
         },
 

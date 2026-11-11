@@ -9,13 +9,13 @@ export const PASSWORD = 'correct horse battery staple'
 // Signs up through the API, which sets the session cookies on the page's browser context, and
 // plants the session hint the app reads at start-up (the localStorage value StorageService
 // writes: the JSON string "1"). Call it before the first goto. The screens and the journeys that
-// are not about the form use it, so the register route's rate limit is spent once per account.
-export async function registerThroughApi(page: Page, run: string): Promise<string> {
+// are not about the form use it, so the signup route's rate limit is spent once per account.
+export async function signupThroughApi(page: Page, run: string): Promise<string> {
   const email = uniqueEmail(run)
-  const response = await page.request.post('/api/auth/register', {
+  const response = await page.request.post('/api/auth/signup', {
     data: { email, password: PASSWORD },
   })
-  expect(response.ok(), `register ${email}: ${String(response.status())}`).toBe(true)
+  expect(response.ok(), `signup ${email}: ${String(response.status())}`).toBe(true)
   await page.addInitScript(
     ([key, value]) => {
       localStorage.setItem(key, value)
@@ -38,10 +38,10 @@ export async function fillSignIn(page: Page, email: string, password = PASSWORD)
   await page.getByRole('button', { name: 'Sign in' }).click()
 }
 
-// The register form, then home, then the profile page names the account.
-export async function registerThroughUi(page: Page, run: string): Promise<string> {
+// The signup form, then home, then the profile page names the account.
+export async function signupThroughUi(page: Page, run: string): Promise<string> {
   const email = uniqueEmail(run)
-  await page.goto('/auth/register')
+  await page.goto('/auth/signup')
   await fillSignUp(page, email)
   await expect(page).toHaveURL(/\/$/, { timeout: 15_000 })
   await expectSignedIn(page, email)

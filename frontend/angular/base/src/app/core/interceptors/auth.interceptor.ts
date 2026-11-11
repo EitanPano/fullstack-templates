@@ -13,7 +13,7 @@ import { AuthStore } from '@app/store/auth.store'
 // the session. The generated client passes no HttpContext, so the exemption is by URL.
 const EXEMPT_PATHS: ReadonlySet<string> = new Set([
   '/api/auth/login',
-  '/api/auth/register',
+  '/api/auth/signup',
   '/api/auth/refresh',
   '/api/auth/otp',
   '/api/auth/otp/verification',

@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing'
 
-import { loginForm, otpForm, registerForm } from './auth.form'
+import { loginForm, otpForm, signupForm } from './auth.form'
 
 function messageKeyOf(control: { errors: Record<string, unknown> | null } | null): unknown {
   const zod = control?.errors?.['zod'] as { messageKey?: string } | undefined
@@ -36,16 +36,16 @@ describe('auth.form', () => {
     })
   })
 
-  describe('registerForm', () => {
+  describe('signupForm', () => {
     it('puts a match error on the confirm control while it differs', () => {
-      const form = TestBed.runInInjectionContext(registerForm)
+      const form = TestBed.runInInjectionContext(signupForm)
       form.setValue({ email: 'ada@example.com', password: 'longenough1', confirm: 'different1' })
       expect(form.controls.confirm.errors?.['match']).toBe(true)
       expect(form.valid).toBe(false)
     })
 
     it('is valid once the confirm control agrees', () => {
-      const form = TestBed.runInInjectionContext(registerForm)
+      const form = TestBed.runInInjectionContext(signupForm)
       form.setValue({ email: 'ada@example.com', password: 'longenough1', confirm: 'different1' })
       form.controls.confirm.setValue('longenough1')
       expect(form.controls.confirm.errors).toBeNull()
@@ -53,7 +53,7 @@ describe('auth.form', () => {
     })
 
     it('still reports the contract rules next to the match rule', () => {
-      const form = TestBed.runInInjectionContext(registerForm)
+      const form = TestBed.runInInjectionContext(signupForm)
       form.setValue({ email: 'ada@example.com', password: 'short', confirm: 'short' })
       expect(messageKeyOf(form.controls.password)).toBe('errors.minlength')
       expect(form.controls.confirm.errors).toBeNull()

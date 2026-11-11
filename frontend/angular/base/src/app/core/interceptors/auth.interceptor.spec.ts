@@ -178,7 +178,7 @@ describe('authInterceptor', () => {
 
     it.each([
       ['sign-in', '/api/auth/login', (auth: AuthService) => auth.login(CREDENTIALS)],
-      ['sign-up', '/api/auth/register', (auth: AuthService) => auth.register(CREDENTIALS)],
+      ['sign-up', '/api/auth/signup', (auth: AuthService) => auth.signup(CREDENTIALS)],
       ['the refresh itself', '/api/auth/refresh', (auth: AuthService) => auth.refresh()],
       [
         'an OTP request',

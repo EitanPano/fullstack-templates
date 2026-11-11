@@ -20,6 +20,7 @@ All paths are under `src/app/`.
 | `models/api/response.ts` | The error types, `ApiError`, `isApiError()`, `Paginated<T>` | The types are `models/api/type.ts` and `models/api/interface.ts` (`ApiErrorInit`); `ApiError` and `isApiError()` are `services/api-error.ts`; its cases are `services/api-error.spec.ts`. |
 | `models/api/error-copy.ts` | The code table and `errorMessageKey()` | The table is `ERROR_CODES` in `models/api/constant.ts`; `errorMessageKey()` is `core/config/error-copy.ts`, because a store and a page both read it. Its spec moved with it and imports the table. |
 | `shared/validators/server-errors.ts` | Took an `ApiError` | Takes `{ fieldErrors? }`, so `shared/` imports nothing from `services/`; every caller still passes an `ApiError`. |
+| Sign-up endpoint and flow names | `POST /api/auth/register`, `postApiAuthRegister`, `AuthService.register()`, `AuthStore.register()`, `registerForm()`, `RegisterComponent` (`app-register`), `pages/auth/register/`, `/auth/register`, `auth.register.*` and `auth.login.registerLink` keys, `.register__*` classes | `POST /api/auth/signup`, `postApiAuthSignup`, `signup()`, `signupForm()`, `SignupComponent` (`app-signup`), `pages/auth/signup/`, `/auth/signup`, `auth.signup.*` and `auth.login.signupLink` keys, `.signup__*` classes. The generated client is regenerated from the new contract; the copy does not change. A project generated before keeps the old names. |
 
 ### Changed
 

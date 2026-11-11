@@ -48,9 +48,9 @@ describe('AuthService', () => {
     expect(await result).toEqual(SESSION)
   })
 
-  it('registers with the credentials', async () => {
-    const result = service.register(CREDENTIALS)
-    const call = await request('/api/auth/register')
+  it('signs up with the credentials', async () => {
+    const result = service.signup(CREDENTIALS)
+    const call = await request('/api/auth/signup')
     expect(call.request.body).toEqual(CREDENTIALS)
     call.flush(SESSION)
     expect(await result).toEqual(SESSION)

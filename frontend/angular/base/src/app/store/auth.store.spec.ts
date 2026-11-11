@@ -35,7 +35,7 @@ const api = (status: number, code: ApiError['code']) => new ApiError({ status, c
 describe('AuthStore', () => {
   const auth = {
     login: vi.fn(),
-    register: vi.fn(),
+    signup: vi.fn(),
     refresh: vi.fn(),
     logout: vi.fn(),
     requestOtp: vi.fn(),
@@ -122,20 +122,20 @@ describe('AuthStore', () => {
     })
   })
 
-  describe('register', () => {
+  describe('signup', () => {
     it('signs the new account in', async () => {
-      auth.register.mockResolvedValue({ user: USER, tokens: {} })
+      auth.signup.mockResolvedValue({ user: USER, tokens: {} })
       const store = TestBed.inject(AuthStore)
-      expect(await store.register(CREDENTIALS)).toBe(true)
+      expect(await store.signup(CREDENTIALS)).toBe(true)
       expect(store.user()).toEqual(USER)
       expect(hint()).toBe('1')
     })
 
     it('toasts the taken address on a conflict', async () => {
-      auth.register.mockRejectedValue(api(409, 'conflict'))
+      auth.signup.mockRejectedValue(api(409, 'conflict'))
       const store = TestBed.inject(AuthStore)
-      expect(await store.register(CREDENTIALS)).toBe(false)
-      expect(showError).toHaveBeenCalledWith('auth.register.conflict')
+      expect(await store.signup(CREDENTIALS)).toBe(false)
+      expect(showError).toHaveBeenCalledWith('auth.signup.conflict')
     })
   })
 

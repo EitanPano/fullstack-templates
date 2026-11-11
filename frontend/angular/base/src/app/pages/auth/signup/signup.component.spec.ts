@@ -7,7 +7,7 @@ import { NotificationService } from '@app/core/providers/notification.service'
 import { ApiError } from '@app/services/api-error'
 import { AuthStore } from '@app/store/auth.store'
 
-import { RegisterComponent } from './register.component'
+import { SignupComponent } from './signup.component'
 
 function type(input: HTMLInputElement | undefined, value: string) {
   if (!input) throw new Error('input not found')
@@ -15,8 +15,8 @@ function type(input: HTMLInputElement | undefined, value: string) {
   input.dispatchEvent(new Event('input'))
 }
 
-describe('RegisterComponent', () => {
-  const register = vi.fn<(credentials: unknown) => Promise<boolean>>()
+describe('SignupComponent', () => {
+  const signup = vi.fn<(credentials: unknown) => Promise<boolean>>()
   const error = signal<ApiError | null>(null)
   const showError = vi.fn<(key: string) => number>(() => 1)
 
@@ -25,12 +25,12 @@ describe('RegisterComponent', () => {
       providers: [
         provideRouter([]),
         provideTestTranslator(),
-        { provide: AuthStore, useValue: { register, error, loading: signal(false) } },
+        { provide: AuthStore, useValue: { signup, error, loading: signal(false) } },
         { provide: NotificationService, useValue: { showError } },
       ],
     })
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true)
-    const fixture = TestBed.createComponent(RegisterComponent)
+    const fixture = TestBed.createComponent(SignupComponent)
     if (next !== undefined) fixture.componentRef.setInput('next', next)
     await fixture.whenStable()
     const element = fixture.nativeElement as HTMLElement
@@ -50,7 +50,7 @@ describe('RegisterComponent', () => {
   }
 
   beforeEach(() => {
-    register.mockReset()
+    signup.mockReset()
     showError.mockClear()
     error.set(null)
   })
@@ -58,31 +58,31 @@ describe('RegisterComponent', () => {
   it('has one h1 and links to the login screen', async () => {
     const { element } = await render()
     expect(element.querySelectorAll('h1')).toHaveLength(1)
-    expect(element.querySelector('.register__alt a')?.getAttribute('href')).toBe('/auth/login')
+    expect(element.querySelector('.signup__alt a')?.getAttribute('href')).toBe('/auth/login')
   })
 
   it('shows a mismatched confirmation on the confirm field and does not submit', async () => {
     const { element, submit, fill } = await render()
     fill('ada@example.com', 'longenough1', 'different1')
     await submit()
-    expect(register).not.toHaveBeenCalled()
+    expect(signup).not.toHaveBeenCalled()
     const errors = Array.from(element.querySelectorAll('.form-field__error')).map((node) =>
       node.textContent.trim(),
     )
     expect(errors).toEqual(['', '', 'The values do not match'])
   })
 
-  it('registers with the email and password only, then goes to next', async () => {
-    register.mockResolvedValue(true)
+  it('signs up with the email and password only, then goes to next', async () => {
+    signup.mockResolvedValue(true)
     const { navigate, submit, fill } = await render('/profile')
     fill('ada@example.com', 'longenough1', 'longenough1')
     await submit()
-    expect(register).toHaveBeenCalledWith({ email: 'ada@example.com', password: 'longenough1' })
+    expect(signup).toHaveBeenCalledWith({ email: 'ada@example.com', password: 'longenough1' })
     expect(navigate).toHaveBeenCalledWith('/profile')
   })
 
   it('goes home by default', async () => {
-    register.mockResolvedValue(true)
+    signup.mockResolvedValue(true)
     const { navigate, submit, fill } = await render()
     fill('ada@example.com', 'longenough1', 'longenough1')
     await submit()
@@ -90,7 +90,7 @@ describe('RegisterComponent', () => {
   })
 
   it('stays after a conflict without a second toast', async () => {
-    register.mockResolvedValue(false)
+    signup.mockResolvedValue(false)
     error.set(new ApiError({ status: 409, code: 'conflict' }))
     const { navigate, submit, fill } = await render()
     fill('ada@example.com', 'longenough1', 'longenough1')
@@ -100,7 +100,7 @@ describe('RegisterComponent', () => {
   })
 
   it('puts a server field error on its field', async () => {
-    register.mockResolvedValue(false)
+    signup.mockResolvedValue(false)
     error.set(
       new ApiError({
         status: 400,

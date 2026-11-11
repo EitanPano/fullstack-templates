@@ -13,12 +13,12 @@ import { safeNextPath } from '@app/shared/utils/next-path'
 import { applyFieldErrors } from '@app/shared/validators/server-errors'
 import { AuthStore } from '@app/store/auth.store'
 
-import { registerForm } from '../auth.form'
+import { signupForm } from '../auth.form'
 
-// The register screen: creates the account, which signs it in, and sends it to `next` or home.
+// The signup screen: creates the account, which signs it in, and sends it to `next` or home.
 // Failures follow the login screen's rule (the store toasts, validation lands on the fields).
 @Component({
-  selector: 'app-register',
+  selector: 'app-signup',
   imports: [
     AuthCardComponent,
     AutofocusDirective,
@@ -29,22 +29,22 @@ import { registerForm } from '../auth.form'
     RouterLink,
     TranslatePipe,
   ],
-  templateUrl: './register.component.html',
-  styleUrl: './register.component.scss',
+  templateUrl: './signup.component.html',
+  styleUrl: './signup.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class RegisterComponent {
+export class SignupComponent {
   protected readonly store = inject(AuthStore)
   private readonly router = inject(Router)
   private readonly notifications = inject(NotificationService)
 
   readonly next = input<string | undefined>(undefined)
-  protected readonly form = registerForm()
+  protected readonly form = signupForm()
 
   protected async submit(): Promise<void> {
     if (this.form.invalid || this.store.loading()) return
     const { email, password } = this.form.getRawValue()
-    if (await this.store.register({ email, password })) {
+    if (await this.store.signup({ email, password })) {
       await this.router.navigateByUrl(safeNextPath(this.next()))
       return
     }
