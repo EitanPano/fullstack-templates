@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { Suspense } from 'react'
 
 import { AuthCardSkeleton } from '@/shared/ui/pattern/skeletons'
-import { SignIn } from '@/widget/sign-in/ui/sign-in'
+import { SignIn } from './_components/sign-in'
 
 export const metadata: Metadata = { title: 'Sign in' }
 

@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { cn } from '@/shared/lib/cn'
+import { cn } from '@/shared/utils/cn'
 import { Tooltip as TooltipPrimitive } from 'radix-ui'
 
 function TooltipProvider({

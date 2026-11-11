@@ -1,4 +1,4 @@
-import { cn } from '@/shared/lib/cn'
+import { cn } from '@/shared/utils/cn'
 
 // The submit row of a form: sticks to the bottom of the viewport on phones so the primary
 // action stays in thumb reach, and sits inline from `sm` up.

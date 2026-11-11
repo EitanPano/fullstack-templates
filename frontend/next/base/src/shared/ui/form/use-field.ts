@@ -3,7 +3,7 @@
 import { useId } from 'react'
 import { get, useFormContext } from 'react-hook-form'
 
-import '@/shared/lib/zod-messages'
+import '@/models/zod-messages'
 
 // What every field binding needs of the form: a stable id, the error message for its name
 // (nested names like `address.city` work), and the ids that tie the control to its description

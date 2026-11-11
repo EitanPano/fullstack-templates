@@ -1,7 +1,7 @@
 import { Suspense, type ReactNode } from 'react'
 
 import { AuthCardSkeleton } from '@/shared/ui/pattern/skeletons'
-import { GuestOnly } from '@/widget/guest-only/ui/guest-only'
+import { GuestOnly } from './_components/guest-only'
 
 // The frame of the sign-in and sign-up screens: no shell, one centred `main`. The screen's card
 // supplies the page's `h1`. An account that is already signed in never sees these screens: the

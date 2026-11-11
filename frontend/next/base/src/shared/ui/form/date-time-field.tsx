@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useController } from 'react-hook-form'
 
-import { instantToWallTime, wallTimeToInstant } from '@/shared/lib/date'
+import { instantToWallTime, wallTimeToInstant } from '@/shared/utils/date'
 import { Input } from '@/shared/ui/input'
 
 import { FieldFrame } from './field-frame'

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { cn } from '@/shared/lib/cn'
+import { cn } from '@/shared/utils/cn'
 
 // The page container inside `main`: width, centring, gutters, vertical padding and a vertical
 // stack with one gap. `main` has none of these, so a full-bleed screen skips `Page`. Every other
