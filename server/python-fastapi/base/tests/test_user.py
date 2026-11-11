@@ -14,7 +14,7 @@ from app.models.auth.type import Caller
 from app.models.user.enums import ContactType, UserRole, UserStatus
 from app.models.user.type import ContactTarget, CreateUserInput, PublicUser
 from app.server import create_app
-from app.services.event import USER_REGISTERED, Unsubscribe, UserRegistered, drain, subscribe
+from app.services.event import USER_SIGNEDUP, Unsubscribe, UserSignedUp, drain, subscribe
 from app.services.utils.error import AppError
 from tests.auth_support import PASSWORD, UserPayload, bearer_of, mint_token
 from tests.store import reset_store, store_backed
@@ -360,15 +360,15 @@ class TestController:
 
         assert (error.code, error.message) == ("conflict", "email already registered")
 
-    async def test_create_user_stores_a_normalised_email_and_publishes_user_registered(
+    async def test_create_user_stores_a_normalised_email_and_publishes_user_signedup(
         self, cleanups: list[Unsubscribe]
     ) -> None:
         seen: list[str] = []
 
-        def record(payload: UserRegistered) -> None:
+        def record(payload: UserSignedUp) -> None:
             seen.append(payload["user_id"])
 
-        cleanups.append(subscribe(USER_REGISTERED, record))
+        cleanups.append(subscribe(USER_SIGNEDUP, record))
 
         created = await make_user("  Mixed@Example.com ")
         await drain()

@@ -13,7 +13,7 @@ export const OTP_TTL = '10m'
 export const OTP_MAX_ATTEMPTS = 5
 // @auth-end
 export const RATE_LIMITS = {
-  registerPerIp: { limit: 10, window: '15m' }, // @auth
+  signupPerIp: { limit: 10, window: '15m' }, // @auth
   loginPerIp: { limit: 10, window: '15m' }, // @auth
   loginPerEmail: { limit: 5, window: '15m' }, // @auth
   refreshPerIp: { limit: 30, window: '15m' }, // @auth

@@ -80,7 +80,7 @@
         }
       }
     },
-    "/api/auth/register": {
+    "/api/auth/signup": {
       "post": {
         "tags": [
           "auth"

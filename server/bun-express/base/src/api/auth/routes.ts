@@ -7,21 +7,21 @@ import { RATE_LIMITS } from '../../config/constants'
 import { authenticate, requireAuth } from '../../middleware/auth'
 import { byBodyPath, byBodyString, byIp, rateLimit } from '../../middleware/rate-limit'
 import { validate } from '../../middleware/validate'
-import { login, logout, refresh, register, requestOtp, verifyOtp } from './controller'
+import { login, logout, refresh, requestOtp, signup, verifyOtp } from './controller'
 import {
   loginRequest,
   logoutRequest,
   otpRequest,
   otpVerificationRequest,
   refreshRequest,
-  registerRequest,
+  signupRequest,
 } from './schema'
 
 const router = Router()
 
-const registerLimiter = rateLimit({
-  name: 'registerPerIp',
-  ...RATE_LIMITS.registerPerIp,
+const signupLimiter = rateLimit({
+  name: 'signupPerIp',
+  ...RATE_LIMITS.signupPerIp,
   key: byIp,
 })
 const loginIpLimiter = rateLimit({ name: 'loginPerIp', ...RATE_LIMITS.loginPerIp, key: byIp })
@@ -43,14 +43,14 @@ const otpTargetLimiter = rateLimit({
   key: byBodyPath('target', 'value'),
 })
 
-const validateRegister = validate(registerRequest)
+const validateSignup = validate(signupRequest)
 const validateLogin = validate(loginRequest)
 const validateRefresh = validate(refreshRequest)
 const validateLogout = validate(logoutRequest)
 const validateOtpVerification = validate(otpVerificationRequest)
 const validateOtp = validate(otpRequest)
 
-router.post('/register', registerLimiter, validateRegister, register)
+router.post('/signup', signupLimiter, validateSignup, signup)
 router.post('/login', loginIpLimiter, loginEmailLimiter, validateLogin, login)
 router.post('/refresh', refreshLimiter, validateRefresh, refresh)
 router.post('/logout', requireAuth, validateLogout, logout)

@@ -156,7 +156,7 @@ class TestGetUserOnPostgres:
         assert error_of(res).code == "validation_failed"
 
 
-class TestRegisterOnPostgres:
+class TestSignupOnPostgres:
     async def test_answers_one_201_and_one_409_conflict_for_two_concurrent_registrations(
         self, client: httpx.AsyncClient
     ) -> None:
@@ -165,7 +165,7 @@ class TestRegisterOnPostgres:
 
             async def send() -> httpx.Response:
                 return await client.post(
-                    "/api/auth/register",
+                    "/api/auth/signup",
                     json={"email": "race@example.com", "password": PASSWORD},
                 )
 

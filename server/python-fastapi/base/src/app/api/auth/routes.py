@@ -9,7 +9,7 @@ from collections.abc import Awaitable, Callable
 
 from fastapi import APIRouter, Depends, Request, Response
 
-from app.api.auth.controller import login, logout, refresh, register, request_otp, verify_otp
+from app.api.auth.controller import login, logout, refresh, request_otp, signup, verify_otp
 from app.api.auth.schema import Accepted, AuthSession, OtpVerified
 from app.config.constants import RATE_LIMITS, RateLimit
 from app.middleware.auth import authenticate, require_auth
@@ -23,7 +23,7 @@ def _limiter(name: str, policy: RateLimit, key: KeyOf) -> Callable[[Request], Aw
     return rate_limit(name=name, limit=policy.limit, window=policy.window, key=key)
 
 
-register_limiter = _limiter("registerPerIp", RATE_LIMITS.register_per_ip, by_ip)
+signup_limiter = _limiter("signupPerIp", RATE_LIMITS.signup_per_ip, by_ip)
 login_ip_limiter = _limiter("loginPerIp", RATE_LIMITS.login_per_ip, by_ip)
 login_email_limiter = _limiter(
     "loginPerEmail", RATE_LIMITS.login_per_email, by_body_string("email")
@@ -38,8 +38,8 @@ otp_target_limiter = _limiter(
 )
 
 router.add_api_route(
-    "/register",
-    register,
+    "/signup",
+    signup,
     methods=["POST"],
     status_code=201,
     response_model=AuthSession,
@@ -47,7 +47,7 @@ router.add_api_route(
     responses={**error_responses(400, 409, 429, 500)},
     summary="Create an account and start a session",
     tags=["auth"],
-    dependencies=[Depends(register_limiter)],
+    dependencies=[Depends(signup_limiter)],
 )
 router.add_api_route(
     "/login",
