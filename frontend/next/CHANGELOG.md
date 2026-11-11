@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.1.0 — unreleased
+## 3.1.0 — 2026-11-11
 
 Generates correctly without a server (ADR 0011). A stack's output is unchanged; a frontend generated alone now carries nothing that reaches a server.
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.1.0 — unreleased
+## 3.1.0 — 2026-11-11
 
 A frontend generated without a server ([ADR 0011](../../docs/adr/0011-frontend-without-a-server.md)) carries nothing that reaches one. A stack's output is unchanged, byte for byte.
 
