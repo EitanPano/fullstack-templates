@@ -64,8 +64,11 @@ bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] 
   ends with `down -v`. For a stack with a static frontend it also checks the SPA shell, a deep
   link, the JSON 404, and the server's public directory (`single`) or a non-root frontend
   container (`split`), then, with `--e2e`, runs the frontend's e2e suite against the container
-  with `E2E_BASE_URL`. CI passes `--with-services --with-app`. Run Postgres cases one at a time on
-  one machine: they publish the database on host port 5432.
+  with `E2E_BASE_URL`. CI runs every case with `--e2e --with-services --with-app` on a pull
+  request into `main`, a manual run and a tag; a pull request into `dev` runs only the touched
+  templates' cases (every case when `tools/`, `shared/`, `stacks/`, `schemas/` or `index.yaml`
+  changes) with `--with-services` and no e2e (`.github/select-cases.ts`). Run Postgres cases one
+  at a time on one machine: they publish the database on host port 5432.
 
 ## Adding a template
 
