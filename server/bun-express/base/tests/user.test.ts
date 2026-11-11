@@ -286,9 +286,9 @@ describeStore('controller', () => {
     })
   })
 
-  it('createUser stores a normalised email and publishes user.registered', async () => {
+  it('createUser stores a normalised email and publishes user.signedup', async () => {
     const seen: string[] = []
-    const unsubscribe = subscribe('user.registered', ({ userId }) => {
+    const unsubscribe = subscribe('user.signedup', ({ userId }) => {
       seen.push(userId)
     })
 

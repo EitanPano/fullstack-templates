@@ -12,14 +12,14 @@ describe('event', () => {
   it('delivers the typed payload to a subscriber', async () => {
     const seen: string[] = []
     cleanups.push(
-      subscribe('user.registered', ({ userId }) => { // @auth
+      subscribe('user.signedup', ({ userId }) => { // @auth
       subscribe('module.created', ({ moduleId }) => { // @noauth
         seen.push(userId) // @auth
         seen.push(moduleId) // @noauth
       }),
     )
 
-    await publish('user.registered', { userId: 'u1' }) // @auth
+    await publish('user.signedup', { userId: 'u1' }) // @auth
     await publish('module.created', { moduleId: 'm1' }) // @noauth
     await drain()
 
@@ -32,18 +32,18 @@ describe('event', () => {
     // The failure is logged on purpose; capture it so a green run prints no stack trace.
     const logs = captureLogs([/^subscriber failed topic=\S+ reason=boom/])
     cleanups.push(
-      subscribe('user.registered', () => { // @auth
+      subscribe('user.signedup', () => { // @auth
       subscribe('module.created', () => { // @noauth
         throw new Error('boom')
       }),
-      subscribe('user.registered', () => { // @auth
+      subscribe('user.signedup', () => { // @auth
       subscribe('module.created', () => { // @noauth
         ran = true
       }),
     )
 
     try {
-      await publish('user.registered', { userId: 'u2' }) // @auth
+      await publish('user.signedup', { userId: 'u2' }) // @auth
       await publish('module.created', { moduleId: 'm2' }) // @noauth
       await drain()
     } finally {
@@ -56,13 +56,13 @@ describe('event', () => {
 
   it('stops delivering after unsubscribe', async () => {
     let calls = 0
-    const unsubscribe = subscribe('user.registered', () => { // @auth
+    const unsubscribe = subscribe('user.signedup', () => { // @auth
     const unsubscribe = subscribe('module.created', () => { // @noauth
       calls += 1
     })
 
     unsubscribe()
-    await publish('user.registered', { userId: 'u3' }) // @auth
+    await publish('user.signedup', { userId: 'u3' }) // @auth
     await publish('module.created', { moduleId: 'm3' }) // @noauth
     await drain()
 

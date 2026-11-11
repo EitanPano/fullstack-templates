@@ -19,7 +19,7 @@ import { PublicUser } from '../user/schema'
 // Trimmed and lower-cased before the format check, so "  Ada@Example.com " is one account.
 const Email = z.string().trim().toLowerCase().max(USER_LIMITS.email.max).pipe(z.email())
 
-// HTTP-only: the input of register and login.
+// HTTP-only: the input of signup and login.
 export const Credentials = z
   .object({
     email: Email,
@@ -80,7 +80,7 @@ export const Accepted = z.object({}).openapi('Accepted')
 
 // The request parts each endpoint validates: routes.ts hands one to validate(), the controller
 // reads the parsed result back with readInput(), so the two cannot disagree.
-export const registerRequest = { body: Credentials }
+export const signupRequest = { body: Credentials }
 export const loginRequest = { body: Credentials }
 export const refreshRequest = { body: RefreshBody }
 export const logoutRequest = { body: LogoutBody }
@@ -90,7 +90,7 @@ export const otpVerificationRequest = { body: OtpVerificationBody }
 export function registerAuth(registry: OpenAPIRegistry) {
   registry.registerPath({
     method: 'post',
-    path: '/api/auth/register',
+    path: '/api/auth/signup',
     tags: ['auth'],
     summary: 'Create an account and start a session',
     request: { body: jsonBody(Credentials) },

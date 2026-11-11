@@ -6,7 +6,7 @@
 import { pubsub } from '../infra/pubsub'
 
 export type Events = {
-  'user.registered': { userId: string } // @auth
+  'user.signedup': { userId: string } // @auth
   'module.created': { moduleId: string }
 }
 
