@@ -5,8 +5,8 @@ import forbiddenRoutes from '@/pages/forbidden/forbidden.routes' // @server:auth
 import homeRoutes from '@/pages/home/home.routes'
 import notFoundRoutes from '@/pages/not-found/not-found.routes'
 import userRoutes from '@/pages/user/user.routes' // @server:auth
-import AppAuthLayout from '@/components/app-auth-layout.vue' // @server:auth
-import AppMainLayout from '@/components/app-main-layout.vue'
+import AppAuthLayout from '@/layout/app-auth-layout/app-auth-layout.vue' // @server:auth
+import AppMainLayout from '@/layout/app-main-layout/app-main-layout.vue'
 
 // The route table, composed here and nowhere else. Every feature contributes one lazy
 // `*.routes.ts` file under the main layout (the skip link, `main` and the toasts); the catch-all

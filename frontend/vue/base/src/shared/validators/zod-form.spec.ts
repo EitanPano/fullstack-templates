@@ -4,8 +4,8 @@ import { defineComponent, h } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod'
 
-import BaseInput from '@/shared/components/base-input.vue'
-import FormField from '@/shared/components/form-field.vue'
+import BaseInput from '@/shared/components/form/base-input.vue'
+import FormField from '@/shared/components/form/form-field/form-field.vue'
 import { renderWithApp } from '@/testing/render'
 
 import { match } from './match'

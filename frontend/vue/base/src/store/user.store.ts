@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
-import { errorMessageKey } from '@/models/api/error-copy'
-import type { PublicUser, UpdateMeBody } from '@/models/user/interface'
+import { errorMessageKey } from '@/core/config/error-copy'
+import type { PublicUser, UpdateMeBody } from '@/models/user/type'
 import { userService } from '@/services/user.service'
 
 import { useAuthStore } from './auth.store'

@@ -1,4 +1,4 @@
-import type { PublicUser, UpdateMeBody } from '@/models/user/interface'
+import type { PublicUser, UpdateMeBody } from '@/models/user/type'
 
 import { getApiUserMe, patchApiUserMe } from './generated/sdk.gen'
 

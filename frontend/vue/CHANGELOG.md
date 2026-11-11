@@ -1,5 +1,27 @@
 # Changelog
 
+## 4.0.0 — 2026-11-11
+
+The owner's folder rules ([ADR 0012](../../docs/adr/0012-next-spa-tree-colocated-scss.md)): `models/` holds one folder per noun with four file names, one folder is named `components`, and a component of two or more files is a folder. Markup, class names, copy, routes, URLs and behaviour are unchanged. A project generated from 3.x keeps its tree; there is no migration tool.
+
+### Breaking
+
+All paths are under `src/`.
+
+| What | Before | Now, and what a project generated before does |
+| --- | --- | --- |
+| App chrome | `components/app-*.{vue,scss,spec.ts}`, `components/rtl.spec.ts` | `layout/app-*/app-*.{vue,scss,spec.ts}` (a folder per component), `layout/rtl.spec.ts`. The lint element `components` is now `layout`, and its messages say so. |
+| Page screens | `pages/<module>/<name>-page.{vue,scss,spec.ts}` | `pages/<module>/<name>-page/<name>-page.{vue,scss,spec.ts}`; the `*.routes.ts` lazy imports and the lint's page patterns follow. A page's own component is a `.vue` beside its pages that is not a `*-page.vue` (the old `pages/<module>/components/` is gone). |
+| Shared components | `shared/components/<name>.{vue,scss,spec.ts}` | `shared/components/<name>/<name>.{vue,scss,spec.ts}`; imports name the file (`@/shared/components/base-button/base-button.vue`). |
+| Form controls | `shared/components/{base-input,base-textarea,base-checkbox,base-select,form-field,form-actions}.*`, `form-field-context.ts`, `controls.scss` | `shared/components/form/`: `form-field/` and `form-actions/` are folders; the four controls stay files beside `controls.scss`, the sheet they share, and their four specs are one `form-controls.spec.ts` (every test kept). `form-field-context.ts` sits in `form/`. |
+| `models/user/` | `interface.ts` (re-exports, `Role`), `constants.ts`, `constants.spec.ts` | `type.ts`, `constant.ts` (singular); the spec of the constants is `tests/unit/user-constant.spec.ts`. |
+| `models/api/` | `response.ts` (types, `isApiError`, `toApiError`), `error-copy.ts`, and their specs | `type.ts` holds the types. `isApiError` and `toApiError` are `services/api-error.ts`; `ERROR_CODES` and `errorMessageKey` are `core/config/error-copy.ts` (a page and a store both read it, and neither may import the other's layer). Specs moved with their code. |
+| `models/nav/`, `models/notification/` | One `interface.ts` of type aliases | `models/nav/interface.ts` declares `interface NavEntry`; `models/notification/` splits into `type.ts` (`ToastKind`, `ToastParams`) and `interface.ts` (`Toast`, `ToastAction`). Lint checks the keyword per file kind. |
+| `confirm-dialog` | Its `<style>` block pointed at `base-modal.scss`, the sheet it shared with `base-modal` | The block is gone: it renders `BaseModal`, which loads that sheet, so the CSS is the same. The sheet has one owner. |
+| Lint and tests | | `eslint.config.mjs`: element `layout`; page screens and page components told apart by file name; `consistent-type-definitions` is `interface` in `models/*/interface.ts`. New `tests/unit/folders.spec.ts` (the `models/` file names, the component-folder rule, one `components` folder). `styles-tree.spec.ts` and `eslint-boundaries.spec.ts` re-pathed; each rule keeps a refused and an allowed case. |
+| `template.yaml` | `onlyPaths` and `onlyWhen` named the old paths | Re-pathed; `core/config/error-copy.*`, `services/api-error.*` are gated on `server`, `tests/unit/user-constant.spec.ts` on `server:auth`. |
+| `AGENTS.md`, `README.md` | The old layer names and paths | Only the sentences that named a moved path or a changed rule. |
+
 ## 3.1.0 — 2026-11-11
 
 A frontend generated without a server ([ADR 0011](../../docs/adr/0011-frontend-without-a-server.md)) carries nothing that reaches one. A stack's output is unchanged, byte for byte.

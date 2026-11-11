@@ -1,4 +1,4 @@
-import type { ApiError } from '@/models/api/response'
+import type { ApiError } from '@/models/api/type'
 
 import type { FieldError } from './zod-form'
 
