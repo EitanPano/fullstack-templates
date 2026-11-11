@@ -6,6 +6,7 @@ Plan: `fullstack-dev-harness/.plan/013-2026-10-26-frontend-foundation.md`
 Amends: `docs/conventions.md` (frontend and SPA contracts) and `docs/capabilities.md` (cross-package
 selections)
 Supersedes in part: ADR 0004 (see "What this supersedes")
+Amended by [ADR 0012](0012-next-spa-tree-colocated-scss.md) (v1.12.0): Next's Feature-Sliced layers, the shadcn design system and Tailwind leave (F1, F2 for `frontend/next`).
 
 ## Context
 

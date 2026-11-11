@@ -66,7 +66,7 @@ The ten invariants of `docs/conventions.md › Frontend` hold; invariant 6 loses
 | From | May import |
 | --- | --- |
 | `app/` (route files and `_components/`) | components, services (not from a `'use client'` file), actions, store, core, shared, models |
-| `app/<route>/_components/*` | as `app/`; imported only by files in the folder that holds that `_components/` |
+| `app/<route>/_components/*` | as `app/`; imported only by files in the folder that holds that `_components/`, or below it |
 | `components/` | services (not from a `'use client'` file), actions, store, core, shared, models; never `app/` |
 | `actions/` | services, core, shared, models |
 | `services/` | `services/generated`, core, models |
@@ -80,7 +80,9 @@ The ten invariants of `docs/conventions.md › Frontend` hold; invariant 6 loses
 - The local rule `client-server-import` is re-pathed: a `'use client'` file imports from
   `services/` and `core/auth/` types only, and from `actions/` freely.
 - A new local rule, `route-components`: a file under a `_components/` folder is imported only from
-  the folder that holds it. Two routes that need one piece move it to `components/app-<name>`.
+  the folder that holds it or a folder below it, so a route and its nested routes share their
+  pieces as a React module's pages share `pages/<module>/components/`. Unrelated routes that need
+  one piece move it to `components/app-<name>`.
 - Kept, re-pathed: `button`, `input`, `select` and `textarea` JSX only in `shared/components/`;
   `fetch(` and `revalidatePath` only in `services/`; `process.env` only in `core/config/env.ts`.
   New, from React: no `style` attribute; a stylesheet import is the owner's sibling
@@ -93,7 +95,8 @@ The ten invariants of `docs/conventions.md › Frontend` hold; invariant 6 loses
   `breakpoints`, `functions`, `mixins`, `typography`, `layers`), `themes/` (`light`, `dark`,
   `brand.css` with the generator's blocks), `basics/` (`helpers`, `base`, `layout`), in cascade
   layers (`@layer setup, themes, basics`). `app/layout.tsx` imports Inter, `themes/brand.css`, then
-  `styles.scss`, and nothing else loads them.
+  `styles.scss`; `app/global-error.tsx`, which replaces it, does the same, and nothing else loads
+  them.
 - Every page, layout and component owns a sibling `.scss` with its stem, imported as its last
   import; it `@use`s `setup/...` through the Sass load path. BEM classes composed with `cn`
   (`clsx` alone), each block's name unique across the app: a loaded sheet stays in the document
@@ -237,6 +240,30 @@ sheet, which carried the whole kit; the build time did not move.
   'sass-embedded', loadPaths: [<src/styles>] }`; it works under Turbopack in `next dev` and
   `next build`. Vitest stubs a stylesheet import by default, so `vitest.config.mts` needs no Sass
   option; the density test compiles the tree itself.
+- **`models/zod-messages.ts`, not `shared/utils/` (C2).** A form schema lives in `models/<noun>.ts`
+  and imports zod's configuration for its side effect, and `models/` imports only `models/`. The
+  configuration is the one file in `models/` that is not a noun.
+- **`services/generated` is a lint element of its own (C2)**, so "types anywhere, values only from
+  `zod.gen`" is enforceable for `models/`: `actions/`, `core/`, `services/` and `models/` may
+  import it; `app/`, `components/`, `store/` and `shared/` read the contract through a model.
+- **`onlyWhen` lists files of `services/`, not the folder (C2).** `validate` refuses a folder
+  under one selection with a file inside it under another, and `services/user.ts` exists only
+  with the server's auth.
+- **Which kit files are client (C3).** `confirm-dialog`, `error-state`, `toaster` and every
+  `form/` binding carry `'use client'`. The Radix wrappers, `Button` and the patterns do not: the
+  Radix package marks its own primitives, and a build that rendered every wrapper from a Server
+  Component passed.
+- **`toaster.scss` uses `!important` (C3).** Sonner injects an unlayered stylesheet, which beats a
+  layered rule; an important declaration in a layer beats it back. It is the one kit sheet that
+  styles a third party's markup, and the six declarations sit on Sonner's root only.
+- **`components/app-auth-loading`** replaces the `AuthCardSkeleton` pattern (C3), as React has it.
+  The Sass load path is `path.join(import.meta.dirname, 'src/styles')`.
+- **From the review (C5).** `app/global-error.tsx` loads the global tree as `app/layout.tsx`
+  does: it replaces the root layout and renders its own document, and without the import it drew
+  with no tokens, font or reset. `route-components` lets a nested route import its parent's
+  `_components/` (N2, first written as the holding folder only): the strict form pushed a
+  module's own pieces into the app-wide `components/`. Both local rules also check a dynamic
+  `import()`. Every file of `services/` imports `server-only` itself.
 - **Lightning CSS rewrites the layer statement and the tokens (S5).** It emits only the part of
   the `@layer` order statement that names a layer with no block in that file (`@layer kit;`,
   after the `basics` block) and keeps the global blocks in source order, so the order holds. It

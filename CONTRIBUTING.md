@@ -351,7 +351,7 @@ config also gets `__SERVER_START_COMMAND__` (the server's `start` command),
 `__SERVER_E2E_DATABASE_URL__` (the provider's `e2e` URL; empty without one). A frontend also gets
 the brand placeholders `__PROJECT_DISPLAY_NAME__`, `__THEME_LIGHT__`, `__THEME_DARK__`,
 `__THEME_RADIUS__`, `__THEME_DEFAULT__`, `__THEME_DENSITY__`, `__THEME_FONT__` and
-`__THEME_FONT_STACK__` (the CSS blocks go into `globals.css`). A declared token left in the output
+`__THEME_FONT_STACK__` (the CSS blocks go into `src/styles/themes/brand.css`, in every frontend). A declared token left in the output
 fails the run; undeclared tokens such as `__dirname` are ignored.
 
 ## Refreshing `frontend/next/base`
@@ -361,7 +361,7 @@ When Next is bumped:
 1. Scaffold a clean app with the new version:
 
    ```sh
-   bun x create-next-app@<version> frontend --ts --tailwind --eslint --app --src-dir \
+   bun x create-next-app@<version> frontend --ts --no-tailwind --eslint --app --src-dir \
      --import-alias "@/*" --use-bun --disable-git --no-agent-feedback --skip-install --yes
    ```
 
@@ -369,16 +369,15 @@ When Next is bumped:
 3. Re-apply the overlay files and the placeholder edits from the current `base/`.
 4. Check every pin against the registry (`npm view <pkg> time --json` and its peers; the latest
    stable at least 14 days old). The foundation pins are `@hey-api/openapi-ts`, `next-safe-action`,
-   `@next-safe-action/adapter-react-hook-form`, `react-hook-form`, `@hookform/resolvers`, the
-   shadcn CLI, `eslint-plugin-boundaries`, `next-themes`, `date-fns` and `@date-fns/tz`.
+   `@next-safe-action/adapter-react-hook-form`, `react-hook-form`, `@hookform/resolvers`,
+   `eslint-plugin-boundaries`, `next-themes`, `sass-embedded` (React's pin), `date-fns` and
+   `@date-fns/tz`.
    `@hey-api/openapi-ts` is 0.x and a minor can change its output, so it moves only with a
    regenerated `generated/` that is read in the diff. ESLint stays at 9 while a plugin peers it.
 5. Run `bun install` and commit `bun.lock`.
-6. Add or update shadcn components with `bunx shadcn@<pin> add <name>` run in a generated project's
-   package, never `shadcn init`; copy the result into `base/src/shared/ui/`, keep the
-   `components.json` aliases, and replace palette literals with tokens. Diff the copied source
-   against the previous copy: shadcn copies source, so an upgrade is a diff, not a version bump.
-7. Regenerate `src/shared/api/generated/` with the template's `contract` command (Hey API) from a
+6. The kit is a port of `frontend/react/base/src/shared/components`: carry a change to a React
+   primitive over by hand, keeping `@layer kit` and `'use client'`.
+7. Regenerate `src/services/generated/` with the template's `contract` command (Hey API) from a
    server template's `openapi.json`, and commit it.
 8. Run `tests/unit/eslint-boundaries.test.ts`. It lints one violation and one allowed case per rule
    through the real `eslint.config.mjs`, so a new config block that overlaps a rule fails it.
@@ -580,10 +579,13 @@ the lockfiles is still to be configured.
   fields for a server's flags, the `e2eDb` command, the provider's `e2e` URL); v1.4.1 adds the case
   field `brand`; v1.5.0 and v1.5.1 add none; v1.11.0 widens `onlyWhen` (a bare `server` key, an
   object form) without a bump.
-- This release is `v1.11.0`, a minor: `frontend/next` 3.1.0, `frontend/react` 5.1.0,
-  `frontend/vue` 3.1.0 and `frontend/angular` 3.1.0, four template minors (each generates without a
-  server; [ADR 0011](docs/adr/0011-frontend-without-a-server.md)); both servers unchanged;
-  `schemaVersion` 1; a tool change (the generator, `onlyWhen` widened). The previous release,
+- This release is `v1.12.0`, a minor: `frontend/next` 4.0.0, one template major (the SPA layer
+  names and co-located SCSS; [ADR 0012](docs/adr/0012-next-spa-tree-colocated-scss.md)); the other
+  frontends and both servers unchanged; `schemaVersion` 1; a one-line tools change (the generated
+  client's directory). The previous release, `v1.11.0`, a minor, was `frontend/next` 3.1.0,
+  `frontend/react` 5.1.0, `frontend/vue` 3.1.0 and `frontend/angular` 3.1.0, four template minors
+  (each generates without a server; [ADR 0011](docs/adr/0011-frontend-without-a-server.md)); both
+  servers unchanged; `schemaVersion` 1; a tool change (the generator, `onlyWhen` widened). Before it,
   `v1.10.0`, a minor, was `frontend/next` 3.0.0, `frontend/react` 5.0.0, `frontend/vue` 3.0.0 and
   `frontend/angular` 3.0.0, four template majors (the template's header, navigation, footer and
   health example screen leave; the main layout is a skip link and one `main`;
