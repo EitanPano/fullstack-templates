@@ -1,6 +1,6 @@
 # Changelog
 
-## 5.1.0 — unreleased
+## 5.1.0 — 2026-11-11
 
 The package generates without a server ([ADR 0011](../../docs/adr/0011-frontend-without-a-server.md)). A stack's output is unchanged (provenance records the new version, nothing else differs); generated alone, everything that reaches the server is left out and the package still passes `check` and its e2e suite. The harness adds the parts later (`scripts/scaffold.mjs`).
 

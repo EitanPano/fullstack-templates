@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.1.0 — unreleased
+## 3.1.0 — 2026-11-11
 
 The template generates correctly without a server ([ADR 0011](../../docs/adr/0011-frontend-without-a-server.md)). A generation with a server is unchanged except for the dev proxy file (below).
 
