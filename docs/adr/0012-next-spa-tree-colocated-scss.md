@@ -210,9 +210,8 @@ The lock bump, and the wording that names Next's old layers or its utility class
 
 - One vocabulary across the four frontends for a noun's reads and its sheet; Next adds
   `actions/` and keeps `app/` as its pages layer.
-- Next is the first template on the owner's folder rules. Until their own majors, React, Vue and
-  Angular keep `components/app-*`; React keeps `models/<noun>.ts` and flat kit files, Vue flat
-  kit files, and Vue, Angular and the servers spell the constants file `constants.ts`.
+- Next was the first template on the owner's folder rules; React, Vue and Angular follow in the
+  same release ([ADR 0013](0013-owner-folder-rules-and-signup.md)).
 - The kit is a port: a fix to a React primitive's sheet is copied to Next by hand until the kit is
   a shared part (out of scope).
 - A brief that names Tailwind or shadcn no longer matches a template; the harness's bootstrap
@@ -289,7 +288,7 @@ sheet, which carried the whole kit; the build time did not move.
   `models/*/interface.ts` and `type` elsewhere. `tests/unit/folders.test.ts` enforces the
   `models/` file names and the component folders.
 - **Every API call is in `services/<entity>.ts` (C7, the owner's rule 2).** `services/auth.ts`
-  holds `login`, `signup` (his name for it; the endpoint stays `POST /api/auth/register`),
+  holds `login`, `signup` (his name for it; ADR 0013 renames the endpoint to `POST /api/auth/signup`),
   `logout` and `refresh`; `services/user.ts` holds `getMe`, memoised per request, and
   `getProfile`, which the profile page reads instead of taking the session's copy; the
   actions, `core/auth/refresh.ts` and `core/auth/session.ts` called the generated client

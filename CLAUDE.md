@@ -198,7 +198,7 @@ gates -> controller handler -> service -> db seam -> infra store`), import direc
 the language's own tool (ESLint import zones in bun-express, import-linter contracts in
 `pyproject.toml` for python-fastapi), OpenAPI 3.1 produced from the validation schemas, one error
 envelope, `/api/health` and `/api/health/ready`. A frontend's layer map is in its
-`AGENTS.md`; the shared names are `components/`, `services/`, `store/`, `models/`, `shared/`,
+`AGENTS.md`; the shared names are `layout/`, `services/`, `store/`, `models/`, `shared/`,
 `core/`, `styles/`, plus `pages/` in the SPAs or `app/` and `actions/` in Next. The client generated
 from the server's `openapi.json` (the `contract` command) is in `services/generated/` (Angular:
 `src/app/services/generated/`). Server-rendered (Next's server calls the API through `API_URL`) or

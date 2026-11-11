@@ -405,7 +405,7 @@ When a dependency moves or the base is regenerated:
      `src/core/config/api-client.ts`), sdk and zod. No TanStack plugin.
 3. Run `bun install` and commit `bun.lock`; `bun tools/validate.ts --lockfiles` checks it with
    `--frozen-lockfile`.
-4. No scaffolder. A new component is a file in `src/shared/components/` on a `radix-ui` primitive
+4. No scaffolder. A new component is a folder in `src/shared/components/` on a `radix-ui` primitive
    plus a sibling stylesheet with the component's stem (imported last in the component); a new
    screen is a page in `pages/<module>/` with its own sibling sheet. `src/styles/themes/brand.css` holds the generator's token placeholders and is
    never edited (it is Prettier-ignored because Prettier cannot parse the placeholders).
@@ -488,7 +488,7 @@ When a dependency moves or the base is regenerated:
      exactly.
 2. Run `bun install` and commit `bun.lock`; `bun tools/validate.ts --lockfiles` checks it with
    `--frozen-lockfile`.
-3. No scaffolder. A new component is a `.vue` file in `src/shared/components/` on a `reka-ui`
+3. No scaffolder. A new component is a folder in `src/shared/components/` with its `.vue` file on a `reka-ui`
    primitive plus a sibling stylesheet with the component's stem (an empty
    `<style lang="scss" src>` block).
    `src/styles/themes/brand.css` holds the generator's token placeholders and is never edited, so an
@@ -579,10 +579,12 @@ the lockfiles is still to be configured.
   fields for a server's flags, the `e2eDb` command, the provider's `e2e` URL); v1.4.1 adds the case
   field `brand`; v1.5.0 and v1.5.1 add none; v1.11.0 widens `onlyWhen` (a bare `server` key, an
   object form) without a bump.
-- This release is `v1.12.0`, a minor: `frontend/next` 4.0.0, one template major (the SPA layer
-  names and co-located SCSS; [ADR 0012](docs/adr/0012-next-spa-tree-colocated-scss.md)); the other
-  frontends and both servers unchanged; `schemaVersion` 1; a one-line tools change (the generated
-  client's directory). The previous release, `v1.11.0`, a minor, was `frontend/next` 3.1.0,
+- This release is `v1.12.0`, a minor with six template majors: `frontend/next` 4.0.0 (the SPA layer
+  names and co-located SCSS; [ADR 0012](docs/adr/0012-next-spa-tree-colocated-scss.md)), and with
+  it `frontend/react` 6.0.0, `frontend/vue` 4.0.0 and `frontend/angular` 4.0.0 on one set of folder
+  rules, `server/bun-express` 3.0.0 and `server/python-fastapi` 2.0.0 with the sign-up endpoint
+  `POST /api/auth/signup` ([ADR 0013](docs/adr/0013-owner-folder-rules-and-signup.md));
+  `schemaVersion` 1; a one-line tools change (the generated client's directory). The previous release, `v1.11.0`, a minor, was `frontend/next` 3.1.0,
   `frontend/react` 5.1.0, `frontend/vue` 3.1.0 and `frontend/angular` 3.1.0, four template minors
   (each generates without a server; [ADR 0011](docs/adr/0011-frontend-without-a-server.md)); both
   servers unchanged; `schemaVersion` 1; a tool change (the generator, `onlyWhen` widened). Before it,

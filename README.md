@@ -205,7 +205,12 @@ stack; production does not refuse its credentials if you export them.
 - v1.12.0: `frontend/next` 4.0.0 takes the layer names of the single-page templates (`app/` as the
   pages layer, `layout/`, `services/`, `actions/`, `models/`, `shared/`, `core/`, `styles/`) and
   their SCSS tree, with a kit layer; Tailwind and shadcn leave
-  ([ADR 0012](docs/adr/0012-next-spa-tree-colocated-scss.md)). The other templates are unchanged.
+  ([ADR 0012](docs/adr/0012-next-spa-tree-colocated-scss.md)). All four frontends take one set of
+  folder rules (`models/<entity>/` of four file kinds, `layout/` for the chrome, the form controls
+  in `shared/components/form/`, a folder per multi-file component: `frontend/react` 6.0.0,
+  `frontend/vue` 4.0.0, `frontend/angular` 4.0.0), and the sign-up endpoint is
+  `POST /api/auth/signup` (`server/bun-express` 3.0.0, `server/python-fastapi` 2.0.0;
+  [ADR 0013](docs/adr/0013-owner-folder-rules-and-signup.md)).
 - Next: mongodb, redis, and a worker with rabbitmq.
 
 The design is in [ADR 0001](docs/adr/0001-catalog-architecture.md).
