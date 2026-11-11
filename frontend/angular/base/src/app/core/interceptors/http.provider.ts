@@ -1,7 +1,7 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http'
 
 import { authInterceptor } from './auth.interceptor' // @server:auth
-import { errorInterceptor } from './error.interceptor'
+import { errorInterceptor } from './error.interceptor' // @server
 import { loadingInterceptor } from './loading.interceptor'
 
 // The HTTP stack, in the one order that works: loading is outermost (one exchange counts once,
@@ -10,7 +10,7 @@ import { loadingInterceptor } from './loading.interceptor'
 // here because only core/interceptors, core/config and services import the HTTP package.
 export const HTTP_INTERCEPTORS_IN_ORDER = [
   loadingInterceptor,
-  errorInterceptor,
+  errorInterceptor, // @server
   authInterceptor, // @server:auth
 ]
 
