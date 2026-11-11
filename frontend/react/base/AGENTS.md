@@ -1,4 +1,5 @@
-The layer map of this package. Commands are in `package.json`; the contract code in `src/services/generated/` is generated, never edited.
+The layer map of this package. Commands are in `package.json`; the contract code in `src/services/generated/` is generated, never edited. <!-- @server -->
+The layer map of this package. Commands are in `package.json`. <!-- @noserver -->
 
 **`src/`**
 
@@ -11,8 +12,9 @@ The layer map of this package. Commands are in `package.json`; the contract code
   groups; the root route has no loader), `nav.ts` (`NAV`, the one navigation table),
   `root-error.tsx` (`RootError`, the last-resort boundary, a whole page).
 - `core/`: glue below `app/`, above the pages; `shared/` never imports it. `config/`: `env.ts`
-  (the only reader of `import.meta`, zod-parsed, `VITE_*` is public), `api-client.ts` (the
-  generated client's runtime config, with auth the 401 refresh), `constants.ts` (`STORAGE_KEYS`,
+  (the only reader of `import.meta`, zod-parsed, `VITE_*` is public), `api-client.ts` (the <!-- @server -->
+  generated client's runtime config, with auth the 401 refresh), `constants.ts` (`STORAGE_KEYS`, <!-- @server -->
+  (the only reader of `import.meta`, zod-parsed, `VITE_*` is public), `constants.ts` (`STORAGE_KEYS`, <!-- @noserver -->
   with auth `SIGN_IN_PATH`, `FORBIDDEN_PATH`). `theme/theme.ts`: `toTheme`, `readStoredTheme`,
   `resolveTheme`, `applyTheme` (writes `data-theme` and the stored choice), `watchSystemTheme`.
 
@@ -64,9 +66,10 @@ a wrong role).
 
 <!-- @server:auth-end -->
 
-- `services/`: the data layer, the only importer of the generated runtime. `api.ts` (the one
-  `createApi`, its `tagTypes`), `call.ts` (`call`, `DEFAULT_COPY`), `refetchIfRejected` in `api.ts`,
-  `generated/` (Hey API output; committed, never edited).
+- `services/`: the data layer, the only importer of the generated runtime. `api.ts` (the one <!-- @server -->
+  `createApi`, its `tagTypes`), `call.ts` (`call`, `DEFAULT_COPY`), `refetchIfRejected` in `api.ts`, <!-- @server -->
+  `generated/` (Hey API output; committed, never edited). <!-- @server -->
+- `services/`: the data layer. Empty until a server arrives (see Adding a feature). <!-- @noserver -->
 
 <!-- @server:auth-start -->
 
@@ -80,7 +83,8 @@ a wrong role).
   `radio-group`, `switch`, `select`, `dialog`, `sheet`, `dropdown-menu`, `tooltip`, `tabs`,
   `toaster`) and patterns (`page`, `empty-state`, `error-state`, `skeletons`, `form-actions`,
   `confirm-dialog`). `components/form/`: `form`, `field-frame`, `use-field`, the `*-field` bindings
-  (`text`, `textarea`, `number`, `select`, `checkbox`, `password`, `date-time`), `report-failure`.
+  (`text`, `textarea`, `number`, `select`, `checkbox`, `password`, `date-time`), `report-failure`. <!-- @server -->
+  (`text`, `textarea`, `number`, `select`, `checkbox`, `password`, `date-time`). <!-- @noserver -->
   `hooks/`: `useMediaQuery`, `useOnlineStatus` (both on `useSyncExternalStore`) and
   `useDebouncedValue`; no template file calls them, they are for the product's shell and its first
   search box. Hooks
@@ -93,8 +97,9 @@ a wrong role).
 
 <!-- @server:auth-end -->
 
-- `models/`: one file per glossary noun: the contract's types re-exported, UI-only shapes, pure
-  helpers. `api-error.ts` (`ApiError`, `isApiError`, `withCopy`), `nav.ts`.
+- `models/`: one file per glossary noun: the contract's types re-exported, UI-only shapes, pure <!-- @server -->
+  helpers. `api-error.ts` (`ApiError`, `isApiError`, `withCopy`), `nav.ts`. <!-- @server -->
+- `models/`: one file per glossary noun: UI-only shapes, pure helpers. `nav.ts`. <!-- @noserver -->
 
 <!-- @server:auth-start -->
 
@@ -116,8 +121,8 @@ a wrong role).
 
 | Addition                                      | Home                                                               |
 | --------------------------------------------- | ------------------------------------------------------------------ |
-| A contract type, or a noun's pure helper      | `models/<noun>.ts`                                                 |
-| A read or a mutation                          | `services/<module>.api.ts` (`api.injectEndpoints`)                 |
+| A contract type, or a noun's pure helper      | `models/<noun>.ts`                                                 | <!-- @server -->
+| A read or a mutation                          | `services/<module>.api.ts` (`api.injectEndpoints`)                 | <!-- @server -->
 | A page, its components, its form schema, copy | `pages/<module>/`                                                  |
 | State shared across pages (client-only)       | `store/<name>.slice.ts`; its side effect in `store/listeners.ts`   |
 | A route                                       | `pages/<module>/<module>.routes.tsx`, composed in `app/routes.tsx` |
@@ -142,7 +147,7 @@ page never imports another page; `shared/` never imports `core/`, `store/` or `s
 | `main.tsx` (the `entry` category)                        | app, store, core, shared, models                                                   |
 | `components/`                                            | core, store, services (the hooks), shared, models; never `app/`, `pages/`          |
 | `pages/<m>/`                                             | core, store, services (the hooks), shared, models; its own module                  |
-| `pages/<m>/*.form.ts`                                    | shared, models, the generated zod schemas (`@/services/generated/zod.gen`)         |
+| `pages/<m>/*.form.ts`                                    | shared, models, the generated zod schemas (`@/services/generated/zod.gen`)         | <!-- @server -->
 | `store/`                                                 | services (reducer, middleware, matchers), `core/theme`, `core/config`, models      |
 | `services/`                                              | `services/generated`, `core/config`, `core/auth` (not the guards), models          |
 | `core/auth/guards.ts` (the `guards` files category)      | store, services, `core/config`, `core/auth`, models (the wiring)                   |
@@ -153,26 +158,47 @@ page never imports another page; `shared/` never imports `core/`, `store/` or `s
 
 Also lint-enforced:
 
-- The generated runtime is imported only in `services/`; its types only by `services/`, `store/`,
-  `core/` and `models/` (everything else reads them through `models/<noun>.ts`).
-- `fetch(`, `globalThis.fetch(`, `window.fetch(` only in `core/config/api-client.ts`;
-  `import.meta` only in `core/config/env.ts`.
+- The generated runtime is imported only in `services/`; its types only by `services/`, `store/`, <!-- @server -->
+  `core/` and `models/` (everything else reads them through `models/<noun>.ts`). <!-- @server -->
+- `fetch(`, `globalThis.fetch(`, `window.fetch(` only in `core/config/api-client.ts`; <!-- @server -->
+  `import.meta` only in `core/config/env.ts`. <!-- @server -->
+- `import.meta` only in `core/config/env.ts`. <!-- @noserver -->
 - `button`, `input`, `select`, `textarea` JSX elements only in `shared/components/`; the `style`
   JSX attribute nowhere; a stylesheet import is only the owner's sibling `./<stem>.scss` (imported last); the global tree is loaded only by `main.tsx`.
 - `boundaries/no-unknown-files` and `no-unknown-dependencies` are on: a file in a directory that
   matches no layer (`src/hooks/`, `src/lib/`, a stray file) is an error. `src/styles/**`,
-  `vite-env.d.ts` and the tests are boundaries-ignored. `session-hint.ts` may not import the guards
-  or the generated runtime (`no-restricted-imports`); only the two client tests
-  (`api-client.test.ts`, `api-client-refresh.test.ts`) import the generated SDK.
+  `vite-env.d.ts` and the tests are boundaries-ignored. `session-hint.ts` may not import the guards <!-- @server -->
+  or the generated runtime (`no-restricted-imports`); only the two client tests <!-- @server -->
+  (`api-client.test.ts`, `api-client-refresh.test.ts`) import the generated SDK. <!-- @server -->
+  `vite-env.d.ts` and the tests are boundaries-ignored. <!-- @noserver -->
 - Keep `eslint-import-resolver-typescript` (it reads the `@/*` alias): without it violations pass.
 
 `tests/unit/eslint-boundaries.test.ts` lints one violation and one allowed case per rule, through
 the real `eslint.config.mjs`. A new rule gets a case there. Use the `@/` alias for every import that
-crosses a directory; relative imports stay inside one directory (a page and its sibling stylesheet). The API is always relative `/api` on
-the page's own origin (see Deployment), so the bundle carries no API URL.
+crosses a directory; relative imports stay inside one directory (a page and its sibling stylesheet). The API is always relative `/api` on <!-- @server -->
+the page's own origin (see Deployment), so the bundle carries no API URL. <!-- @server -->
+crosses a directory; relative imports stay inside one directory (a page and its sibling stylesheet). <!-- @noserver -->
 
 ## Adding a feature
 
+<!-- @noserver-start -->
+
+This package has no server yet, so it has no data layer. What arrives with one is added by the
+harness (`scripts/scaffold.mjs`), never by a hand copy:
+
+- The typed client: `openapi-ts.config.ts`, the `api:types` script, `@hey-api/openapi-ts` and
+  `src/services/generated/`.
+- The data layer: `services/api.ts` (the one RTK Query `createApi`), `services/call.ts`,
+  `models/api-error.ts`, `core/config/api-client.ts`, `shared/components/form/report-failure.ts`, their
+  tests, and `api.reducer` and `api.middleware` in `store/index.ts`.
+- The `/api` proxy of `vite.config.ts`, the API web server of `playwright.config.ts`, the
+  `GET /api/health` smoke test and the `/api/` proxy of `nginx/default.conf`.
+
+A feature without a server is a route, a page with its components and, for client-only state, a
+slice (see State).
+
+<!-- @noserver-end -->
+<!-- @server-start -->
 The data flows one way: **component -> RTK Query hook (`services/<module>.api.ts`) -> `call` ->
 generated SDK -> fetch client**. A component never calls `fetch` or the SDK; a one-off request
 needs an endpoint first. For a new server module (the noun, by its `.doc/glossary.md` name; `post`
@@ -276,13 +302,19 @@ else in the blocks already exists in the template.
    }
    ```
 
-7. **Styles** a sibling `<page>-page.scss` with the page's stem, imported last by the page
+<!-- @server-end -->
+7. **Styles** a sibling `<page>-page.scss` with the page's stem, imported last by the page <!-- @server -->
+1. **Styles** a sibling `<page>-page.scss` with the page's stem, imported last by the page <!-- @noserver -->
    (`import './<page>-page.scss'`); the same for a component. BEM classes.
-8. **Navigation.** A top-level screen adds `{ to, label }` to `NAV` in `app/nav.ts`.
-9. **State.** A client-only value two or more pages read goes in a slice (see State).
-10. **Configuration** only through `core/config/env.ts`: a browser-visible value is `VITE_*`,
+8. **Navigation.** A top-level screen adds `{ to, label }` to `NAV` in `app/nav.ts`. <!-- @server -->
+2. **Navigation.** A top-level screen adds `{ to, label }` to `NAV` in `app/nav.ts`. <!-- @noserver -->
+9. **State.** A client-only value two or more pages read goes in a slice (see State). <!-- @server -->
+3. **State.** A client-only value two or more pages read goes in a slice (see State). <!-- @noserver -->
+10. **Configuration** only through `core/config/env.ts`: a browser-visible value is `VITE_*`, <!-- @server -->
+4. **Configuration** only through `core/config/env.ts`: a browser-visible value is `VITE_*`, <!-- @noserver -->
     declared in its zod schema and listed in `.env.example`. Never a secret.
-11. **No scaffolder.** Never run a generator inside this package. A new primitive is a file in
+11. **No scaffolder.** Never run a generator inside this package. A new primitive is a file in <!-- @server -->
+5. **No scaffolder.** Never run a generator inside this package. A new primitive is a file in <!-- @noserver -->
     `shared/components/` with its sibling `.scss`.
 
 **The shell.** The template renders no header, navigation or footer: `AppMainLayout` is the skip
@@ -300,10 +332,12 @@ With the server's auth, the account control is `AppAccountMenu`.
 <!-- @server:auth-end -->
 
 The features in use, so a new page does not reinvent them: `useId` for label and error ids,
-React 19's `<title>` in a page, lazy route modules, error boundaries, RTK Query's generated hooks,
+React 19's `<title>` in a page, lazy route modules, error boundaries, RTK Query's generated hooks, <!-- @server -->
+React 19's `<title>` in a page, lazy route modules, error boundaries, <!-- @noserver -->
 and the three `shared/hooks/`. Not used, on purpose: `useTransition`, `useDeferredValue`,
 `useOptimistic`, `memo`; the template has no case that needs them.
 
+<!-- @server-start -->
 ### Reads
 
 - `api` sets `refetchOnMountOrArgChange: 30` (seconds): a hook does not refetch data younger than
@@ -357,15 +391,19 @@ React Hook Form with `zodResolver` and the mutation hook; `SignInForm` is the pa
   toasts the rest, never repeating a field error: unknown paths share one toast; none known, the
   message.
 
+<!-- @server-end -->
 ### State
 
-- `createStore(preloaded?)` is `configureStore` over `api.reducer`, the slices, the listener
-  middleware and `api.middleware`, with `devTools: env.MODE !== 'production'`: never leave DevTools
+- `createStore(preloaded?)` is `configureStore` over `api.reducer`, the slices, the listener <!-- @server -->
+  middleware and `api.middleware`, with `devTools: env.MODE !== 'production'`: never leave DevTools <!-- @server -->
+- `createStore(preloaded?)` is `configureStore` over the slices and the listener middleware, <!-- @noserver -->
+  with `devTools: env.MODE !== 'production'`: never leave DevTools <!-- @noserver -->
   on in production, a mutation's action carries its arguments. `main.tsx` creates the one store; `renderRoutes` a fresh one per
   test, so no module holds a singleton. `setupListeners` is off unless a plan turns it on.
 - A slice is `store/<name>.slice.ts` (`createSlice` with `selectors`) for **client-only** state two
   or more pages or the product's shell read (`theme.slice.ts`); read with `useAppSelector`, write with
-  `useAppDispatch`. Server state is the RTK Query cache, never copied into a slice. A side effect
+  `useAppDispatch`. Server state is the RTK Query cache, never copied into a slice. A side effect <!-- @server -->
+  `useAppDispatch`. A side effect <!-- @noserver -->
   of a slice action is a listener in `store/listeners.ts`, not a reducer. State stays serializable:
   plain objects, no `Date`, no class instances.
 
@@ -491,6 +529,7 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
   its layout. Messages are user-safe: no stack trace, query text, internal URL or secret. A
   boundary logs the cause with `console.error`; its Try again button calls `revalidate()`. A lazy
   chunk missing after a redeploy fires `vite:preloadError`; `main.tsx` reloads the page.
+<!-- @server-start -->
 - The generated client does not throw on an HTTP error status: it returns
   `{ data, error, response }`, and on a network failure `response` is undefined and `error` is the
   thrown value. `call` (`src/services/call.ts`) is the only place that reads the result and returns
@@ -521,6 +560,7 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
   wrong.": the API cannot tell the two apart).
 
 - A handler toasts `error.message` or calls `reportFailure`; a hook reader shows `ErrorState`.
+<!-- @server-end -->
 
 ## Tests
 
@@ -530,16 +570,22 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
   prefix scans, no `style` attribute, with seeded temporary trees), `density` (compiled sizes), `main-imports` (zod configured first), `zod-config` (no
   `new Function` under the CSP), `playwright-config` (blank `E2E_BASE_URL`), `screen-routes`
   (`capturedRoutes`), and with a database `e2e-database-url`. Co-located checks of the glue include
-  `src/store/index.test.ts` and `src/core/config/api-client.test.ts`.
+  `src/store/index.test.ts` and `src/core/config/api-client.test.ts`. <!-- @server -->
+  `src/store/index.test.ts`. <!-- @noserver -->
+<!-- @server-start -->
 - The API is the one boundary: `stubApi` stubs the global `fetch` by `METHOD /path`, so a test goes
   through the real generated client, `call`, the copy tables and the cache. A route is tested with
   `renderRoutes` (a memory router over `createRoutes`, a fresh store); with auth, `renderInRouter`
   renders one component under the store and a router. Mock `sonner` to assert a toast. No test
   starts the server. Drive `revalidate()` through a button, not from the test body.
-- E2E tests (`tests/e2e/`, Playwright with `@axe-core/playwright`): `playwright.config.ts` starts
-  the API fresh (`reuseExistingServer: false`, `RATE_LIMIT_SCALE=100`) and the production
-  build behind `vite preview`, which forwards `/api` to that API. Install the browser once with
-  `bun x playwright install chromium` (add `--with-deps` on Linux).
+<!-- @server-end -->
+- E2E tests (`tests/e2e/`, Playwright with `@axe-core/playwright`): `playwright.config.ts` starts <!-- @server -->
+  the API fresh (`reuseExistingServer: false`, `RATE_LIMIT_SCALE=100`) and the production <!-- @server -->
+  build behind `vite preview`, which forwards `/api` to that API. Install the browser once with <!-- @server -->
+  `bun x playwright install chromium` (add `--with-deps` on Linux). <!-- @server -->
+- E2E tests (`tests/e2e/`, Playwright with `@axe-core/playwright`): `playwright.config.ts` starts <!-- @noserver -->
+  the production build behind `vite preview`. Install the browser once with <!-- @noserver -->
+  `bun x playwright install chromium` (add `--with-deps` on Linux). <!-- @noserver -->
 
 <!-- @server:database-start -->
 
@@ -551,11 +597,13 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
 
 <!-- @server:database-end -->
 
+<!-- @server-start -->
 - **Container mode.** With `E2E_BASE_URL` set (a blank value counts as unset), `bun run test:e2e`
   tests that URL and starts nothing. The API there runs at rate-limit scale 1 with one per-address
   bucket, so the suite can run about once per 15 minutes per stack, and it leaves its accounts in
   that stack's `app` database. The catalog's case runner brings a stack up and down with its
   volumes, so it is unaffected.
+<!-- @server-end -->
 - **Projects.** `phone` (`devices['Pixel 7']`, touch) runs every journey with its axe scan;
   `desktop` (`devices['Desktop Chrome']`) runs `shell.spec.ts` and `screens.spec.ts`. A check for
   one is tagged `{ tag: '@phone' }` or `{ tag: '@desktop' }` and the other project's `grepInvert`
@@ -564,8 +612,9 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
 - **Specs.** `shell.spec.ts`: skip link, one `main`, no overflow, the 404 inside `main`, 44 px
   targets (phone), 36 and 32 px densities and the page container's compact padding (desktop), the
   theme script's CSP; a `--density compact` build must pass its phone tests. `smoke.spec.ts`: the
-  index route is one `h1` and passes axe, and `GET /api/health` answers 200 through the page's
-  origin. `auth.spec.ts` (with auth): sign-up, sign-out (the profile page's button), sign-in, a
+  index route is one `h1` and passes axe, and `GET /api/health` answers 200 through the page's <!-- @server -->
+  origin. `auth.spec.ts` (with auth): sign-up, sign-out (the profile page's button), sign-in, a <!-- @server -->
+  index route is one `h1` and passes axe. `auth.spec.ts` (with auth): sign-up, sign-out (the profile page's button), sign-in, a <!-- @noserver -->
   wrong password, a taken email on its field, the guarded redirect; `expectSignedIn` reads the
   email on `/profile`.
   `screens.spec.ts` captures every `NAV` route (with auth also sign-in and sign-up) in phone and
@@ -590,25 +639,31 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
 
 <!-- @server:auth-end -->
 
+<!-- @server-start -->
 - The data rule: a journey creates its data through the API or the UI with a name unique per run,
   and never takes the database's contents as a precondition.
+<!-- @server-end -->
 - Every new behaviour gets a test for the happy path and at least one for a failure or empty path.
   No `.skip`, `.only`, `test.fixme` or `describe.skip`; a removed test is named in the stage
   report.
 
 ## Deployment
 
-- `bun run dev` serves the app on port 5173 (`strictPort`) and proxies `/api` to the server's
-  port, so the page and the API share one origin in development too. Start the server first, or
-  the page shows its error state.
+- `bun run dev` serves the app on port 5173 (`strictPort`) and proxies `/api` to the server's <!-- @server -->
+  port, so the page and the API share one origin in development too. Start the server first, or <!-- @server -->
+  the page shows its error state. <!-- @server -->
+- `bun run dev` serves the app on port 5173 (`strictPort`). <!-- @noserver -->
 - `bun run build` writes `dist/`: `index.html` at its root and hashed files under
   `dist/assets/`, no source maps. `dist/` holds static files only; any static server that falls
   back to `index.html` for a path without an extension can serve it.
+<!-- @server-start -->
 - The app calls the API at relative `/api` on its own origin, in every environment. No API URL
   is compiled into the bundle and there is no CORS. Whatever serves `dist/` must also route
   `/api` to the server (a reverse proxy, or the server serving the files itself).
+<!-- @server-end -->
 - Browser-visible configuration is `VITE_*`, read in `src/core/config/env.ts` at build time. Never put a
   secret there.
+<!-- @server-start -->
 - **Client address.** `CLIENT_IP_HEADER` is a Next-template setting and does not apply here. The
   browser calls `/api` on this app's own origin, so the server sees the browser's address through
   nginx (`split`, which appends it to `X-Forwarded-For`) or directly (`single`), and the per-address
@@ -617,14 +672,17 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
   development shares one bucket.
 - **Cookies.** The API sets the session cookies `Secure` outside development, so a non-loopback
   host needs TLS at an edge (browsers accept `Secure` cookies on `localhost` over HTTP).
+<!-- @server-end -->
 - **Theme script.** `public/theme-init.js` is copied to `dist/` and served as a file; the CSP is
   `script-src 'self'`, so an inline script would be blocked.
+<!-- @server-start -->
 - **Two modes**, chosen at generation (`--deploy`).
   - `single` (default): one container. The server serves `dist/` and `/api` on its own port
     (published on every interface), so the page is on the server's port and `5173` is dev-only.
   - `split`: two containers. This package's nginx serves the files on `5173` (published on every
     interface, the public edge) and proxies `/api/` to the server, which is published on
     loopback only.
+<!-- @server-end -->
 - **`Dockerfile` targets.** `build` runs a frozen install and `bun run build`. `dist` is
   `FROM scratch` and holds only the built files at `/dist`: the server's image copies it
   (`COPY --from=spa /dist ./public`). `serve`, the last and so the default target, is
@@ -633,15 +691,18 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
   `.dockerignore` keeps environment files, tests and source maps out of every image.
 - **nginx files**, in `nginx/`. `default.conf` is the config template (copied to
   `/etc/nginx/templates/default.conf.template`; the image's entrypoint renders it with
-  `envsubst` over `PORT` and `API_URL`). The `@server` markers around its `/api/` proxy are
-  resolved at generation, so a frontend generated alone has no proxy block. `security-headers.conf` holds the 12 headers of helmet 8.3.0 and is
+  `envsubst` over `PORT` and `API_URL`). The `@server` markers around its `/api/` proxy are <!-- @server -->
+  resolved at generation, so a frontend generated alone has no proxy block. `security-headers.conf` holds the 12 headers of helmet 8.3.0 and is <!-- @server -->
+  `envsubst` over `PORT`). `security-headers.conf` holds the 12 headers of helmet 8.3.0 and is <!-- @noserver -->
   included by each static location. Behaviour: `/assets/*` is `immutable`, `index.html` and
   other files `no-cache`, an extension-less path is `index.html`, a missing file with an
   extension, a dotfile and `/assets/` are 404 (never a listing), a path above the root is
-  nginx's own 400, and `/api/` is proxied with `X-Forwarded-For` while the server's own headers
-  pass through untouched. Keep three rules when editing: no `add_header` at server level (a
+  nginx's own 400, and `/api/` is proxied with `X-Forwarded-For` while the server's own headers <!-- @server -->
+  pass through untouched. Keep three rules when editing: no `add_header` at server level (a <!-- @server -->
+  nginx's own 400. Keep three rules when editing: no `add_header` at server level (a <!-- @noserver -->
   location with its own drops the inherited ones), no dollar sign in a comment (`envsubst`
   rewrites it), and no environment variable named like an nginx variable (`host`, `uri`).
+<!-- @server-start -->
 - **Compose fragment** (`compose.yaml`), per mode. `single`: `build: { context, target: dist }`
   with `scale: 0`, so the image is built and no container runs; the server's build reads it as
   `additional_contexts: spa: service:<dir>`. This needs **Docker Compose 2.35.0 or newer**; an
@@ -664,6 +725,7 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
   envelope. To accept more, raise the server's limit and set `client_max_body_size` in the
   `/api/` location of `nginx/default.conf` to match.
 
+<!-- @server-end -->
 <!-- @server-start -->
 
 **The lines of each mode.** Switching mode edits exactly these lines, copied from this package's

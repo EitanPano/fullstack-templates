@@ -2,9 +2,14 @@ import { defineConfig, devices } from '@playwright/test'
 
 import { e2eDatabaseUrl } from './scripts/e2e-database-url' // @server:database
 
-// Two modes. By default Playwright starts the API and the production build of this app
+// Two modes. By default Playwright starts the API and the production build of this app // @server
+// Two modes. By default Playwright starts the production build of this app // @noserver
+// @server-start
 // (`vite build`, then `vite preview` on the template's port, which forwards /api to the API), so
 // a journey exercises the real contract on the bundle the image serves. With E2E_BASE_URL set
+// @server-end
+// (`vite build`, then `vite preview` on the template's port) // @noserver
+// so a journey exercises the bundle the image serves. With E2E_BASE_URL set // @noserver
 // (the catalog's case runner does, against the Compose stack) it starts nothing and targets that
 // origin.
 // A blank value (a CI variable exported empty) counts as unset.
@@ -45,6 +50,7 @@ export default defineConfig({
   webServer: external
     ? undefined
     : [
+        // @server-start
         {
           // A fresh API every run (never a leftover one with someone's data), with its limits
           // scaled so the suite does not trip them. Playwright starts web servers before its
@@ -58,15 +64,16 @@ export default defineConfig({
           timeout: 120_000,
           env: {
             RATE_LIMIT_SCALE: '100',
-            // @server:database-start
-            E2E_DATABASE_URL: databaseUrl,
-            DATABASE_URL: databaseUrl,
-            // @server:database-end
+            E2E_DATABASE_URL: databaseUrl, // @server:database
+            DATABASE_URL: databaseUrl, // @server:database
           },
         },
+        // @server-end
         {
-          // The production bundle behind `vite preview`, which proxies /api to the API above
-          // (vite.config.ts). The build runs first, so a broken bundle fails here.
+          // The production bundle behind `vite preview`, which proxies /api to the API above // @server
+          // (vite.config.ts). The build runs first, so a broken bundle fails here. // @server
+          // The production bundle behind `vite preview`. The build runs first, so a broken bundle // @noserver
+          // fails here. // @noserver
           command: 'bun run build && bun run preview',
           url: origin,
           reuseExistingServer: false,
