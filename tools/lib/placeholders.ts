@@ -50,17 +50,22 @@ export function isTextFile(filePath: string): boolean {
   return TEXT_BASENAMES.has(base) || TEXT_EXTENSIONS.has(path.extname(base))
 }
 
-// The tokens the generator itself defines, beside the ones a template declares.
-export const GENERATED_PLACEHOLDERS: readonly string[] = [
-  'PROJECT_NAME',
-  'PACKAGE_DIR',
-  'PORT',
+// The tokens that name the plan's server; the generator defines none of them in a plan without one.
+export const SERVER_PLACEHOLDERS: readonly string[] = [
   'SERVER_DIR',
   'SERVER_PORT',
   'SERVER_DEV_COMMAND',
   'SERVER_START_COMMAND',
   'SERVER_E2E_DB_COMMAND',
   'SERVER_E2E_DATABASE_URL',
+]
+
+// The tokens the generator itself defines, beside the ones a template declares.
+export const GENERATED_PLACEHOLDERS: readonly string[] = [
+  'PROJECT_NAME',
+  'PACKAGE_DIR',
+  'PORT',
+  ...SERVER_PLACEHOLDERS,
   'FRONTEND_DIR',
   // The brand of a frontend package (lib/brand.ts builds the values).
   'PROJECT_DISPLAY_NAME',

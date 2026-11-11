@@ -1,14 +1,14 @@
 import { combineReducers, configureStore } from '@reduxjs/toolkit'
 
 import { env } from '@/core/config/env'
-import { api } from '@/services/api'
+import { api } from '@/services/api' // @server
 import { createListeners } from '@/store/listeners'
 import { themeSlice } from '@/store/theme.slice'
 
 // RootState comes from the combined reducer, not from the store, so `createStore` can name it in
 // its own signature.
 const rootReducer = combineReducers({
-  [api.reducerPath]: api.reducer,
+  [api.reducerPath]: api.reducer, // @server
   theme: themeSlice.reducer,
 })
 export type RootState = ReturnType<typeof rootReducer>
@@ -19,7 +19,8 @@ export function createStore(preloaded?: Partial<RootState>) {
   const listeners = createListeners()
   return configureStore({
     reducer: rootReducer,
-    middleware: (getDefault) => getDefault().prepend(listeners.middleware).concat(api.middleware),
+    middleware: (getDefault) => getDefault().prepend(listeners.middleware).concat(api.middleware), // @server
+    middleware: (getDefault) => getDefault().prepend(listeners.middleware), // @noserver
     preloadedState: preloaded,
     // The DevTools extension would otherwise see every action's arguments, a sign-in password
     // included; only a development build connects to it.

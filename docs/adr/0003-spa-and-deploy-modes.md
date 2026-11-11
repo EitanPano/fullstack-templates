@@ -6,6 +6,7 @@ Plan: `fullstack-dev-harness/.plan/010-2026-10-24-frontend-react.md` (milestone 
 Amends: ADR 0001 (D2, D4, D5, D7, Delivery order) and `docs/conventions.md`
 Amended in part by ADR 0005: M5-1's file shape (the feature-only map and `lib/api/`, `src/env.ts`) is
 replaced by the five layers, `shared/api/` and `shared/config/env.ts`.
+Amended in part by [ADR 0011](0011-frontend-without-a-server.md): a lone frontend has no deploy mode and no Compose file.
 
 ## Context
 

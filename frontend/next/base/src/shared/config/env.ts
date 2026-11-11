@@ -6,10 +6,13 @@ import { z } from 'zod'
 // time (`server-only`), which is the point: browser-visible values are NEXT_PUBLIC_* and
 // declared in a separate, explicitly public schema when the product needs one.
 const schema = z.object({
+  // @server-start
   API_URL: z.url().default('http://localhost:__SERVER_PORT__'),
+  // @server-end
   // Only 'production' matters (session cookies are Secure); any other name, such as `staging`,
   // is accepted rather than crashing startup.
   NODE_ENV: z.string().default('development'),
+  // @server-start
   // The request header that carries the visitor's address as a proxy you control set or appended
   // it (`x-forwarded-for`, `x-real-ip`). Unset: no address is forwarded to the API and every
   // visitor shares one per-address bucket there (AGENTS.md › Deployment).
@@ -28,6 +31,7 @@ const schema = z.object({
         )
         .optional(),
     ),
+  // @server-end
 })
 
 export const env = schema.parse(process.env)

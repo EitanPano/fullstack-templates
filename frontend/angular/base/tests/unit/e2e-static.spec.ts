@@ -2,7 +2,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import http from 'node:http'
-import type { AddressInfo } from 'node:net'
+import type { AddressInfo } from 'node:net' // @server
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -11,19 +11,22 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const SCRIPT = fileURLToPath(new URL('../../scripts/e2e-static.mjs', import.meta.url))
 
+// @server-start
 interface Seen {
   method: string | undefined
   url: string | undefined
   headers: http.IncomingHttpHeaders
   body: string
 }
+// @server-end
 
 let dist: string
-let api: http.Server
+let api: http.Server // @server
 let child: ChildProcess
 let origin: string
-const seen: Seen[] = []
+const seen: Seen[] = [] // @server
 
+// @server-start
 function listen(server: http.Server): Promise<number> {
   return new Promise((done) => {
     server.listen(0, '127.0.0.1', () => {
@@ -31,6 +34,7 @@ function listen(server: http.Server): Promise<number> {
     })
   })
 }
+// @server-end
 
 beforeAll(async () => {
   dist = mkdtempSync(join(tmpdir(), 'e2e-static-'))
@@ -42,6 +46,7 @@ beforeAll(async () => {
   mkdirSync(join(dist, 'i18n'))
   writeFileSync(join(dist, 'i18n', 'he.json'), '{}')
 
+  // @server-start
   // A stub API that records what reaches it and answers with two cookies.
   api = http.createServer((req, res) => {
     const chunks: Buffer[] = []
@@ -61,13 +66,14 @@ beforeAll(async () => {
     })
   })
   const apiPort = await listen(api)
+  // @server-end
 
   child = spawn(process.execPath, [SCRIPT], {
     env: {
       ...process.env,
       PORT: '0',
       DIST_DIR: dist,
-      API_URL: `http://127.0.0.1:${String(apiPort)}`,
+      API_URL: `http://127.0.0.1:${String(apiPort)}`, // @server
     },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
@@ -80,10 +86,17 @@ beforeAll(async () => {
   })
 })
 
+// @server-start
 afterAll(async () => {
   child.kill()
   await new Promise((done) => api.close(done))
 })
+// @server-end
+// @noserver-start
+afterAll(() => {
+  child.kill()
+})
+// @noserver-end
 
 const get = (path: string, init?: RequestInit) => fetch(origin + path, init)
 
@@ -147,10 +160,12 @@ describe('scripts/e2e-static.mjs', () => {
     expect((await get('/')).status).toBe(200)
   })
 
-  it('refuses a method other than GET and HEAD outside /api', async () => {
+  it('refuses a method other than GET and HEAD outside /api', async () => { // @server
+  it('refuses a method other than GET and HEAD', async () => { // @noserver
     expect((await get('/', { method: 'POST' })).status).toBe(405)
   })
 
+  // @server-start
   it('proxies /api with the method, headers, body and cookies passed both ways', async () => {
     seen.length = 0
     const response = await get('/api/auth/login?x=1', {
@@ -204,4 +219,5 @@ describe('scripts/e2e-static.mjs', () => {
       lone.kill()
     }
   })
+  // @server-end
 })

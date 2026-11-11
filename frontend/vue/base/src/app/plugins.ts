@@ -8,7 +8,7 @@ import { env } from '@/core/config/env'
 import { initializeI18n } from '@/core/initializers/i18n.initializer' // @i18n
 import { initPwa } from '@/core/initializers/pwa.initializer' // @pwa
 import { initSession } from '@/core/initializers/session.initializer' // @server:auth
-import { installInterceptors } from '@/core/interceptors/http.provider'
+import { installInterceptors } from '@/core/interceptors/http.provider' // @server
 import { i18n } from '@/core/i18n/i18n'
 import { DEV_KEY } from '@/shared/composables/dev-mode'
 import { createHasRoleDirective } from '@/shared/directives/has-role' // @server:auth
@@ -23,7 +23,7 @@ export function installPlugins(app: App): Promise<void> {
   app.use(createPinia())
   app.use(router)
   app.use(i18n)
-  installInterceptors()
+  installInterceptors() // @server
   app.provide(DEV_KEY, env.isDev)
   installGlobalErrorHandler(app, () => {
     useNotificationStore().showError('errors.unexpected')

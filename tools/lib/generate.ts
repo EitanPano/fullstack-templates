@@ -9,7 +9,7 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import { parse, stringify } from 'yaml'
-import type { Catalog, LoadedProvider } from './catalog'
+import { onlyWhenSpec, type Catalog, type LoadedProvider } from './catalog'
 import { CommandError, runCommand } from './commands'
 import {
   addProvider,
@@ -20,7 +20,7 @@ import {
   wireConsumer,
   type ProviderEnvWiring,
 } from './compose'
-import { applyDependencyChange, applyScripts } from './dependencies'
+import { applyDependencyChange, applyScripts, removeScripts } from './dependencies'
 import {
   copyTree,
   inGeneratedDir,
@@ -33,6 +33,7 @@ import { mergeGitignore } from './gitignore'
 import { applyMarkers, commentSyntaxFor, findLeftoverMarker } from './markers'
 import {
   GENERATED_PLACEHOLDERS,
+  SERVER_PLACEHOLDERS,
   findLeftoverPlaceholder,
   isTextFile,
   placeholderValues,
@@ -46,8 +47,10 @@ import { UNPROCESSED_HINT, findUnprocessed } from './unprocessed'
 
 export const STAGING_DIR = '.fullstack-staging'
 
+// What a package with a server in its plan falls back to when the server declares nothing. A plan
+// without a server defines no SERVER_* value at all (ADR 0011), so a kept file that uses one fails
+// in sweepPlaceholders and names itself; the marker dry-run needs no value.
 const DEFAULT_SERVER = {
-  dir: 'backend',
   port: '4000',
   devCommand: 'bun run dev',
   startCommand: 'bun run start',
@@ -89,16 +92,16 @@ function e2eDatabaseUrl(plan: GenerationPlan): string {
 // What a frontend's e2e starts: the server without a watcher, the command that prepares its
 // browser-test database (empty without a database) and that database's URL. With a server in the
 // plan these fail closed: a guessed command or an empty URL would only fail, or hit the
-// development database, when the e2e runs. The conventional fallback is for a frontend alone.
+// development database, when the e2e runs. The server's own files take the conventional fallback.
 function e2ePlaceholders(
   plan: GenerationPlan,
   pkg: PackagePlan,
-  server: PackagePlan | undefined,
+  server: PackagePlan,
 ): Record<string, string> {
-  if (server === undefined || pkg.template.manifest.kind !== 'frontend') {
+  if (pkg.template.manifest.kind !== 'frontend') {
     return {
-      SERVER_START_COMMAND: server?.commands.start ?? DEFAULT_SERVER.startCommand,
-      SERVER_E2E_DB_COMMAND: server?.commands.e2eDb ?? '',
+      SERVER_START_COMMAND: server.commands.start ?? DEFAULT_SERVER.startCommand,
+      SERVER_E2E_DB_COMMAND: server.commands.e2eDb ?? '',
       SERVER_E2E_DATABASE_URL: e2eDatabaseUrl(plan),
     }
   }
@@ -134,15 +137,18 @@ function e2ePlaceholders(
 export function packagePlaceholders(
   plan: GenerationPlan,
   pkg: PackagePlan,
-  log: Log = () => undefined,
 ): Record<string, string> {
-  if (pkg.serverDir === null || pkg.serverPort === null) {
-    log(
-      `${pkg.dir}: the plan has no server package, server references assume ${DEFAULT_SERVER.dir}:${DEFAULT_SERVER.port}`,
-    )
-  }
   const http = pkg.template.manifest.http
   const server = plan.packages.find((candidate) => candidate.dir === pkg.serverDir)
+  const serverValues =
+    server === undefined
+      ? {}
+      : {
+          SERVER_DIR: server.dir,
+          SERVER_PORT: pkg.serverPort === null ? DEFAULT_SERVER.port : String(pkg.serverPort),
+          SERVER_DEV_COMMAND: pkg.serverDevCommand ?? DEFAULT_SERVER.devCommand,
+          ...e2ePlaceholders(plan, pkg, server),
+        }
   return {
     ...placeholderValues(plan.projectName),
     // Absent without a frontend: a kept line that uses it fails in sweepPlaceholders, while the
@@ -150,10 +156,7 @@ export function packagePlaceholders(
     ...(pkg.frontendDir === null ? {} : { FRONTEND_DIR: pkg.frontendDir }),
     PACKAGE_DIR: pkg.dir,
     PORT: http === undefined ? '' : String(http.port),
-    SERVER_DIR: pkg.serverDir ?? DEFAULT_SERVER.dir,
-    SERVER_PORT: pkg.serverPort === null ? DEFAULT_SERVER.port : String(pkg.serverPort),
-    SERVER_DEV_COMMAND: pkg.serverDevCommand ?? DEFAULT_SERVER.devCommand,
-    ...e2ePlaceholders(plan, pkg, server),
+    ...serverValues,
     // Only a frontend takes the brand: no server file holds a theme.
     ...(pkg.template.manifest.kind === 'frontend' ? (plan.brand?.placeholders ?? {}) : {}),
   }
@@ -219,11 +222,14 @@ function removeOnlyPaths(pkg: PackagePlan, pkgStaging: string): void {
   }
 }
 
-// A selection that is off removes the template's onlyWhen paths for it (server:auth of a frontend).
+// A selection that is off removes the template's onlyWhen paths for it (server or server:auth of
+// a frontend); its dependencies and scripts go in removeDependencies.
 function removeOnlyWhen(pkg: PackagePlan, pkgStaging: string): void {
-  for (const [name, paths] of Object.entries(pkg.template.manifest.onlyWhen ?? {})) {
+  for (const [name, value] of Object.entries(pkg.template.manifest.onlyWhen ?? {})) {
     if (pkg.selections[name] === true) continue
-    for (const only of paths) removeOnlyPath(pkg, pkgStaging, only, `onlyWhen ${name}`)
+    for (const only of onlyWhenSpec(value).onlyPaths ?? []) {
+      removeOnlyPath(pkg, pkgStaging, only, `onlyWhen ${name}`)
+    }
   }
 }
 
@@ -267,6 +273,20 @@ function removeDependencies(pkg: PackagePlan, pkgStaging: string): void {
       change,
       `${pkg.dir} (flag ${name})`,
     )
+  }
+  for (const [name, value] of Object.entries(manifest.onlyWhen ?? {})) {
+    if (pkg.selections[name] === true) continue
+    const { dependencies, scripts } = onlyWhenSpec(value)
+    if (dependencies === undefined && scripts === undefined) continue
+    const manifestFile = path.join(pkgStaging, manifest.dependencies.manifest)
+    assertInside(pkgStaging, manifestFile, `${pkg.dir}: dependencies.manifest`)
+    const where = `${pkg.dir} (onlyWhen ${name})`
+    if (dependencies !== undefined) {
+      applyDependencyChange(manifestFile, manifest.dependencies.adapter, dependencies, where)
+    }
+    if (scripts !== undefined) {
+      removeScripts(manifestFile, manifest.dependencies.adapter, scripts.remove, where)
+    }
   }
 }
 
@@ -473,6 +493,15 @@ function writeGitignore(catalog: Catalog, plan: GenerationPlan, staging: string)
   writeFileSync(path.join(staging, '.gitignore'), mergeGitignore(existing, sections))
 }
 
+// A plan without a server package has nothing to deploy with Compose: a frontend alone ships its
+// Dockerfile (ADR 0011). A project that already has a Compose file still gets the package's service.
+function hasComposeTarget(plan: GenerationPlan): boolean {
+  return (
+    plan.packages.some((pkg) => pkg.template.manifest.kind === 'server') ||
+    existsSync(path.join(plan.out, 'docker-compose.yml'))
+  )
+}
+
 function writeRootFiles(
   catalog: Catalog,
   plan: GenerationPlan,
@@ -480,7 +509,9 @@ function writeRootFiles(
   staging: string,
   log: Log,
 ): void {
-  const composeWritten = writeCompose(catalog, plan, perPackage, staging, log)
+  const composeWritten = hasComposeTarget(plan)
+    ? writeCompose(catalog, plan, perPackage, staging, log)
+    : false
   writeProviderFiles(plan, staging)
   copyTree(
     path.join(catalog.root, 'shared', 'editorconfig', '.editorconfig'),
@@ -522,6 +553,9 @@ function sweepPlaceholders(plan: GenerationPlan, staging: string): void {
   const names = [...new Set(plan.packages.flatMap((p) => p.template.manifest.placeholders))]
   // The generator's own token has no default, so it must not survive a plan without a frontend.
   if (plan.packages.every((p) => p.frontendDir === null)) names.push('FRONTEND_DIR')
+  // Nor may the SERVER_* tokens survive a plan without a server: a kept file that uses one names
+  // itself here instead of shipping an address nobody serves (ADR 0011).
+  if (plan.packages.every((p) => p.serverDir === null)) names.push(...SERVER_PLACEHOLDERS)
   for (const file of textFiles(staging)) {
     const left = findLeftoverPlaceholder(readFileSync(file, 'utf8'), names)
     if (left !== null) {
@@ -578,13 +612,13 @@ function runPostGenerate(plan: GenerationPlan, staging: string, log: Log): void 
     const { postGenerate = [] } = pkg.template.manifest
     const { commands } = pkg
     for (const name of postGenerate) {
-      const line = commands[name]
-      if (line === undefined) {
-        throw new GenerateError(`${pkg.dir}: postGenerate names ${name}, which has no command`)
-      }
       if (name === 'contract' && pkg.contractSkipped) {
         log(`${pkg.dir}: contract step skipped, the plan has no server package`)
         continue
+      }
+      const line = commands[name]
+      if (line === undefined) {
+        throw new GenerateError(`${pkg.dir}: postGenerate names ${name}, which has no command`)
       }
       log(`==> ${pkg.dir}: ${line}`)
       // No __pycache__ may land in the source tree: the same inputs must give the same tree (D6).
@@ -706,6 +740,25 @@ function ensureParents(mover: Mover, root: string, file: string): void {
   }
 }
 
+// A frontend generated alone is built without a server (ADR 0011). Into a folder that already
+// records a server package it leaves the project half wired, so the rerun says so.
+function warnLoneFrontendBesideServer(plan: GenerationPlan, log: (line: string) => void): void {
+  if (plan.packages.some((p) => p.serverDir !== null || p.template.manifest.kind === 'server'))
+    return
+  if (!plan.packages.some((p) => p.template.manifest.kind === 'frontend')) return
+  const earlier = path.join(plan.out, PROVENANCE_PATH)
+  if (!existsSync(earlier)) return
+  const previous = parse(readFileSync(earlier, 'utf8')) as Partial<Provenance> | null
+  const recorded = Object.values(previous?.packages ?? {}).some((p) =>
+    p.template.startsWith('server/'),
+  )
+  if (recorded) {
+    log(
+      `warning: ${plan.out} already records a server package, but this frontend is generated without one: no data layer, no dev proxy and no contract command. Generate it with --stack to wire it to the server.`,
+    )
+  }
+}
+
 export function generate(
   catalog: Catalog,
   plan: GenerationPlan,
@@ -723,6 +776,7 @@ export function generate(
     mkdirSync(plan.out, { recursive: true })
     if (!statSync(plan.out).isDirectory()) throw new GenerateError(`${plan.out} is not a directory`)
     checkPreconditions(plan, staging)
+    warnLoneFrontendBesideServer(plan, log)
     if (plan.ignoredBrand.length > 0) {
       log(
         `warning: no frontend in the plan, so these brand options are ignored: ${plan.ignoredBrand.join(', ')}`,
@@ -730,7 +784,7 @@ export function generate(
     }
     for (const note of plan.brand?.notes ?? []) log(note)
     log(`==> Staging in ${staging}`)
-    const values = new Map(plan.packages.map((p) => [p.dir, packagePlaceholders(plan, p, log)]))
+    const values = new Map(plan.packages.map((p) => [p.dir, packagePlaceholders(plan, p)]))
     for (const pkg of plan.packages) {
       log(`==> Preparing ${pkg.dir} from ${pkg.template.path}`)
       buildPackage(pkg, values.get(pkg.dir) ?? {}, plan.providers, staging)

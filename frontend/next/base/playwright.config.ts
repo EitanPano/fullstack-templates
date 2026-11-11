@@ -3,10 +3,16 @@ import { defineConfig, devices } from '@playwright/test'
 import { externalBaseUrl } from './scripts/e2e-base-url'
 import { e2eDatabaseUrl } from './scripts/e2e-database-url' // @server:database
 
+// @server-start
 // Two modes. By default Playwright starts the API and the production build of this app, so a
 // journey exercises the real contract on the server the image runs. With E2E_BASE_URL set (the
 // catalog's case runner does, against the Compose stack) it starts nothing and targets that
 // origin.
+// @server-end
+// @noserver-start
+// Two modes. By default Playwright starts the production build of this app. With E2E_BASE_URL set
+// it starts nothing and targets that origin.
+// @noserver-end
 const external = externalBaseUrl(process.env.E2E_BASE_URL)
 const origin = external ?? 'http://127.0.0.1:__PORT__'
 // @server:database-start
@@ -42,6 +48,7 @@ export default defineConfig({
   webServer: external
     ? undefined
     : [
+        // @server-start
         {
           // A fresh API every run (never a leftover one with someone's data), with its limits
           // scaled so the suite does not trip them. Playwright starts web servers before its
@@ -55,12 +62,11 @@ export default defineConfig({
           timeout: 120_000,
           env: {
             RATE_LIMIT_SCALE: '100',
-            // @server:database-start
-            E2E_DATABASE_URL: databaseUrl,
-            DATABASE_URL: databaseUrl,
-            // @server:database-end
+            E2E_DATABASE_URL: databaseUrl, // @server:database
+            DATABASE_URL: databaseUrl, // @server:database
           },
         },
+        // @server-end
         {
           // Builds, then serves .next/standalone; see scripts/e2e-server.mjs.
           command: 'node scripts/e2e-server.mjs',
@@ -68,7 +74,7 @@ export default defineConfig({
           reuseExistingServer: false,
           timeout: 300_000,
           env: {
-            API_URL: 'http://127.0.0.1:__SERVER_PORT__',
+            API_URL: 'http://127.0.0.1:__SERVER_PORT__', // @server
             PORT: '__PORT__',
             HOSTNAME: '127.0.0.1',
           },

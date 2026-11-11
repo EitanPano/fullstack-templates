@@ -69,11 +69,8 @@ function runPackages(
       else log(`SKIP testDb ${pkg.dir}: needs --with-services`)
     }
     if (options.e2e && commands.testE2e) {
-      if (pkg.contractSkipped) log(`SKIP e2e ${pkg.dir}: no server in the plan`)
-      else {
-        if (options.installBrowsers) run(browserInstallCommand(process.platform), cwd)
-        run(commands.testE2e, cwd)
-      }
+      if (options.installBrowsers) run(browserInstallCommand(process.platform), cwd)
+      run(commands.testE2e, cwd)
     }
   }
 }

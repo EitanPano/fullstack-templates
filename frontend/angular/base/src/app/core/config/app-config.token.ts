@@ -6,7 +6,8 @@ export interface AppConfig {
   readonly production: boolean
 }
 
-// Build-time settings. There is no API URL (the API is at relative `/api`) and no secret.
+// Build-time settings. There is no API URL (the API is at relative `/api`) and no secret. // @server
+// Build-time settings. There is no secret. // @noserver
 export const APP_CONFIG = new InjectionToken<AppConfig>('APP_CONFIG', {
   providedIn: 'root',
   factory: () => environment,

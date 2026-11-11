@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useRevalidator, useRouteError } from 'react-router'
 
-import { isApiError } from '@/models/api-error'
+import { isApiError } from '@/models/api-error' // @server
 import { ErrorState } from '@/shared/components/error-state'
 import { Page } from '@/shared/components/page'
 
@@ -20,7 +20,8 @@ export function AppMainError() {
     <Page>
       <ErrorState
         title="Something went wrong"
-        description={isApiError(error) ? error.message : 'Something went wrong. Try again.'}
+        description={isApiError(error) ? error.message : 'Something went wrong. Try again.'} // @server
+        description="Something went wrong. Try again." // @noserver
         retrying={revalidator.state === 'loading'}
         onRetry={() => void revalidator.revalidate()}
       />

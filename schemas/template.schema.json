@@ -278,15 +278,60 @@
     },
     "onlyWhen": {
       "type": "object",
-      "description": "Frontend only: files kept only while a selection of the stack's server package is on, as a flag's onlyPaths are kept only while the flag is. A key is server:<name> for a flag or capability kind a server template declares; every path must exist in base/. Alone, the frontend has every server:* selection off.",
+      "description": "Frontend only: what exists only while a selection of the plan is on. A key is server (the plan has a server package) or server:<name> for a flag or capability kind a server template declares. A value is a list of paths kept only while the selection is on, or an object with onlyPaths and the dependencies and scripts removed while it is off; every path must exist in base/, every removed name in the dependency manifest. Alone, the frontend has every server selection off.",
       "propertyNames": {
-        "pattern": "^server:[a-z][a-z0-9-]*$"
+        "pattern": "^server(:[a-z][a-z0-9-]*)?$"
       },
       "additionalProperties": {
-        "type": "array",
-        "items": {
-          "$ref": "#/$defs/relativePath"
-        }
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/relativePath"
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "properties": {
+              "onlyPaths": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/relativePath"
+                }
+              },
+              "dependencies": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["remove"],
+                "properties": {
+                  "remove": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              },
+              "scripts": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["remove"],
+                "properties": {
+                  "remove": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
       }
     },
     "gitignore": {

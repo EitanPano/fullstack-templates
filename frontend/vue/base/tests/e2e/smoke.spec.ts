@@ -11,6 +11,7 @@ test('the index route is one h1 inside main and passes the axe scan', async ({ p
   await expectNoAxeViolations(page)
 })
 
+// @server-start
 // The page's origin forwards /api to the server (the dev and preview proxy, nginx, or the server
 // itself): a request through it, not a screen, proves the proxy.
 test('the API answers on the page origin', async ({ request }) => {
@@ -18,3 +19,4 @@ test('the API answers on the page origin', async ({ request }) => {
 
   expect(response.status()).toBe(200)
 })
+// @server-end

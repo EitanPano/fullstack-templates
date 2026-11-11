@@ -1,5 +1,21 @@
 # Changelog
 
+## 5.1.0 — unreleased
+
+The package generates without a server ([ADR 0011](../../docs/adr/0011-frontend-without-a-server.md)). A stack's output is unchanged (provenance records the new version, nothing else differs); generated alone, everything that reaches the server is left out and the package still passes `check` and its e2e suite. The harness adds the parts later (`scripts/scaffold.mjs`).
+
+### Gated on `server` (absent when generated alone)
+
+- Files: `openapi-ts.config.ts`, `src/services/generated/`, `src/services/api.ts` and `call.ts` with their tests, `src/models/api-error.ts` with its test, `src/core/config/api-client.ts` with its test, `src/shared/components/form/report-failure.ts` with its test.
+- The `api:types` script and the `@hey-api/openapi-ts` dependency (lockfile pruned at install).
+- Markers: `store/index.ts` (the API reducer and middleware, so the store builds without them), `components/app-main-error.tsx` (the boundary shows its generic line), `vite.config.ts` (the dev and preview `/api` proxy), `playwright.config.ts` (the API web server; only the production build starts), `.env.example`, `src/core/config/env.ts` and `README.md` (API comments and lines), `AGENTS.md` (gated with `@server`: the data-flow intro and steps 1-6 of `Adding a feature`, Reads, Mutations, Forms, the Errors client paragraphs and table, the API test and e2e paragraphs, container mode, the data rule, the client-address, cookies, two-modes, Compose and TLS deployment paragraphs, the `services/`, `models/` and `core/config` layer-map lines, the `fetch` lint bullet and the nginx `/api/` notes; a short list under `Adding a feature` says what arrives with a server and that the harness adds it).
+
+### Tests
+
+- New case `alone` runs its e2e: the index route's one `h1` and axe, `shell.spec`, `screens.spec`.
+- Gated, with no successor needed (they assert the server): `smoke.spec`'s "the API answers through the page origin"; `form-fields.test`'s "focuses the select trigger when a server error lands on it" (it drives `reportFailure`); the `routes.test` group-boundary tests assert the generic line when generated alone and the `ApiError` copy with a server.
+- `eslint.config.mjs`, `tests/unit/eslint-boundaries.test.ts`, `.prettierignore` and `tsconfig.node.json` keep their rules and paths about `services/generated` and `openapi-ts.config.ts`: the layer rules are the contract for the data layer the harness adds.
+
 ## 5.0.0 — 2026-11-11
 
 No template chrome and no example screen ([ADR 0010](../../docs/adr/0010-no-chrome-no-example-screen.md)). A generated app is a skip link, one `main` and an index route of one `h1` and one line of copy. A project generated from 4.x keeps its header, footer and status page as its own code; there is no migration tool.

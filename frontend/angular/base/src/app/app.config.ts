@@ -10,7 +10,7 @@ import { provideRouter, withComponentInputBinding } from '@angular/router'
 import { provideServiceWorker } from '@angular/service-worker' // @pwa
 
 import { routes } from './app.routes'
-import { provideApiClient } from './core/config/api-client.provider'
+import { provideApiClient } from './core/config/api-client.provider' // @server
 import { NAV_ENTRIES } from './core/config/nav.token'
 import { GlobalErrorHandler } from './core/errors/global-error-handler'
 import { provideTranslator } from './core/i18n/translator.provider'
@@ -28,7 +28,7 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withComponentInputBinding()),
     provideHttp(),
-    provideApiClient(),
+    provideApiClient(), // @server
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
     { provide: NAV_ENTRIES, useValue: NAV },
     provideTranslator(),
