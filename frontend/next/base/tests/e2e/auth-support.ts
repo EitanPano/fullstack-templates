@@ -24,7 +24,14 @@ export async function visibleField(page: Page, label: string, exact = false): Pr
   return visible
 }
 
+// A click before the form hydrates is the browser's own submit (a POST that re-renders the page),
+// not the action. `Form` marks itself once React owns it; a submit waits for that.
+async function formIsHydrated(page: Page) {
+  await expect(page.locator('form[data-hydrated]').filter({ visible: true })).toHaveCount(1)
+}
+
 export async function fillSignUp(page: Page, email: string, password = PASSWORD) {
+  await formIsHydrated(page)
   await (await visibleField(page, 'Email')).fill(email)
   await (await visibleField(page, 'Password', true)).fill(password)
   await (await visibleField(page, 'Confirm password')).fill(password)
@@ -32,6 +39,7 @@ export async function fillSignUp(page: Page, email: string, password = PASSWORD)
 }
 
 export async function fillSignIn(page: Page, email: string, password = PASSWORD) {
+  await formIsHydrated(page)
   await (await visibleField(page, 'Email')).fill(email)
   await (await visibleField(page, 'Password', true)).fill(password)
   await page.getByRole('button', { name: 'Sign in' }).click()
