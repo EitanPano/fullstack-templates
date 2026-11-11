@@ -26,7 +26,8 @@ const zCredentials = z.object({
 
 type Form = ReturnType<typeof useZodForm<typeof zCredentials, typeof INITIAL>>
 
-// A register-like form over the generated credentials schema, with the confirm rule.
+// A register-like form over the generated credentials schema, with the confirm rule. // @server
+// A register-like form over the credentials schema above, with the confirm rule. // @noserver
 function harness(
   onSubmit: (value: unknown) => void | Promise<void> = () => undefined,
   capture: (form: Form) => void = () => undefined,

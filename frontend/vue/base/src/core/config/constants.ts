@@ -1,4 +1,5 @@
-// Paths the guards and the API client redirect to, and the one table of localStorage keys, so
+// Paths the guards and the API client redirect to, and the one table of localStorage keys, so // @server
+// Paths the guards redirect to, and the one table of localStorage keys, so // @noserver
 // no file spells a key twice. The theme key is also read by public/theme-init.js before paint.
 export const LOGIN_PATH = '/auth/login' // @server:auth
 export const FORBIDDEN_PATH = '/forbidden' // @server:auth

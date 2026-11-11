@@ -683,9 +683,14 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
     interface, the public edge) and proxies `/api/` to the server, which is published on
     loopback only.
 <!-- @server-end -->
+<!-- @noserver-start -->
+- Deployed alone, the image's `serve` target is nginx on the template's port; there is no Compose file
+  and no deploy mode.
+<!-- @noserver-end -->
 - **`Dockerfile` targets.** `build` runs a frozen install and `bun run build`. `dist` is
-  `FROM scratch` and holds only the built files at `/dist`: the server's image copies it
-  (`COPY --from=spa /dist ./public`). `serve`, the last and so the default target, is
+  `FROM scratch` and holds only the built files at `/dist`: the server's image copies it <!-- @server -->
+  (`COPY --from=spa /dist ./public`). `serve`, the last and so the default target, is <!-- @server -->
+  `FROM scratch` and holds only the built files at `/dist`. `serve`, the last and so the default target, is <!-- @noserver -->
   `nginxinc/nginx-unprivileged:1.31.7-alpine` with the files at `/usr/share/nginx/html`; it runs
   as uid 101, listens on `PORT` (default 5173, above 1024) and has a `wget` healthcheck.
   `.dockerignore` keeps environment files, tests and source maps out of every image.
