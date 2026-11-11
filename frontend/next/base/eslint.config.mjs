@@ -122,8 +122,8 @@ const STYLE = [
     message: "add a class to the component's stylesheet, never an inline style",
   },
 ]
-// A stylesheet import is the owner's sibling `./<stem>.scss`; only app/layout.tsx loads the global
-// tree from src/styles/.
+// A stylesheet import is the owner's sibling `./<stem>.scss`; only app/layout.tsx, and
+// app/global-error.tsx which replaces it, load the global tree from src/styles/.
 const STYLESHEETS = {
   'no-restricted-imports': [
     'error',
@@ -131,7 +131,7 @@ const STYLESHEETS = {
       patterns: [
         {
           group: ['@/styles/**', '**/styles/**'],
-          message: 'only src/app/layout.tsx loads the global style tree',
+          message: 'only src/app/layout.tsx and src/app/global-error.tsx load the global style tree',
         },
         {
           // The styles tree has its own pattern (and message) above; it is not reported twice.
@@ -228,7 +228,7 @@ export default defineConfig([
     },
     rules: {
       'boundaries/dependencies': ['error', { default: 'allow', policies }],
-      // A file in a directory no layer claims (src/lib, src/widget, a stray file under src/) is an
+      // A file in a directory no layer claims (src/lib, src/helper, a stray file under src/) is an
       // error: put it in a layer from AGENTS.md › Layers.
       'boundaries/no-unknown-files': 'error',
       'local/client-server-import': 'error',
@@ -248,8 +248,9 @@ export default defineConfig([
     rules: restrictSyntax(RAW_CONTROLS, STYLE),
   },
   {
-    // The one file that loads the global style tree.
-    files: ['src/app/layout.tsx'],
+    // The two files that load the global style tree: the root layout and global-error.tsx, which
+    // renders its own document when the layout fails.
+    files: ['src/app/layout.tsx', 'src/app/global-error.tsx'],
     rules: { 'no-restricted-imports': 'off' },
   },
   {

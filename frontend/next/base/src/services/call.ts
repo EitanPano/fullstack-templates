@@ -1,3 +1,5 @@
+import 'server-only'
+
 import { returnValidationErrors } from 'next-safe-action'
 
 import { ActionError } from '@/core/actions/action-error'

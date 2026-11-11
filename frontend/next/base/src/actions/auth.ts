@@ -19,7 +19,7 @@ import { action } from '@/core/actions/safe-action'
 
 import { SIGN_IN_COPY, SIGN_UP_COPY, signInSchema, signUpSchema } from '@/models/auth'
 
-// The API's tokens go into this server's own cookies (shared/auth/cookies.ts); the browser never
+// The API's tokens go into this server's own cookies (core/auth/cookies.ts); the browser never
 // holds them in JavaScript. A success redirects, so these actions return data only on failure.
 export const signIn = action.inputSchema(signInSchema).action(async ({ parsedInput }) => {
   const { email, password, next } = parsedInput

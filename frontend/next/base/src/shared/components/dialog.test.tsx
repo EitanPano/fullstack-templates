@@ -37,7 +37,7 @@ describe('Dialog', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Rename' })
     expect(dialog).toHaveClass('dialog', 'dialog--sm')
     expect(screen.getByRole('heading', { level: 2, name: 'Rename' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Close' })).toHaveClass('dialog__close')
+    expect(screen.getByRole('button', { name: 'Close' })).toHaveClass('button', 'dialog__close')
   })
 
   it('closes with the Close button', async () => {

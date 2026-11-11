@@ -9,7 +9,8 @@
     margin-inline: auto;
   }
 
-  .auth-card__title {
+  // Two classes, so the title wins over `.card__title` whatever order the sheets load in.
+  .auth-card .auth-card__title {
     font-size: var(--text-xl);
   }
 

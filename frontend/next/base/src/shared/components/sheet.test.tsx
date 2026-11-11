@@ -34,7 +34,7 @@ describe('Sheet', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Open sheet' }))
 
     expect(await screen.findByRole('dialog', { name: 'Menu' })).toHaveClass('sheet')
-    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Close' })).toHaveClass('button', 'sheet__close')
   })
 
   it('closes with the Close button', async () => {

@@ -1,7 +1,7 @@
 @use 'setup/functions';
 
-// The root layout has failed, so its styles may be missing: this frame centres itself and the
-// kit's alert reads whatever tokens did load.
+// This screen loads the global tree itself; the frame centres the error on the page and the
+// kit's error state fills it.
 .global-error {
   max-inline-size: 28rem;
   margin-inline: auto;

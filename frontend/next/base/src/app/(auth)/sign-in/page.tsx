@@ -6,7 +6,7 @@ import { SignIn } from './_components/sign-in'
 
 export const metadata: Metadata = { title: 'Sign in' }
 
-// The page is a static shell; the widget reads the query, so it is a request-time hole inside
+// The page is a static shell; `SignIn` reads the query, so it is a request-time hole inside
 // Suspense.
 export default function SignInPage({
   searchParams,

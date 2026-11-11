@@ -78,18 +78,27 @@ function ownerless(root: string): string[] {
   })
 }
 
-// Rule 3: a stylesheet import points at a sibling; app/layout.tsx alone loads the global tree.
-const STYLESHEET_IMPORT = /^\s*import\s+['"]([^'"]+\.s?css)['"]/gm
-const ENTRY_STYLESHEETS = ['@/styles/themes/brand.css', '@/styles/styles.scss']
+// Rule 3: a stylesheet import points at a sibling; app/layout.tsx and app/global-error.tsx alone load the global tree.
+const STYLESHEET_IMPORT = /^\s*import\s+['"]([^'"]+\.s?css|@fontsource[^'"]+)['"]/gm
+const ENTRY_STYLESHEETS = [
+  '@fontsource-variable/inter',
+  '@/styles/themes/brand.css',
+  '@/styles/styles.scss',
+]
+// The root layout, and global-error.tsx which replaces it, load the tree; global-error.tsx then
+// imports its own sibling sheet last.
+const ENTRY_FILES: Record<string, string[]> = {
+  'app/layout.tsx': ENTRY_STYLESHEETS,
+  'app/global-error.tsx': [...ENTRY_STYLESHEETS, './global-error.scss'],
+}
 function badStylesheetImports(root: string): string[] {
   return sources(root).flatMap((file) => {
     const specs = [...file.text.matchAll(STYLESHEET_IMPORT)].map((m) => m[1] ?? '')
-    if (file.name === 'app/layout.tsx') {
-      return JSON.stringify(specs) === JSON.stringify(ENTRY_STYLESHEETS)
+    const expected = ENTRY_FILES[file.name]
+    if (expected) {
+      return JSON.stringify(specs) === JSON.stringify(expected)
         ? []
-        : [
-            `app/layout.tsx: stylesheets ${specs.join(', ')}, expected ${ENTRY_STYLESHEETS.join(', ')}`,
-          ]
+        : [`${file.name}: stylesheets ${specs.join(', ')}, expected ${expected.join(', ')}`]
     }
     return specs
       .filter((spec) => !/^\.\/[^/]+\.scss$/.test(spec))
@@ -209,7 +218,7 @@ describe('the styles tree', () => {
     expect(ownerless(REAL_SRC)).toEqual([])
   })
 
-  it('imports a stylesheet from a sibling file only, app/layout.tsx excepted', () => {
+  it('imports a stylesheet from a sibling file only, the two entry files excepted', () => {
     expect(badStylesheetImports(REAL_SRC)).toEqual([])
   })
 
@@ -240,7 +249,7 @@ describe('the scan itself', () => {
     roots.push(root)
     const files: Record<string, string> = {
       'app/layout.tsx':
-        "import '@/styles/themes/brand.css'\nimport '@/styles/styles.scss'\nexport {}\n",
+        "import '@fontsource-variable/inter'\nimport '@/styles/themes/brand.css'\nimport '@/styles/styles.scss'\nexport {}\n",
       'styles/styles.scss': "@use 'setup/layers';\n@use 'themes';\n",
       'styles/setup/_layers.scss': `${LAYER_ORDER}\n`,
       'styles/setup/_typography.scss': LAYERED('setup'),
@@ -352,7 +361,35 @@ describe('the scan itself', () => {
     })
 
     expect(badStylesheetImports(root)).toEqual([
-      'app/layout.tsx: stylesheets @/styles/themes/brand.css, @/styles/other.scss, expected @/styles/themes/brand.css, @/styles/styles.scss',
+      'app/layout.tsx: stylesheets @/styles/themes/brand.css, @/styles/other.scss, expected @fontsource-variable/inter, @/styles/themes/brand.css, @/styles/styles.scss',
+    ])
+  })
+
+  it('accepts global-error.tsx loading the tree before its own sheet', () => {
+    const root = seed({
+      'app/global-error.tsx':
+        "import '@fontsource-variable/inter'\nimport '@/styles/themes/brand.css'\nimport '@/styles/styles.scss'\nimport './global-error.scss'\nexport {}\n",
+    })
+
+    expect(badStylesheetImports(root)).toEqual([])
+  })
+
+  it('refuses global-error.tsx loading something else, or without the tree', () => {
+    const root = seed({
+      'app/global-error.tsx':
+        "import '@/styles/themes/brand.css'\nimport '@/styles/other.scss'\nimport './global-error.scss'\nexport {}\n",
+    })
+
+    expect(badStylesheetImports(root)).toEqual([
+      'app/global-error.tsx: stylesheets @/styles/themes/brand.css, @/styles/other.scss, ./global-error.scss, expected @fontsource-variable/inter, @/styles/themes/brand.css, @/styles/styles.scss, ./global-error.scss',
+    ])
+  })
+
+  it('refuses a third file that loads the global tree', () => {
+    const root = seed({ 'app/not-found.tsx': "import '@/styles/styles.scss'\nexport {}\n" })
+
+    expect(badStylesheetImports(root)).toEqual([
+      "app/not-found.tsx: imports @/styles/styles.scss, a stylesheet import is './<stem>.scss'",
     ])
   })
 

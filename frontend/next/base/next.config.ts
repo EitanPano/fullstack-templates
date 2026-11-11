@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   reactStrictMode: true,
   // Cache Components: the static shell of a route is prerendered at build, everything else is a
-  // request-time hole inside Suspense. A data widget awaits `connection()` before its
+  // request-time hole inside Suspense. A data section awaits `connection()` before its
   // `'use cache'` loader (AGENTS.md › Adding to a layer › Reads), so the image build never needs
   // the API.
   cacheComponents: true,

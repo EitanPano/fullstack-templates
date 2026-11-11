@@ -33,7 +33,7 @@ export const signUpSchema = zPostApiAuthRegisterBody
 export type SignInInput = z.input<typeof signInSchema>
 export type SignUpInput = z.input<typeof signUpSchema>
 
-// Copy for each outcome, keyed by the envelope's `code` (shared/api/call.ts has the defaults).
+// Copy for each outcome, keyed by the envelope's `code` (services/call.ts has the defaults).
 // A wrong password and an unknown email are the same 401, by design of the API.
 export const SIGN_IN_COPY = {
   unauthenticated: 'Email or password is wrong.',

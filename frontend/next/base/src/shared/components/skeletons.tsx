@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader } from '@/shared/components/card'
 import { Skeleton } from '@/shared/components/skeleton'
 
-// Skeleton shapes for a loading state; a widget composes these to match its own layout.
+// Skeleton shapes for a loading state; a page section composes these to match its own layout.
 export function CardSkeleton() {
   return (
     <Card>
