@@ -26,11 +26,11 @@ const FILES = [
   'src/app/router.ts',
   'src/app/routes.ts',
   'src/components/app-main-layout.vue',
-  'src/components/slots.ts',
-  'src/store/health.store.ts',
+  'src/components/app-theme-toggle.vue',
+  'src/store/post.store.ts',
   'src/store/loading.store.ts',
   'src/store/theme.store.ts',
-  'src/services/health.service.ts',
+  'src/services/post.service.ts',
   'src/services/generated/client.gen.ts',
   'src/services/generated/index.ts',
   'src/services/generated/sdk.gen.ts',
@@ -54,12 +54,12 @@ const FILES = [
   'src/shared/utils/time.ts',
   'src/shared/validators/zod-form.ts',
   'src/models/api/response.ts',
-  'src/models/health/interface.ts',
+  'src/models/post/interface.ts',
   'src/models/nav/interface.ts',
-  'src/pages/health/health.routes.ts',
-  'src/pages/health/health.form.ts',
-  'src/pages/health/health-status-page.vue',
-  'src/pages/health/components/health-badge.vue',
+  'src/pages/post/post.routes.ts',
+  'src/pages/post/post.form.ts',
+  'src/pages/post/post-page.vue',
+  'src/pages/post/components/post-badge.vue',
   'src/pages/other/other.routes.ts',
   'src/pages/other/other-page.vue',
   'src/testing/render.ts',
@@ -132,10 +132,10 @@ const INLINE = 'vue/no-static-inline-styles'
 // Every rule a snippet may trip because of where it sits: an allowed case must trip none.
 const GUARDED = [BOUNDARY, SYNTAX, IMPORTS, HTML, BLOCK, INLINE, 'boundaries/no-unknown-files']
 
-const PAGE = 'src/pages/health/x.vue'
-const COMPONENT = 'src/pages/health/components/x.vue'
-const ROUTES = 'src/pages/health/health.routes.ts'
-const FORM = 'src/pages/health/health.form.ts'
+const PAGE = 'src/pages/post/x.vue'
+const COMPONENT = 'src/pages/post/components/x.vue'
+const ROUTES = 'src/pages/post/post.routes.ts'
+const FORM = 'src/pages/post/post.form.ts'
 const AUTH_WRAPPER = 'src/core/interceptors/auth.interceptor.ts'
 const LOADING_WRAPPER = 'src/core/interceptors/loading.interceptor.ts'
 const ERROR_INTERCEPTOR = 'src/core/interceptors/error.interceptor.ts'
@@ -155,7 +155,7 @@ const violations: Violation[] = [
   [
     'app → services',
     'src/app/x.ts',
-    "import '@/services/health.service'",
+    "import '@/services/post.service'",
     BOUNDARY,
     'app/ only wires',
   ],
@@ -169,7 +169,7 @@ const violations: Violation[] = [
   [
     'app → page module file',
     'src/app/x.ts',
-    "import '@/pages/health/health-status-page.vue'",
+    "import '@/pages/post/post-page.vue'",
     BOUNDARY,
     'only through its *.routes.ts',
   ],
@@ -178,14 +178,14 @@ const violations: Violation[] = [
   [
     'main → components',
     'src/main.ts',
-    "import '@/components/slots'",
+    "import '@/components/app-theme-toggle.vue'",
     BOUNDARY,
     'main.ts imports app/',
   ],
   [
     'main → services',
     'src/main.ts',
-    "import '@/services/health.service'",
+    "import '@/services/post.service'",
     BOUNDARY,
     'main.ts imports app/',
   ],
@@ -200,14 +200,14 @@ const violations: Violation[] = [
   [
     'components → page module',
     'src/components/x.ts',
-    "import '@/pages/health/health.routes'",
+    "import '@/pages/post/post.routes'",
     BOUNDARY,
     'components/ imports core/config',
   ],
   [
     'components → services',
     'src/components/x.ts',
-    "import '@/services/health.service'",
+    "import '@/services/post.service'",
     BOUNDARY,
     'components/ imports core/config',
   ],
@@ -229,19 +229,25 @@ const violations: Violation[] = [
   [
     'page → services',
     PAGE,
-    "import '@/services/health.service'",
+    "import '@/services/post.service'",
     BOUNDARY,
     'a page reads a store, never services/',
   ],
   [
     'page-local .ts → services',
-    'src/pages/health/use-x.ts',
-    "import '@/services/health.service'",
+    'src/pages/post/use-x.ts',
+    "import '@/services/post.service'",
     BOUNDARY,
     'a page reads a store, never services/',
   ],
   ['page → app', PAGE, "import '@/app/nav'", BOUNDARY, 'a page reads a store'],
-  ['page → components', PAGE, "import '@/components/slots'", BOUNDARY, 'a page reads a store'],
+  [
+    'page → components',
+    PAGE,
+    "import '@/components/app-theme-toggle.vue'",
+    BOUNDARY,
+    'a page reads a store',
+  ],
   [
     'page → core/interceptors',
     PAGE,
@@ -304,7 +310,7 @@ const violations: Violation[] = [
   [
     'form → services',
     FORM,
-    "import '@/services/health.service'",
+    "import '@/services/post.service'",
     BOUNDARY,
     'a *.form.ts imports shared/validators',
   ],
@@ -340,7 +346,7 @@ const violations: Violation[] = [
   [
     'store → page module',
     'src/store/x.ts',
-    "import '@/pages/health/health.routes'",
+    "import '@/pages/post/post.routes'",
     BOUNDARY,
     'store/ imports store/, services/',
   ],
@@ -362,7 +368,7 @@ const violations: Violation[] = [
   [
     'services → store',
     'src/services/x.ts',
-    "import '@/store/health.store'",
+    "import '@/store/post.store'",
     BOUNDARY,
     'services/ imports models/, core/config',
   ],
@@ -391,14 +397,14 @@ const violations: Violation[] = [
   [
     'core/initializers → page module',
     'src/core/initializers/x.ts',
-    "import '@/pages/health/health.routes'",
+    "import '@/pages/post/post.routes'",
     BOUNDARY,
     'core wiring (guards, initializers',
   ],
   [
     'core/interceptors/error → components',
     ERROR_INTERCEPTOR,
-    "import '@/components/slots'",
+    "import '@/components/app-theme-toggle.vue'",
     BOUNDARY,
     'core wiring (guards, initializers',
   ],
@@ -420,7 +426,7 @@ const violations: Violation[] = [
   [
     'loading wrapper → services',
     LOADING_WRAPPER,
-    "import '@/services/health.service'",
+    "import '@/services/post.service'",
     BOUNDARY,
     'a fetch wrapper imports core/config, core/providers and models/ only',
   ],
@@ -448,7 +454,7 @@ const violations: Violation[] = [
   [
     'auth wrapper → services (no-restricted-imports)',
     AUTH_WRAPPER,
-    "import '@/services/health.service'",
+    "import '@/services/post.service'",
     IMPORTS,
     'auth.interceptor.ts is a leaf',
   ],
@@ -470,7 +476,7 @@ const violations: Violation[] = [
   [
     'core/providers → services',
     'src/core/providers/x.ts',
-    "import '@/services/health.service'",
+    "import '@/services/post.service'",
     BOUNDARY,
     'core/config, core/providers, core/i18n and core/errors',
   ],
@@ -520,14 +526,14 @@ const violations: Violation[] = [
   [
     'shared → services',
     'src/shared/validators/x.ts',
-    "import '@/services/health.service'",
+    "import '@/services/post.service'",
     BOUNDARY,
     'shared/ is product-agnostic',
   ],
   [
     'shared → page module',
     'src/shared/components/x.ts',
-    "import '@/pages/health/health.routes'",
+    "import '@/pages/post/post.routes'",
     BOUNDARY,
     'shared/ is product-agnostic',
   ],
@@ -699,9 +705,9 @@ const allowed: Allowed[] = [
   [
     'app → components, store, shared, models, core',
     'src/app/x.ts',
-    "import '@/components/slots'; import '@/store/theme.store'; import '@/shared/utils/time'; import '@/models/nav/interface'; import '@/core/config/env'; import '@/core/guards/auth.guard'",
+    "import '@/components/app-theme-toggle.vue'; import '@/store/theme.store'; import '@/shared/utils/time'; import '@/models/nav/interface'; import '@/core/config/env'; import '@/core/guards/auth.guard'",
   ],
-  ['app → a page module *.routes.ts', 'src/app/x.ts', "import '@/pages/health/health.routes'"],
+  ['app → a page module *.routes.ts', 'src/app/x.ts', "import '@/pages/post/post.routes'"],
   [
     'main → app, core, shared, models',
     'src/main.ts',
@@ -720,30 +726,30 @@ const allowed: Allowed[] = [
   [
     'page → store, shared, models, core/config, core/providers, core/guards',
     PAGE,
-    "import '@/store/health.store'; import '@/shared/utils/time'; import '@/models/health/interface'; import '@/core/config/constants'; import '@/core/providers/logger'; import '@/core/guards/unsaved-changes.guard'",
+    "import '@/store/post.store'; import '@/shared/utils/time'; import '@/models/post/interface'; import '@/core/config/constants'; import '@/core/providers/logger'; import '@/core/guards/unsaved-changes.guard'",
   ],
-  ['page → its own component', PAGE, "import './components/health-badge.vue'"],
-  ['page → its own form', PAGE, "import './health.form'"],
-  ['page → generated types by an alias model', PAGE, "import '@/models/health/interface'"],
+  ['page → its own component', PAGE, "import './components/post-badge.vue'"],
+  ['page → its own form', PAGE, "import './post.form'"],
+  ['page → generated types by an alias model', PAGE, "import '@/models/post/interface'"],
   [
     'component → shared, models',
     COMPONENT,
-    "import '@/shared/components/base-button.vue'; import '@/models/health/interface'",
+    "import '@/shared/components/base-button.vue'; import '@/models/post/interface'",
   ],
   [
     'routes → core/guards and its own pages',
     ROUTES,
-    "import '@/core/guards/auth.guard'; import('./health-status-page.vue')",
+    "import '@/core/guards/auth.guard'; import('./post-page.vue')",
   ],
   [
     'form → shared/validators, models, generated zod',
     FORM,
-    `${ZOD}; import '@/shared/validators/zod-form'; import '@/models/health/interface'`,
+    `${ZOD}; import '@/shared/validators/zod-form'; import '@/models/post/interface'`,
   ],
   [
     'store → store, services, models, core/providers, core/config',
     'src/store/x.ts',
-    "import '@/store/loading.store'; import '@/services/health.service'; import '@/models/health/interface'; import '@/core/providers/logger'; import '@/core/config/env'",
+    "import '@/store/loading.store'; import '@/services/post.service'; import '@/models/post/interface'; import '@/core/providers/logger'; import '@/core/config/env'",
   ],
   [
     'store → core/i18n',
@@ -754,7 +760,7 @@ const allowed: Allowed[] = [
   [
     'services → models, core/config, services/generated',
     'src/services/x.ts',
-    `${SDK}; import '@/models/health/interface'; import '@/core/config/constants'`,
+    `${SDK}; import '@/models/post/interface'; import '@/core/config/constants'`,
   ],
   [
     'services → generated barrel',
@@ -764,7 +770,7 @@ const allowed: Allowed[] = [
   [
     'core/guards → store, services, core, shared, models',
     'src/core/guards/x.ts',
-    "import '@/store/health.store'; import '@/services/health.service'; import '@/core/providers/session'; import '@/shared/utils/time'; import '@/models/nav/interface'",
+    "import '@/store/post.store'; import '@/services/post.service'; import '@/core/providers/session'; import '@/shared/utils/time'; import '@/models/nav/interface'",
   ],
   [
     'core/initializers → store, core, models',
@@ -829,17 +835,17 @@ const allowed: Allowed[] = [
   [
     'testing → anything',
     'src/testing/x.ts',
-    "import '@/pages/health/health.routes'; import '@/app/nav'; import '@/store/theme.store'; import '@/services/health.service'",
+    "import '@/pages/post/post.routes'; import '@/app/nav'; import '@/store/theme.store'; import '@/services/post.service'",
   ],
   [
     'page-local .ts → store, shared, models',
-    'src/pages/health/use-x.ts',
-    "import '@/store/health.store'; import '@/shared/utils/time'; import '@/models/health/interface'",
+    'src/pages/post/use-x.ts',
+    "import '@/store/post.store'; import '@/shared/utils/time'; import '@/models/post/interface'",
   ],
   [
     'a spec → testing and any layer',
-    'src/pages/health/x.spec.ts',
-    "import '@/testing/render'; import '@/services/health.service'",
+    'src/pages/post/x.spec.ts',
+    "import '@/testing/render'; import '@/services/post.service'",
   ],
   ['import.meta in env.ts', 'src/core/config/env.ts', 'export const v = import.meta.env.MODE'],
   [
@@ -873,7 +879,7 @@ describe('lint rules', { timeout: 60_000 }, () => {
   it('still reports exactly one boundaries message for shared → page module', async () => {
     const found = await messagesFor(
       'src/shared/components/x.ts',
-      "import '@/pages/health/health.routes'",
+      "import '@/pages/post/post.routes'",
       BOUNDARY,
     )
     expect(found).toHaveLength(1)
@@ -909,7 +915,7 @@ describe('files outside every layer', { timeout: 60_000 }, () => {
     'src/shared/utils/x.ts',
     'src/models/x.ts',
     'src/components/app-x.vue',
-    'src/pages/health/x.vue',
+    'src/pages/post/x.vue',
   ])('%s is allowed', async (file) => {
     expect(await messagesFor(file, 'export {}', 'boundaries/no-unknown-files')).toEqual([])
   })

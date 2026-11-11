@@ -1,0 +1,21 @@
+@use 'setup/breakpoints';
+@use 'setup/functions';
+@use 'setup/variables';
+
+:host {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: variables.$container-max;
+  margin-inline: auto;
+  padding-block: functions.space(6);
+  padding-inline: functions.space(4);
+
+  @include breakpoints.up(md) {
+    padding-inline: functions.space(8);
+  }
+}
+
+// Compact density tightens the vertical padding.
+:host-context([data-density='compact']) {
+  padding-block: functions.space(4);
+}

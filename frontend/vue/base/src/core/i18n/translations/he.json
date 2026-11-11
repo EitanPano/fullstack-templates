@@ -4,15 +4,10 @@
     "loading": "טוען"
   },
   "nav": {
-    "primary": "ראשי",
-    "menu": "תפריט",
-    "open": "פתיחת התפריט",
-    "close": "סגירת התפריט",
     "home": "דף הבית"
   },
-  "shell": {
-    "offline": "אין חיבור",
-    "footer": "© {year} {name}"
+  "home": {
+    "description": "החליפו את הדף הזה במסך הראשון."
   },
   "language": {
     "toggle": "החלפת שפה: {name}",
@@ -61,20 +56,6 @@
     "title": "הדף לא נמצא",
     "description": "הדף שחיפשתם אינו קיים או שהועבר.",
     "home": "חזרה לדף הבית"
-  },
-  "health": {
-    "title": "מצב המערכת",
-    "description": "האם השרת פעיל ועונה.",
-    "refresh": "רענון",
-    "version": "גרסה",
-    "uptime": "זמן פעילות",
-    "uptimeValue": "{seconds} שניות",
-    "checked": "נבדק לאחרונה",
-    "status": {
-      "label": "מצב",
-      "ok": "תקין",
-      "degraded": "פגיעה בביצועים"
-    }
   },
   "actions": {
     "retry": "ניסיון חוזר",

@@ -1,34 +1,10 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
-import {
-  expectNoAxeViolations,
-  expectNoHorizontalOverflow,
-  expectTouchTargets,
-  isPhone,
-} from './support'
+import { expectNoAxeViolations, expectNoHorizontalOverflow, expectTouchTargets } from './support'
 
-// Below lg the navigation is a drawer behind the header's toggle; from lg it is a column.
-async function openDrawer(page: Page) {
-  await page.getByRole('button', { name: 'Open navigation' }).click()
-  await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible()
-}
-
-test('the page has the shell landmarks', async ({ page }) => {
-  await page.goto('/')
-
-  await expect(page.locator('header')).toHaveCount(1)
-  await expect(page.locator('nav[aria-label="Primary"]')).toHaveCount(1)
-  await expect(page.locator('main#main')).toHaveCount(1)
-  await expect(page.locator('main')).toHaveCount(1)
-  await expect(page.locator('footer')).toHaveCount(1)
-  await expect(page.getByRole('banner')).toBeVisible()
-  await expect(page.getByRole('main')).toBeVisible()
-  await expect(page.getByRole('contentinfo')).toBeVisible()
-  if (isPhone(test.info().project.name)) await openDrawer(page)
-  await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible()
-
-  await expectNoAxeViolations(page)
-})
+// The template's whole shell is the skip link and the one main; the 404 is the screen these tests
+// measure, because it holds a real control and exists whatever the product adds.
+const UNKNOWN = '/no/such/page'
 
 test('the skip link is first in the tab order and moves focus to main', async ({ page }) => {
   await page.goto('/')
@@ -46,7 +22,7 @@ test('the skip link is first in the tab order and moves focus to main', async ({
 
 test('the skip link works on a nested screen too', async ({ page }) => {
   // The document has <base href="/">: a bare #main would resolve against it and leave the screen.
-  await page.goto('/no/such/page')
+  await page.goto(UNKNOWN)
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
   await page.keyboard.press('Tab')
@@ -54,10 +30,29 @@ test('the skip link works on a nested screen too', async ({ page }) => {
   await page.keyboard.press('Enter')
 
   await expect(page.locator('main#main')).toBeFocused()
-  expect(new URL(page.url()).pathname).toBe('/no/such/page')
+  expect(new URL(page.url()).pathname).toBe(UNKNOWN)
 })
 
-for (const path of ['/', '/no/such/page']) {
+test('main reaches the bottom of the viewport on a short page', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+  const gap = await page.evaluate(
+    () =>
+      window.innerHeight - (document.querySelector('main')?.getBoundingClientRect().bottom ?? 0),
+  )
+  expect(gap).toBeLessThanOrEqual(1)
+})
+
+test('the page has exactly one main, with the id the skip link points at', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+  await expect(page.locator('main')).toHaveCount(1)
+  await expect(page.locator('main')).toHaveAttribute('id', 'main')
+})
+
+for (const path of ['/', UNKNOWN]) {
   test(`${path} has no horizontal overflow`, async ({ page }) => {
     await page.goto(path)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
@@ -67,20 +62,22 @@ for (const path of ['/', '/no/such/page']) {
   })
 }
 
-test('an unknown URL renders not-found inside the shell', async ({ page }) => {
-  await page.goto('/no/such/page')
+test('an unknown URL renders not-found inside main', async ({ page }) => {
+  await page.goto(UNKNOWN)
 
-  await expect(page.getByRole('banner')).toBeVisible()
-  await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible()
+  await expect(page.locator('main')).toHaveCount(1)
+  await expect(
+    page.getByRole('main').getByRole('heading', { level: 1, name: 'Page not found' }),
+  ).toBeVisible()
 })
 
-test('every control is a 44 px touch target', { tag: '@phone' }, async ({ page }) => {
-  await page.goto('/')
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+// The 404 has one control, its link home; the count is asserted so a screen that loses it does not
+// pass on nothing.
+test('the 404 control is a 44 px touch target', { tag: '@phone' }, async ({ page }) => {
+  await page.goto(UNKNOWN)
+  await expect(page.getByRole('link', { name: 'Back to the home page' })).toBeVisible()
 
-  await expectTouchTargets(page, 44)
-  await openDrawer(page)
-  await expectTouchTargets(page, 44)
+  await expectTouchTargets(page, 44, 1)
   await expectNoAxeViolations(page)
 })
 
@@ -90,87 +87,54 @@ test(
   'compact density does not shrink a touch target on the phone project',
   { tag: '@phone' },
   async ({ page }) => {
-    await page.goto('/')
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await page.goto(UNKNOWN)
+    await expect(page.getByRole('link', { name: 'Back to the home page' })).toBeVisible()
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-density', 'compact')
     })
 
-    await expectTouchTargets(page, 44)
-    await openDrawer(page)
-    await expectTouchTargets(page, 44)
+    await expectTouchTargets(page, 44, 1)
   },
 )
 
 test(
-  'compact density tightens spacing and keeps the controls on the desktop project',
+  'compact density tightens spacing and keeps the control on the desktop project',
   { tag: '@desktop' },
   async ({ page }) => {
-    await page.goto('/')
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await page.goto(UNKNOWN)
+    const home = page.getByRole('link', { name: 'Back to the home page' })
+    await expect(home).toBeVisible()
 
-    const metrics = () =>
+    const metrics = async () =>
       page.evaluate(() => {
-        const main = document.querySelector('main#main')
-        const refresh = [...document.querySelectorAll('button')].find(
-          (button) => button.textContent.trim() === 'Refresh',
-        )
+        const container = document.querySelector('main#main app-page')
         return {
           fontSize: getComputedStyle(document.body).fontSize,
-          mainPadding: main ? parseFloat(getComputedStyle(main).paddingBlockStart) : 0,
-          refreshHeight: refresh?.getBoundingClientRect().height ?? 0,
+          pagePadding: container ? parseFloat(getComputedStyle(container).paddingBlockStart) : 0,
         }
       })
+    const homeHeight = async () => (await home.boundingBox())?.height
 
     await page.evaluate(() => {
       document.documentElement.removeAttribute('data-density')
     })
-    const comfortable = await metrics()
+    const comfortable = { ...(await metrics()), homeHeight: await homeHeight() }
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-density', 'compact')
     })
-    const compact = await metrics()
+    const compact = { ...(await metrics()), homeHeight: await homeHeight() }
 
     expect(comfortable.fontSize).toBe('16px')
     expect(compact.fontSize).toBe('14px')
-    expect(compact.mainPadding).toBeLessThan(comfortable.mainPadding)
+    expect(comfortable.pagePadding).toBeGreaterThan(0)
+    expect(compact.pagePadding).toBeLessThan(comfortable.pagePadding)
     // A desktop control keeps its 40 px height in both densities.
-    expect(comfortable.refreshHeight).toBe(40)
-    expect(compact.refreshHeight).toBe(40)
+    expect(comfortable.homeHeight).toBe(40)
+    expect(compact.homeHeight).toBe(40)
 
     await expectNoAxeViolations(page)
   },
 )
-
-test('the theme toggle switches to dark and the choice survives a reload', async ({ page }) => {
-  await page.goto('/')
-  const html = page.locator('html')
-
-  // Cycle (light, dark, system) until dark, whatever theme was generated as the default. After
-  // each click wait for the stored choice to change: reading the page earlier sees the old state
-  // and clicks past dark.
-  const toggle = page.getByRole('button', { name: /^Theme:/ })
-  const stored = () => page.evaluate(() => localStorage.getItem('theme'))
-  const isDark = async () => /^Theme: Dark\./.test((await toggle.getAttribute('aria-label')) ?? '')
-  await expect(toggle).toBeVisible()
-  for (let step = 0; step < 3 && !(await isDark()); step++) {
-    const before = await stored()
-    await toggle.click()
-    await expect.poll(stored).not.toBe(before)
-    // The label follows the signal; wait for it so the next read is not of the old state.
-    const choice = JSON.parse((await stored()) ?? '"system"') as string
-    await expect(toggle).toHaveAttribute(
-      'aria-label',
-      new RegExp(`^Theme: ${choice[0].toUpperCase()}${choice.slice(1)}[.]`),
-    )
-  }
-  await expect(html).toHaveAttribute('data-theme', 'dark')
-  await expect.poll(stored).toBe('"dark"')
-
-  await page.reload()
-  await expect(html).toHaveAttribute('data-theme', 'dark')
-  await expectNoAxeViolations(page)
-})
 
 // The no-flash theme script is a file because the deployed pages carry `script-src 'self'`. In
 // container mode this is the nginx or server image's own answer; the local static server sets no

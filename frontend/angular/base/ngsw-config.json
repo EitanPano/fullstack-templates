@@ -23,17 +23,5 @@
       }
     }
   ],
-  "dataGroups": [
-    {
-      "name": "api",
-      "urls": ["/api/health", "/api/health/**"],
-      "cacheConfig": {
-        "strategy": "freshness",
-        "maxSize": 50,
-        "maxAge": "10s",
-        "timeout": "3s"
-      }
-    }
-  ],
   "navigationUrls": ["/**", "!/**/*.*", "!/**/*__*", "!/**/*__*/**", "!/api/**", "!/i18n/**"]
 }

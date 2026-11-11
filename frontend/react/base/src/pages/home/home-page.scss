@@ -1,0 +1,4 @@
+// The lead line keeps a readable measure whatever the page container's width.
+.home-page .page-header__description {
+  max-inline-size: 60ch;
+}

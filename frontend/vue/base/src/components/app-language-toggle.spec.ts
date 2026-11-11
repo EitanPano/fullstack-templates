@@ -55,4 +55,17 @@ describe('LanguageToggle', () => {
     expect(root.getAttribute('dir')).toBe('ltr')
     expect(screen.getByRole('status')).toHaveTextContent('Language: English')
   })
+
+  it('puts a class passed to it on its one root, with no Vue warning', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+
+    const { container } = await renderWithApp(AppLanguageToggle, {
+      i18n,
+      props: { class: 'from-product' },
+    })
+
+    expect(container.firstElementChild).toHaveClass('language-toggle', 'from-product')
+    expect(container.children).toHaveLength(1)
+    expect(warn).not.toHaveBeenCalled()
+  })
 })

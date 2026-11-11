@@ -1,34 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { expectNoSeriousViolations, isPhone, settled } from './support'
-
-async function openPhoneMenu(page: Page) {
-  await page.getByRole('button', { name: 'Open menu' }).click()
-  const sheet = page.getByRole('dialog', { name: 'Menu' })
-  await expect(sheet).toBeVisible()
-  await settled(sheet)
-  return sheet
-}
-
-// The inline nav shows from `md`; on the phone project the same entries sit behind the menu.
-async function openNavigation(page: Page) {
-  if (isPhone(test.info().project.name)) {
-    await page.getByRole('button', { name: 'Open menu' }).click()
-    await expect(page.getByRole('dialog', { name: 'Menu' })).toBeVisible()
-  }
-  await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible()
-}
-
-test('the page has the shell landmarks', async ({ page }) => {
-  await page.goto('/')
-
-  await expect(page.getByRole('banner')).toBeVisible()
-  await expect(page.getByRole('main')).toBeVisible()
-  await expect(page.getByRole('contentinfo')).toBeVisible()
-  await openNavigation(page)
-
-  await expectNoSeriousViolations(page)
-})
+import { expectNoSeriousViolations } from './support'
 
 test('the skip link is first in the tab order and moves focus to main', async ({ page }) => {
   await page.goto('/')
@@ -45,6 +17,13 @@ test('the skip link is first in the tab order and moves focus to main', async ({
   await expectNoSeriousViolations(page)
 })
 
+test('the page has exactly one main, with the id the skip link points at', async ({ page }) => {
+  await page.goto('/')
+
+  await expect(page.locator('main')).toHaveCount(1)
+  await expect(page.locator('main')).toHaveAttribute('id', 'main')
+})
+
 for (const path of ['/', '/no/such/page']) {
   test(`${path} has no horizontal overflow`, async ({ page }) => {
     await page.goto(path)
@@ -58,17 +37,26 @@ for (const path of ['/', '/no/such/page']) {
   })
 }
 
-test('an unknown URL renders not-found inside the shell', async ({ page }) => {
-  await page.goto('/no/such/page')
+// A full-bleed screen fills the viewport without a layout prop: main takes the rest of the column.
+test('main reaches the bottom of the viewport on a short page', async ({ page }) => {
+  await page.goto('/')
 
-  await expect(page.getByRole('banner')).toBeVisible()
-  await expect(page.getByText('Page not found')).toBeVisible()
+  const bottom = await page.locator('main').evaluate((main) => main.getBoundingClientRect().bottom)
+  const viewport = await page.evaluate(() => window.innerHeight)
+  expect(bottom).toBeGreaterThanOrEqual(viewport - 1)
 })
 
-// A locator pierces open shadow roots; a hidden element (the inline nav under `md`) has no box and
-// is skipped. The skip link is visually hidden until focused, so it is outside this set.
-async function touchTargetSizes(page: Page) {
-  return page.locator('button, header a, main a, footer a').evaluateAll((elements) =>
+test('an unknown URL renders not-found inside main', async ({ page }) => {
+  await page.goto('/no/such/page')
+
+  await expect(page.locator('main')).toHaveCount(1)
+  await expect(page.getByRole('main').getByText('Page not found')).toBeVisible()
+})
+
+// A locator pierces open shadow roots; a hidden element has no box and is skipped. The skip link
+// is visually hidden until focused, so it is outside this set.
+async function controlSizes(page: Page) {
+  return page.locator('button, main a').evaluateAll((elements) =>
     elements.flatMap((element) => {
       const { width, height } = element.getBoundingClientRect()
       if (width === 0 && height === 0) return []
@@ -77,19 +65,21 @@ async function touchTargetSizes(page: Page) {
   )
 }
 
-test('touch targets are 44 px on the phone project only', { tag: '@phone' }, async ({ page }) => {
-  await page.goto('/')
-  await expect(page.getByRole('button', { name: 'Refresh' })).toBeVisible()
-  // The account slot renders a skeleton until the session read answers; measure after it settles.
-  await expect(page.getByRole('button', { name: /^Account menu/ })).toBeVisible()
-
-  const sizes = await touchTargetSizes(page)
-  // The menu button, the brand, the account menu and Refresh are all on the page.
-  expect(sizes.length).toBeGreaterThanOrEqual(4)
+// The 404 has one control, the way back to the start.
+async function expectTouchTargets(page: Page) {
+  const sizes = await controlSizes(page)
+  expect(sizes.map((size) => size.text)).toEqual(['Back to the start'])
   for (const size of sizes) {
     expect(size.width, size.text).toBeGreaterThanOrEqual(44)
     expect(size.height, size.text).toBeGreaterThanOrEqual(44)
   }
+}
+
+test('touch targets are 44 px on the phone project only', { tag: '@phone' }, async ({ page }) => {
+  await page.goto('/no/such/page')
+  await expect(page.getByRole('link', { name: 'Back to the start' })).toBeVisible()
+
+  await expectTouchTargets(page)
 
   await expectNoSeriousViolations(page)
 })
@@ -101,44 +91,13 @@ test(
   'compact density does not shrink touch targets on the phone project',
   { tag: '@phone' },
   async ({ page }) => {
-    await page.goto('/')
-    await expect(page.getByRole('button', { name: 'Refresh' })).toBeVisible()
-    await expect(page.getByRole('button', { name: /^Account menu/ })).toBeVisible()
+    await page.goto('/no/such/page')
+    await expect(page.getByRole('link', { name: 'Back to the start' })).toBeVisible()
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-density', 'compact')
     })
 
-    const sizes = await touchTargetSizes(page)
-    expect(sizes.length).toBeGreaterThanOrEqual(4)
-    for (const size of sizes) {
-      expect(size.width, size.text).toBeGreaterThanOrEqual(44)
-      expect(size.height, size.text).toBeGreaterThanOrEqual(44)
-    }
-
-    const sheet = await openPhoneMenu(page)
-    const close = await sheet.getByRole('button', { name: 'Close' }).boundingBox()
-    expect(close?.width).toBeGreaterThanOrEqual(44)
-    expect(close?.height).toBeGreaterThanOrEqual(44)
-  },
-)
-
-test(
-  'the phone menu and its Close button are 44 px targets',
-  { tag: '@phone' },
-  async ({ page }) => {
-    await page.goto('/')
-
-    const sheet = await openPhoneMenu(page)
-    for (const target of [
-      sheet.getByRole('button', { name: 'Close' }),
-      ...(await sheet.getByRole('link').all()),
-    ]) {
-      const box = await target.boundingBox()
-      expect(box?.width).toBeGreaterThanOrEqual(44)
-      expect(box?.height).toBeGreaterThanOrEqual(44)
-    }
-
-    await expectNoSeriousViolations(page)
+    await expectTouchTargets(page)
   },
 )
 
@@ -146,47 +105,52 @@ test(
   'controls keep the desktop densities on the desktop project',
   { tag: '@desktop' },
   async ({ page }) => {
-    await page.goto('/')
+    await page.goto('/no/such/page')
 
-    // The generated density is not the test's business: clear it for the comfortable sizes, then set
-    // compact, as the phone test does. Polled because the control sizes animate.
-    const size = (name: string, dimension: 'width' | 'height') => async () =>
-      (await page.getByRole('button', { name }).boundingBox())?.[dimension]
+    // The generated density is not the test's business: clear it for the comfortable size, then
+    // set compact, as the phone test does. Polled because the control sizes animate.
+    const height = async () =>
+      (await page.getByRole('link', { name: 'Back to the start' }).boundingBox())?.height
 
     await page.evaluate(() => {
       document.documentElement.removeAttribute('data-density')
     })
-    await expect.poll(size('Refresh', 'height')).toBe(36)
-    await expect.poll(size('Account menu', 'width')).toBe(36)
-    await expect.poll(size('Account menu', 'height')).toBe(36)
+    await expect.poll(height).toBe(36)
 
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-density', 'compact')
     })
-    await expect.poll(size('Refresh', 'height')).toBe(32)
-    await expect.poll(size('Account menu', 'width')).toBe(32)
-    await expect.poll(size('Account menu', 'height')).toBe(32)
+    await expect.poll(height).toBe(32)
 
     await expectNoSeriousViolations(page)
   },
 )
 
-test('the theme menu switches to dark and the choice survives a reload', async ({ page }) => {
-  await page.goto('/')
+// The page container owns the vertical padding (main has none): 24 px comfortable, 16 px compact,
+// the values `main` carried before 5.0.0.
+test(
+  'compact density tightens the page container padding on the desktop project',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    await page.goto('/')
+    const padding = () =>
+      page.locator('main > .page').evaluate((element) => ({
+        top: getComputedStyle(element).paddingBlockStart,
+        bottom: getComputedStyle(element).paddingBlockEnd,
+        main: getComputedStyle(element.parentElement as HTMLElement).paddingBlockStart,
+      }))
 
-  // Start from light, whatever theme was generated as the default, so the switch is observable.
-  await page.getByRole('button', { name: 'Account menu' }).click()
-  await page.getByRole('menuitemradio', { name: 'Light' }).click()
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+    await page.evaluate(() => {
+      document.documentElement.removeAttribute('data-density')
+    })
+    expect(await padding()).toEqual({ top: '24px', bottom: '24px', main: '0px' })
 
-  await page.getByRole('button', { name: 'Account menu' }).click()
-  await page.getByRole('menuitemradio', { name: 'Dark' }).click()
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
-
-  await page.reload()
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
-  await expectNoSeriousViolations(page)
-})
+    await page.evaluate(() => {
+      document.documentElement.setAttribute('data-density', 'compact')
+    })
+    expect(await padding()).toEqual({ top: '16px', bottom: '16px', main: '0px' })
+  },
+)
 
 // The no-flash theme script is a file because the deployed pages carry `script-src 'self'`. In
 // container mode this is the nginx or server image's own answer; `vite preview` sets no CSP, so

@@ -4,7 +4,7 @@ import { Button } from '@/shared/components/button'
 import { Page, PageHeader } from '@/shared/components/page'
 import './forbidden-page.scss'
 
-// A plain page at a stable URL, inside the shell.
+// A plain page at a stable URL, inside main.
 function ForbiddenPage() {
   return (
     <Page>

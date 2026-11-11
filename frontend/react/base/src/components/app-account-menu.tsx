@@ -1,57 +1,35 @@
 import { LogOutIcon } from 'lucide-react'
-import { Link, useNavigate } from 'react-router'
-import { toast } from 'sonner'
+import { Link } from 'react-router'
 
 import { SIGN_IN_PATH } from '@/core/config/constants'
 import { AppUserMenu } from '@/components/app-user-menu'
 import { initials } from '@/models/user'
-import { api } from '@/services/api'
-import { useLogoutMutation } from '@/services/auth.api'
 import { useGetMeQuery } from '@/services/user.api'
 import { Button } from '@/shared/components/button'
 import { DropdownMenuItem } from '@/shared/components/dropdown-menu'
 import { Skeleton } from '@/shared/components/skeleton'
-import { useAppDispatch } from '@/store/hooks'
+import { useSignOut } from '@/store/use-sign-out'
 import './app-account-menu.scss'
 
-// The size of the avatar trigger, so the header does not shift when the account arrives. It
-// carries no role: the page's own status regions stay the only ones announced.
+// The size of the avatar trigger, so the toolbar around it does not shift when the account
+// arrives. It carries no role: the page's own status regions stay the only ones announced.
 function AccountMenuSkeleton() {
   return <Skeleton className="account-menu__skeleton" />
 }
 
-// Sign-out asks the API to revoke the session (the mutation also drops the hint), then forgets
-// everything this browser cached about the account whatever the API said, and only then goes to
-// sign-in. A visitor who asked to sign out is signed out here even if the server session lives on
-// until it expires; when the API could not be reached, they are told so.
-const NOT_REVOKED_COPY =
-  'Signed out here. The server could not be reached, so the session may still be open elsewhere.'
-
 function SignOutItem() {
-  const [logout] = useLogoutMutation()
-  const dispatch = useAppDispatch()
-  const navigate = useNavigate()
+  const signOut = useSignOut()
   return (
-    <DropdownMenuItem
-      onSelect={() => {
-        void logout()
-          .unwrap()
-          .then(async ({ revoked }) => {
-            if (!revoked) toast.warning(NOT_REVOKED_COPY)
-            dispatch(api.util.resetApiState())
-            await navigate(SIGN_IN_PATH)
-          })
-      }}
-    >
+    <DropdownMenuItem onSelect={signOut}>
       <LogOutIcon aria-hidden="true" className="icon" />
       Sign out
     </DropdownMenuItem>
   )
 }
 
-// The shell's account slot with an account behind it: a sign-in link and the theme menu for a
-// visitor; the avatar menu (email, theme, sign out) for an account. The email lives in the menu,
-// never as header text beside a primary button.
+// The account control a product places in its header (AGENTS.md › The shell): a sign-in link and
+// the theme menu for a visitor; the avatar menu (email, theme, sign out) for an account. The email
+// lives in the menu, never as header text beside a primary button.
 export function AppAccountMenu() {
   const { data: user, isLoading, isError } = useGetMeQuery()
   if (isLoading) return <AccountMenuSkeleton />

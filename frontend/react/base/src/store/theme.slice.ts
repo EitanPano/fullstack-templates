@@ -2,7 +2,7 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 
 import type { Theme } from '@/core/theme/theme'
 
-// The theme choice is client-only state that the header menu and the toaster both read. The DOM
+// The theme choice is client-only state that the theme menu and the toaster both read. The DOM
 // and storage side effects are a listener (store/listeners.ts), not a reducer.
 type ThemeState = { choice: Theme }
 

@@ -17,16 +17,17 @@ The layer map of this package. Commands are in `package.json`; the contract code
     flag also Transloco's config, the HTTP loader, `language.service.ts` and `translations/he.json`),
     `errors/`.
   - `components/app-<name>/`: the app-wide components, one folder each with
-    `app-<name>.component.ts`, `.html`, `.scss` and `.spec.ts`: the shells (`app-main-layout`,
-    `app-auth-layout`) and what they compose (`app-header`, `app-side-nav`, `app-footer`). The class
-    carries `App` (`AppHeaderComponent`), the selector is written out (`app-header`). A component
-    goes here when a shell composes it or it reads the store, the theme or the session; a reusable
-    control or pattern goes to `shared/components/`.
+    `app-<name>.component.ts`, `.html`, `.scss` and `.spec.ts`: the two layouts (`app-main-layout`,
+    `app-auth-layout`) and the components the product places in its own chrome, such as
+    `app-theme-toggle` (see The shell). The class carries `App` (`AppThemeToggleComponent`), the
+    selector is written out (`app-theme-toggle`). A component goes here when the product's shell
+    composes it or it reads the store, the theme or the session; a reusable control or pattern goes
+    to `shared/components/`.
   - `pages/<module>/`: one glossary noun or screen group, flat. `<module>.routes.ts`,
     `<module>.form.ts` (typed form builders over the generated zod schemas), one folder per routed
     page, `<page>/<page>.component.*` (reads the store; its `.scss` beside it), and
     `components/<component>/` (the module's own presentational pieces). A page module never imports
-    another one. `health/` is the worked example; `not-found/` is the `**` route.
+    another one. `home/` is the index route; `not-found/` is the `**` route.
   - `store/`: `@ngrx/signals` stores, one per noun, and `with-request-status.ts`.
   - `services/`: one facade per server module over the generated SDK; `generated/` is the Hey API
     output (types, zod, the Angular client, the flat SDK; committed, lint-ignored).
@@ -110,51 +111,174 @@ bundle carries no API URL.
 The data flows one way: **page -> store -> service -> generated SDK**. A page injects the store and
 never a service or `HttpClient`; `@angular/common/http` appears only in `services/`,
 `core/interceptors/`, `core/config/` and one named exception, Transloco's loader
-`core/i18n/transloco-http.loader.ts` (the `i18n` flag; it marks its call `BACKGROUND`). `health` (the home screen) is the worked example, file by
-file:
+`core/i18n/transloco-http.loader.ts` (the `i18n` flag; it marks its call `BACKGROUND`). The server's
+`module` endpoints stand in for a product noun below; file by file:
 
 1. **Glossary and contract.** Name the noun and the action in `.doc/glossary.md`. If the server's
    contract changed, run `bun run api:types` (the input is the server's `openapi.json`):
    `src/app/services/generated/` is regenerated and committed, never edited.
-2. **Models** `app/models/health/`: `interface.ts` re-exports the generated types (`import type`; a
-   hand-written API shape is a lint error) and `constants.ts` maps a status to its `labelKey` and
-   tone. `models/api/` holds `ApiError`, `isApiError()`, `Paginated<T>` and `errorMessageKey()`.
-3. **Service** `app/services/health.service.ts`: `@Injectable({ providedIn: 'root' })`, one method
-   per call, each `const { data } = await getApiHealth({ throwOnError: true })` and `return data`.
-   A failure rejects with the `ApiError` the interceptor built.
-4. **Store** `app/store/health.store.ts`: `signalStore({ providedIn: 'root' }, withState(...),
-withRequestStatus(), withMethods(...))`. A method is `patchState(store, setLoading())`, `await`
-   the service, `patchState(store, { ... }, setLoaded())`; in the `catch` it `setError(error)`s and
-   toasts `errors.<code>` once; a cause that is not an `ApiError` is first logged
-   (`inject(LoggerService).error(...)`) and then shown as `errors.unknown`, so a bug is never
-   silent. **Account data (with auth).** A store that holds an account's data (`UserStore` is the
-   example) exposes `reset()` and clears itself with an `effect` on `AuthStore.isLoggedIn()`
-   (`withHooks` `onInit`), so sign-out and a refused refresh leave nothing for the next account; its
-   `load()` drops the old value before it calls, and ignores an answer that arrives after sign-out.
-   **Offline rule:** a store method that mutates checks `NetworkService.online()` first and toasts `errors.offline` instead of sending (health only
-   reads, so it does not).
-5. **Page module** `app/pages/health/`: `health.routes.ts` (the default export, lazy-loads the
-   page), `health-status/` (the routed page; injects the store; skeleton while loading,
-   `app-error-state` with retry on failure, the loaded view) and `components/health-badge/`
-   (presentational: inputs and a model table, no store).
-6. **Route and nav.** A lazy `loadChildren` in `app/app.routes.ts` inside the main shell, and for a
-   top-level screen an entry in `app/nav.ts` (`{ path: '/', labelKey: 'nav.home' }`).
-7. **Styles** a sibling `<stem>.component.scss` named in the component's `styleUrl`
-   (`health-status.component.scss`, `health-badge.component.scss`). BEM classes; no inline `styles:`.
-8. **Copy** in `core/i18n/translations/en.json` **and `he.json`** (the `i18n` flag; the parity
+2. **Models.** `app/models/<noun>/interface.ts` re-exports the generated types (`import type`; a
+   hand-written API shape is a lint error). `models/api/` holds `ApiError`, `isApiError()`,
+   `Paginated<T>` and `errorMessageKey()`.
+
+   ```ts
+   // app/models/module/interface.ts
+   import type { Module, ModulePage } from '@app/services/generated/types.gen'
+
+   export type { Module, ModulePage }
+   ```
+
+3. **Service.** `@Injectable({ providedIn: 'root' })`, one method per call, each returning the
+   call's `data`. A failure rejects with the `ApiError` the interceptor built.
+
+   ```ts
+   // app/services/module.service.ts
+   @Injectable({ providedIn: 'root' })
+   export class ModuleService {
+     async list(): Promise<ModulePage> {
+       const { data } = await getApiModule({ throwOnError: true })
+       return data
+     }
+
+     async create(body: CreateModuleBody): Promise<Module> {
+       const { data } = await postApiModule({ body, throwOnError: true })
+       return data
+     }
+   }
+   ```
+
+4. **Store.** A read is `patchState(store, setLoading())`, `await` the service,
+   `patchState(store, { ... }, setLoaded())`; in the `catch` it `setError(error)`s and toasts
+   `errors.<code>` once; a cause that is not an `ApiError` is first logged
+   (`LoggerService.error`, as the block shows) and then shown as `errors.unknown`, so a
+   bug is never silent. A mutation first checks `NetworkService.online()` and toasts `errors.offline`
+   instead of sending, and returns whether it worked.
+
+   ```ts
+   // app/store/module.store.ts
+   export const ModuleStore = signalStore(
+     { providedIn: 'root' },
+     withState<{ page: ModulePage | null }>({ page: null }),
+     withRequestStatus(),
+     withMethods(
+       (
+         store,
+         service = inject(ModuleService),
+         network = inject(NetworkService),
+         notifications = inject(NotificationService),
+         logger = inject(LoggerService),
+       ) => {
+         const fail = (cause: unknown): void => {
+           if (!isApiError(cause)) logger.error('ModuleStore failed', cause)
+           const error = isApiError(cause) ? cause : new ApiError({ status: 0, code: 'unknown' })
+           patchState(store, setError(error))
+           notifications.showError(errorMessageKey(error.code))
+         }
+
+         return {
+           async load(): Promise<void> {
+             patchState(store, setLoading())
+             try {
+               patchState(store, { page: await service.list() }, setLoaded())
+             } catch (cause) {
+               fail(cause)
+             }
+           },
+
+           async create(body: CreateModuleBody): Promise<boolean> {
+             if (!network.online()) {
+               notifications.showError('errors.offline')
+               return false
+             }
+             try {
+               await service.create(body)
+               return true
+             } catch (cause) {
+               fail(cause)
+               return false
+             }
+           },
+         }
+       },
+     ),
+   )
+   ```
+
+   <!-- @server:auth-start -->
+
+   **Account data.** A store that holds an account's data (`UserStore` is the example)
+   exposes `reset()` and clears itself with an `effect` on `AuthStore.isLoggedIn()` (`withHooks`
+   `onInit`), so sign-out and a refused refresh leave nothing for the next account; its `load()`
+   drops the old value before it calls, and ignores an answer that arrives after sign-out.
+
+   <!-- @server:auth-end -->
+
+5. **Page module and route.** `app/pages/<module>/<module>.routes.ts` (the default export,
+   lazy-loads the page) and `<page>/` (the routed page; injects the store; a skeleton while loading,
+   `app-error-state` with retry on failure, the loaded view, all inside `<app-page>`). A lazy
+   `loadChildren` in `app/app.routes.ts` inside the main shell mounts it; a top-level screen also
+   gets an entry in `app/nav.ts` (`{ path: '/module', labelKey: 'module.title' }`).
+
+   ```html
+   <!-- app/pages/module/module-list/module-list.component.html -->
+   <app-page>
+     <app-page-header [heading]="'module.title' | t" />
+     @if (store.failed()) {
+       <app-error-state [description]="'errors.unknown' | t" (retry)="store.load()" />
+     } @else {
+       @for (item of store.page()?.items; track item.id) {
+         <p>{{ item.name }}</p>
+       }
+     }
+   </app-page>
+   ```
+
+   ```ts
+   // app/app.routes.ts, inside the main shell's children
+   { path: 'module', loadChildren: () => import('./pages/module/module.routes') },
+   ```
+
+6. **Styles.** A sibling `<stem>.component.scss` named in the component's `styleUrl`. BEM classes;
+   no inline `styles:`.
+7. **Copy** in `core/i18n/translations/en.json` **and `he.json`** (the `i18n` flag; the parity
    test `tests/unit/translation-parity.spec.ts` fails when a key or a `{{param}}` is missing from
-   one): `nav.home`, `health.*`, and the `errors.<code>` text for any new envelope code. Use every
-   key through `t` and never branch on the flag.
-9. **Specs** beside each file (see Tests): service, store, page, component.
+   one): the page's keys, and the `errors.<code>` text for any new envelope code. Use every key
+   through `t` and never branch on the flag.
+8. **Specs** beside each file (see Tests): service, store, page, component.
+
+**The shell.** The template renders no header, navigation or footer: `app-main-layout` is the skip
+link and the page's one `main`. A product's chrome is its own component in `components/app-<name>/`
+that the layout renders between the skip link and `<main>`; `app-theme-toggle` is ready to place
+there, and `app/nav.ts` is the table a navigation reads (through the `NAV_ENTRIES` token, because
+`components/` may not import `app/`).
+
+<!-- @server:auth-start -->
+
+With the server's auth, `app-account-menu` is the sign-in link or the account menu to place beside
+it; the profile page carries Sign out.
+
+<!-- @server:auth-end -->
+
+<!-- @i18n-start -->
+
+With `i18n`, `app-language-toggle` is the language switch to place beside it.
+
+<!-- @i18n-end -->
+
+<!-- @pwa-start -->
+
+With `pwa`, `app-install-button` is a toolbar control shown once the browser offers an install, and
+`app-install-hint` is the iOS share-sheet hint, a full-width dismissible row of its own.
+
+<!-- @pwa-end -->
 
 **The framework features in use**, so a new page does not reinvent them: standalone components with
-`input()`, `output()` and `model()` (the side-nav drawer's `open`), signals and `computed`,
+`input()` and `output()`, signals and `computed`,
 `@ngrx/signals` stores, `viewChild`, `@if` and `@for`, `OnPush` everywhere, `toSignal`,
 `afterNextRender`, the CDK overlay and dialog. The app is zoneless (Angular 21+ default): there is
 no `zone.js` polyfill and no `provideZoneChangeDetection`; state that a template reads is a signal.
 `@defer` is for a non-landmark block whose first paint can wait; the template has none, because its
-one candidate, the toast, is a CDK overlay portal and every other shell element is a landmark or
-flag-gated. `linkedSignal` is for local state that must reset when an input changes; the template
+one candidate, the toast, is a CDK overlay portal. `linkedSignal` is for local state that must reset when an input changes; the template
 has none (the controls keep no such state), so none is used. Not used, on purpose: `resource` and
 `httpResource` (the data path is page, store, service, SDK, one path) and Signal Forms.
 
@@ -167,7 +291,7 @@ home) and `roleGuard`. Put them on the route in the module's `*.routes.ts`:
 `/forbidden`). A guard only keeps a visitor off a screen; the API decides on every call. In a template,
 `*appHasRole="'admin'"` (or an array) renders a control only for an account holding the role: it
 reads the `ROLES` token in `shared/directives/has-role.directive.ts`, which `app.config.ts` fills from
-`AuthStore.roles` (empty without auth), and a `NavEntry.roles` list filters the side-nav the same way.
+`AuthStore.roles` (empty without auth), and a `NavEntry.roles` list lets a navigation filter its entries the same way.
 A page with edits to lose implements `hasUnsavedChanges()` and adds
 `canDeactivate: [unsavedChangesGuard]` (a confirm dialog). The login page reads `next` from the
 query string through `safeNextPath` (`shared/utils/next-path.ts`): only a path on this site is
@@ -207,9 +331,9 @@ basics;`), then setup, themes, basics; the rules of those six global partials si
   host element (`<app-button>` is `:host { display: contents }`, a block control is
   `:host { display: block }`). `ViewEncapsulation.None` and `::ng-deep` are refused by the scan.
   A parent may style a child's host element when the child is in the parent's own template
-  (`.auth-layout app-footer`, `.header__nav-toggle` on an `<app-button>`), and it wins over the
+  (a `.toolbar__save` class on an `<app-button>`), and it wins over the
   child's `:host` rule only because both sheets are encapsulated, so move every sheet, never a
-  subset. A parent never restyles a child's interior (`.header .button`): the child takes an
+  subset. A parent never restyles a child's interior (`.toolbar .button`): the child takes an
   input instead (`app-button` has `block`, which fills its container and aligns the label to the
   start). Projected content is styled by the component that authors it. A rule that must depend on
   an ancestor outside the template uses `:host-context(.ancestor)`. The CDK builds overlay panes
@@ -235,9 +359,9 @@ basics;`), then setup, themes, basics; the rules of those six global partials si
 - **Toasts.** One implementation: `NotificationService` renders `shared/components/toast` on the
   CDK overlay. A toast may carry one action (`{ labelKey, run }`, a copy key and a callback; only
   `showInfo` and `showWarning` take it): it never times out and is dismissed when the action runs.
-- **Theme toggle.** One toggle for everyone, in the header (`app-header.component`), a ghost icon
-  button that cycles light, dark and system. The user menu holds avatar, email, profile and sign
-  out, and no theme control.
+- **Theme toggle.** One toggle for everyone, `app-theme-toggle`: a ghost icon button that cycles
+  light, dark and system. The product places it once, in its header (The shell). An account menu
+  holds avatar, email, profile and sign out, and no theme control.
 - **Copy.** Every user-visible string in a template goes through the `t` pipe
   (`{{ 'notFound.title' | t }}`) with its key in `core/i18n/translations/en.json`, nested by area,
   `{{param}}` for values, and the same key in `he.json` when the `i18n` flag is on. Code asks
@@ -247,16 +371,15 @@ basics;`), then setup, themes, basics; the rules of those six global partials si
   English table is bundled into the build (`translator.provider.ts`, the `// @noi18n` lines) and every
   `t` and `Translator` call site is unchanged.
 - **Width.** A form lives in a card or a page no wider than `26rem` (`auth-card`) or `40rem`
-  (`profile.component.scss`, `health-status.component.scss`); do not stretch a form field across the
-  container.
+  (`home.component.scss`, `not-found.component.scss`); do not stretch a form field across the
+  container. The container itself is `app-page` (`shared/components/page/`): the width limit, the
+  centring, the gutters and the compact-density padding. `main` has none of them, so a page wraps
+  its template in `<app-page>`, the route-level screens (not-found, forbidden) too, and a
+  full-bleed page (a board, an editor) leaves it out.
 - **Text inputs and labels.** A component input that carries text takes an already translated string,
   and the heading input of `app-page-header`, `app-empty-state` and `app-error-state` is `heading`,
   never `title` (a static `title="..."` would also set the native tooltip). An `app-button` with
   `size="icon"` needs `ariaLabel`; dev mode logs a console error when it is missing.
-- **Drawer.** Below `lg` the side-nav is a modal drawer: focus moves in and stays (`cdkTrapFocus`),
-  the page behind is `inert`, Escape or navigation closes it and focus returns to the toggle. It
-  closes itself when the viewport reaches `lg`. `open` is a `model()`: `app-main-layout` binds
-  `[(open)]="navOpen"`, and the drawer sets it back to false when it closes itself.
 - **Raw controls** (`<button>`, `<input>`, `<select>`, `<textarea>`) exist only under
   `shared/components/`; a page never writes one, it uses the components below. `app-button` also
   renders a link (`link="/"`) so navigation and actions look the same.
@@ -273,6 +396,7 @@ basics;`), then setup, themes, basics; the rules of those six global partials si
 | `form-field` (`app-form-field`)           | Label, hint, the projected control and its first error (below).                                                                                                                                                  |
 | `input`, `select`, `textarea`, `checkbox` | The controls; each is a `ControlValueAccessor` bound with `formControlName`. `input` has `type`, `autocomplete`, `inputmode`, a password toggle.                                                                 |
 | `form-actions` (`app-form-actions`)       | Submit (`pending` shows the spinner and disables) and optional cancel (`cancellable`, `(cancelled)`); stacked on phones.                                                                                         |
+| `page` (`app-page`)                       | The page container: width limit, centring, gutters and compact padding; `main` has none.                                                                                                                         |
 | `page-header`                             | Page heading, description and an `actions` slot.                                                                                                                                                                 |
 | `data-table` (`app-data-table`)           | `columns`, `rows`, an optional `#cell` template, caption, empty state; scrolls inside its container.                                                                                                             |
 | `modal` (`app-modal`, `ModalService`)     | `ModalService.open(component or template, { titleKey, size, data })` is the dialog; `ModalService.confirm({ titleKey, messageKey, danger })` is the confirm pattern (`app-confirm-dialog`), over the CDK dialog. |
@@ -404,8 +528,8 @@ store method that awaited the call shows the outcome.
   page with the store replaced by plain signals and a `vi.fn()` for each method.
 - **A spec that renders text** provides `provideTestTranslator()` (`core/i18n/translator.testing`),
   never `provideTranslator()`: it loads `en.json` (and `he.json`) from memory, so English assertions
-  read the same with the `i18n` flag on or off. A spec of the language toggle sits in the
-  `// @i18n-start` block of the header spec.
+  read the same with the `i18n` flag on or off. The language toggle's spec is gated with its
+  component, by the `i18n` flag's `onlyPaths` in `template.yaml`.
 - E2E tests live in `tests/e2e/` (Playwright with `@axe-core/playwright`) and run with
   `bun run test:e2e`. Install the browser once with `bunx playwright install chromium` (add
   `--with-deps` on Linux).
@@ -438,9 +562,11 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && node scripts/e2e-stat
   (`devices['Desktop Chrome']`) runs `shell.spec.ts` and `screens.spec.ts`. A check that belongs to
   one of them carries `@phone` or `@desktop` in its title (`{ tag: '@phone' }`) and the other
   project's `grepInvert` leaves it out, so nothing skips at run time; never a `test.skip`.
-- **Specs.** `shell.spec.ts` asserts the landmarks, the skip link, no horizontal overflow, the
-  44 px touch targets (phone, also with `data-density="compact"`) and the desktop densities.
-  `smoke.spec.ts` shows the health status the API returns. `screens.spec.ts` captures every screen
+- **Specs.** `shell.spec.ts` asserts the skip link (first in the tab order, focuses `main`), one
+  `main` with id `main`, no horizontal overflow, the 404 inside `main`, its control at 44 px (phone,
+  also with `data-density="compact"`) and the desktop densities and compact spacing; a product's
+  header and navigation add their own assertions there. `smoke.spec.ts` asserts that the index
+  route is one `h1` inside `main` and that `/api/health` answers through the page's origin. `screens.spec.ts` captures every screen
   in phone and desktop, light and dark, to `test-results/screens/<route>-<viewport>-<theme>.png`
   (QA reads them) and checks each: no axe violation of the WCAG A and AA tags (in dark this is the
   contrast measurement), no horizontal scroll, exactly one `h1`. A failure names the route, theme
@@ -458,8 +584,9 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && node scripts/e2e-stat
   `registerThroughApi`, which signs up through the API (the cookies land in the browser context)
   and plants the session hint (`localStorage` key `session`, the JSON string `"1"`). Entries share
   one account per project because the register route is rate limited. `auth.spec.ts` covers
-  sign-up, sign-in, the profile, sign-out, a wrong password, the guarded redirect with `next`, and
-  two calls that expire together sharing one `/api/auth/refresh`.
+  sign-up, sign-in, the profile (`expectSignedIn` reads the account there), sign-out from the
+  profile page, a wrong password and the guarded redirect with `next`. Two calls that expire
+  together sharing one `/api/auth/refresh` is the interceptor's unit test.
 
 <!-- @server:auth-end -->
 
@@ -482,13 +609,12 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && node scripts/e2e-stat
   stable or after 30 s (`registerWhenStable:30000`) and never in development. It prefetches the
   shell (`index.html`, the manifest, the hashed JS and CSS), caches icons and media lazily, and
   serves `/i18n/**` as an asset group (lazy install, prefetched on update), so the copy tables
-  change with the app and a new key never renders raw after a deploy. The one data group, `api`,
-  is an allowlist of public reads: `/api/health` and `/api/health/**`, network first with a 10 s
-  `maxAge` and a 3 s timeout. Angular's worker has no `!` negation in `dataGroups[].urls` (it
-  reads one as a literal path), so nothing is excluded by pattern: anything not listed is never
-  cached, and a spec rejects a `!` entry and any match of `/api/user/**` or `/api/auth/**`. A
-  page module adds a URL to the group only for a public read that carries no session or personal data;
-  never `/api/**`. The iOS install hint can be dismissed and stays dismissed.
+  change with the app and a new key never renders raw after a deploy. There is no data group: no API
+  answer is cached. Angular's worker has no `!` negation in `dataGroups[].urls` (it reads one as a
+  literal path), so nothing is excluded by pattern: anything not listed is never cached. A product
+  that caches a public read adds a group of explicit URLs that carry no session or personal data,
+  never `/api/**`; `tests/unit/ngsw-config.spec.ts` rejects a `!` entry and any group that matches
+  `/api/user/**` or `/api/auth/**`. The iOS install hint can be dismissed and stays dismissed.
 - **How an update reaches the user.** The worker downloads a new version in the background
   (`AppUpdateService` checks at start, hourly once stable and on window focus). When it is
   ready, an info toast offers `pwa.reload`; the action activates the version and reloads the
@@ -497,9 +623,9 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && node scripts/e2e-stat
 - **Install.** `public/manifest.webmanifest` (the theme and background colours are `#ffffff`;
   change them to the brand) and the placeholder icons in `public/icons/` (`icon.svg`,
   `icon-192.png`, `icon-512.png`, `maskable-512.png`, `apple-touch-icon.png`) ship with the
-  template. **Replace the icons** with the product's own. The header shows an install button when
-  the browser offers one, and a hint on iOS Safari (no install event there).
-- **Flag off.** Without `pwa` the manifest, icons, services, initializer and header controls are
+  template. **Replace the icons** with the product's own. `app-install-button` shows when the
+  browser offers an install, and `app-install-hint` on iOS Safari (no install event there).
+- **Flag off.** Without `pwa` the manifest, icons, services, initializer and the two install components are
   gone, `@angular/service-worker` stays installed, and the build still emits an unregistered
   `ngsw-worker.js` and `ngsw.json` in `dist/` (the `serviceWorker` build option stays).
 - The app calls the API at relative `/api` on its own origin in every environment: no API URL is

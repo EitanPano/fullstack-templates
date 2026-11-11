@@ -1,0 +1,13 @@
+@if (install.showIosHint()) {
+  <div class="install-hint">
+    <p>{{ 'pwa.iosHint' | t }}</p>
+    <app-button
+      variant="ghost"
+      size="icon"
+      [ariaLabel]="'actions.dismiss' | t"
+      (click)="install.dismissIosHint()"
+    >
+      <app-icon name="close" />
+    </app-button>
+  </div>
+}

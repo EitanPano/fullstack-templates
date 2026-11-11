@@ -474,12 +474,6 @@ export default defineConfig([
     rules: { 'no-restricted-syntax': 'off' },
   },
   {
-    // The generator keeps one of the returns (the component or null), so in place the second is
-    // unreachable on purpose.
-    files: ['src/components/slots.ts'],
-    rules: { 'no-unreachable': 'off' },
-  },
-  {
     files: ['**/*.mjs', '**/*.mts', '*.config.ts'],
     extends: [tseslint.configs.disableTypeChecked],
   },

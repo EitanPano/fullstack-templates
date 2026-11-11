@@ -1,11 +1,29 @@
 @use 'setup/breakpoints';
 @use 'setup/functions';
+@use 'setup/variables';
 
-// The vertical rhythm inside main: one gap between the header and each section.
+// The page container: width, centring, gutters and vertical padding (main has none), then the
+// vertical rhythm: one gap between the header and each section.
 .page {
+  --page-gutter: #{functions.space(4)};
+
   display: flex;
   flex-direction: column;
   gap: functions.space(6);
+  inline-size: 100%;
+  max-inline-size: variables.$container-max;
+  margin-inline: auto;
+  padding-block: functions.space(6);
+  padding-inline: var(--page-gutter);
+
+  @include breakpoints.up(md) {
+    --page-gutter: #{functions.space(8)};
+  }
+}
+
+// Unlayered, so it must out-rank .page here rather than from the basics layer.
+[data-density='compact'] .page {
+  padding-block: functions.space(4);
 }
 
 .page-header {

@@ -6,7 +6,7 @@ import { SignOutItem } from '@/feature/auth/ui/sign-out-item'
 import { Button } from '@/shared/ui/button'
 import { UserMenu } from '@/shared/ui/pattern/user-menu'
 
-// The shell's account slot with an account behind it: a sign-in link and the theme menu for a
+// The account menu a product places in its header, with an account behind it: a sign-in link and the theme menu for a
 // visitor; the avatar menu (email, theme, sign out) for an account. The email lives in the menu,
 // never as header text beside a primary button.
 export async function AccountMenu() {

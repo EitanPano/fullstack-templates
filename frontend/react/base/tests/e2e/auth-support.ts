@@ -30,31 +30,27 @@ export async function fillSignIn(page: Page, email: string, password = PASSWORD)
   await page.getByRole('button', { name: 'Sign in' }).click()
 }
 
-// Signs up through the form and waits until the account menu is the signed-in one.
+// Signs up through the form and waits until the profile page shows the account.
 export async function registerThroughUi(page: Page, email = uniqueEmail()): Promise<string> {
   await page.goto('/sign-up')
   await fillSignUp(page, email)
   await expect(page).toHaveURL(/\/$/, { timeout: 15_000 })
-  await openAccountMenu(page, email)
-  await closeAccountMenu(page)
+  await expectSignedIn(page, email)
   return email
 }
 
-// Opens the menu and checks it names the account. The open menu hides the rest of the page from
-// assistive technology (Radix), so a scan runs after it closes: `closeAccountMenu`.
-export async function openAccountMenu(page: Page, email: string) {
-  await page.getByRole('button', { name: /^Account menu/ }).click()
-  await expect(page.getByText(email)).toBeVisible()
+// The profile page is where an account reads its own session: it names the email. A visitor is
+// sent to sign-in instead, so a visible email means signed in. Scoped to main: the email is not
+// read from the whole page.
+export async function expectSignedIn(page: Page, email: string) {
+  await page.goto('/profile')
+  await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible()
+  await expect(page.getByRole('main').getByText(email)).toBeVisible()
 }
 
-export async function closeAccountMenu(page: Page) {
-  await page.keyboard.press('Escape')
-  await expect(page.getByRole('menu')).toHaveCount(0)
-}
-
-// Signs out through the account menu; the handler sends the visitor to the sign-in screen.
+// Signs out with the profile page's button; the action sends the visitor to the sign-in screen.
 export async function signOutThroughUi(page: Page, email: string) {
-  await openAccountMenu(page, email)
-  await page.getByRole('menuitem', { name: 'Sign out' }).click()
+  await expectSignedIn(page, email)
+  await page.getByRole('button', { name: 'Sign out' }).click()
   await expect(page).toHaveURL(/\/sign-in$/, { timeout: 15_000 })
 }

@@ -7,7 +7,7 @@ import DataTable from './data-table.vue'
 
 const COLUMNS = [
   { key: 'name', labelKey: 'nav.home' },
-  { key: 'count', labelKey: 'nav.open', align: 'end' as const },
+  { key: 'count', labelKey: 'actions.retry', align: 'end' as const },
 ]
 const ROWS = [
   { name: 'Alpha', count: 2 },
@@ -23,7 +23,7 @@ describe('DataTable', () => {
       within(table)
         .getAllByRole('columnheader')
         .map((cell) => cell.textContent),
-    ).toEqual(['Home', 'Open navigation'])
+    ).toEqual(['Home', 'Try again'])
     expect(within(table).getAllByRole('columnheader')[0]).toHaveAttribute('scope', 'col')
     expect(within(table).getAllByRole('row')).toHaveLength(3)
     expect(within(table).getByRole('cell', { name: 'Alpha' })).toBeInTheDocument()
@@ -43,10 +43,10 @@ describe('DataTable', () => {
 
   it('takes another caption key', async () => {
     await renderWithApp(DataTable, {
-      props: { columns: COLUMNS, rows: ROWS, captionKey: 'nav.primary' },
+      props: { columns: COLUMNS, rows: ROWS, captionKey: 'form.submit' },
     })
 
-    expect(screen.getByRole('region', { name: 'Primary' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Submit' })).toBeInTheDocument()
   })
 
   it('shows a plain value as text and nothing for a non-plain one', async () => {

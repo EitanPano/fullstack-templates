@@ -1,4 +1,5 @@
 import type { NavEntry } from '@/models/nav'
 
-// The one table that puts a screen in the shell's navigation: a page adds its entry here.
+// The one table of top-level routes: a page adds its entry here. `screens.spec` captures every
+// entry, and the navigation a product builds reads it.
 export const NAV: NavEntry[] = [{ to: '/', label: 'Home' }]

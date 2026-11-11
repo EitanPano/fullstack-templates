@@ -3,7 +3,7 @@ import type { ComponentProps, ReactNode } from 'react'
 import { cn } from '@/shared/utils/cn'
 import './page.scss'
 
-// The page rhythm inside the shell main: a vertical stack with one gap.
+// The page container inside main (width, gutters, padding) and its rhythm: one gap.
 export function Page({ className, ...props }: ComponentProps<'div'>) {
   return <div className={cn('page', className)} {...props} />
 }

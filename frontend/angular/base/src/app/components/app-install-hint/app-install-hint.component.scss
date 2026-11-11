@@ -1,0 +1,20 @@
+@use 'setup/functions';
+@use 'setup/variables';
+
+:host {
+  display: block;
+}
+
+.install-hint {
+  inline-size: 100%;
+  max-inline-size: variables.$container-max;
+  margin-inline: auto;
+  padding-inline: functions.space(4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: functions.space(2);
+  padding-block: functions.space(2);
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+}

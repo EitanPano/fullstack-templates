@@ -23,16 +23,16 @@ const FILES = [
   'src/app/app.routes.ts',
   'src/app/nav.ts',
   'src/app/components/app-main-layout/app-main-layout.component.ts',
-  'src/app/pages/health/health.routes.ts',
-  'src/app/pages/health/health.form.ts',
-  'src/app/pages/health/health-status/health-status.component.ts',
-  'src/app/pages/health/components/health-badge/health-badge.component.ts',
+  'src/app/pages/post/post.routes.ts',
+  'src/app/pages/post/post.form.ts',
+  'src/app/pages/post/post-list/post-list.component.ts',
+  'src/app/pages/post/components/post-badge/post-badge.component.ts',
   'src/app/pages/other/other.routes.ts',
   'src/app/pages/other/other.form.ts',
   'src/app/pages/other/other-page/other-page.component.ts',
   'src/app/pages/other/components/other-card/other-card.component.ts',
-  'src/app/store/health.store.ts',
-  'src/app/services/health.service.ts',
+  'src/app/store/post.store.ts',
+  'src/app/services/post.service.ts',
   'src/app/services/generated/sdk.gen.ts',
   'src/app/services/generated/types.gen.ts',
   'src/app/services/generated/client.gen.ts',
@@ -48,7 +48,7 @@ const FILES = [
   'src/app/shared/components/button/button.component.ts',
   'src/app/shared/utils/time.ts',
   'src/app/shared/validators/zod-validator.ts',
-  'src/app/models/health/interface.ts',
+  'src/app/models/post/interface.ts',
 ]
 for (const file of FILES) {
   mkdirSync(dirname(join(root, file)), { recursive: true })
@@ -89,10 +89,10 @@ async function messagesFor(filePath: string, code: string, ruleId: string) {
 const BOUNDARY = 'boundaries/dependencies'
 const RESTRICTED = 'no-restricted-imports'
 
-const PAGE = 'src/app/pages/health/health-status/x.ts'
-const COMPONENT = 'src/app/pages/health/components/health-badge/x.ts'
-const ROUTES = 'src/app/pages/health/x.routes.ts'
-const FORM = 'src/app/pages/health/x.form.ts'
+const PAGE = 'src/app/pages/post/post-list/x.ts'
+const COMPONENT = 'src/app/pages/post/components/post-badge/x.ts'
+const ROUTES = 'src/app/pages/post/x.routes.ts'
+const FORM = 'src/app/pages/post/x.form.ts'
 const CROSS = 'a page module never imports another page module'
 const GENERATED = 'the generated client is imported only by services/'
 
@@ -103,28 +103,28 @@ const violations: Violation[] = [
   [
     'app → services',
     'src/app/app.config.ts',
-    "import '@app/services/health.service'",
+    "import '@app/services/post.service'",
     BOUNDARY,
     'app/ wires components/',
   ],
   [
     'app → page',
     'src/app/app.routes.ts',
-    "import '@app/pages/health/health-status/health-status.component'",
+    "import '@app/pages/post/post-list/post-list.component'",
     BOUNDARY,
     'import a page only through its module *.routes.ts',
   ],
   [
     'components → services',
     'src/app/components/app-main-layout/x.ts',
-    "import '@app/services/health.service'",
+    "import '@app/services/post.service'",
     BOUNDARY,
     'components/ imports core/',
   ],
   [
     'components → page',
     'src/app/components/app-main-layout/x.ts',
-    "import '@app/pages/health/health-status/health-status.component'",
+    "import '@app/pages/post/post-list/post-list.component'",
     BOUNDARY,
     'components/ imports core/',
   ],
@@ -132,7 +132,7 @@ const violations: Violation[] = [
   [
     'page → services',
     PAGE,
-    "import '@app/services/health.service'",
+    "import '@app/services/post.service'",
     BOUNDARY,
     'call services through a store method',
   ],
@@ -154,14 +154,14 @@ const violations: Violation[] = [
   [
     'component → store',
     COMPONENT,
-    "import '@app/store/health.store'",
+    "import '@app/store/post.store'",
     BOUNDARY,
     'a page component is presentational',
   ],
   [
     'component → its own page',
     COMPONENT,
-    "import '@app/pages/health/health-status/health-status.component'",
+    "import '@app/pages/post/post-list/post-list.component'",
     BOUNDARY,
     'a page component is presentational',
   ],
@@ -175,28 +175,28 @@ const violations: Violation[] = [
   [
     'routes → store',
     ROUTES,
-    "import '@app/store/health.store'",
+    "import '@app/store/post.store'",
     BOUNDARY,
     'a module routes file imports core/guards and its own pages only',
   ],
   [
     'routes → its own module form',
     ROUTES,
-    "import '@app/pages/health/health.form'",
+    "import '@app/pages/post/post.form'",
     BOUNDARY,
     'a module routes file imports core/guards and its own pages only',
   ],
   [
     'routes → its own module component',
     ROUTES,
-    "import '@app/pages/health/components/health-badge/health-badge.component'",
+    "import '@app/pages/post/components/post-badge/post-badge.component'",
     BOUNDARY,
     'a module routes file imports core/guards and its own pages only',
   ],
   [
     'form → its own page',
     FORM,
-    "import '@app/pages/health/health-status/health-status.component'",
+    "import '@app/pages/post/post-list/post-list.component'",
     BOUNDARY,
     'a *.form.ts imports shared/validators',
   ],
@@ -218,14 +218,14 @@ const violations: Violation[] = [
   [
     'store → page',
     'src/app/store/x.ts',
-    "import '@app/pages/health/health-status/health-status.component'",
+    "import '@app/pages/post/post-list/post-list.component'",
     BOUNDARY,
     'a store imports services/',
   ],
   [
     'services → store',
     'src/app/services/x.ts',
-    "import '@app/store/health.store'",
+    "import '@app/store/post.store'",
     BOUNDARY,
     'a service imports models/',
   ],
@@ -239,7 +239,7 @@ const violations: Violation[] = [
   [
     'core/guards → page',
     'src/app/core/guards/x.ts',
-    "import '@app/pages/health/health-status/health-status.component'",
+    "import '@app/pages/post/post-list/post-list.component'",
     BOUNDARY,
     'core wiring',
   ],
@@ -260,14 +260,14 @@ const violations: Violation[] = [
   [
     'core/providers → store',
     'src/app/core/providers/x.ts',
-    "import '@app/store/health.store'",
+    "import '@app/store/post.store'",
     BOUNDARY,
     'core/config, providers, i18n and errors import each other',
   ],
   [
     'core/i18n → services',
     'src/app/core/i18n/x.ts',
-    "import '@app/services/health.service'",
+    "import '@app/services/post.service'",
     BOUNDARY,
     'core/config, providers, i18n and errors import each other',
   ],
@@ -288,28 +288,28 @@ const violations: Violation[] = [
   [
     'shared → store',
     'src/app/shared/components/button/x.ts',
-    "import '@app/store/health.store'",
+    "import '@app/store/post.store'",
     BOUNDARY,
     'shared/ is product-agnostic',
   ],
   [
     'shared → page module',
     'src/app/shared/validators/x.ts',
-    "import '@app/pages/health/health.routes'",
+    "import '@app/pages/post/post.routes'",
     BOUNDARY,
     'shared/ is product-agnostic',
   ],
   [
     'models → store',
-    'src/app/models/health/x.ts',
-    "import '@app/store/health.store'",
+    'src/app/models/post/x.ts',
+    "import '@app/store/post.store'",
     BOUNDARY,
     'models/ holds types and constants',
   ],
   // The generated client's runtime belongs to services/; models/ may import its types only.
   [
     'models → generated (value)',
-    'src/app/models/health/x.ts',
+    'src/app/models/post/x.ts',
     "import { x } from '@app/services/generated/types.gen'",
     BOUNDARY,
     GENERATED,
@@ -366,7 +366,7 @@ const violations: Violation[] = [
 // A folder no layer claims is refused, so the old homes cannot come back unnoticed.
 const unknown: [what: string, file: string][] = [
   ['src/app/layout/', 'src/app/layout/x.ts'],
-  ['src/app/features/<module>/', 'src/app/features/health/x.ts'],
+  ['src/app/features/<module>/', 'src/app/features/post/x.ts'],
   ['a component outside components/ and pages/', 'src/app/widgets/x.ts'],
 ]
 
@@ -382,47 +382,47 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   [
     'app → module routes (the lazy import)',
     'src/app/app.routes.ts',
-    "import('@app/pages/health/health.routes')",
+    "import('@app/pages/post/post.routes')",
     BOUNDARY,
   ],
-  ['app → store', 'src/app/app.config.ts', "import '@app/store/health.store'", BOUNDARY],
+  ['app → store', 'src/app/app.config.ts', "import '@app/store/post.store'", BOUNDARY],
   [
     'components → core/providers',
     'src/app/components/app-main-layout/x.ts',
     "import '@app/core/providers/storage.service'",
     BOUNDARY,
   ],
-  ['page → store', PAGE, "import '@app/store/health.store'", BOUNDARY],
+  ['page → store', PAGE, "import '@app/store/post.store'", BOUNDARY],
   ['page → shared', PAGE, "import '@app/shared/components/button/button.component'", BOUNDARY],
-  ['page → models', PAGE, "import '@app/models/health/interface'", BOUNDARY],
+  ['page → models', PAGE, "import '@app/models/post/interface'", BOUNDARY],
   ['page → core/config', PAGE, "import '@app/core/config/constants'", BOUNDARY],
   ['page → core/providers', PAGE, "import '@app/core/providers/storage.service'", BOUNDARY],
   [
     'page → its own module components',
     PAGE,
-    "import '../components/health-badge/health-badge.component'",
+    "import '../components/post-badge/post-badge.component'",
     BOUNDARY,
   ],
-  ['page → its own module form', PAGE, "import '@app/pages/health/health.form'", BOUNDARY],
+  ['page → its own module form', PAGE, "import '@app/pages/post/post.form'", BOUNDARY],
   [
     'component → shared',
     COMPONENT,
     "import '@app/shared/components/button/button.component'",
     BOUNDARY,
   ],
-  ['component → models', COMPONENT, "import '@app/models/health/interface'", BOUNDARY],
+  ['component → models', COMPONENT, "import '@app/models/post/interface'", BOUNDARY],
   ['routes → core/guards', ROUTES, "import '@app/core/guards/auth.guard'", BOUNDARY],
   [
     'routes → its own pages (the lazy import)',
     ROUTES,
-    "import('./health-status/health-status.component')",
+    "import('./post-list/post-list.component')",
     BOUNDARY,
   ],
   ['form → shared/validators', FORM, "import '@app/shared/validators/zod-validator'", BOUNDARY],
-  ['form → models', FORM, "import '@app/models/health/interface'", BOUNDARY],
+  ['form → models', FORM, "import '@app/models/post/interface'", BOUNDARY],
   ['form → generated zod schemas', FORM, "import '@app/services/generated/zod.gen'", BOUNDARY],
-  ['store → services', 'src/app/store/x.ts', "import '@app/services/health.service'", BOUNDARY],
-  ['store → models', 'src/app/store/x.ts', "import '@app/models/health/interface'", BOUNDARY],
+  ['store → services', 'src/app/store/x.ts', "import '@app/services/post.service'", BOUNDARY],
+  ['store → models', 'src/app/store/x.ts', "import '@app/models/post/interface'", BOUNDARY],
   [
     'store → core/providers',
     'src/app/store/x.ts',
@@ -442,18 +442,18 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     "import '@app/core/config/constants'",
     BOUNDARY,
   ],
-  ['services → models', 'src/app/services/x.ts', "import '@app/models/health/interface'", BOUNDARY],
-  ['core/guards → store', 'src/app/core/guards/x.ts', "import '@app/store/health.store'", BOUNDARY],
+  ['services → models', 'src/app/services/x.ts', "import '@app/models/post/interface'", BOUNDARY],
+  ['core/guards → store', 'src/app/core/guards/x.ts', "import '@app/store/post.store'", BOUNDARY],
   [
     'core/interceptors → services',
     'src/app/core/interceptors/x.ts',
-    "import '@app/services/health.service'",
+    "import '@app/services/post.service'",
     BOUNDARY,
   ],
   [
     'core/initializers → store',
     'src/app/core/initializers/x.ts',
-    "import '@app/store/health.store'",
+    "import '@app/store/post.store'",
     BOUNDARY,
   ],
   [
@@ -478,7 +478,7 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   [
     'core/errors → models',
     'src/app/core/errors/x.ts',
-    "import '@app/models/health/interface'",
+    "import '@app/models/post/interface'",
     BOUNDARY,
   ],
   ['shared → shared', 'src/app/shared/utils/x.ts', "import '@app/shared/utils/time'", BOUNDARY],
@@ -491,12 +491,12 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   [
     'shared → models',
     'src/app/shared/utils/x.ts',
-    "import '@app/models/health/interface'",
+    "import '@app/models/post/interface'",
     BOUNDARY,
   ],
   [
     'models → generated types (import type)',
-    'src/app/models/health/x.ts',
+    'src/app/models/post/x.ts',
     "import type { x } from '@app/services/generated/types.gen'",
     BOUNDARY,
   ],

@@ -1,5 +1,56 @@
 # Changelog
 
+## 5.0.0 — 2026-11-10
+
+No template chrome and no example screen ([ADR 0010](../../docs/adr/0010-no-chrome-no-example-screen.md)). A generated app is a skip link, one `main` and an index route of one `h1` and one line of copy. A project generated from 4.x keeps its header, footer and status page as its own code; there is no migration tool.
+
+### Breaking
+
+All paths are under `src/`.
+
+| What | Before | Now, and what a project generated before does |
+| --- | --- | --- |
+| Main layout | `components/app-main-layout.tsx` took a `nav` prop and rendered the skip link, `AppHeader` with the account slot, `main` and `AppFooter` | `AppMainLayout` takes no prop and renders the skip link and the one `main`, nothing else. Header, navigation and footer are product code: a component in `components/` that the layout renders between the skip link and `main` (`AGENTS.md › The shell`). An old project keeps its layout. |
+| `components/app-header`, `app-footer`, `app-nav-links`, `app-mobile-nav`, `app-account-slot` | The header (brand, inline nav, offline badge, account slot), the footer, the nav links, the phone sheet, the slot that chose the account menu or the theme menu | Deleted with their stylesheets and tests. `app-user-menu`, `app-theme-menu` and, with auth, `app-account-menu` stay, tested, rendered by no template file, for the product to place. There is no account slot: a product that adds auth later swaps `AppUserMenu` for `AppAccountMenu` in its own header. |
+| Page container | `.main` (`styles/basics/_layout.scss`) carried the width, centring, gutters and padding; the compact-density padding sat in `_base.scss` | `.main` is `flex: 1` and nothing else. `Page` (`shared/components/page.scss`) owns the width, gutters and padding, and the compact-density override beside it (`[data-density='compact'] .page`, unlayered because `.page` is). Every route that renders in `main` is wrapped in `Page`: the pages, the 404 (with `inline-size: 100%` on `.not-found`, since a centred child of the column shrinks to its content), the group's error screen. A route that renders without it is full-bleed. An old project that adopts the new `Page` must drop the container from its `.main`, or the two stack. |
+| Example screen | `pages/health/` (`health.routes`, `home-page`, the status card and its refresh button), `services/health.api.ts`, `models/health.ts`, the `Health` tag | Deleted with their tests. The index route is `pages/home/` (`home.routes.tsx`, `home-page.tsx`, `home-page.scss`): the display name as its one `h1` and "Replace this page with the first screen."; no loader, no data call. The server keeps `/api/health` for deploy probes. |
+| Sign out | A menu item in the account menu in the header | The profile page's header carries a Sign out button (`pages/user/components/sign-out-button.tsx`). Both it and the menu item run `useSignOut` (`store/use-sign-out.ts`, new, with auth). |
+| Hooks | `use-online-status` and `use-media-query` were called by the header and the phone menu | The hooks stay, with their tests; no template file calls them. |
+| `AGENTS.md` | The health files were "the worked example" | `Adding a feature` is a code block per step (a read and a mutation, the routes, a page, a component) and a paragraph, "The shell"; the layer list and `Styling` name `AppUserMenu` as the control the product places (`AppThemeMenu` is its theme items, for a menu the product writes) and `Page` as the container. |
+| e2e | `shell.spec.ts` asserted the banner, contentinfo and Primary navigation, the phone menu and the theme menu; `smoke.spec.ts` anchored on Refresh; the auth journeys read the account menu | See the pairs below. `signOutThroughUi` keeps its signature but goes to `/profile`; `openAccountMenu`, `closeAccountMenu`, `settled` and `isPhone` are gone, `expectSignedIn` (the profile page names the email) replaces the first two. |
+
+### Changed
+
+- `tests/unit/eslint-boundaries.test.ts` invents `pages/post`, `models/post` and `services/post.api` where it named the deleted health files; every case is the same.
+- The global `.container` helper and its compact rule, and the `$header-height` variable, are removed: nothing used them and `Page` is the container.
+- `tests/unit/density.test.ts` no longer floors `.header__brand` and `.nav-links__link`; `.button--sm` and the button floors stay.
+- `shell.spec.ts` gains "main reaches the bottom of the viewport on a short page" (both projects: a full-bleed screen fills the viewport) and a `@desktop` check that compact density tightens the page container's vertical padding from 24 px to 16 px: the values `main` carried before, now read from `main > .page` (`main` itself reads 0).
+
+### Assertions and their successors
+
+No assertion is dropped without a successor; nothing is skipped or focused.
+
+| Dropped | Now covered by |
+| --- | --- |
+| `shell.spec`: the page has the `banner`, `main` and `contentinfo` landmarks and a Primary `navigation` | `shell.spec`: exactly one `main` with id `main`; `app-main-layout.test.tsx`: the skip link is first and precedes the one `main`, and there is no banner, navigation or contentinfo landmark. The header, footer and navigation are gone with ADR D1. |
+| `shell.spec`: an unknown URL renders not-found with the banner visible | `shell.spec`: renders inside `main`; `routes.test.tsx`: the 404 is a `Page` inside `main` |
+| `shell.spec`: touch targets are 44 px (menu button, brand, account menu, Refresh), also at compact density | `shell.spec` `@phone`: the 404's one control, "Back to the start", is at least 44 px, also at compact density (the controls it measured are gone with ADR D1 and D3) |
+| `shell.spec`: the phone menu and its Close are 44 px | Gone with the phone menu (ADR D1). `density.test.ts` still floors `.button` and the icon button at 44 px under a coarse pointer. |
+| `shell.spec` `@desktop`: Refresh and the account menu are 36 px, 32 px compact | `shell.spec` `@desktop`: the 404's home control is 36 px, 32 px compact; `density.test.ts` pins the icon button's 2.25 rem and 2 rem squares |
+| `shell.spec`: the theme menu switches to dark and the choice survives a reload | The write: `app-theme-menu.test.tsx` proves the menu dispatches the chosen theme and sets `data-theme`. The read: `screens.spec.ts` stores a theme before the page loads and asserts `data-theme` after it, so a stored choice is applied on load. The reload round trip itself is no longer asserted end to end. |
+| `smoke.spec`: the home page reaches the API and shows its status; Refresh pings it again with a toast | Gone with the example screen (ADR D3). `smoke.spec`: the index route is one `h1` inside `main` and passes axe, without pinning the placeholder's words; `GET /api/health` answers 200 through the page's origin (a request, not UI). The display name as the `h1` and the copy line are proven by `pages/home/home-page.test.tsx`, which a product replaces with the page. |
+| `app-main-layout.test`: banner, main and contentinfo; the account slot in the banner; the nav prop in the Primary navigation with `aria-current`; the Menu dialog | `app-main-layout.test.tsx`: skip link first, one `main`, no banner, navigation or contentinfo, a focusable `main` the skip link points at. The rest is gone with the header and phone menu (ADR D1). |
+| `app-header.test`, `app-mobile-nav.test` | Gone with the header and the phone menu (ADR D1). `use-online-status.test.ts` and `use-media-query.test.ts` still test the hooks. |
+| `health-badge`, `refresh-health-button`, `system-status` and `health.api` tests | Gone with the health screen (ADR D3) |
+| `routes.test`: the home route with the heading, the status badge and exactly one fetch | `routes.test.tsx`: the home route is one `h1` and the copy line, and makes no request |
+| `routes.test`: the group boundary on a 503 inside the shell without the server text; Try again renders the page | `routes.test.tsx` "the group error boundary": a loader that fails once shows the ApiError's own copy inside `main` in a `Page`, never the server's text, and Try again renders the page |
+| `routes.test`: a rejected read inside the cache window is refetched | `services/api.test.ts` pins `refetchIfRejected`. The end-to-end path through a loader left with the health loader (ADR D3); `getMe` (with auth) uses the same helper. |
+| `user.routes.test`: a visitor costs one session request and the header shows Sign in | `user.routes.test.tsx`: a visitor on `/profile` costs one session request and reaches sign-in; `app-account-menu.test.tsx` still covers the visitor's Sign in link |
+| `user.routes.test`: the forbidden page inside the shell (Primary navigation); sign-out from the account menu on `/profile`; the session count waiting for the account menu | The forbidden page inside `main`; `sign-out-button.test.tsx` and `user.routes.test.tsx` sign out from `/profile` with the button; the count no longer waits for a menu |
+| `auth.routes.test`: no banner on the auth screens | No skip link on the auth screens: they have no shell |
+| `auth.spec`, `auth-support`: the signed-in account menu names the email; the visitor has no Sign in link | `expectSignedIn`: `/profile` names the email inside `main`, so a visible email means signed in; `a signed-in account is kept out of the sign-in screen`; `app-account-menu.test.tsx` covers the visitor's Sign in link and the menu |
+| `auth-support`: sign out through the account menu item | `signOutThroughUi` clicks the profile's Sign out; `sign-out-button.test.tsx` runs the action from the button (revoked and failed), `app-account-menu.test.tsx` still runs it from the menu item |
+
 ## 4.0.0 — 2026-11-09
 
 The template's tree on `pages/`, `components/` and co-located styles

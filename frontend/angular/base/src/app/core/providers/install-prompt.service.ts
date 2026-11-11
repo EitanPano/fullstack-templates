@@ -11,8 +11,8 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 // The install prompt. Chromium offers it once through `beforeinstallprompt`; this keeps the event
-// so the header can show an install button and open the prompt on a click. iOS Safari has no such
-// event: the user installs through the share sheet, so `showIosHint` tells the header when to say so,
+// so `app-install-button` can show and open the prompt on a click. iOS Safari has no such
+// event: the user installs through the share sheet, so `showIosHint` tells `app-install-hint` when to say so,
 // until the user dismisses it (remembered in local storage).
 @Injectable({ providedIn: 'root' })
 export class InstallPromptService {

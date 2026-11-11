@@ -3,14 +3,14 @@ The layer map of this package. Commands are in `package.json`; the contract code
 **`src/`**
 
 - `app/`: routing only. The root `layout.tsx` (document, theme, toaster), `global-error.tsx`,
-  `not-found.tsx`, `nav.ts`, and route groups. `(site)/` holds the shell layout, `page.tsx`,
-  `loading.tsx`, `error.tsx`, `not-found.tsx` and a catch-all that keeps a 404
-  inside the shell. A page is a `PageHeader` plus widgets, each inside its own `Suspense`. No
-  fetch calls and no business logic in `app/`.
+  `not-found.tsx`, `nav.ts`, and route groups. `(site)/` holds the layout (the skip link and the
+  one `main`), `page.tsx`, `loading.tsx`, `error.tsx`, `not-found.tsx` and a catch-all that keeps a
+  404 inside `main`. A page is a `Page` with a `PageHeader` and widgets, each inside its own
+  `Suspense`. No fetch calls and no business logic in `app/`.
 
 <!-- @server:auth-start -->
 
-`(auth)/` holds the account screens `sign-in/` and `sign-up/`: no shell, a centred `main` in its
+`(auth)/` holds the account screens `sign-in/` and `sign-up/`: not the `(site)` layout, a centred `main` in its
 `layout.tsx` that sends a signed-in account home (`GuestOnly`), and its own `loading.tsx` and
 `error.tsx`. `(site)/forbidden/` is the page `requireRole` sends an account with the wrong role to.
 `proxy.ts` (in `src/`) keeps the session fresh.
@@ -23,7 +23,7 @@ The layer map of this package. Commands are in `package.json`; the contract code
   `server/action.ts` (`'use server'`), `ui/` (the interactive leaf, `'use client'`, which imports
   its own `../server/action`).
 - `entity/<noun>/`: one glossary noun. `model.ts` (types, mappers, labels), `server/<noun>.ts`
-  (read loaders), `ui/` (presentational components such as `HealthBadge`).
+  (read loaders), `ui/` (presentational components such as a badge or a card).
 - `shared/`: product-agnostic.
   - `ui/` shadcn primitives, `ui/pattern/` layout patterns, `ui/form/` field bindings.
   - `lib/`: `cn`, `safe-action` (the action clients), `action-error` (`ActionError`), `date`
@@ -86,22 +86,111 @@ action, never through `fetch` in the browser.
 ## Adding a feature
 
 1. Name the noun and the action in `.doc/glossary.md`. The noun is an entity (`entity/<noun>/`
-   with `model.ts`, `server/<noun>.ts` and `ui/`); the action is a feature
-   (`feature/<action>/` with `model.ts`, `server/action.ts` and the `'use client'` leaf in `ui/`).
-   `entity/health`, `feature/refresh-health` and `widget/system-status` are the worked example.
+   with `model.ts`, `server/<noun>.ts` and `ui/`); the action is a feature (`feature/<action>/`
+   with `model.ts`, `server/action.ts` and the `'use client'` leaf in `ui/`).
 2. If the server's contract changed, run `bun run api:types`. `src/shared/api/generated/` is
-   regenerated and committed; never edit it. Only `*/server/*` files
-   import `@/shared/api/client` and the SDK functions.
-3. Compose them in `widget/<section>/ui/<section>.tsx`, an async Server Component, and give it a
-   skeleton with the same layout in `<section>-skeleton.tsx`.
-4. Add the route in `src/app/(group)/<route>/page.tsx`: a `PageHeader` and the widget inside
-   `<Suspense fallback={<…Skeleton />}>`. The group's `loading.tsx` and `error.tsx` cover the
-   route; add a segment-level pair only when the segment needs its own copy.
-5. When the feature adds a top-level screen, add its entry to `src/app/nav.ts` (`{ href, label }`).
-6. Configuration comes only through `src/shared/config/env.ts`. A browser-visible value is
+   regenerated and committed; never edit it. Only `*/server/*` files import `@/shared/api/client`
+   and the SDK functions.
+In the blocks, `getApiPost`, `patchApiPostById`, `listPosts`, `PostRow`, `PostListSkeleton`,
+`renamePost` and `RENAME_POST_COPY` are the example feature's own names: they exist once the
+server has the endpoint, `bun run api:types` has run and the recipe's steps are done.
+Everything else in the blocks already exists in the template.
+
+3. A read is an entity loader (Reads has the rules):
+
+   ```ts
+   // entity/post/server/post.ts
+   export async function listPosts() {
+     'use cache'
+     cacheTag('post')
+     cacheLife('minutes')
+     return call(getApiPost({ client: createApi() }))
+   }
+   ```
+
+4. A mutation is a feature's action (the block under Mutations) and a client leaf that runs it:
+
+   ```tsx
+   // feature/rename-post/ui/rename-post-button.tsx
+   'use client'
+   export function RenamePostButton({ id }: { id: string }) {
+     const { execute } = useAction(renamePost)
+     return <Button onClick={() => execute({ id, title: 'Renamed' })}>Rename</Button>
+   }
+   ```
+
+5. A widget composes them, an async Server Component, with a skeleton of the same layout in
+   `<section>-skeleton.tsx`:
+
+   ```tsx
+   // widget/post-list/ui/post-list.tsx
+   export async function PostList() {
+     await connection()
+     const result = await load()
+     if (!result.ok) return <ErrorState title="Posts" description={result.message} />
+     return result.posts.map((post) => <PostRow key={post.id} post={post} />)
+   }
+
+   // The catch lives in a helper, not around JSX; Next's own signals pass through.
+   async function load() {
+     try {
+       return { ok: true as const, posts: await listPosts() }
+     } catch (error) {
+       unstable_rethrow(error)
+       const message = error instanceof ActionError ? error.message : DEFAULT_COPY.internal
+       return { ok: false as const, message }
+     }
+   }
+   ```
+
+6. A page is a `Page`, a `PageHeader` and the widget inside `Suspense`. The group's `loading.tsx`
+   and `error.tsx` cover the route; add a segment-level pair only when the segment needs its own
+   copy.
+
+   ```tsx
+   // src/app/(site)/post/page.tsx
+   export default function PostPage() {
+     return (
+       <Page>
+         <PageHeader title="Posts" />
+         <Suspense fallback={<PostListSkeleton />}>
+           <PostList />
+         </Suspense>
+       </Page>
+     )
+   }
+   ```
+
+7. A top-level screen also gets its entry in `src/app/nav.ts` (`{ href, label }`).
+8. Configuration comes only through `src/shared/config/env.ts`. A browser-visible value is
    `NEXT_PUBLIC_*`, declared in a separate public schema, and listed in the example env file.
-7. Add a primitive with `bunx shadcn@4.21.4 add <name>` (see Styling). Never run `shadcn init`
+9. Add a primitive with `bunx shadcn@4.21.4 add <name>` (see Styling). Never run `shadcn init`
    or any other scaffolder.
+
+**The shell.** The template renders no header, navigation or footer: `app/(site)/layout.tsx` is
+the skip link and the page's one `main`. A product's chrome is a component in
+`shared/ui/pattern/` (this template's home for app-wide components; it takes the nav table and
+slots such as the theme control as props, because `shared` never imports `app` or a widget) that
+the layout renders between `<SkipLink />` and `<main>`. `UserMenu` is the control to place: it
+carries the theme items. `ThemeToggle` is only those items (it throws outside a menu), for a
+`DropdownMenuContent` the product writes, as `UserMenu` uses it.
+
+<!-- @server:auth-start -->
+
+With the server's auth, place `widget/account-menu` in the chrome. It reads the session at
+request time, so it sits in `Suspense`; without it `next build` fails under Cache Components
+(the e2e and the image), not `check`:
+
+```tsx
+<Suspense fallback={<AccountMenuSkeleton />}>
+  <AccountMenu />
+</Suspense>
+```
+
+<!-- @server:auth-end -->
+
+`main` has no width and no padding: a screen gets its container from `Page`, and a full-bleed
+screen skips it.
 
 ### Reads
 
@@ -117,7 +206,7 @@ has no API, so no data is fetched at build.
   value in.
 - **The widget**: `await connection()` is its first line, then the loader. It catches in a helper
   (not around JSX), calls `unstable_rethrow(error)`, and renders `ErrorState` with the
-  `ActionError` message. `SystemStatus` is the pattern.
+  `ActionError` message. The `PostList` block in step 5 is the pattern.
 
 <!-- @server:auth-start -->
 
@@ -249,8 +338,9 @@ token in JavaScript.
   or staff group, the unit tests that use a role, and this file, after the server's roles and
   the `contract` command (the generated types carry the role names). A role-gated route also
   needs a setup in the e2e screens list (Tests).
-- The account slot of the shell is `widget/account-menu` (a request-time hole). The email is in the
-  menu, never header text beside a primary button.
+- `widget/account-menu` is the account menu a product places in its header (a request-time hole);
+  the template renders it nowhere, and the profile page carries Sign out. The email is in the menu,
+  never header text beside a primary button.
 
 <!-- @server:auth-end -->
 
@@ -267,7 +357,7 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
   never a literal colour in a component. Spacing is Tailwind's 4 px step (`p-1` 4 px, `p-2` 8,
   `p-4` 16, `p-6` 24); do not add a `--spacing-<n>` key.
 - **Theming.** `next-themes` (`attribute="class"`, default from the brief) sets `dark` on
-  `<html>`; the toggle is in the `UserMenu`. Do not add a `prefers-color-scheme` block.
+  `<html>`; the toggle is `ThemeToggle`, which `UserMenu` renders. Do not add a `prefers-color-scheme` block.
 - **Sizing.** Controls use the shadcn density on a fine pointer and 44 px under touch:
   `h-9 pointer-coarse:h-11`, icon buttons `size-9 pointer-coarse:size-11`, and `compact:` takes both to 32 px (`h-8`, `size-8`), above the 24 px minimum of WCAG 2.2 SC 2.5.8. The density set at
   generation (`data-density` on `<html>`) changes the fine-pointer height only: the `compact:`
@@ -280,18 +370,19 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
   CLI wrote: its `cn` import becomes `@/shared/lib/cn`, literal colours become tokens, sizes get
   the `pointer-coarse:` pair, and run `bun run format`. `components.json` maps `ui` to
   `@/shared/ui`.
-- **Patterns** in `src/shared/ui/pattern/`: `AppShell` (skip link, header, nav inline from `md`
-  and in a sheet on phones, account slot, one `main`, footer), `Page`, `PageHeader`, `Section`,
-  `EmptyState`, `ErrorState` (with retry), `ListSkeleton`, `CardSkeleton`,
-  `AuthCard` (with the server's auth), `FormActions` (sticky on phones), `ConfirmDialog` and `UserMenu` (avatar trigger, email, items
-  slot, theme choices; the `email` prop is the account menu's, it stays when auth is off because
-  the pattern is one component). Use a pattern before writing a layout by hand. The `(site)` layout composes
-  the shell from `app/nav.ts`; a page, `loading.tsx` and `error.tsx` render inside it and never add
-  a landmark set.
+- **Patterns** in `src/shared/ui/pattern/`: `SkipLink`, `Page` (the container: width, gutters,
+  vertical padding), `PageHeader`, `Section`, `EmptyState`, `ErrorState` (with retry),
+  `ListSkeleton`, `CardSkeleton`, `AuthCard` (with the server's auth), `FormActions` (sticky on
+  phones) and `ConfirmDialog`. `UserMenu` is the control for the product to place (avatar trigger, email,
+  items slot, the theme items; the `email` prop is the account menu's, it stays when auth is off
+  because the pattern is one component); `ThemeToggle` is those theme items alone, for a
+  `DropdownMenuContent` the product writes, and throws outside a menu. Use a pattern before writing a layout by hand. The `(site)` layout renders the skip
+  link and `main`, which has no width or padding: a page, `loading.tsx`, `error.tsx` and
+  `not-found.tsx` wrap their content in `Page` and never add a landmark set.
 - **Forms** use the bindings in `src/shared/ui/form/`, never a raw `input`.
 - **Status** is a `Badge` by meaning (`success`, `warning`, `destructive`, `muted`, `info`) with
   words or an icon, never colour alone, and never a palette class such as `emerald-100`.
-- Toasts use `sonner`: concise and action-oriented ("Status refreshed"). Icons come from
+- Toasts use `sonner`: concise and action-oriented ("Post renamed"). Icons come from
   `lucide-react`, the same icon for the same concept everywhere, `aria-hidden` next to a label.
 - Use semantic HTML, labelled controls and keyboard-reachable interactions. The target is WCAG
   2.2 AA, checked by the axe scan in the e2e tests.
@@ -330,7 +421,7 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
   unexpected error is thrown and reaches the nearest `error.tsx`.
 - Every server action is an `action` client: `ActionError` becomes `serverError`, anything else is
   logged by `handleServerError` and becomes "Something went wrong. Try again." The client leaf shows
-  `serverError` with `toast.error` from its handler, as `RefreshHealthButton` does.
+  `serverError` with `toast.error` from its handler.
 
 ## Tests
 
@@ -342,13 +433,14 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
   action module (`vi.mock`) in a component test.
 - Next request APIs are boundaries: mock `next/cache` (`cacheTag`, `cacheLife`, `updateTag`),
   `next/server` (`connection`) and `next/headers` (`cookies`). `'use cache'` is inert under Vitest, so
-  assert the directives' calls (`cacheTag('health')`) instead. A safe action is called as a function
+  assert the directives' calls (`cacheTag('post')`) instead. A safe action is called as a function
   and returns `{ data, serverError, validationErrors }`; a `redirect()` surfaces as an error whose
   `digest` starts with `NEXT_REDIRECT`.
 - E2E tests live in `tests/e2e/` (Playwright with `@axe-core/playwright`): one test per user
   journey, each with an axe scan (`support.ts` has the scan; `auth-support.ts` the sign-up, sign-in
   and sign-out helpers). Install the browser once with `bun x playwright install chromium` (add
-  `--with-deps` on Linux). Scan a settled page: a closed menu, the account slot past its skeleton.
+  `--with-deps` on Linux). Scan a settled page: a closed menu, a widget past its skeleton. `openMenu` (`support.ts`) clicks a
+  Radix trigger until its first item shows, because a click before hydration opens nothing.
 - `bun run test:e2e` tests the **production build**, not the dev server. Playwright starts two web
   servers, both with `reuseExistingServer: false` (stop a dev server on port 3000 first):
   - the API, fresh every run, with `RATE_LIMIT_SCALE=100` so the suite does not trip the rate limits,
@@ -380,9 +472,11 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
   A check for one project carries a `@phone` or `@desktop` tag and the other project filters it out
   with `grepInvert` in `playwright.config.ts`; never `test.skip` at run time.
   `retries` is 0 and a trace is kept for a failed test: a flaky test is diagnosed, not retried.
-- `tests/e2e/shell.spec.ts` asserts 44 px targets on `phone` only (`@phone`; the navigation sits behind
-  the menu button there), the shadcn densities on `desktop` (`@desktop`), and that `data-density="compact"` does not shrink
-  a touch target (it sets the attribute `--density compact` generates, so no second build is needed).
+- `tests/e2e/shell.spec.ts` asserts the skip link (first in the tab order, focuses `main`), one `main`
+  with id `main`, no horizontal overflow, the 404 inside `main`, 44 px targets on `phone` only (`@phone`)
+  on the 404's controls, the shadcn densities on `desktop` (`@desktop`), and that `data-density="compact"`
+  does not shrink a touch target (it sets the attribute `--density compact` generates, so no second
+  build is needed). A product's header and navigation add their own assertions there.
 - `tests/e2e/screens.spec.ts` writes a full-page screenshot of every route in `app/nav.ts`, and of
   the sign-in and sign-up screens when the server has auth, to
   `test-results/screens/<route>-<viewport>-<theme>.png` (`phone` and `desktop`, `light` and `dark`; the
@@ -422,8 +516,8 @@ inline` maps them to utilities (`bg-primary`, `text-muted-foreground`) and `@cus
 <!-- @server:auth-end -->
 
 - `tests/unit/use-cache.test.ts` fails when a file with `'use cache'` imports `next/headers`,
-  `@/shared/auth/*` or `createRequestApi`; `tests/unit/proxy-config.test.ts` pins which paths the
-  proxy matcher refreshes.
+  `@/shared/auth/*` or `createRequestApi` (proved on seeded sources: the template ships no cached
+  loader); `tests/unit/proxy-config.test.ts` pins which paths the proxy matcher refreshes.
 - Every new behaviour gets a test for the happy path and at least one for a failure or empty
   path. No `.skip` or `.only`; a removed test is named in the stage report.
 

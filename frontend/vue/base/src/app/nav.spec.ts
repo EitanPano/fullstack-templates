@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { NAV } from './nav'
 
 describe('NAV', () => {
-  it('has the home entry first, so the header name and the nav agree', () => {
+  it('has the home entry first', () => {
     expect(NAV[0]?.path).toBe('/')
   })
 

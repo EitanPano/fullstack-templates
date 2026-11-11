@@ -14,18 +14,17 @@ describe('AppAuthLayoutComponent', () => {
     return fixture.nativeElement as HTMLElement
   }
 
-  it('has a skip link, one main, the product name linking home and a footer', async () => {
+  it('has a skip link, one main and the product name linking home', async () => {
     const element = await render()
     expect(element.querySelector('a.skip-link')?.getAttribute('href')).toBe('#main')
     expect(element.querySelectorAll('main#main')).toHaveLength(1)
     const brand = element.querySelector('a.auth-layout__brand')
     expect(brand?.getAttribute('href')).toBe('/')
     expect(brand?.textContent).toBe(DISPLAY_NAME)
-    expect(element.querySelector('footer')).not.toBeNull()
   })
 
-  it('has no navigation landmark', async () => {
+  it('has no navigation or footer landmark', async () => {
     const element = await render()
-    expect(element.querySelector('nav')).toBeNull()
+    expect(element.querySelector('nav, footer')).toBeNull()
   })
 })

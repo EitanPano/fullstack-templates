@@ -7,6 +7,9 @@ session glue (HttpOnly cookies, `proxy.ts` refresh, sign-in and sign-up). Tailwi
 Vitest and Playwright with axe. Generated alone or as the `frontend` of the `next-bun-express`
 stack.
 
+A generated app has no header, navigation, footer or example screen: `src/app/(site)/` is a skip link, one
+`main` and an index route of one `h1`; the product builds its own chrome (ADR 0010).
+
 ## Layout
 
 - `template.yaml`: the manifest (commands, contract, HTTP surface).

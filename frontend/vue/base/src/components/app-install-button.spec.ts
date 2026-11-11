@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderWithApp } from '@/testing/render'
 
 import AppInstallButton from './app-install-button.vue'
-import { installButton } from './slots'
 
 function offer() {
   const event = new Event('beforeinstallprompt', { cancelable: true })
@@ -18,10 +17,6 @@ function offer() {
 describe('InstallButton', () => {
   afterEach(() => {
     vi.restoreAllMocks()
-  })
-
-  it('is the component the header slot answers with pwa on', () => {
-    expect(installButton()).toBe(AppInstallButton)
   })
 
   it('renders nothing while the browser has not offered to install', async () => {

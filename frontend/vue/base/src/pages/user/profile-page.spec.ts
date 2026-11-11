@@ -139,7 +139,7 @@ describe('ProfilePage', () => {
     expect(toastKeys()).toEqual([])
   })
 
-  it('signs out from the header action and goes home', async () => {
+  it('signs out from the Sign out button and goes home', async () => {
     setSessionHint()
     const { router } = await open()
     stubApi({ 'POST /api/auth/logout': new Response(null, { status: 204 }) })

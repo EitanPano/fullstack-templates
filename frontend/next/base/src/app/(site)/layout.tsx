@@ -1,31 +1,17 @@
-import { Suspense } from 'react' // @server:auth
 import type { ReactNode } from 'react'
 
-import { AppShell } from '@/shared/ui/pattern/app-shell'
-import { UserMenu } from '@/shared/ui/pattern/user-menu' // @noserver:auth
-import { AccountMenu } from '@/widget/account-menu/ui/account-menu' // @server:auth
-import { AccountMenuSkeleton } from '@/widget/account-menu/ui/account-menu-skeleton' // @server:auth
+import { SkipLink } from '@/shared/ui/pattern/skip-link'
 
-import { NAV } from '../nav'
-
-// The shell's account slot. With the server's auth it is the account widget, a request-time hole
-// inside Suspense (it reads the session); without, the theme menu alone.
-// @server:auth-start
-const account = (
-  <Suspense fallback={<AccountMenuSkeleton />}>
-    <AccountMenu />
-  </Suspense>
-)
-// @server:auth-end
-// @noserver:auth-start
-const account = <UserMenu />
-// @noserver:auth-end
-
-// The site frame: header with the nav table and the account slot, the page's one `main`, footer.
+// The site frame: the skip link, then the page's one `main`. `main` has no width and no padding;
+// `Page` owns the container, so a full-bleed screen simply skips it. A product's header,
+// navigation and footer go between the two (AGENTS.md › The shell).
 export default function SiteLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <AppShell name="__PROJECT_DISPLAY_NAME__" nav={NAV} account={account}>
-      {children}
-    </AppShell>
+    <div className="flex min-h-screen flex-col">
+      <SkipLink />
+      <main id="main" tabIndex={-1} className="flex flex-1 flex-col focus:outline-none">
+        {children}
+      </main>
+    </div>
   )
 }
