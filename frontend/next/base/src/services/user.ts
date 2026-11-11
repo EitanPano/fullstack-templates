@@ -1,12 +1,21 @@
 import 'server-only'
 
-import { readSession } from '@/core/auth/session'
+import { cache } from 'react'
 
-import type { User } from '@/models/user'
+import type { User } from '@/models/user/type'
 
-// The signed-in account, or null. A per-user read: dynamic by nature (it reads cookies), so it
-// is never cached and a component that calls it sits inside Suspense.
-export async function getCurrentUser(): Promise<User | null> {
-  const session = await readSession()
-  return session?.user ?? null
+import { call } from './call'
+import { createRequestApi } from './client'
+import { getApiUserMe } from './generated'
+
+// The account an access token belongs to, as the API says: the result of `GET /api/user/me`.
+// Memoised per request (React `cache`), so the session guard and a page that shows the account
+// share one call.
+export const getMe = cache(async (accessToken: string) =>
+  getApiUserMe({ client: await createRequestApi({ accessToken }) }),
+)
+
+// The account for a page that shows it: the data, or an ActionError like every read.
+export async function getProfile(accessToken: string): Promise<User> {
+  return call(getMe(accessToken))
 }

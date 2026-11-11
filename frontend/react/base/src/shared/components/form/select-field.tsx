@@ -6,9 +6,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/shared/components/select'
+} from '@/shared/components/form/select/select'
 
-import { FieldFrame } from './field-frame'
+import { FieldFrame } from './field-frame/field-frame'
 import type { FieldProps } from './text-field'
 import { useField } from './use-field'
 

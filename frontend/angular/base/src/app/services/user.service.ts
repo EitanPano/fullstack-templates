@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 
-import type { PublicUser, UpdateMeBody } from '@app/models/user/interface'
+import type { PublicUser, UpdateMeBody } from '@app/models/user/type'
 
 import { getApiUserMe, patchApiUserMe } from './generated/sdk.gen'
 

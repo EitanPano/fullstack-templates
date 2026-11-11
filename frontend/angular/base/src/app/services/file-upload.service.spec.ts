@@ -2,7 +2,7 @@ import { HttpEventType, provideHttpClient } from '@angular/common/http'
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing'
 import { TestBed } from '@angular/core/testing'
 
-import { isApiError } from '@app/models/api/response'
+import { isApiError } from '@app/services/api-error'
 
 import { FileUploadService, type UploadEvent } from './file-upload.service'
 

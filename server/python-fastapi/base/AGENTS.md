@@ -445,14 +445,14 @@ changes only by plan.
   templates are pure wording.
 - Secrets: the JWT and OTP secrets are at least 32 characters, the two JWT secrets differ, and
   production refuses a placeholder (`config/env.py`).
-- Endpoints (`api/auth/`, `api/user/`): `POST /api/auth/{register,login,refresh,logout,otp,otp/verification}`
-  and `GET|PATCH /api/user/me`, `GET /api/user` and `GET /api/user/{id}` (admin). Register, login,
+- Endpoints (`api/auth/`, `api/user/`): `POST /api/auth/{signup,login,refresh,logout,otp,otp/verification}`
+  and `GET|PATCH /api/user/me`, `GET /api/user` and `GET /api/user/{id}` (admin). Signup, login,
   refresh and the login-purpose OTP verification set the cookies and `Cache-Control: no-store`;
   every credential failure is the same 401 and costs one password verification (`DUMMY_HASH` for
   an unknown email); a login code is delivered detached from its request, so the 202 is the same
   for every target.
 - Background: `infra/jobs/session_cleanup.py` purges dead sessions hourly;
-  `infra/subscribers/send_welcome.py` mails a new account on `user.registered`, published by the
+  `infra/subscribers/send_welcome.py` mails a new account on `user.signedup`, published by the
   user controller's `create_user`.
 <!-- @auth-end -->
 <!-- @noauth-start -->

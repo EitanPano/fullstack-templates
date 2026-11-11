@@ -1,8 +1,9 @@
 import { HttpErrorResponse, type HttpInterceptorFn } from '@angular/common/http'
 import { catchError, throwError } from 'rxjs'
 
-import { ERROR_CODES } from '@app/models/api/error-copy'
-import { ApiError, type ApiErrorCode } from '@app/models/api/response'
+import { ERROR_CODES } from '@app/models/api/constant'
+import type { ApiErrorCode } from '@app/models/api/type'
+import { ApiError } from '@app/services/api-error'
 
 const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 const ENVELOPE_CODES: ReadonlySet<string> = new Set(

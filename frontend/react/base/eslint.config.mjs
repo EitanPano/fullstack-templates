@@ -5,7 +5,7 @@ import jsxA11y from 'eslint-plugin-jsx-a11y'
 import reactHooks from 'eslint-plugin-react-hooks'
 import tseslint from 'typescript-eslint'
 
-// The layer map (AGENTS.md › Layers): app → components, pages → core, store, services → shared,
+// The layer map (AGENTS.md › Layers): app → layout, pages → core, store, services → shared,
 // models. Every import the layers forbid is a `boundaries/dependencies` error whose message names
 // the layer to use. tests/unit/eslint-boundaries.test.ts lints one violation and one allowed case
 // per rule through this file, so a rule that stops firing fails the suite.
@@ -15,7 +15,7 @@ import tseslint from 'typescript-eslint'
 // from the selector lists below and each block states every selector that applies to it.
 const ALL = [
   'app',
-  'components',
+  'layout',
   'page',
   'store',
   'services',
@@ -49,16 +49,16 @@ const policies = [
     allow: { to: { element: { type: 'page', fileInternalPath: '*.routes.tsx' } } },
   },
   {
-    from: { element: { type: 'components' } },
+    from: { element: { type: 'layout' } },
     disallow: { to: { element: { type: ['app', 'page', 'testing'] } } },
     message:
-      'components/ never imports app/, a page or testing/: take the data from a services hook or the store, and compose pages in app/routes.tsx',
+      'layout/ never imports app/, a page or testing/: take the data from a services hook or the store, and compose pages in app/routes.tsx',
   },
   {
     from: { element: { type: 'page' } },
-    disallow: { to: { element: { type: ['app', 'components', 'testing'] } } },
+    disallow: { to: { element: { type: ['app', 'layout', 'testing'] } } },
     message:
-      'a page never imports app/, components/ or testing/: routes are composed in app/, and a shared part goes to shared/ or models/',
+      'a page never imports app/, layout/ or testing/: routes are composed in app/, and a shared part goes to shared/ or models/',
   },
   {
     from: { element: { type: 'page' } },
@@ -75,7 +75,7 @@ const policies = [
   {
     from: { element: { type: 'page', fileInternalPath: '*.form.ts' } },
     disallow: {
-      to: { element: { type: ['components', 'store', 'services', 'core'] } },
+      to: { element: { type: ['layout', 'store', 'services', 'core'] } },
     },
     message:
       'a *.form.ts imports shared/, models/ and the generated zod schemas only: keep the form schema pure',
@@ -84,7 +84,7 @@ const policies = [
     from: { element: { type: 'store' } },
     disallow: { to: { element: { type: except('store', 'services', 'core', 'models') } } },
     message:
-      'store/ imports services/ (reducer, middleware, matchers), core/theme, core/config and models/ only: it never knows pages, components or shared/',
+      'store/ imports services/ (reducer, middleware, matchers), core/theme, core/config and models/ only: it never knows pages, layout or shared/',
   },
   {
     from: { element: { type: 'store' } },
@@ -135,10 +135,10 @@ const policies = [
       'models/ imports models/ and the generated contract types (import type) only: the runtime stays in services/',
   },
   {
-    from: { element: { type: ['app', 'components', 'page', 'shared'] } },
+    from: { element: { type: ['app', 'layout', 'page', 'shared'] } },
     disallow: { to: { element: { type: 'services-generated' } } },
     message:
-      "read the contract's types through models/<noun>.ts; only services/, store/, core/ and models/ import the generated files",
+      "read the contract's types through models/<entity>/type.ts; only services/, store/, core/ and models/ import the generated files",
   },
   {
     // A form schema extends the generated zod schemas (limits are never copied).
@@ -166,10 +166,10 @@ const policies = [
 ]
 
 const RAW_CONTROLS = [
-  ['button', 'Button from @/shared/components/button'],
-  ['input', 'Input from @/shared/components/input'],
-  ['select', 'Select from @/shared/components/select'],
-  ['textarea', 'Textarea from @/shared/components/textarea'],
+  ['button', 'Button from @/shared/components/button/button'],
+  ['input', 'Input from @/shared/components/form/input'],
+  ['select', 'Select from @/shared/components/form/select/select'],
+  ['textarea', 'Textarea from @/shared/components/form/textarea'],
 ].map(([tag, use]) => ({
   selector: `JSXOpeningElement[name.type='JSXIdentifier'][name.name='${tag}']`,
   message: `Use ${use}, not a raw <${tag}>: only shared/components renders the browser controls`,
@@ -262,7 +262,7 @@ export default defineConfig([
       ],
       'boundaries/elements': [
         { type: 'app', pattern: 'src/app', partialMatch: false },
-        { type: 'components', pattern: 'src/components', partialMatch: false },
+        { type: 'layout', pattern: 'src/layout', partialMatch: false },
         { type: 'page', pattern: 'src/pages/*', partialMatch: false, capture: ['page'] },
         { type: 'store', pattern: 'src/store', partialMatch: false },
         {
@@ -294,6 +294,11 @@ export default defineConfig([
       ),
       ...restrictSyntax(RAW_CONTROLS, NETWORK, ENV, STYLE),
     },
+  },
+  {
+    // An entity's interface.ts holds interfaces; every other file declares types.
+    files: ['src/models/*/interface.ts'],
+    rules: { '@typescript-eslint/consistent-type-definitions': ['error', 'interface'] },
   },
   {
     // The data layer: the one place the generated runtime is imported. RTK Query's `void` argument
@@ -348,7 +353,7 @@ export default defineConfig([
   {
     // The generator keeps one of the two returns (the account menu or the theme menu alone), so in
     // place the second is unreachable on purpose.
-    files: ['src/components/app-account-slot.tsx'],
+    files: ['src/layout/app-account-slot.tsx'],
     rules: { 'no-unreachable': 'off' },
   },
   {

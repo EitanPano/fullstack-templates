@@ -6,7 +6,7 @@ receives the input FastAPI validated, runs the flow, reads or writes the cookies
 here and only here) and returns the response.
 It does not belong: gates (`routes.py`) or a direct store import.
 
-Accepted tradeoffs: register's 409 discloses that an email exists (bounded by the register_per_ip
+Accepted tradeoffs: signup's 409 discloses that an email exists (bounded by the signup_per_ip
 limit), and login_per_email lets an attacker lock a victim out of password login for the window;
 OTP login is no way round it, since otp_per_target (5/h) and the overwrite of a pending code by a
 new request let the same attacker starve it too.
@@ -164,7 +164,7 @@ async def drain_deliveries() -> None:
 # HTTP handlers: `routes.py` mounts each one behind its rate limiters and gates.
 
 
-async def register(body: Credentials, response: Response) -> AuthSession:
+async def signup(body: Credentials, response: Response) -> AuthSession:
     account = await user.create_user(CreateUserInput(email=body.email, password=body.password))
     return _start_session(response, account, await _issue_tokens(account))
 

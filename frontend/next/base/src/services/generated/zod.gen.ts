@@ -152,12 +152,12 @@ export const zGetApiHealthResponse = zHealthResponse
  */
 export const zGetApiHealthReadyResponse = zReadiness
 
-export const zPostApiAuthRegisterBody = zCredentials
+export const zPostApiAuthSignupBody = zCredentials
 
 /**
  * The new user and its tokens (also set as cookies)
  */
-export const zPostApiAuthRegisterResponse = zAuthSession
+export const zPostApiAuthSignupResponse = zAuthSession
 
 export const zPostApiAuthLoginBody = zCredentials
 

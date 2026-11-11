@@ -7,7 +7,7 @@ import {
   type UrlSegment,
 } from '@angular/router'
 
-import { LOGIN_PATH, NEXT_PARAM } from '@app/models/user/constants'
+import { LOGIN_PATH, NEXT_PARAM } from '@app/models/user/constant'
 import { AuthStore } from '@app/store/auth.store'
 
 // The path the visitor was heading to, query included, so sign-in can bring them back. A canMatch
@@ -33,7 +33,7 @@ export const authGuard: CanMatchFn = (_route: Route, segments: UrlSegment[]) => 
   return toLogin(inject(Router), segments)
 }
 
-// The sign-in and register screens: an account that is already signed in goes home.
+// The sign-in and signup screens: an account that is already signed in goes home.
 export const guestGuard: CanMatchFn = () => {
   if (!inject(AuthStore).isLoggedIn()) return true
   return new RedirectCommand(inject(Router).parseUrl('/'))

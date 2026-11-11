@@ -3,7 +3,7 @@ may call a module's `controller.py` (its exported rules, never a handler) and `s
 module's routes or service. It does not belong: the rule that raised the event.
 
 A failure (unknown user, blocked user, provider error) propagates to the bus, which logs it
-(`subscriber failed topic=user.registered`) and never surfaces it to the publisher. The bus runs
+(`subscriber failed topic=user.signedup`) and never surfaces it to the publisher. The bus runs
 every handler detached from `publish`, so a slow reaction never delays the publisher; work that
 must survive a restart still belongs in a job.
 """
@@ -12,10 +12,10 @@ from app.api.user.controller import get_active_user
 from app.infra.pubsub import SubscriberEntry
 from app.services.communicate import Message, send
 from app.services.communicate.templates.welcome import welcome_template
-from app.services.event import USER_REGISTERED, UserRegistered, subscriber
+from app.services.event import USER_SIGNEDUP, UserSignedUp, subscriber
 
 
-async def handle_user_registered(payload: UserRegistered) -> None:
+async def handle_user_signedup(payload: UserSignedUp) -> None:
     account = await get_active_user(payload["user_id"])
     await send(
         Message(
@@ -26,4 +26,4 @@ async def handle_user_registered(payload: UserRegistered) -> None:
     )
 
 
-send_welcome: SubscriberEntry = subscriber(USER_REGISTERED, handle_user_registered)
+send_welcome: SubscriberEntry = subscriber(USER_SIGNEDUP, handle_user_signedup)

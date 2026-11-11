@@ -72,7 +72,7 @@ export async function getCallerUser(caller: Caller): Promise<PublicUser> {
 // The operations below take no caller: they are system operations for other modules (auth),
 // jobs and scripts. No route exposes them, so whoever calls them has already decided it may.
 
-// Sends nothing itself: a subscriber to `user.registered` sends the welcome message.
+// Sends nothing itself: a subscriber to `user.signedup` sends the welcome message.
 export async function createUser(input: CreateUserInput): Promise<PublicUser> {
   const email = normaliseEmail(input.email)
   if ((await service.findByEmail(email)) !== undefined) {
@@ -88,7 +88,7 @@ export async function createUser(input: CreateUserInput): Promise<PublicUser> {
     createdAt: now,
     updatedAt: now,
   })
-  await publish('user.registered', { userId: record.id })
+  await publish('user.signedup', { userId: record.id })
   return toPublic(record)
 }
 

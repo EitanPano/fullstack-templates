@@ -2,7 +2,7 @@ schemaVersion: 1
 id: react
 kind: frontend
 name: React 19 SPA (Vite)
-version: 5.1.0
+version: 6.0.0
 summary: "Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives styled by co-located SCSS on a global token tree"
 runtime: { language: typescript, platform: node, minVersion: "24" }
 tools:
@@ -37,31 +37,29 @@ onlyWhen:
       - openapi-ts.config.ts
       - src/core/config/api-client.test.ts
       - src/core/config/api-client.ts
-      - src/models/api-error.test.ts
-      - src/models/api-error.ts
+      - src/models/api-error
       - src/services/api.test.ts
       - src/services/api.ts
       - src/services/call.test.ts
       - src/services/call.ts
       - src/services/generated
-      - src/shared/components/form/report-failure.test.ts
-      - src/shared/components/form/report-failure.ts
+      - src/services/with-copy.test.ts
+      - src/services/with-copy.ts
+      - src/shared/components/form/report-failure
+      - src/shared/utils/is-api-error.test.ts
+      - src/shared/utils/is-api-error.ts
     dependencies:
       remove: ['@hey-api/openapi-ts']
     scripts:
       remove: ['api:types']
   server:auth:
-    - src/components/app-account-menu.scss
-    - src/components/app-account-menu.test.tsx
-    - src/components/app-account-menu.tsx
-    - src/components/app-auth-error.tsx
-    - src/components/app-auth-layout.scss
-    - src/components/app-auth-layout.tsx
-    - src/components/app-auth-loading.tsx
     - src/core/auth
     - src/core/config/api-client-refresh.test.ts
-    - src/models/user.test.ts
-    - src/models/user.ts
+    - src/layout/app-account-menu
+    - src/layout/app-auth-error.tsx
+    - src/layout/app-auth-layout
+    - src/layout/app-auth-loading.tsx
+    - src/models/user
     - src/pages/auth
     - src/pages/forbidden
     - src/pages/user
@@ -69,8 +67,11 @@ onlyWhen:
     - src/services/auth.api.ts
     - src/services/user.api.test.ts
     - src/services/user.api.ts
-    - src/shared/components/auth-card.scss
-    - src/shared/components/auth-card.tsx
+    - src/shared/components/auth-card
+    - src/shared/utils/initials.test.ts
+    - src/shared/utils/initials.ts
+    - src/shared/utils/is-user.test.ts
+    - src/shared/utils/is-user.ts
     - src/shared/utils/next-path.test.ts
     - src/shared/utils/next-path.ts
     - src/store/use-sign-out.ts

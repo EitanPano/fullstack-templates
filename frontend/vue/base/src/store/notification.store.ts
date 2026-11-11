@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-import type { Toast, ToastAction, ToastKind, ToastParams } from '@/models/notification/interface'
+import type { Toast, ToastAction } from '@/models/notification/interface'
+import type { ToastKind, ToastParams } from '@/models/notification/type'
 
 const TIMEOUT_MS: Record<ToastKind, number> = {
   success: 4000,
@@ -11,7 +12,7 @@ const TIMEOUT_MS: Record<ToastKind, number> = {
 }
 
 // The toast list. A caller passes a key of the copy table (never raw text), so a toast follows
-// the language. components/app-toast-host.vue renders the list through Reka Toast, which owns
+// the language. layout/app-toast-host renders the list through Reka Toast, which owns
 // the timers: each toast's `timeoutMs` is its duration, paused while the list is hovered or
 // focused (WCAG 2.2.1). Call it from the handler that awaited the work, never from an interceptor.
 export const useNotificationStore = defineStore('notification', () => {

@@ -16,8 +16,8 @@
   </form>
   <p footer class="login__alt">
     {{ 'auth.login.noAccount' | t }}
-    <a routerLink="/auth/register" [queryParams]="next() ? { next: next() } : null">{{
-      'auth.login.registerLink' | t
+    <a routerLink="/auth/signup" [queryParams]="next() ? { next: next() } : null">{{
+      'auth.login.signupLink' | t
     }}</a>
   </p>
 </app-auth-card>

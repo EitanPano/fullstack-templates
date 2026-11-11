@@ -4,7 +4,7 @@ import type { RouteRecordRaw } from 'vue-router'
 const routes: RouteRecordRaw[] = [
   {
     path: 'forbidden',
-    component: () => import('./forbidden-page.vue'),
+    component: () => import('./forbidden-page/forbidden-page.vue'),
     meta: { titleKey: 'forbidden.title' },
   },
 ]

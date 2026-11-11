@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
 
-import { Page, PageHeader } from '@/shared/components/page'
+import { Page, PageHeader } from '@/shared/components/page/page'
 import { CardSkeleton } from '@/shared/components/skeletons'
-import { ProfileCard } from './_components/profile-card'
+import { ProfileCard } from './_components/profile-card/profile-card'
 import { SignOutButton } from './_components/sign-out-button'
 
 export const metadata: Metadata = { title: 'Profile', robots: { index: false } }

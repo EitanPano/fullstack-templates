@@ -48,9 +48,9 @@ import type {
   PostApiAuthRefreshData,
   PostApiAuthRefreshErrors,
   PostApiAuthRefreshResponses,
-  PostApiAuthRegisterData,
-  PostApiAuthRegisterErrors,
-  PostApiAuthRegisterResponses,
+  PostApiAuthSignupData,
+  PostApiAuthSignupErrors,
+  PostApiAuthSignupResponses,
   PostApiModuleData,
   PostApiModuleErrors,
   PostApiModuleResponses,
@@ -100,15 +100,15 @@ export const getApiHealthReady = <ThrowOnError extends boolean = false>(
 /**
  * Create an account and start a session
  */
-export const postApiAuthRegister = <ThrowOnError extends boolean = false>(
-  options?: Options<PostApiAuthRegisterData, ThrowOnError>,
-): RequestResult<PostApiAuthRegisterResponses, PostApiAuthRegisterErrors, ThrowOnError> =>
+export const postApiAuthSignup = <ThrowOnError extends boolean = false>(
+  options?: Options<PostApiAuthSignupData, ThrowOnError>,
+): RequestResult<PostApiAuthSignupResponses, PostApiAuthSignupErrors, ThrowOnError> =>
   (options?.client ?? client).post<
-    PostApiAuthRegisterResponses,
-    PostApiAuthRegisterErrors,
+    PostApiAuthSignupResponses,
+    PostApiAuthSignupErrors,
     ThrowOnError
   >({
-    url: '/api/auth/register',
+    url: '/api/auth/signup',
     ...options,
     headers: {
       'Content-Type': 'application/json',

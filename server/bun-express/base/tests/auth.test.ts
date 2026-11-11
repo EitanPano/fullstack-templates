@@ -62,8 +62,8 @@ afterEach(() => {
   resetProviders()
 })
 
-const register = (email: string, password = PASSWORD) =>
-  request(app).post('/api/auth/register').send({ email, password })
+const signup = (email: string, password = PASSWORD) =>
+  request(app).post('/api/auth/signup').send({ email, password })
 const login = (email: string, password = PASSWORD) =>
   request(app).post('/api/auth/login').send({ email, password })
 
@@ -93,7 +93,7 @@ const flush = () => new Promise<void>((resolve) => setImmediate(resolve))
 const codeOf = (message: Message | undefined) => /\d{6}/.exec(message?.template.text ?? '')?.[0]
 
 async function signedIn(email: string) {
-  const res = await register(email)
+  const res = await signup(email)
   return { res, bearer: `Bearer ${body(res).tokens.accessToken}` }
 }
 
@@ -112,9 +112,9 @@ async function block(id: string) {
   await userService.update({ ...record, status: 'blocked' })
 }
 
-describeStore('register', () => {
+describeStore('signup', () => {
   it('answers 201 with tokens, two httpOnly cookies and no passwordHash', async () => {
-    const res = await register('ada@example.com')
+    const res = await signup('ada@example.com')
 
     expect(res.status).toBe(201)
     expect(body(res).user.email).toBe('ada@example.com')
@@ -132,23 +132,23 @@ describeStore('register', () => {
   })
 
   it('answers 409 for a duplicate email', async () => {
-    await register('ada@example.com')
-    const res = await register('ADA@example.com')
+    await signup('ada@example.com')
+    const res = await signup('ADA@example.com')
 
     expect(res.status).toBe(409)
     expect(body(res).error.code).toBe('conflict')
   })
 
   it('answers 400 for a short password with details', async () => {
-    const res = await register('ada@example.com', 'short')
+    const res = await signup('ada@example.com', 'short')
 
     expect(res.status).toBe(400)
     expect(body(res).error.code).toBe('validation_failed')
     expect(body(res).error.details[0]?.path).toBe('password')
   })
 
-  it('delivers the welcome template through user.registered', async () => {
-    await register('ada@example.com')
+  it('delivers the welcome template through user.signedup', async () => {
+    await signup('ada@example.com')
     await drain()
 
     const welcome = sent.find((message) => message.template.name === 'welcome')
@@ -158,7 +158,7 @@ describeStore('register', () => {
 
 describeStore('login', () => {
   it('answers 200 with tokens', async () => {
-    await register('ada@example.com')
+    await signup('ada@example.com')
     const res = await login('Ada@example.com')
 
     expect(res.status).toBe(200)
@@ -167,7 +167,7 @@ describeStore('login', () => {
   })
 
   it('answers the same 401 for an unknown email and a wrong password', async () => {
-    await register('ada@example.com')
+    await signup('ada@example.com')
     const unknown = await login('nobody@example.com')
     const wrong = await login('ada@example.com', 'not the password')
 
@@ -194,7 +194,7 @@ describeStore('login', () => {
   })
 
   it('is limited per email', async () => {
-    await register('ada@example.com')
+    await signup('ada@example.com')
     for (let i = 0; i < 5; i++) {
       expect((await login('ada@example.com', 'wrong password')).status).toBe(401)
     }
@@ -238,7 +238,7 @@ describeStore('refresh', () => {
   })
 
   it('revokes all sessions when a rotated token is replayed after the grace window', async () => {
-    const a = await register('ada@example.com')
+    const a = await signup('ada@example.com')
     const b = await login('ada@example.com')
     const a1 = tokenFromCookie(a, 'refresh_token')
     const a2 = tokenFromCookie(await refreshWith(a1), 'refresh_token')
@@ -250,7 +250,7 @@ describeStore('refresh', () => {
   })
 
   it('rotates again when a rotated token is replayed inside the grace window', async () => {
-    const a = await register('ada@example.com')
+    const a = await signup('ada@example.com')
     const b = await login('ada@example.com')
     const a1 = tokenFromCookie(a, 'refresh_token')
     const a2 = tokenFromCookie(await refreshWith(a1), 'refresh_token')
@@ -341,7 +341,7 @@ describeStore('otp request', () => {
   })
 
   it('answers 202 for a known email and delivers the code by mail', async () => {
-    await register('ada@example.com')
+    await signup('ada@example.com')
     sent = []
     const res = await request(app)
       .post('/api/auth/otp')
@@ -389,7 +389,7 @@ describeStore('otp request', () => {
     const push = (line: string) => void lines.push(line)
     const logger = createLogger({ quiet: false, sink: { info: push, warn: push, error: push } })
     const target = { type: 'email', value: 'ada@example.com' }
-    await register('ada@example.com')
+    await signup('ada@example.com')
     const provider = createConsoleProvider('mail', { logger, development: false })
     registerProvider('mail', {
       send(message) {
@@ -448,7 +448,7 @@ describeStore('otp request', () => {
   })
 
   it('sets Cache-Control: no-store on token-issuing responses', async () => {
-    const res = await register('ada@example.com')
+    const res = await signup('ada@example.com')
 
     expect(res.headers['cache-control']).toBe('no-store')
     expect((await login('ada@example.com')).headers['cache-control']).toBe('no-store')
@@ -463,7 +463,7 @@ describeStore('otp request', () => {
   })
 
   it('answers 403 for verify on another user email', async () => {
-    await register('ada@example.com')
+    await signup('ada@example.com')
     const { bearer } = await signedIn('bob@example.com')
     const res = await request(app)
       .post('/api/auth/otp')
@@ -491,7 +491,7 @@ describeStore('otp verification', () => {
     request(app).post('/api/auth/otp/verification').send({ target, purpose, code })
 
   async function requestLoginCode(): Promise<string> {
-    await register('ada@example.com')
+    await signup('ada@example.com')
     sent = []
     await request(app).post('/api/auth/otp').send({ target, purpose: 'login' })
     await flush()
@@ -629,7 +629,7 @@ describeStore('otp login verifies the target', () => {
   }
 
   it('sets emailVerifiedAt and revokes the sessions that existed before', async () => {
-    const first = await register('ada@example.com')
+    const first = await signup('ada@example.com')
     const other = await login('ada@example.com')
 
     const out = await verifyLogin(await loginCode())
@@ -641,7 +641,7 @@ describeStore('otp login verifies the target', () => {
   })
 
   it('keeps the other sessions when the email was already verified', async () => {
-    const first = await register('ada@example.com')
+    const first = await signup('ada@example.com')
     await verifyContact(body(first).user.id, 'email')
     const other = await login('ada@example.com')
 

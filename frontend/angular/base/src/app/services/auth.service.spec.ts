@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing'
 
 import { provideApiClient } from '@app/core/config/api-client.provider'
 import { errorInterceptor } from '@app/core/interceptors/error.interceptor'
-import { isApiError } from '@app/models/api/response'
+import { isApiError } from '@app/services/api-error'
 
 import { AuthService } from './auth.service'
 
@@ -48,9 +48,9 @@ describe('AuthService', () => {
     expect(await result).toEqual(SESSION)
   })
 
-  it('registers with the credentials', async () => {
-    const result = service.register(CREDENTIALS)
-    const call = await request('/api/auth/register')
+  it('signs up with the credentials', async () => {
+    const result = service.signup(CREDENTIALS)
+    const call = await request('/api/auth/signup')
     expect(call.request.body).toEqual(CREDENTIALS)
     call.flush(SESSION)
     expect(await result).toEqual(SESSION)

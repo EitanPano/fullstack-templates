@@ -3,9 +3,9 @@
 import type { ComponentProps } from 'react'
 import { useFormContext } from 'react-hook-form'
 
-import { Input } from '@/shared/components/input'
+import { Input } from '@/shared/components/form/input'
 
-import { FieldFrame } from './field-frame'
+import { FieldFrame } from './field-frame/field-frame'
 import { useField } from './use-field'
 
 export type FieldProps = { name: string; label: string; description?: string }

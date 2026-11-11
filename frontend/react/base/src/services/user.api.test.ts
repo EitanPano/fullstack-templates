@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { isApiError } from '@/models/api-error'
+import { isApiError } from '@/shared/utils/is-api-error'
 import { userApi } from '@/services/user.api'
 import { createStore } from '@/store'
 import { USER, envelope } from '@/testing/auth-fixtures'

@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
 
-import { AppAuthLoading } from '@/components/app-auth-loading'
-import { SignUp } from './_components/sign-up'
+import { AppAuthLoading } from '@/layout/app-auth-loading/app-auth-loading'
+import { SignUp } from './_components/sign-up/sign-up'
 
 export const metadata: Metadata = { title: 'Create account' }
 

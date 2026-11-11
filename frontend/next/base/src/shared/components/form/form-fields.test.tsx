@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
-import { Button } from '@/shared/components/button'
+import { Button } from '@/shared/components/button/button'
 import { CheckboxField } from '@/shared/components/form/checkbox-field'
 import { Form } from '@/shared/components/form/form'
 import { NumberField } from '@/shared/components/form/number-field'

@@ -1,17 +1,17 @@
 import { Outlet, type RouteObject } from 'react-router'
 
-import RootError from '@/app/root-error'
+import RootError from '@/app/root-error/root-error'
 import { authRoutes } from '@/pages/auth/auth.routes' // @server:auth
 import { forbiddenRoutes } from '@/pages/forbidden/forbidden.routes' // @server:auth
 import { homeRoutes } from '@/pages/home/home.routes'
 import { notFoundRoutes } from '@/pages/not-found/not-found.routes'
 import { userRoutes } from '@/pages/user/user.routes' // @server:auth
-import { AppAuthError } from '@/components/app-auth-error' // @server:auth
-import { AppAuthLayout } from '@/components/app-auth-layout' // @server:auth
-import { AppAuthLoading } from '@/components/app-auth-loading' // @server:auth
-import { AppMainError } from '@/components/app-main-error'
-import { AppMainLayout } from '@/components/app-main-layout'
-import { AppMainLoading } from '@/components/app-main-loading'
+import { AppAuthError } from '@/layout/app-auth-error' // @server:auth
+import { AppAuthLayout } from '@/layout/app-auth-layout/app-auth-layout' // @server:auth
+import { AppAuthLoading } from '@/layout/app-auth-loading' // @server:auth
+import { AppMainError } from '@/layout/app-main-error'
+import { AppMainLayout } from '@/layout/app-main-layout/app-main-layout'
+import { AppMainLoading } from '@/layout/app-main-loading/app-main-loading'
 import type { AppStore } from '@/store'
 
 // The route table: paths to components and loaders, nothing else. A route group is a pathless

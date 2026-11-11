@@ -131,21 +131,17 @@ function inlineStyles(root: string): string[] {
     .map((file) => file.name)
 }
 
-// Rule 5: a component directly in components/ carries the app- prefix; shared/components/ has the
-// Base primitives and plain names, never app-.
+// Rule 5: a component in layout/ carries the app- prefix; shared/components/ has the Base
+// primitives and plain names, never app-.
 function unprefixed(root: string): string[] {
-  const direct = readdirSync(join(root, 'components'))
-    .filter((name) => name.endsWith('.vue') && !name.startsWith('app-'))
-    .map((name) => `components/${name}`)
-  const shared = sources(root)
+  const vue = sources(root)
     .map((file) => file.name)
-    .filter(
-      (name) =>
-        name.startsWith('shared/components/') &&
-        name.endsWith('.vue') &&
-        basename(name).startsWith('app-'),
-    )
-  return [...direct, ...shared]
+    .filter((name) => name.endsWith('.vue'))
+  const chrome = vue.filter((name) => name.startsWith('layout/') && !basename(name).startsWith('app-'))
+  const shared = vue.filter(
+    (name) => name.startsWith('shared/components/') && basename(name).startsWith('app-'),
+  )
+  return [...chrome, ...shared]
 }
 
 // Rule 6: the global tree is layered, the sibling sheets never are. A global partial holds only
@@ -248,12 +244,12 @@ describe('the styles tree', () => {
       expect.arrayContaining([
         'main.ts',
         'app/App.vue',
-        'components/app-main-layout.vue',
-        'components/app-theme-toggle.vue',
-        'components/app-toast-host.vue',
-        'shared/components/base-button.vue',
-        'shared/components/page-container.vue',
-        'pages/not-found/not-found-page.vue',
+        'layout/app-main-layout/app-main-layout.vue',
+        'layout/app-theme-toggle/app-theme-toggle.vue',
+        'layout/app-toast-host/app-toast-host.vue',
+        'shared/components/base-button/base-button.vue',
+        'shared/components/page-container/page-container.vue',
+        'pages/not-found/not-found-page/not-found-page.vue',
       ]),
     )
   })
@@ -284,7 +280,7 @@ describe('the styles tree', () => {
     expect(inlineStyles(REAL_SRC)).toEqual([])
   })
 
-  it('prefixes every component in components/ with app- and none in shared/components/', () => {
+  it('prefixes every component in layout/ with app- and none in shared/components/', () => {
     expect(unprefixed(REAL_SRC)).toEqual([])
   })
 
@@ -318,8 +314,8 @@ describe('the scan itself', () => {
       'styles/basics/_base.scss': LAYERED('basics'),
       'styles/basics/_helpers.scss': LAYERED('basics'),
       'styles/basics/_layout.scss': LAYERED('basics'),
-      'components/app-ok.vue': OWNER('app-ok'),
-      'components/app-ok.scss': RULE,
+      'layout/app-ok/app-ok.vue': OWNER('app-ok'),
+      'layout/app-ok/app-ok.scss': RULE,
       ...extra,
     }
     for (const [path, text] of Object.entries(files)) {
@@ -382,11 +378,11 @@ describe('the scan itself', () => {
 
   it('refuses a scoped style block', () => {
     const root = seed({
-      'components/app-ok.vue': OWNER('app-ok').replace('lang="scss"', 'scoped lang="scss"'),
+      'layout/app-ok/app-ok.vue': OWNER('app-ok').replace('lang="scss"', 'scoped lang="scss"'),
     })
 
     expect(badStyleBlocks(root)).toEqual([
-      'components/app-ok.vue: a scoped <style> block (sibling sheets are global)',
+      'layout/app-ok/app-ok.vue: a scoped <style> block (sibling sheets are global)',
     ])
   })
 
@@ -403,12 +399,12 @@ describe('the scan itself', () => {
 
   it('refuses a style block that is not the last block of its owner', () => {
     const root = seed({
-      'components/app-ok.vue':
+      'layout/app-ok/app-ok.vue':
         '<style lang="scss" src="./app-ok.scss"></style>\n\n<template><p /></template>\n',
     })
 
     expect(ownerless(root)).toEqual([
-      'components/app-ok.scss: components/app-ok.vue does not end with its <style> block (it must be the last block)',
+      'layout/app-ok/app-ok.scss: layout/app-ok/app-ok.vue does not end with its <style> block (it must be the last block)',
     ])
   })
 
@@ -429,10 +425,10 @@ describe('the scan itself', () => {
     expect(inlineStyles(root)).toEqual(['pages/x/page.vue'])
   })
 
-  it('refuses a component in components/ without the app- prefix', () => {
-    const root = seed({ 'components/thing.vue': '<template><p /></template>\n' })
+  it('refuses a component in layout/ without the app- prefix', () => {
+    const root = seed({ 'layout/thing/thing.vue': '<template><p /></template>\n' })
 
-    expect(unprefixed(root)).toEqual(['components/thing.vue'])
+    expect(unprefixed(root)).toEqual(['layout/thing/thing.vue'])
   })
 
   it('refuses an app- component in shared/components/', () => {
@@ -475,10 +471,10 @@ describe('the scan itself', () => {
   })
 
   it('refuses a layered sibling sheet', () => {
-    const root = seed({ 'components/app-ok.scss': LAYERED('basics') })
+    const root = seed({ 'layout/app-ok/app-ok.scss': LAYERED('basics') })
 
     expect(layerProblems(root)).toEqual([
-      'components/app-ok.scss: a sibling sheet is never layered (unlayered rules win)',
+      'layout/app-ok/app-ok.scss: a sibling sheet is never layered (unlayered rules win)',
     ])
   })
 

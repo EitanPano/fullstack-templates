@@ -101,11 +101,11 @@ function inlineStyles(root: string): string[] {
     .map((file) => file.name)
 }
 
-// Rule 5: a component directly in components/ carries the app- prefix.
+// Rule 5: a component directly in layout/ (a file or a folder) carries the app- prefix.
 function unprefixed(root: string): string[] {
-  return readdirSync(join(root, 'components'))
-    .filter((name) => name.endsWith('.tsx') && !isTest(name) && !name.startsWith('app-'))
-    .map((name) => `components/${name}`)
+  return readdirSync(join(root, 'layout'))
+    .filter((name) => !name.startsWith('app-'))
+    .map((name) => `layout/${name}`)
 }
 
 // Rule 6: the global tree is layered, the sibling sheets never are. A global partial holds only
@@ -194,7 +194,7 @@ describe('the styles tree', () => {
     expect(inlineStyles(REAL_SRC)).toEqual([])
   })
 
-  it('prefixes every file in components/ with app-', () => {
+  it('prefixes every entry in layout/ with app-', () => {
     expect(unprefixed(REAL_SRC)).toEqual([])
   })
 
@@ -225,8 +225,8 @@ describe('the scan itself', () => {
       'styles/basics/_base.scss': LAYERED('basics'),
       'styles/basics/_helpers.scss': LAYERED('basics'),
       'styles/basics/_layout.scss': LAYERED('basics'),
-      'components/app-ok.tsx': "import './app-ok.scss'\nexport {}\n",
-      'components/app-ok.scss': '.app-ok {\n  color: red;\n}\n',
+      'layout/app-ok/app-ok.tsx': "import './app-ok.scss'\nexport {}\n",
+      'layout/app-ok/app-ok.scss': '.app-ok {\n  color: red;\n}\n',
       ...extra,
     }
     for (const [path, text] of Object.entries(files)) {
@@ -290,10 +290,10 @@ describe('the scan itself', () => {
     expect(inlineStyles(root)).toEqual(['pages/x/page.tsx'])
   })
 
-  it('refuses a component in components/ without the app- prefix', () => {
-    const root = seed({ 'components/thing.tsx': 'export {}\n' })
+  it('refuses a component in layout/ without the app- prefix', () => {
+    const root = seed({ 'layout/thing.tsx': 'export {}\n' })
 
-    expect(unprefixed(root)).toEqual(['components/thing.tsx'])
+    expect(unprefixed(root)).toEqual(['layout/thing.tsx'])
   })
 
   it('refuses a global partial whose rules are not in their layer', () => {
@@ -330,10 +330,10 @@ describe('the scan itself', () => {
   })
 
   it('refuses a layered sibling sheet', () => {
-    const root = seed({ 'components/app-ok.scss': LAYERED('basics') })
+    const root = seed({ 'layout/app-ok/app-ok.scss': LAYERED('basics') })
 
     expect(layerProblems(root)).toEqual([
-      'components/app-ok.scss: a sibling sheet is never layered (unlayered rules win)',
+      'layout/app-ok/app-ok.scss: a sibling sheet is never layered (unlayered rules win)',
     ])
   })
 
@@ -357,29 +357,29 @@ describe('the scan itself', () => {
 
   it('refuses a stylesheet imported before another import', () => {
     const root = seed({
-      'components/app-ok.tsx':
+      'layout/app-ok/app-ok.tsx':
         "import './app-ok.scss'\nimport { x } from '@/shared/x'\nexport { x }\n",
     })
 
     expect(ownerless(root)).toEqual([
-      'components/app-ok.scss: components/app-ok.tsx imports it before another import (it must be the last import)',
+      'layout/app-ok/app-ok.scss: layout/app-ok/app-ok.tsx imports it before another import (it must be the last import)',
     ])
   })
 
   it('sees a multi-line import after the stylesheet import too', () => {
     const root = seed({
-      'components/app-ok.tsx':
+      'layout/app-ok/app-ok.tsx':
         "import './app-ok.scss'\nimport {\n  a,\n  b,\n} from '@/shared/x'\nexport { a, b }\n",
     })
 
     expect(ownerless(root)).toEqual([
-      'components/app-ok.scss: components/app-ok.tsx imports it before another import (it must be the last import)',
+      'layout/app-ok/app-ok.scss: layout/app-ok/app-ok.tsx imports it before another import (it must be the last import)',
     ])
   })
 
   it('accepts the stylesheet import last after several imports', () => {
     const root = seed({
-      'components/app-ok.tsx':
+      'layout/app-ok/app-ok.tsx':
         "import {\n  a,\n} from '@/shared/x'\nimport type { B } from '@/shared/y'\nimport './app-ok.scss'\n\nexport { a }\nexport type { B }\n",
     })
 

@@ -4,8 +4,8 @@ import { defineComponent, h } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod'
 
-import BaseInput from '@/shared/components/base-input.vue'
-import FormField from '@/shared/components/form-field.vue'
+import BaseInput from '@/shared/components/form/base-input.vue'
+import FormField from '@/shared/components/form/form-field/form-field.vue'
 import { renderWithApp } from '@/testing/render'
 
 import { match } from './match'
@@ -26,8 +26,8 @@ const zCredentials = z.object({
 
 type Form = ReturnType<typeof useZodForm<typeof zCredentials, typeof INITIAL>>
 
-// A register-like form over the generated credentials schema, with the confirm rule. // @server
-// A register-like form over the credentials schema above, with the confirm rule. // @noserver
+// A signup-like form over the generated credentials schema, with the confirm rule. // @server
+// A signup-like form over the credentials schema above, with the confirm rule. // @noserver
 function harness(
   onSubmit: (value: unknown) => void | Promise<void> = () => undefined,
   capture: (form: Form) => void = () => undefined,

@@ -2,7 +2,7 @@ import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing'
 import { TestBed } from '@angular/core/testing'
 
-import { ApiError } from '@app/models/api/response'
+import { ApiError } from '@app/services/api-error'
 
 import { errorInterceptor } from './error.interceptor'
 

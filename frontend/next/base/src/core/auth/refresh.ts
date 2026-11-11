@@ -2,8 +2,7 @@ import 'server-only'
 
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { createApi } from '@/services/client'
-import { postApiAuthRefresh } from '@/services/generated'
+import { refresh as refreshAtApi } from '@/services/auth'
 
 import {
   ACCESS_COOKIE,
@@ -31,10 +30,7 @@ const inflight = new Map<string, Promise<Outcome>>()
 
 async function refresh(refreshToken: string, clientHeaders?: Headers): Promise<Outcome> {
   try {
-    const { data, response, error } = await postApiAuthRefresh({
-      client: createApi({ clientHeaders }),
-      body: { refreshToken },
-    })
+    const { data, response, error } = await refreshAtApi(refreshToken, clientHeaders)
     if (response?.ok && data) return { kind: 'rotated', tokens: data.tokens }
     // The API said no: the token is expired, revoked or reused.
     if (response && [400, 401, 403].includes(response.status)) return { kind: 'refused' }

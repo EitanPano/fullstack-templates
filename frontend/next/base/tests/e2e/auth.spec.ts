@@ -6,7 +6,7 @@ import {
   expectSignedIn,
   fillSignIn,
   fillSignUp,
-  registerThroughUi,
+  signupThroughUi,
   signOutThroughUi,
   uniqueEmail,
   visibleField,
@@ -14,8 +14,8 @@ import {
 import { expectNoSeriousViolations } from './support'
 
 // Every journey creates its own account, so none depends on the database's contents or on
-// another journey. The server limits 10 registrations per address per 15 minutes; the suite
-// sends six register requests (five accounts and one duplicate attempt), and the API under test
+// another journey. The server limits 10 sign-ups per address per 15 minutes; the suite
+// sends six signup requests (five accounts and one duplicate attempt), and the API under test
 // scales its limits (RATE_LIMIT_SCALE).
 
 test('sign up creates the account and lands signed in', async ({ page }) => {
@@ -63,7 +63,7 @@ test('sign out, then sign in again with the same account', async ({ page }) => {
   })
   page.on('pageerror', (error) => problems.push(error.message))
 
-  const email = await registerThroughUi(page)
+  const email = await signupThroughUi(page)
 
   await signOutThroughUi(page, email)
   await expectNoSeriousViolations(page)
@@ -90,7 +90,7 @@ test('a wrong password shows our copy and signs nobody in', async ({ page }) => 
 })
 
 test('a taken email is shown on its field and not as a toast', async ({ page }) => {
-  const email = await registerThroughUi(page)
+  const email = await signupThroughUi(page)
   await signOutThroughUi(page, email)
 
   await page.goto('/sign-up')
@@ -105,7 +105,7 @@ test('a taken email is shown on its field and not as a toast', async ({ page }) 
 })
 
 test('a signed-in account is kept out of the sign-in screen', async ({ page }) => {
-  await registerThroughUi(page)
+  await signupThroughUi(page)
 
   await page.goto('/sign-in')
 
@@ -113,7 +113,7 @@ test('a signed-in account is kept out of the sign-in screen', async ({ page }) =
 })
 
 test('a guarded page sends a visitor to sign-in and back after signing in', async ({ page }) => {
-  const email = await registerThroughUi(page)
+  const email = await signupThroughUi(page)
   await signOutThroughUi(page, email)
 
   await page.goto('/profile')

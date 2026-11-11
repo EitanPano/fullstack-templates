@@ -1,7 +1,7 @@
 import { Suspense, type ReactNode } from 'react'
 
-import { AppAuthLoading } from '@/components/app-auth-loading'
-import { GuestOnly } from './_components/guest-only'
+import { AppAuthLoading } from '@/layout/app-auth-loading/app-auth-loading'
+import { GuestOnly } from './_components/guest-only/guest-only'
 import './layout.scss'
 
 // The frame of the sign-in and sign-up screens: no shell, one centred `main`. The screen's card

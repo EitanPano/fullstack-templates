@@ -156,7 +156,7 @@ describe('signUp', () => {
     const target = await redirectTarget(signUp(input))
 
     expect(target).toBe('/')
-    expect(new URL(lastRequest(fetchMock).url).pathname).toBe('/api/auth/register')
+    expect(new URL(lastRequest(fetchMock).url).pathname).toBe('/api/auth/signup')
     // The confirmation field is a form concern: it never reaches the API.
     expect(await lastRequest(fetchMock).clone().json()).toEqual(credentials)
     expect(set).toHaveBeenCalledWith('access_token', 'access-1', expect.anything())

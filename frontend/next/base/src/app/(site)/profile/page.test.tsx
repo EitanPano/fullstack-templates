@@ -6,7 +6,7 @@ import Profile, { metadata } from '@/app/(site)/profile/page'
 
 // `ProfileCard` is async and guarded; its own test covers it. Rendering it here would print React's
 // "async Client Component" warning (jsdom has no server components), and the page only places it.
-vi.mock('./_components/profile-card', () => ({
+vi.mock('./_components/profile-card/profile-card', () => ({
   ProfileCard: () => <p>the profile card</p>,
 }))
 vi.mock('@/actions/auth', () => ({

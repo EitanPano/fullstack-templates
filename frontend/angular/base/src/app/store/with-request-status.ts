@@ -1,7 +1,7 @@
 import { computed } from '@angular/core'
 import { signalStoreFeature, withComputed, withState } from '@ngrx/signals'
 
-import type { ApiError } from '@app/models/api/response'
+import type { ApiError } from '@app/services/api-error'
 
 export type RequestStatus = 'idle' | 'loading' | 'loaded' | 'error'
 

@@ -5,11 +5,11 @@ import { useForm } from 'react-hook-form'
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
-import { Button } from '@/shared/components/button'
+import { Button } from '@/shared/components/button/button'
 import { CheckboxField } from '@/shared/components/form/checkbox-field'
 import { Form } from '@/shared/components/form/form'
 import { NumberField } from '@/shared/components/form/number-field'
-import { reportFailure } from '@/shared/components/form/report-failure' // @server
+import { reportFailure } from '@/shared/components/form/report-failure/report-failure' // @server
 import { PasswordField } from '@/shared/components/form/password-field'
 import { SelectField } from '@/shared/components/form/select-field'
 import { TextField } from '@/shared/components/form/text-field'

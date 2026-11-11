@@ -4,7 +4,7 @@ Next.js 16 App Router with a typed API client, SDK and zod schemas generated fro
 OpenAPI contract (Hey API), server actions on next-safe-action, forms on React Hook Form, Cache
 Components, date helpers on `date-fns`, and, when the stack's server has its `auth` flag on, the
 session glue (HttpOnly cookies, `proxy.ts` refresh, sign-in and sign-up). The layer names of the
-single-page templates (`app/` as the pages layer, `components/`, `services/`, `actions/`, `models/`,
+single-page templates (`app/` as the pages layer, `layout/`, `services/`, `actions/`, `models/`,
 `shared/`, `core/`, `styles/`), Radix primitives on a global SCSS tree in cascade layers with a
 sibling `.scss` beside every page and component (ADR 0012), Vitest and Playwright with axe.
 Generated alone or as the `frontend` of the `next-bun-express` stack.

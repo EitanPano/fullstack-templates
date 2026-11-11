@@ -1,8 +1,8 @@
 import { useController } from 'react-hook-form'
 
-import { Checkbox } from '@/shared/components/checkbox'
+import { Checkbox } from '@/shared/components/form/checkbox/checkbox'
 
-import { FieldFrame } from './field-frame'
+import { FieldFrame } from './field-frame/field-frame'
 import type { FieldProps } from './text-field'
 import { useField } from './use-field'
 

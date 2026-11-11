@@ -1,5 +1,6 @@
-import { ERROR_CODES } from '@/models/api/error-copy'
-import { isApiError, type ApiError, type ApiErrorCode } from '@/models/api/response'
+import { ERROR_CODES } from '@/core/config/error-copy'
+import type { ApiError, ApiErrorCode } from '@/models/api/type'
+import { isApiError } from '@/services/api-error'
 
 const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 // The codes the envelope may carry; the other three are ours.

@@ -11,7 +11,7 @@ The layer map of this package. Commands are in `package.json`.
 - `app/`: the files beside the folders are the wiring. `app.component.ts` (a `<router-outlet />`),
   `app.config.ts` (the providers), `app.routes.ts` (the two shells, one lazy `loadChildren` per page module,
   `**` to not-found) and `nav.ts` (the one navigation table; `NavEntry` lives in `models/nav/`, and
-  `app.config.ts` hands the table to `components/` through the `NAV_ENTRIES` token in `core/config/`).
+  `app.config.ts` hands the table to `layout/` through the `NAV_ENTRIES` token in `core/config/`).
   No business logic here.
   - `core/`: singletons wired once in `app.config.ts`, never imported by `shared/`.
 <!-- @server-start -->
@@ -26,7 +26,7 @@ The layer map of this package. Commands are in `package.json`.
     `i18n/` (the translator binding in `translator.provider.ts`; with the `i18n`
     flag also Transloco's config, the HTTP loader, `language.service.ts` and `translations/he.json`),
     `errors/`.
-  - `components/app-<name>/`: the app-wide components, one folder each with
+  - `layout/app-<name>/`: the app-wide components, one folder each with
     `app-<name>.component.ts`, `.html`, `.scss` and `.spec.ts`: the two layouts (`app-main-layout`,
     `app-auth-layout`) and the components the product places in its own chrome, such as
     `app-theme-toggle` (see The shell). The class carries `App` (`AppThemeToggleComponent`), the
@@ -41,7 +41,7 @@ The layer map of this package. Commands are in `package.json`.
     `<module>.form.ts` (typed form builders), one folder per routed
 <!-- @noserver-end -->
     page, `<page>/<page>.component.*` (reads the store; its `.scss` beside it), and
-    `components/<component>/` (the module's own presentational pieces). A page module never imports
+    `<page>/<component>/` (the page's own presentational pieces, a folder named for each). A page module never imports
     another one. `home/` is the index route; `not-found/` is the `**` route.
 <!-- @server-start -->
   - `store/`: `@ngrx/signals` stores, one per noun, and `with-request-status.ts`.
@@ -56,7 +56,7 @@ The layer map of this package. Commands are in `package.json`.
 <!-- @noserver-start -->
   - `services/`: one facade per server module; the folder arrives with a server.
 <!-- @noserver-end -->
-  - `shared/`: product-agnostic. `components/` (the browser controls wrapped once), `directives/`,
+  - `shared/`: product-agnostic. `components/` (the browser controls wrapped once, the form controls in `components/form/`), `directives/`,
     `pipes/`, `validators/`, `utils/`, `i18n/`.
 <!-- @server-start -->
   - `models/`: a noun's types (re-exports of the generated types plus UI-only shapes), enums,
@@ -64,7 +64,8 @@ The layer map of this package. Commands are in `package.json`.
 <!-- @noserver-start -->
   - `models/`: a noun's types (UI-only shapes), enums,
 <!-- @noserver-end -->
-    constants.
+    constants, one folder per noun holding only `interface.ts`, `type.ts`, `enum.ts` and `constant.ts`;
+    no function, copy helper or spec lives there.
 <!-- @server-start -->
 - `environments/`: `production` and nothing else (no API URL, no secret).
 <!-- @server-end -->
@@ -87,9 +88,9 @@ copying the nearest sibling.
 <!-- @server-end -->
 | State a page reads, and the methods on it   | `app/store/<noun>.store.ts`                        |
 | A routed screen                             | `app/pages/<module>/<page>/`                       |
-| A presentational piece of one page module   | `app/pages/<module>/components/<name>/`            |
+| A presentational piece of one page          | `app/pages/<module>/<page>/<name>/`                |
 | A form                                      | `app/pages/<module>/<module>.form.ts`              |
-| An app-wide component (header, menu)        | `app/components/app-<name>/`                       |
+| An app-wide component (header, menu)        | `app/layout/app-<name>/`                           |
 | A reusable control, pattern or pipe         | `app/shared/`                                      |
 | A guard, interceptor, initializer, provider | `app/core/`                                        |
 | A navigation entry                          | `app/nav.ts`                                       |
@@ -99,7 +100,7 @@ copying the nearest sibling.
 **Naming.** Files follow the Angular style guide before v20, not the suffix-less one:
 `*.component.ts` with its template in an external `*.component.html` and its styles in a sibling
 `*.component.scss` under `styleUrl` (never an inline `styles:`), `*.service.ts`, `*.store.ts`, `*.guard.ts`, `*.interceptor.ts`, `*.pipe.ts`,
-`*.directive.ts`. The class carries the suffix (`AppComponent`, `LoginComponent`); a class in `components/` also
+`*.directive.ts`. The class carries the suffix (`AppComponent`, `LoginComponent`); a class in `layout/` also
 carries `App` (`AppMainLayoutComponent`) while its selector and folder read `app-main-layout`.
 Cross-layer imports use the alias `@app/*` (`src/app/*`); imports inside one page module or one
 directory stay relative.
@@ -108,10 +109,10 @@ directory stay relative.
 
 | From                                                        | May import                                                                                             |
 | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `app/` files                                                | components, pages (lazy routes only), core, store, shared, models                                      |
-| `components/`                                               | core, store, shared, models                                                                            |
-| `pages/<m>/<page>/`                                         | store, shared, models, `core/config`, `core/providers`, its own module's `components/` and `*.form.ts` |
-| `pages/<m>/components/`                                     | shared, models                                                                                         |
+| `app/` files                                                | layout, pages (lazy routes only), core, store, shared, models                                      |
+| `layout/`                                                   | core, store, shared, models                                                                            |
+| `pages/<m>/<page>/`                                         | store, shared, models, `core/config`, `core/providers`, its own components and its module's `*.form.ts`   |
+| `pages/<m>/<page>/<component>/`                             | shared, models                                                                                         |
 | `pages/<m>/*.routes.ts`                                     | `core/guards`, its own pages                                                                           |
 <!-- @server-start -->
 | `pages/<m>/*.form.ts`                                       | `shared/validators`, models, the generated zod schemas                                                 |
@@ -203,8 +204,9 @@ A page injects the store and never `HttpClient`; `@angular/common/http` appears 
    contract changed, run `bun run api:types` (the input is the server's `openapi.json`):
    `src/app/services/generated/` is regenerated and committed, never edited.
 2. **Models.** `app/models/<noun>/interface.ts` re-exports the generated types (`import type`; a
-   hand-written API shape is a lint error). `models/api/` holds `ApiError`, `isApiError()`,
-   `Paginated<T>` and `errorMessageKey()`.
+   hand-written API shape is a lint error). `models/api/` holds the error types, `Paginated<T>` and
+   `ERROR_CODES`; `services/api-error.ts` holds `ApiError` and `isApiError()`, and
+   `core/config/error-copy.ts` holds `errorMessageKey()`.
 
    ```ts
    // app/models/module/interface.ts
@@ -355,10 +357,10 @@ A page injects the store and never `HttpClient`; `@angular/common/http` appears 
 
 <!-- @noserver-end -->
 **The shell.** The template renders no header, navigation or footer: `app-main-layout` is the skip
-link and the page's one `main`. A product's chrome is its own component in `components/app-<name>/`
+link and the page's one `main`. A product's chrome is its own component in `layout/app-<name>/`
 that the layout renders between the skip link and `<main>`; `app-theme-toggle` is ready to place
 there, and `app/nav.ts` is the table a navigation reads (through the `NAV_ENTRIES` token, because
-`components/` may not import `app/`).
+`layout/` may not import `app/`).
 
 <!-- @server:auth-start -->
 
@@ -398,7 +400,7 @@ has none (the controls keep no such state), so none is used. Not used, on purpos
 <!-- @server-start -->
 **Guarding a route (the server's `auth` flag; the files exist only then).** `core/guards/` holds
 `authGuard` (a `CanMatchFn`: a visitor is redirected, with a `RedirectCommand`, to
-`/auth/login?next=<attempted path and query>`), `guestGuard` (login and register: an account goes
+`/auth/login?next=<attempted path and query>`), `guestGuard` (login and signup: an account goes
 home) and `roleGuard`. Put them on the route in the module's `*.routes.ts`:
 `{ path: '', canMatch: [authGuard], loadComponent: ... }`, and for a role
 `{ canMatch: [roleGuard], data: { roles: ['admin'] }, ... }` (a visitor goes to login, another role to
@@ -414,12 +416,12 @@ followed, anything else is `/`.
 **The session hint.** The session is two HttpOnly cookies; JavaScript never holds a token.
 `AuthStore` keeps a flag (`STORAGE_KEYS.session`, the value `'1'`, through `StorageService`): "this
 browser signed in". With the flag, start-up reads `GET /api/user/me` (`session.initializer.ts`) and a
-401 may trigger a refresh; without it a visitor's page load calls neither. A login or register sets
+401 may trigger a refresh; without it a visitor's page load calls neither. A login or signup sets
 it, a sign-out or a refused refresh clears it, and a network error or an outage keeps it. Never store
 anything else under it, and never branch on it outside the auth store and interceptor.
 
 **The form recipe, by example.** `pages/auth/auth.form.ts` is the pattern: one function per form
-(`loginForm()`, `registerForm()` with a `match('password', 'confirm')` confirm control,
+(`loginForm()`, `signupForm()` with a `match('password', 'confirm')` confirm control,
 `otpForm()`), each a `NonNullableFormBuilder` group validated by `zodValidator` over the generated
 request schema (`zCredentials`, `zOtpVerificationBody.pick({ code: true })`), so no limit is copied. The
 page calls the function in a field initializer, submits only a valid form, awaits a store method
@@ -456,7 +458,7 @@ basics;`), then setup, themes, basics; the rules of those six global partials si
   the CDK, and the modal's pane and backdrop rules (`.modal__panel*`, `.modal__backdrop`, applied
   by `ModalService` as `panelClass` and `backdropClass`) are in `styles/basics/_layout.scss`. The
   modal's own sheet styles what is inside its template.
-- **One shared sheet.** `shared/components/controls.scss` is the `.control` block that `input`,
+- **One shared sheet.** `shared/components/form/controls.scss` is the `.control` block that `input`,
   `select` and `textarea` render; each lists it in `styleUrls: ['../controls.scss']`. The scan
   accepts a sheet two or more sibling folders reference and nothing else.
 - **Tokens.** Colour, radius and font come from the custom properties (`var(--primary)`,
@@ -507,7 +509,7 @@ basics;`), then setup, themes, basics; the rules of those six global partials si
   data-table `caption` take a key of the copy table and translate it themselves; every other text
   input (`label`, `hint`, `heading`, `placeholder`) takes an already translated string.
 
-**The components** (`shared/components/<name>/`; the rubric names of the `ui-design` skill):
+**The components** (`shared/components/<name>/`, the form controls in `shared/components/form/<name>/`; the rubric names of the `ui-design` skill):
 
 | Component                                 | What it is                                                                                                                                                                                                       |
 | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -576,7 +578,7 @@ checkbox carries its own label: give its field no `label`.
 The error interceptor maps an `HttpErrorResponse` to an `ApiError` and nothing else; the page or
 store method that awaited the call shows the outcome.
 
-- **`ApiError`** (`models/api/response.ts`): `status`, `code`, `requestId` (the envelope's, else the
+- **`ApiError`** (`services/api-error.ts`): `status`, `code`, `requestId` (the envelope's, else the
   `x-request-id` header, else `null`) and `fieldErrors?` (path -> codes, from a validation envelope's
   `details`). `isApiError()` is the guard. The server's `message` is never kept or shown.
 - **Codes.** The envelope's: `validation_failed`, `unauthenticated`, `forbidden`, `not_found`,
@@ -586,7 +588,7 @@ store method that awaited the call shows the outcome.
 - **Copy table.** Each code has `errors.<code>` in `en.json`, plus `errors.offline` and
   `errors.unexpected`. `errorMessageKey(code)` returns the key, `errors.unknown` for anything else;
   a spec compares the code list with `en.json`, and a code added to the contract fails the build in
-  `models/api/error-copy.ts` until it is listed.
+  `models/api/constant.ts` until it is listed.
 - **Failure rejects.** The client is configured with `throwOnError: true` and each facade call repeats
   it, so a facade returns the call's `data` and a failure rejects with the `ApiError`. The awaiting
   store method (or page) catches it and toasts through the copy table.
@@ -597,7 +599,7 @@ store method that awaited the call shows the outcome.
   `HttpContext`, so only a request made with `HttpClient` directly can set it.
 - **401 and the session (with auth).** The auth interceptor, innermost, sends the cookies and turns a
   401 into one refresh and one replay, only when the session hint is set and the request is not one
-  of the exempt calls (`/api/auth/login`, `register`, `refresh`, `otp`, `otp/verification`: they answer
+  of the exempt calls (`/api/auth/login`, `signup`, `refresh`, `otp`, `otp/verification`: they answer
   401 for reasons a refresh cannot fix, and the generated client takes no `HttpContext`, so the
   exemption is by URL). Concurrent 401s share the one in-flight `AuthStore.refresh()`; a replay that
   fails again reaches the caller, and so does the original 401 when the refresh fails (a 400, 401 or
@@ -644,15 +646,18 @@ interceptor and `applyFieldErrors` arrive with one (see Adding a feature).
 
 - Unit tests run with `bun run test` (`ng test --no-watch`: Vitest on jsdom). Specs are co-located
   with the code, `src/**/*.spec.ts`. Checks on files outside `src/` (the ESLint config, the
-  component-styles and restricted-element scans) live in `tests/unit/*.spec.ts`, each starting with
+  component-styles, folders and restricted-element scans) live in `tests/unit/*.spec.ts`, each starting with
   `// @vitest-environment node`; the builder runs both homes together.
 - **The boundaries test** (`tests/unit/eslint-boundaries.spec.ts`) also asserts that a file outside
-  every layer (`src/app/layout/`, `src/app/features/`, `src/app/widgets/`) is refused.
+  every layer (`src/app/components/`, `src/app/features/`, `src/app/widgets/`) is refused.
+- **The folders scan** (`tests/unit/folders.spec.ts`): every file under `models/` is
+  `<noun>/(interface|type|enum|constant).ts`; two files of one stem in `layout/`, `shared/components/`,
+  `pages/` or `app/` sit in a folder of that name; no `components/` folder exists outside `shared/`.
 - **The styles scan** (`tests/unit/component-styles.spec.ts`) is Styling as a test: `src/styles/`
   holds exactly `basics`, `setup`, `styles.scss` and `themes`; every other `.scss` is referenced by
   its sibling `<stem>.component.ts` (or by two or more components when shared); a reference is
   `./x.scss` or `../x.scss`; no inline `styles:`, no `ViewEncapsulation.None`, no `::ng-deep`; every
-  folder in `components/` starts with `app-` and its class with `App`; the global partials sit in
+  folder in `layout/` starts with `app-` and its class with `App`; the global partials sit in
   their layer and no component sheet does. The control sizing contract (36, 32, 44 px) is asserted by
   the e2e (`shell.spec`) on the rendered page, not by a compile test.
 <!-- @server-start -->
@@ -737,9 +742,9 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && node scripts/e2e-stat
 <!-- @server:auth-start -->
 
 - **Signed in.** `SIGNED_IN_ROUTES` (`/profile`, `/auth/verify-otp`) are captured after
-  `registerThroughApi`, which signs up through the API (the cookies land in the browser context)
+  `signupThroughApi`, which signs up through the API (the cookies land in the browser context)
   and plants the session hint (`localStorage` key `session`, the JSON string `"1"`). Entries share
-  one account per project because the register route is rate limited. `auth.spec.ts` covers
+  one account per project because the signup route is rate limited. `auth.spec.ts` covers
   sign-up, sign-in, the profile (`expectSignedIn` reads the account there), sign-out from the
   profile page, a wrong password and the guarded redirect with `next`. Two calls that expire
   together sharing one `/api/auth/refresh` is the interceptor's unit test.

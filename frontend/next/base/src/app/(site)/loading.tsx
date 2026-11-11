@@ -1,5 +1,5 @@
-import { Page } from '@/shared/components/page'
-import { Skeleton } from '@/shared/components/skeleton'
+import { Page } from '@/shared/components/page/page'
+import { Skeleton } from '@/shared/components/skeleton/skeleton'
 
 // The loading state of every route in the group: a header-shaped placeholder.
 export default function Loading() {

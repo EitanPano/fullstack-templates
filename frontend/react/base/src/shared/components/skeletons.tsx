@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader } from '@/shared/components/card'
-import { Skeleton } from '@/shared/components/skeleton'
+import { Card, CardContent, CardHeader } from '@/shared/components/card/card'
+import { Skeleton } from '@/shared/components/skeleton/skeleton'
 
 // Skeleton shapes for a loading state; a widget composes these to match its own layout.
 export function CardSkeleton() {

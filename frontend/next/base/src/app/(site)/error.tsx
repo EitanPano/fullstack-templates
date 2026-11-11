@@ -1,7 +1,7 @@
 'use client'
 
-import { ErrorState } from '@/shared/components/error-state'
-import { Page } from '@/shared/components/page'
+import { ErrorState } from '@/shared/components/error-state/error-state'
+import { Page } from '@/shared/components/page/page'
 
 // Error boundaries must be Client Components. Keep the message user-safe; the cause is in
 // the server log under its request id.

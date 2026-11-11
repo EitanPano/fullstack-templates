@@ -10,57 +10,61 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
   `h1`), `loading.tsx`, `error.tsx`, `not-found.tsx`, `[...slug]/page.tsx` (a catch-all that keeps a
   404 inside `main`). A route's sheet is `page.scss` beside it. A route's own pieces are in
   `<route>/_components/` (Next never routes a `_` folder), imported by the route folder that holds
-  it and the routes below it; a piece unrelated routes share moves to `components/app-<name>`.
+  it and the routes below it; a piece unrelated routes share moves to `layout/app-<name>`.
 <!-- @server:auth-start -->
 - `(auth)/`: `sign-in/` and `sign-up/` (a `page.tsx` and `_components/` each), a `layout.tsx` with a
-  centred `main` that sends a signed-in account home (`_components/guest-only.tsx`), `loading.tsx`
+  centred `main` that sends a signed-in account home (`_components/guest-only/`), `loading.tsx`
   and `error.tsx`. `(site)/profile/` is the guarded-page example; `(site)/forbidden/` is where
   `requireRole` sends a wrong role. `proxy.ts` (in `src/`) keeps the session fresh.
 <!-- @server:auth-end -->
-- `components/`: app-wide components, every file `app-*` with its `.scss` beside it when styled.
-  `app-user-menu` (the avatar menu, with the theme items) is the control a product places;
-  `app-theme-menu` is those items alone. A component goes here when a layout or more than one
-  route renders it; a reusable control or pattern goes to `shared/components/`.
+- `layout/`: app chrome, every component `app-*`. `app-user-menu` (the avatar menu, with the theme
+  items) is the control a product places; `app-theme-menu` is those items alone. A component goes
+  here when a layout or more than one route renders it; a reusable control or pattern goes to
+  `shared/components/`.
 <!-- @server:auth-start -->
-- `components/app-account-menu` (async: it reads the session, so it sits in `Suspense` with
+- `layout/app-account-menu` (async: it reads the session, so it sits in `Suspense` with
   `app-account-menu-skeleton`), `app-sign-out-item`, `app-auth-loading` (the auth screens' loading shape).
 <!-- @server:auth-end -->
-- `services/`: the data layer: reads, and the only importer of the generated runtime. <!-- @server -->
+- `services/`: facades of libraries with I/O, and the data layer: every API call of an entity is a function of `services/<noun>.ts`, the only importer of the generated client's functions. <!-- @server -->
   `client.ts` (`createApi`, `createRequestApi`), `call.ts` (`call`, `DEFAULT_COPY`), <!-- @server -->
   `generated/` (Hey API output: types, SDK, fetch client, zod; committed, lint-ignored). <!-- @server -->
-- `services/`: the data layer: reads. Empty until a server arrives (see Adding a feature). <!-- @noserver -->
+- `services/`: facades of libraries with I/O, and the data layer: reads per entity. Empty until a server arrives (see Adding a feature). <!-- @noserver -->
 <!-- @server:auth-start -->
-- `services/user.ts` (`getCurrentUser`).
+- `services/auth.ts` (`login`, `signup`, `logout`, `refresh`), `services/user.ts` (`getMe`, one
+  `GET /api/user/me` per request for the session and the page; `getProfile`, the profile page's read).
 <!-- @server:auth-end -->
-- `actions/`: Server Actions (`'use server'`), one file per glossary noun, one export per action.
+- `actions/`: per glossary noun, `<noun>.ts` (Server Actions, `'use server'`, one export per action),
+  `<noun>.form.ts` (a form's zod schema, shared by the action and the client form) and
+  `<noun>.copy.ts` (the outcome copy).
 <!-- @server:auth-start -->
-- `actions/auth.ts`: `signIn`, `signUp`, `signOut`.
+- `actions/auth.ts` (`signIn`, `signUp`, `signOut`), `auth.form.ts`, `auth.copy.ts`.
 <!-- @server:auth-end -->
 - `store/`: a named layer that ships no file: client-only state two or more routes read (a
   `'use client'` provider and its hook). The theme is `next-themes`'; create the folder with the first.
-- `models/`: one file per glossary noun: types, mappers, labels, a form's zod schema and copy
-  table. `nav.ts` (`NavEntry`); `zod-messages.ts` (zod's global messages, imported first by every
-  file that builds a schema).
+- `models/`: one folder per glossary noun holding only `interface.ts`, `type.ts`, `enum.ts` and
+  `constant.ts`, each when needed (`models/nav/interface.ts`: `NavEntry`); no schema, copy, helper
+  or test. The contract's types are re-exported from `models/<noun>/type.ts`.
 <!-- @server:auth-start -->
-- `models/user.ts` (`User`, `initials`), `models/auth.ts` (`signInSchema`, `signUpSchema`,
-  `SIGN_IN_COPY`, `SIGN_UP_COPY`).
+- `models/user/type.ts` (`User`), `models/auth/type.ts` (`AuthTokens`).
 <!-- @server:auth-end -->
-- `shared/`: product-agnostic; imports `shared/` and `models/` only. `components/`: one file per
-  component with its `.scss` beside it: primitives (`button`, `badge`, `card`, `input`, `select`,
-  `dialog`, `sheet`, `dropdown-menu`, `tooltip`, `tabs`, `toaster`, …) and patterns (`page`,
-  `empty-state`, `error-state`, `skeletons`, `form-actions`, `confirm-dialog`).
+- `shared/`: product-agnostic; imports `shared/` and `models/` only. `components/`: a component of
+  two or more files is a folder named for it (`button/button.{tsx,scss,test.tsx}`, imported as
+  `@/shared/components/button/button`), a one-file component stays a file: primitives (`button`,
+  `badge`, `card`, `dialog`, `sheet`, `dropdown-menu`, `tooltip`, `tabs`, `toaster`, …) and patterns
+  (`page`, `empty-state`, `error-state`, `skeletons`, `confirm-dialog`).
   `components/form/`: `form`, `field-frame`, `use-field`, `action-form`, the `*-field` bindings
-  (`text`, `textarea`, `number`, `select`, `checkbox`, `password`, `date-time`). Only
-  `confirm-dialog`, `error-state`, `toaster` and the `form/` bindings are Client Components.
-  `utils/`: `cn`, `date`.
+  (`text`, `textarea`, `number`, `select`, `checkbox`, `password`, `date-time`) and the form
+  controls (`input`, `textarea`, `checkbox`, `radio-group`, `select`, `switch`, `label`, `form-actions`). Only `confirm-dialog`, `error-state`, `toaster` and the `form/` bindings are
+  Client Components. `utils/`: `cn`, `date`, `initials`,
+  `zod-messages` (zod's global messages, imported first by every file that builds a schema).
 <!-- @server:auth-start -->
-- `shared/components/auth-card.tsx` (`AuthCard`).
+- `shared/components/auth-card/auth-card.tsx` (`AuthCard`).
 <!-- @server:auth-end -->
 - `core/`: glue below the pages; `shared/` never imports it. `actions/`: `safe-action.ts` (`action`)
   and `action-error.ts` (`ActionError`). `config/env.ts`: the only reader of `process.env`,
   zod-parsed; browser-visible values are `NEXT_PUBLIC_*`.
 <!-- @server:auth-start -->
-- `core/auth/`: `session.ts`, `cookies.ts`, `refresh.ts`, `token.ts`, `next-path.ts` (a `'use client'`
+- `core/auth/`: `session.ts` (with `getCurrentUser`), `cookies.ts`, `refresh.ts`, `token.ts`, `next-path.ts` (a `'use client'`
   file imports no value from it); `core/actions/safe-action.ts` also holds `accountAction`, `roleAction`.
 <!-- @server:auth-end -->
 - `styles/`: global and app-wide CSS only: `styles.scss`, `setup/`, `themes/`, `basics/` (see Styling).
@@ -69,31 +73,32 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
 
 | Addition                                                  | Home                                                 |
 | --------------------------------------------------------- | ---------------------------------------------------- |
-| A contract type, a mapper, a label, a form schema         | `models/<noun>.ts`                                   |
+| A contract type, an interface, an enum, a constant        | `models/<noun>/{type,interface,enum,constant}.ts`    |
+| A form's zod schema, its outcome copy                     | `actions/<noun>.form.ts`, `actions/<noun>.copy.ts`   |
 | A read from the API                                       | `services/<noun>.ts`                                 | <!-- @server -->
 | A read of the product's data                              | `services/<noun>.ts`                                 | <!-- @noserver -->
 | A mutation                                                | `actions/<noun>.ts`                                  |
 | A route, its layout, loading and error                    | `app/(group)/…`, its sheet beside it                 |
-| A section of one route, or the form that runs a mutation  | `app/<route>/_components/<name>.tsx` + `<name>.scss` |
-| A component a layout or several routes use                | `components/app-<name>.tsx` + `app-<name>.scss`      |
+| A section of one route, or the form that runs a mutation  | `app/<route>/_components/<name>/<name>.tsx` + `.scss`|
+| A component a layout or several routes use                | `layout/app-<name>/app-<name>.tsx` + `.scss`         |
 | State shared across routes (client-only)                  | `store/`                                             |
-| A primitive (button, input, dialog) or a pattern          | `shared/components/<name>.tsx` + `<name>.scss`       |
-| A formatting or date helper                               | `shared/utils/`                                      |
+| A primitive (button, dialog), a pattern, a form control   | `shared/components/<name>/<name>.tsx` + `.scss`, `form/` |
+| A pure helper, a date or formatting facade                | `shared/utils/`                                      |
 | A navigation entry                                        | `app/nav.ts`                                         |
 
 **Import rules** (`eslint-plugin-boundaries`; each lint message names the layer to use instead):
 
 | From                                 | May import                                                         |
 | ------------------------------------ | ------------------------------------------------------------------ |
-| `app/` (route files, `_components/`) | components, services, actions, store, core, shared, models         |
-| `components/`                        | services, actions, store, core, shared, models; never `app/`       |
-| `actions/`                           | services, core, shared, models                                     |
+| `app/` (route files, `_components/`) | layout, services, actions, store, core, shared, models             |
+| `layout/`                            | services, actions, store, core, shared, models; never `app/`       |
+| `actions/`                           | services, core, shared, models; generated types and `zod.gen`      |
 | `services/`                          | `services/generated`, core, models                                 | <!-- @server -->
 | `services/`                          | core, models                                                       | <!-- @noserver -->
 | `store/`                             | core, shared, models                                               |
 | `core/`                              | services, shared, models, core                                     |
 | `shared/`                            | shared, models                                                     |
-| `models/`                            | models; the generated types (`import type`) and `zod.gen` schemas  | <!-- @server -->
+| `models/`                            | models; the generated types (`import type`)                        | <!-- @server -->
 | `models/`                            | models                                                             | <!-- @noserver -->
 
 Also lint-enforced:
@@ -102,10 +107,12 @@ Also lint-enforced:
 - A `'use client'` file imports no value from `services/` (types are fine): it calls a Server Action
   from `actions/` or receives the data as props.
 <!-- @server-start -->
-- The generated files are imported only by `services/`, `core/`, `actions/` and `models/`;
-  everything else reads the contract's types through `models/<noun>.ts`.
+- The generated client's functions are imported only by `services/`: an action or `core/` calls
+  `services/<noun>.ts`, and takes from the generated files only types and `zod.gen` schemas
+  (`models/` only types); everything else reads the contract's types through `models/<noun>/type.ts`.
 <!-- @server-end -->
-- `button`, `input`, `select` and `textarea` JSX elements only in `shared/components/`.
+- `button`, `input`, `select` and `textarea` JSX elements only in `shared/components/`; `interface`
+  only in `models/*/interface.ts`, `type` everywhere else.
   `revalidatePath` and a bare `fetch(` only in `services/`. `process.env` only in `core/config/env.ts`.
 - The `style` JSX attribute nowhere; a stylesheet import is only the owner's sibling
   `./<stem>.scss`; only `app/layout.tsx` and `app/global-error.tsx` load the global tree.
@@ -124,7 +131,7 @@ effects or browser APIs, and they get data through props or a Server Action, nev
 This package has no server. What arrives with one is added by the harness (`scripts/scaffold.mjs`; never copy it by hand): the typed client generated from its contract (`src/services/generated/`, `openapi-ts.config.ts`, the `api:types` script, `@hey-api/openapi-ts`), `createApi` and `call` with the error-envelope copy (`src/services/client.ts`, `src/services/call.ts`) and their tests, the API address in `src/core/config/env.ts` and `.env.example`, and the API web server in the e2e config.
 <!-- @noserver-end -->
 
-1. Name the noun and the action in `.doc/glossary.md`. The noun gets `models/post.ts` and
+1. Name the noun and the action in `.doc/glossary.md`. The noun gets `models/post/` and
    `services/post.ts`, the action an export of `actions/post.ts`, the page `app/(site)/post/`.
 <!-- @server-start -->
 2. If the server's contract changed, run `bun run api:types`: `src/services/generated/` is
@@ -132,17 +139,18 @@ This package has no server. What arrives with one is added by the harness (`scri
 <!-- @server-end -->
 2. There is no server yet, so no typed client: keep data in the browser or in Next's own server code. <!-- @noserver -->
 <!-- @server-start -->
-In the blocks, `getApiPost`, `patchApiPostById`, `listPosts`, `Post`, `PostRow`, `PostListSkeleton`,
-`renamePost`, `renamePostSchema` and `RENAME_POST_COPY` are the example feature's own names;
+In the blocks, `getApiPost`, `patchApiPostById`, `listPosts`, `updatePost`, `Post`, `PostRow`,
+`PostListSkeleton`, `renamePost`, `renamePostSchema` and `RENAME_POST_COPY` are the example feature's own names;
 everything else in them already exists in the template.
 <!-- @server-end -->
    In the blocks, `listPosts`, `PostRow`, `PostListSkeleton` and `renamePost` are the example feature's own names; everything else in them already exists in the template. <!-- @noserver -->
 
 <!-- @server-start -->
-3. The model, `models/post.ts`: the contract's types re-exported, the form schema (it extends the
-   generated request schema and imports `@/models/zod-messages` first) and the copy table.
+3. The model, `models/post/type.ts`: the contract's types re-exported; the form schema is
+   `actions/post.form.ts` (it extends the generated request schema, after
+   `@/shared/utils/zod-messages`) and the copy table `actions/post.copy.ts`.
 <!-- @server-end -->
-3. The model, `models/post.ts`: the types, the form schema (it imports `@/models/zod-messages` first) and the copy table. <!-- @noserver -->
+3. The model, `models/post/type.ts`: the types; the form schema `actions/post.form.ts` (it imports `@/shared/utils/zod-messages` first), the copy `actions/post.copy.ts`. <!-- @noserver -->
 4. A read is a function of `services/post.ts` (Reads has the rules):
 
    ```ts
@@ -157,13 +165,13 @@ everything else in them already exists in the template.
    ```
 
 <!-- @server-start -->
-5. A mutation is an export of `actions/post.ts` (the block under Mutations) and a client leaf that
-   runs it, in the route's `_components/`:
+5. A mutation is an export of `actions/post.ts` over a write of `services/post.ts` (the blocks
+   under Mutations) and a client leaf that runs it, in the route's `_components/`:
 <!-- @server-end -->
 5. A mutation is an export of `actions/post.ts` (Mutations has the rules) and a client leaf that runs it, in the route's `_components/`: <!-- @noserver -->
 
    ```tsx
-   // app/(site)/post/_components/rename-post-button.tsx
+   // app/(site)/post/_components/rename-post-button/rename-post-button.tsx
    'use client'
    export function RenamePostButton({ id }: { id: string }) {
      const { execute } = useAction(renamePost)
@@ -175,7 +183,7 @@ everything else in them already exists in the template.
    same layout beside it (`post-list-skeleton.tsx`):
 
    ```tsx
-   // app/(site)/post/_components/post-list.tsx
+   // app/(site)/post/_components/post-list/post-list.tsx
    export async function PostList() {
      await connection()
      const result = await load()
@@ -218,12 +226,12 @@ everything else in them already exists in the template.
 8. A top-level screen also gets its entry in `src/app/nav.ts` (`{ href, label }`).
 9. Configuration only through `src/core/config/env.ts`; a browser-visible value is `NEXT_PUBLIC_*`,
    declared in a separate public schema and listed in `.env.example`.
-10. No scaffolder: never run a generator here. A new primitive is a file in `shared/components/`.
+10. No scaffolder: never run a generator here. A new primitive is a folder in `shared/components/`.
 
 **The shell.** The template renders no header, navigation or footer: `app/(site)/layout.tsx` is
-the skip link and the page's one `main`. A product's chrome is a component in `components/` that
-the layout renders between the skip link and `<main>`; `components/` never imports `app/`, so the
-layout passes `NAV` in as a prop typed `NavEntry[]` (`@/models/nav`). `AppUserMenu` is the control
+the skip link and the page's one `main`. A product's chrome is a component in `layout/` that
+the layout renders between the skip link and `<main>`; `layout/` never imports `app/`, so the
+layout passes `NAV` in as a prop typed `NavEntry[]` (`@/models/nav/interface`). `AppUserMenu` is the control
 to place (it carries the theme items); `AppThemeMenu` is only those items and throws outside a menu.
 
 <!-- @server:auth-start -->
@@ -275,15 +283,16 @@ no API.
 `core/actions/safe-action.ts` holds the client every action starts from: `action`.
 <!-- @server-start -->
 ```ts
+// services/post.ts
+export async function updatePost(id: string, body: { title: string }) {
+  return patchApiPostById({ client: await createRequestApi(), path: { id }, body })
+}
+
 // actions/post.ts
 'use server'
 export const renamePost = action.inputSchema(renamePostSchema).action(async ({ parsedInput }) => {
   const post = await call(
-    patchApiPostById({
-      client: await createRequestApi(),
-      path: { id: parsedInput.id },
-      body: { title: parsedInput.title },
-    }),
+    updatePost(parsedInput.id, { title: parsedInput.title }),
     RENAME_POST_COPY,
     { schema: renamePostSchema },
   )
@@ -295,8 +304,10 @@ export const renamePost = action.inputSchema(renamePostSchema).action(async ({ p
 An action is `action.inputSchema(schema).action(handler)`, and the handler ends with `updateTag('<noun>')`. <!-- @noserver -->
 
 <!-- @server-start -->
-- An action builds its client with `await createRequestApi()` (it adds the visitor's address when
-  `CLIENT_IP_HEADER` is set); a public cached read uses plain `createApi()`. Never use the
+- A write is a function of `services/<noun>.ts` that returns the client's result, not the data:
+  the action hands it to `call` with its own copy and schema. It builds its client with
+  `await createRequestApi()` (it adds the visitor's address when `CLIENT_IP_HEADER` is set); a
+  public cached read uses plain `createApi()`. Never use the
   module-level `client` the generated code exports: it is shared by every request and points at `/`.
 - `call(request, copy, options)` returns the data or throws an `ActionError` whose message is the
   copy table's entry for the envelope's `code`, then the default (Errors); the server's own text
@@ -309,8 +320,8 @@ An action is `action.inputSchema(schema).action(handler)`, and the handler ends 
 - A page that redirects after a success does it in the action (`redirect()`), after cookies are set.
 <!-- @server:auth-start -->
 - For a signed-in account start from `accountAction`: it reads the session on every call, refuses
-  with "Sign in to continue." when there is none, and puts it in `ctx.session` (use
-  `createRequestApi({ accessToken: ctx.session.accessToken })`). `roleAction('admin')` adds a role check
+  with "Sign in to continue." when there is none, and puts it in `ctx.session` (pass
+  `ctx.session.accessToken` to the write, which builds `createRequestApi({ accessToken })`). `roleAction('admin')` adds a role check
   and refuses with "You don't have access to this.".
 
 <!-- @server:auth-end -->
@@ -321,12 +332,12 @@ React Hook Form with `zodResolver`, wired by `useHookFormAction` (from
 `@next-safe-action/adapter-react-hook-form/hooks`).
 
 <!-- @server-start -->
-- The schema is in `models/<noun>.ts` and extends the generated request schema
+- The schema is in `actions/<noun>.form.ts` and extends the generated request schema
   (`zPostApiXBody.extend({ … })`); limits are never copied. A field whose message is ours sets
   that message itself, whatever the generated schema carries (the servers' schemas differ). The
   same schema goes to `.inputSchema` and to `zodResolver`.
 <!-- @server-end -->
-- The schema is in `models/<noun>.ts`; the same schema goes to `.inputSchema` and to `zodResolver`. <!-- @noserver -->
+- The schema is in `actions/<noun>.form.ts`; the same schema goes to `.inputSchema` and to `zodResolver`. <!-- @noserver -->
 - `<Form form={form} onSubmit={ignoreNavigation(handleSubmitWithAction)}>` provides the context; `TextField`,
   `TextareaField`, `NumberField`, `SelectField`, `CheckboxField`, `PasswordField` and
   `DateTimeField` (all in `shared/components/form/`) take a `name` and a `label`. An error shows
@@ -336,10 +347,10 @@ React Hook Form with `zodResolver`, wired by `useHookFormAction` (from
   once React owns it, which an e2e helper waits for before it submits.
 - A field error from the server arrives as `validationErrors` and the adapter places it on the
   field. The toast reports the outcome (`serverError`, a success) and never repeats a field error,
-  except one for a field the form does not have (`unplacedMessage` in `form/action-form.ts` returns
+  except one for a field the form does not have (`unplacedMessage` in `form/action-form/action-form.ts` returns
   its text, with `hasField`). Toasts fire from `actionProps` callbacks or handlers
   after the await, never from an effect.
-- `ignoreNavigation` (`shared/components/form/action-form.ts`) wraps the submit handler of every
+- `ignoreNavigation` (`shared/components/form/action-form/action-form.ts`) wraps the submit handler of every
   form: an action that ends in `redirect()` makes `executeAsync` reject with Next's navigation
   error (a `digest` starting `NEXT_REDIRECT`, `NEXT_NOT_FOUND` or `NEXT_HTTP_ERROR_FALLBACK`),
   which the wrapper ignores; it rethrows anything else.
@@ -365,17 +376,17 @@ expiry fields). The browser never talks to the API and never holds a token in Ja
   403) clears both cookies; an outage or a rate limit changes nothing. Concurrent requests in one
   process share one refresh. It never redirects and never checks permissions.
 - `core/auth/session.ts` is the data access layer: `readSession()` (memoised per request with
-  React `cache`) asks `GET /api/user/me` with the cookie's token as a bearer and returns
+  React `cache`) asks `GET /api/user/me` (`getMe` of `services/user.ts`) with the cookie's token as a bearer and returns
   `{ user, accessToken }` or `null`, failing closed; `requireAccount(returnTo?)` redirects a
   visitor to `/sign-in?next=…`; `requireRole('admin', returnTo?)` does the same and sends an
   account with another role to `/forbidden`. The role is the API's answer, never a claim in the token.
-- `actions/auth.ts`: `signUp`, `signIn` and `signOut`. A success sets the cookies and
+- `actions/auth.ts`: `signUp`, `signIn` and `signOut`, over `services/auth.ts`. A success sets the cookies and
   redirects to a safe `next` path (`safeNextPath` accepts only a path on this site); `signOut`
   clears the cookies even if the API cannot be reached.
-- `models/auth.ts`: the schemas run the generated email check and `z.email()` in one `superRefine`
+- `actions/auth.form.ts`: the schemas run the generated email check and `z.email()` in one `superRefine`
   (one server's schema has no format check); `SIGN_IN_COPY` maps 401 to "Email or password is
   wrong." because the API cannot tell the two apart. `SignInForm` and `SignUpForm`
-  (`app/(auth)/*/_components/`) are the form pattern.
+  (`app/(auth)/*/_components/*/`) are the form pattern.
 - **Guarding a page.** Every page and read that needs an account calls `requireAccount()`; one
   limited to a role calls `requireRole(role)`. A layout re-renders only when its segment changes,
   so a layout check alone does not protect a navigation: check in the page and the read as well.
@@ -398,7 +409,7 @@ expiry fields). The browser never talks to the API and never holds a token in Ja
   (`variables`, `breakpoints`, `functions`, `mixins`, `typography`, `layers`), `themes/` (`light`,
   `dark`, `brand.css`), `basics/` (`helpers`, `base`, `layout`). Every page, layout and component
   owns a sibling `.scss` with its stem, imported last in its file; it `@use`s `setup/...` only (the
-  Sass load path is set in `next.config.ts`). A partial two sibling files share (`controls.scss`:
+  Sass load path is set in `next.config.ts`). A partial two sibling files share (`form/controls.scss`:
   `input.tsx`, `textarea.tsx`) is imported by each. `app/layout.tsx` and
   `app/global-error.tsx` import Inter, `themes/brand.css`, then `styles.scss`; nothing else does.
 - **Layers.** `setup/_layers.scss` declares `@layer setup, themes, basics, kit`; the global
@@ -406,7 +417,7 @@ expiry fields). The browser never talks to the API and never holds a token in Ja
   in `@layer kit { }` and every other sibling sheet is unlayered, so a page or `app-*` sheet always
   beats the kit and the global tree**, at any specificity and in any chunk order (`next dev` copies
   a shared sheet into each route chunk, so source order between unlayered sheets does not hold).
-  Never write `@layer` in a page or component sheet. `toaster.scss` is the one kit sheet with
+  Never write `@layer` in a page or component sheet. `toaster/toaster.scss` is the one kit sheet with
   `!important`: Sonner's stylesheet is unlayered, and an important declaration in a layer beats it.
 - **Classes.** BEM (`.button--primary`, `.page-header__title`) composed with `cn` from
   `@/shared/utils/cn`. A block's name is unique across the app: a loaded sheet stays in the
@@ -439,7 +450,7 @@ expiry fields). The browser never talks to the API and never holds a token in Ja
   (`success`, `warning`, `destructive`, `muted`, `info`) with words or an icon, never colour alone.
   Semantic HTML, labelled controls; the target is WCAG 2.2 AA, checked by the axe scan.
 - **Enforced by** `tests/unit/styles-tree.test.ts` (`src/styles/` holds only the global tree, every
-  sheet has its owner imported last, no `style` attribute, `components/` files carry `app-`, the
+  sheet has its owner imported last, no `style` attribute, `layout/` components carry `app-`, the
   layer rules above) and `tests/unit/density.test.ts` (compiles the tree, asserts the three sizes).
 
 ## Errors
@@ -488,8 +499,9 @@ expiry fields). The browser never talks to the API and never holds a token in Ja
   stubbed through `vi.stubGlobal('fetch', ...)`; no test starts the server. `server-only` is
   aliased to `tests/stub/server-only.ts` in `vitest.config.mts`; Vitest stubs a stylesheet import.
   Mock a Server Action module (`vi.mock`) in a component test.
-- `tests/unit/` holds the tooling checks: `eslint-boundaries`, `styles-tree` (with seeded
-  temporary trees), `density`, `use-cache`, `screen-routes` (`capturedRoutes`), `e2e-base-url`
+- `tests/unit/` holds the tooling checks: `eslint-boundaries`, `styles-tree` and `folders` (with
+  seeded temporary trees; `folders` holds the model and component folder rules), `density`,
+  `use-cache`, `screen-routes` (`capturedRoutes`), `e2e-base-url`
   (blank `E2E_BASE_URL`).
 - Next request APIs are boundaries: mock `next/cache` (`cacheTag`, `cacheLife`, `updateTag`),
   `next/server` (`connection`) and `next/headers` (`cookies`). `'use cache'` is inert under Vitest:

@@ -5,9 +5,8 @@ import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 import { cache } from 'react'
 
-import type { PublicUser } from '@/models/user'
-import { createRequestApi } from '@/services/client'
-import { getApiUserMe } from '@/services/generated'
+import type { PublicUser, User } from '@/models/user/type'
+import { getMe } from '@/services/user'
 
 import { ACCESS_COOKIE } from './cookies'
 
@@ -30,13 +29,18 @@ export const readSession = cache(async (): Promise<Session | null> => {
   // swallows the abort as an error.
   await connection()
 
-  const { data, response, error } = await getApiUserMe({
-    client: await createRequestApi({ accessToken }),
-  })
+  const { data, response, error } = await getMe(accessToken)
   if (response?.ok && isUser(data)) return { user: data, accessToken }
   if (response?.status !== 401) console.error('[session] could not read the account', { error })
   return null
 })
+
+// The signed-in account, or null. A per-user read: dynamic by nature (it reads cookies), so it
+// is never cached and a component that calls it sits inside Suspense.
+export async function getCurrentUser(): Promise<User | null> {
+  const session = await readSession()
+  return session?.user ?? null
+}
 
 function isUser(value: unknown): value is PublicUser {
   return (

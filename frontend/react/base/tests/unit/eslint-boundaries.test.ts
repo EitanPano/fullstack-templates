@@ -21,17 +21,17 @@ const FILES = [
   'src/app/nav.ts',
   'src/app/providers.tsx',
   'src/app/routes.tsx',
-  'src/components/app-main-error.tsx',
+  'src/layout/app-main-error.tsx',
   'src/store/hooks.ts',
   'src/store/listeners.ts',
   'src/services/call.ts',
   'src/shared/utils/storage.ts',
-  'src/shared/components/toaster.tsx',
+  'src/shared/components/toaster/toaster.tsx',
   'src/core/config/env.ts',
-  'src/components/app-main-components.tsx',
+  'src/layout/app-main-layout-x.tsx',
   'src/pages/post/post.routes.tsx',
   'src/pages/post/home-page.tsx',
-  'src/pages/post/components/post-list.tsx',
+  'src/pages/post/post-list.tsx',
   'src/pages/other/other.routes.tsx',
   'src/pages/other/y.tsx',
   'src/store/index.ts',
@@ -50,10 +50,10 @@ const FILES = [
   'src/core/auth/session-hint.ts',
   'src/core/theme/theme.ts',
   'src/shared/utils/cn.ts',
-  'src/shared/components/button.tsx',
-  'src/models/post.ts',
-  'src/models/api-error.ts',
-  'src/models/user.ts',
+  'src/shared/components/button/button.tsx',
+  'src/models/post/type.ts',
+  'src/models/api-error/type.ts',
+  'src/models/user/type.ts',
   'src/testing/render-routes.tsx',
 ]
 for (const file of FILES) {
@@ -122,20 +122,20 @@ const violations: Violation[] = [
     BOUNDARY,
     'read data through a hook in a page',
   ],
-  // components/ composes no screen.
+  // layout/ composes no screen.
   [
-    'components → page',
-    'src/components/x.tsx',
+    'layout → page',
+    'src/layout/x.tsx',
     "import '@/pages/post/post.routes'",
     BOUNDARY,
     'compose pages in app/routes.tsx',
   ],
   [
-    'components → app',
-    'src/components/x.tsx',
+    'layout → app',
+    'src/layout/x.tsx',
     "import '@/app/nav'",
     BOUNDARY,
-    'components/ never imports app/',
+    'layout/ never imports app/',
   ],
   // A page stays inside itself.
   [
@@ -154,11 +154,11 @@ const violations: Violation[] = [
   ],
   ['page → app', PAGE_FILE, "import '@/app/nav'", BOUNDARY, 'a page never imports app/'],
   [
-    'page → components',
+    'page → layout',
     PAGE_FILE,
-    "import '@/components/app-main-components'",
+    "import '@/layout/app-main-layout-x'",
     BOUNDARY,
-    'a page never imports app/, components/',
+    'a page never imports app/, layout/',
   ],
   [
     'page form → services',
@@ -187,7 +187,7 @@ const violations: Violation[] = [
     'src/store/x.ts',
     "import '@/shared/utils/cn'",
     BOUNDARY,
-    'it never knows pages, components or shared/',
+    'it never knows pages, layout or shared/',
   ],
   [
     'store → core/auth',
@@ -264,7 +264,7 @@ const violations: Violation[] = [
   ],
   [
     'models → core',
-    'src/models/x.ts',
+    'src/models/x/type.ts',
     "import '@/core/config/constants'",
     BOUNDARY,
     'models/ imports models/ and the generated contract types',
@@ -319,11 +319,11 @@ const violations: Violation[] = [
     BOUNDARY,
     'shared/ is product-agnostic',
   ],
-  // models/ holds the contract's types and pure helpers.
-  ['models → generated (value)', 'src/models/x.ts', SDK, BOUNDARY, 'import type'],
+  // models/ holds the contract's types and constants.
+  ['models → generated (value)', 'src/models/x/type.ts', SDK, BOUNDARY, 'import type'],
   [
     'models → shared',
-    'src/models/x.ts',
+    'src/models/x/type.ts',
     "import '@/shared/utils/cn'",
     BOUNDARY,
     'models/ imports models/ and the generated contract types',
@@ -351,8 +351,8 @@ const violations: Violation[] = [
     'only services/ imports the generated runtime',
   ],
   [
-    'generated value import in the components',
-    'src/components/x.tsx',
+    'generated value import in the layout',
+    'src/layout/x.tsx',
     "import { client } from '@/services/generated/client.gen'",
     IMPORTS,
     'only services/ imports the generated runtime',
@@ -384,7 +384,7 @@ const violations: Violation[] = [
     PAGE_FILE,
     TYPES,
     BOUNDARY,
-    "read the contract's types through models/<noun>.ts",
+    "read the contract's types through models/<entity>/type.ts",
   ],
   [
     'generated types in app',
@@ -394,8 +394,8 @@ const violations: Violation[] = [
     "read the contract's types through models/",
   ],
   [
-    'generated types in the components',
-    'src/components/x.tsx',
+    'generated types in the layout',
+    'src/layout/x.tsx',
     TYPES,
     BOUNDARY,
     "read the contract's types through models/",
@@ -416,8 +416,8 @@ const violations: Violation[] = [
     'only a *.test.ts(x) imports testing/',
   ],
   [
-    'components → testing',
-    'src/components/x.tsx',
+    'layout → testing',
+    'src/layout/x.tsx',
     "import '@/testing/render-routes'",
     BOUNDARY,
     'only a *.test.ts(x) imports testing/',
@@ -470,28 +470,28 @@ const violations: Violation[] = [
     PAGE_FILE,
     'export const x = <button />',
     SYNTAX,
-    'Button from @/shared/components/button',
+    'Button from @/shared/components/button/button',
   ],
   [
     '<input> outside shared/components',
-    'src/components/x.tsx',
+    'src/layout/x.tsx',
     'export const x = <input />',
     SYNTAX,
-    'Input from @/shared/components/input',
+    'Input from @/shared/components/form/input',
   ],
   [
     '<select> outside shared/components',
     PAGE_FILE,
     'export const x = <select />',
     SYNTAX,
-    'Select from @/shared/components/select',
+    'Select from @/shared/components/form/select/select',
   ],
   [
     '<textarea> outside shared/components',
     'src/app/x.tsx',
     'export const x = <textarea />',
     SYNTAX,
-    'Textarea from @/shared/components/textarea',
+    'Textarea from @/shared/components/form/textarea',
   ],
   // fetch( belongs to the generated client's runtime config.
   [
@@ -546,8 +546,8 @@ const violations: Violation[] = [
     'never an inline style',
   ],
   [
-    'style attribute in the components',
-    'src/components/x.tsx',
+    'style attribute in the layout',
+    'src/layout/x.tsx',
     'export const x = <p style={{ color: "red" }} />',
     SYNTAX,
     'never an inline style',
@@ -556,26 +556,26 @@ const violations: Violation[] = [
 
 const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   ['app → page routes', 'src/app/x.tsx', "import '@/pages/post/post.routes'", BOUNDARY],
-  ['app → components', 'src/app/x.tsx', "import '@/components/app-main-components'", BOUNDARY],
+  ['app → layout', 'src/app/x.tsx', "import '@/layout/app-main-layout-x'", BOUNDARY],
   ['app → core guards', 'src/app/x.tsx', "import '@/core/auth/guards'", BOUNDARY],
   ['app → store', 'src/app/x.tsx', "import '@/store/index'", BOUNDARY],
   ['app → shared', 'src/app/x.tsx', "import '@/shared/utils/cn'", BOUNDARY],
-  ['app → models', 'src/app/x.tsx', "import '@/models/post'", BOUNDARY],
+  ['app → models', 'src/app/x.tsx', "import '@/models/post/type'", BOUNDARY],
   [
-    'components → services (the hooks)',
-    'src/components/x.tsx',
+    'layout → services (the hooks)',
+    'src/layout/x.tsx',
     "import '@/services/post.api'",
     BOUNDARY,
   ],
-  ['components → store', 'src/components/x.tsx', "import '@/store/index'", BOUNDARY],
-  ['components → core', 'src/components/x.tsx', "import '@/core/theme/theme'", BOUNDARY],
-  ['page → own page', PAGE_FILE, "import '@/pages/post/components/post-list'", BOUNDARY],
-  ['page → own page (relative path)', PAGE_FILE, "import './components/post-list'", BOUNDARY],
+  ['layout → store', 'src/layout/x.tsx', "import '@/store/index'", BOUNDARY],
+  ['layout → core', 'src/layout/x.tsx', "import '@/core/theme/theme'", BOUNDARY],
+  ['page → own page', PAGE_FILE, "import '@/pages/post/post-list'", BOUNDARY],
+  ['page → own page (relative path)', PAGE_FILE, "import './post-list'", BOUNDARY],
   ['page → services (the hooks)', PAGE_FILE, "import '@/services/post.api'", BOUNDARY],
   ['page → store', PAGE_FILE, "import '@/store/index'", BOUNDARY],
   ['page → core guards', 'src/pages/post/post.routes.tsx', "import '@/core/auth/guards'", BOUNDARY],
-  ['page → shared', PAGE_FILE, "import '@/shared/components/button'", BOUNDARY],
-  ['page → models', PAGE_FILE, "import '@/models/post'", BOUNDARY],
+  ['page → shared', PAGE_FILE, "import '@/shared/components/button/button'", BOUNDARY],
+  ['page → models', PAGE_FILE, "import '@/models/post/type'", BOUNDARY],
   ['page form → shared', 'src/pages/post/post.form.ts', "import '@/shared/utils/cn'", BOUNDARY],
   ['page form → generated zod schemas', 'src/pages/post/post.form.ts', ZOD, BOUNDARY],
   [
@@ -587,12 +587,12 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   ['store → services', 'src/store/x.ts', "import '@/services/api'", BOUNDARY],
   ['store → core/theme', 'src/store/x.ts', "import '@/core/theme/theme'", BOUNDARY],
   ['store → core/config', 'src/store/x.ts', "import '@/core/config/constants'", BOUNDARY],
-  ['store → models', 'src/store/x.ts', "import '@/models/api-error'", BOUNDARY],
+  ['store → models', 'src/store/x.ts', "import '@/models/api-error/type'", BOUNDARY],
   ['services → generated', 'src/services/x.ts', SDK, BOUNDARY],
   ['services → generated (no restricted import)', 'src/services/x.ts', SDK, IMPORTS],
   ['services → core/config', 'src/services/x.ts', "import '@/core/config/constants'", BOUNDARY],
   ['services → core/auth', 'src/services/x.ts', "import '@/core/auth/session-hint'", BOUNDARY],
-  ['services → models', 'src/services/x.ts', "import '@/models/api-error'", BOUNDARY],
+  ['services → models', 'src/services/x.ts', "import '@/models/api-error/type'", BOUNDARY],
   ['core/auth/guards → store', 'src/core/auth/guards.ts', "import '@/store/index'", BOUNDARY],
   [
     'core/auth/guards → services',
@@ -619,8 +619,8 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     BOUNDARY,
   ],
   [
-    'components → services (account hooks)',
-    'src/components/x.tsx',
+    'layout → services (account hooks)',
+    'src/layout/x.tsx',
     "import '@/services/user.api'",
     BOUNDARY,
   ],
@@ -630,9 +630,9 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     "import '@/core/auth/session-hint'",
     BOUNDARY,
   ],
-  ['core/auth/guards → models', 'src/core/auth/guards.ts', "import '@/models/post'", BOUNDARY],
+  ['core/auth/guards → models', 'src/core/auth/guards.ts', "import '@/models/post/type'", BOUNDARY],
   ['core/config → shared', 'src/core/config/x.ts', "import '@/shared/utils/cn'", BOUNDARY],
-  ['core/config → models', 'src/core/config/x.ts', "import '@/models/post'", BOUNDARY],
+  ['core/config → models', 'src/core/config/x.ts', "import '@/models/post/type'", BOUNDARY],
   [
     'core/config → core/auth/session-hint',
     'src/core/config/x.ts',
@@ -648,8 +648,8 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     IMPORTS,
   ],
   ['shared → shared', 'src/shared/components/x.tsx', "import '@/shared/utils/cn'", BOUNDARY],
-  ['shared → models', 'src/shared/components/x.tsx', "import '@/models/post'", BOUNDARY],
-  ['models → generated (import type)', 'src/models/x.ts', TYPES, BOUNDARY],
+  ['shared → models', 'src/shared/components/x.tsx', "import '@/models/post/type'", BOUNDARY],
+  ['models → generated (import type)', 'src/models/x/type.ts', TYPES, BOUNDARY],
   ['store → generated (import type)', 'src/store/x.ts', TYPES, BOUNDARY],
   ['core/config → generated (import type)', 'src/core/config/x.ts', TYPES, BOUNDARY],
   [
@@ -658,7 +658,7 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     "import '@/app/providers'; import '@/store/index'; import '@/core/theme/theme'; import '@/shared/utils/zod-messages'",
     BOUNDARY,
   ],
-  ['models → models', 'src/models/x.ts', "import '@/models/api-error'", BOUNDARY],
+  ['models → models', 'src/models/x/type.ts', "import '@/models/api-error/type'", BOUNDARY],
   ['testing → page', 'src/testing/x.tsx', "import '@/pages/post/post.routes'", BOUNDARY],
   ['testing → app', 'src/testing/x.tsx', "import '@/app/nav'", BOUNDARY],
   ['testing → store', 'src/testing/x.tsx', "import '@/store/index'", BOUNDARY],
@@ -702,7 +702,7 @@ const UNKNOWN_FILES = 'boundaries/no-unknown-files'
 describe('files outside every layer', { timeout: 60_000 }, () => {
   it.each([
     'src/hooks/use-thing.ts',
-    'src/layout/x.tsx',
+    'src/components/x.tsx',
     'src/features/post/x.tsx',
     'src/lib/format.ts',
     'src/utils/format.ts',
@@ -715,8 +715,8 @@ describe('files outside every layer', { timeout: 60_000 }, () => {
     'src/main.tsx',
     'src/vite-env.d.ts',
     'src/shared/utils/x.ts',
-    'src/models/x.ts',
-    'src/components/app-x.tsx',
+    'src/models/x/type.ts',
+    'src/layout/app-x.tsx',
     'src/pages/post/x.tsx',
   ])('%s is allowed', async (file) => {
     expect(await messagesFor(file, 'export {}', UNKNOWN_FILES)).toEqual([])
@@ -743,5 +743,31 @@ describe('lint rules', { timeout: 60_000 }, () => {
 
   it.each(allowed)('%s is allowed', async (_what, file, code, ruleId) => {
     expect(await messagesFor(file, code, ruleId)).toEqual([])
+  })
+})
+
+// An entity's interface.ts holds interfaces and its type.ts holds type aliases.
+describe('the keyword of an entity file', { timeout: 60_000 }, () => {
+  const RULE = '@typescript-eslint/consistent-type-definitions'
+
+  it('refuses a type alias of an object in interface.ts', async () => {
+    expect(
+      await messagesFor('src/models/x/interface.ts', 'export type X = { a: string }', RULE),
+    ).toHaveLength(1)
+  })
+
+  it('refuses an interface in type.ts', async () => {
+    expect(
+      await messagesFor('src/models/x/type.ts', 'export interface X { a: string }', RULE),
+    ).toHaveLength(1)
+  })
+
+  it('accepts an interface in interface.ts and a type alias in type.ts', async () => {
+    expect(
+      await messagesFor('src/models/x/interface.ts', 'export interface X { a: string }', RULE),
+    ).toEqual([])
+    expect(
+      await messagesFor('src/models/x/type.ts', 'export type X = { a: string }', RULE),
+    ).toEqual([])
   })
 })

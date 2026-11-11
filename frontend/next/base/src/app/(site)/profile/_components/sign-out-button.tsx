@@ -3,7 +3,7 @@
 import { useAction } from 'next-safe-action/hooks'
 
 import { signOut } from '@/actions/auth'
-import { Button } from '@/shared/components/button'
+import { Button } from '@/shared/components/button/button'
 
 // The profile page's Sign out: the same action as the menu item. It clears the cookies and
 // redirects to sign-in.

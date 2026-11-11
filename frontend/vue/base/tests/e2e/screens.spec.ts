@@ -4,7 +4,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 // @server:auth-start
 import { e2eDatabaseUrl } from '../../scripts/e2e-database-url' // @server:database
-import { fillSignIn, registerThroughUi, signOutThroughUi } from './auth-support'
+import { fillSignIn, signupThroughUi, signOutThroughUi } from './auth-support'
 // @server:auth-end
 import { capturedRoutes } from './screen-routes'
 import { SIGNED_IN_ROUTES, type SetupAccount } from './screen-routes' // @server:auth
@@ -66,7 +66,7 @@ function setupAccount(email: string): SetupAccount {
   return account as SetupAccount
 }
 
-// Entries without a setup share one account (the register route is rate limited); each with a
+// Entries without a setup share one account (the signup route is rate limited); each with a
 // setup has its own. Against a running stack (E2E_BASE_URL) the setup groups are left out when the
 // tests are collected, so no registration is spent: the one exclusion of container-mode e2e.
 const groups = [
@@ -88,7 +88,7 @@ for (const group of groups) {
     test.setTimeout(
       REGISTRATION_MS * (setup ? 2 : 1) + MARGIN_MS + group.length * THEMES.length * CAPTURE_MS,
     )
-    const email = await registerThroughUi(page, 'screens')
+    const email = await signupThroughUi(page, 'screens')
     if (setup) {
       await setup(setupAccount(email))
       // The role is a claim in the session's token, so the session the registration made still

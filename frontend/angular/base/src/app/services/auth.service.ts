@@ -6,7 +6,7 @@ import type {
   OtpRequestBody,
   OtpVerificationBody,
   OtpVerified,
-} from '@app/models/user/interface'
+} from '@app/models/user/type'
 
 import {
   postApiAuthLogin,
@@ -14,12 +14,12 @@ import {
   postApiAuthOtp,
   postApiAuthOtpVerification,
   postApiAuthRefresh,
-  postApiAuthRegister,
+  postApiAuthSignup,
 } from './generated/sdk.gen'
 
 // The facade over the auth module of the generated SDK. The session itself lives in HttpOnly
 // cookies the server sets, so no call here reads or keeps a token. The auth interceptor skips the
-// refresh for login, register, refresh and the two OTP calls by their URL (the generated client
+// refresh for login, signup, refresh and the two OTP calls by their URL (the generated client
 // takes no HttpContext).
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -28,8 +28,8 @@ export class AuthService {
     return data
   }
 
-  async register(body: Credentials): Promise<AuthSession> {
-    const { data } = await postApiAuthRegister({ body, throwOnError: true })
+  async signup(body: Credentials): Promise<AuthSession> {
+    const { data } = await postApiAuthSignup({ body, throwOnError: true })
     return data
   }
 

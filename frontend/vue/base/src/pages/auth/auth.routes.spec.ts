@@ -12,11 +12,11 @@ describe('auth routes', () => {
     expect(byPath('')?.redirect).toBe('/auth/login')
   })
 
-  it('keeps login and register for visitors, titled', () => {
+  it('keeps login and signup for visitors, titled', () => {
     expect(byPath('login')?.beforeEnter).toBe(guestGuard)
     expect(byPath('login')?.meta?.titleKey).toBe('auth.login.title')
-    expect(byPath('register')?.beforeEnter).toBe(guestGuard)
-    expect(byPath('register')?.meta?.titleKey).toBe('auth.register.title')
+    expect(byPath('signup')?.beforeEnter).toBe(guestGuard)
+    expect(byPath('signup')?.meta?.titleKey).toBe('auth.signup.title')
   })
 
   it('puts verify-otp behind authGuard: the OTP calls need a session', () => {

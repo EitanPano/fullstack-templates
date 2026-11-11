@@ -25,8 +25,8 @@ const FILES = [
   'src/app/plugins.ts',
   'src/app/router.ts',
   'src/app/routes.ts',
-  'src/components/app-main-layout.vue',
-  'src/components/app-theme-toggle.vue',
+  'src/layout/app-main-layout/app-main-layout.vue',
+  'src/layout/app-theme-toggle/app-theme-toggle.vue',
   'src/store/post.store.ts',
   'src/store/loading.store.ts',
   'src/store/theme.store.ts',
@@ -50,18 +50,18 @@ const FILES = [
   'src/core/interceptors/error.interceptor.ts',
   'src/core/interceptors/http.provider.ts',
   'src/core/interceptors/loading.interceptor.ts',
-  'src/shared/components/base-button.vue',
+  'src/shared/components/base-button/base-button.vue',
   'src/shared/utils/time.ts',
   'src/shared/validators/zod-form.ts',
-  'src/models/api/response.ts',
+  'src/models/api/type.ts',
   'src/models/post/interface.ts',
   'src/models/nav/interface.ts',
   'src/pages/post/post.routes.ts',
   'src/pages/post/post.form.ts',
-  'src/pages/post/post-page.vue',
-  'src/pages/post/components/post-badge.vue',
+  'src/pages/post/post-page/post-page.vue',
+  'src/pages/post/post-badge/post-badge.vue',
   'src/pages/other/other.routes.ts',
-  'src/pages/other/other-page.vue',
+  'src/pages/other/other-page/other-page.vue',
   'src/testing/render.ts',
 ]
 for (const file of FILES) {
@@ -129,11 +129,21 @@ const IMPORTS = 'no-restricted-imports'
 const HTML = 'vue/no-restricted-html-elements'
 const BLOCK = 'vue/block-lang'
 const INLINE = 'vue/no-static-inline-styles'
+const TYPE_DEFINITION = '@typescript-eslint/consistent-type-definitions'
 // Every rule a snippet may trip because of where it sits: an allowed case must trip none.
-const GUARDED = [BOUNDARY, SYNTAX, IMPORTS, HTML, BLOCK, INLINE, 'boundaries/no-unknown-files']
+const GUARDED = [
+  BOUNDARY,
+  SYNTAX,
+  IMPORTS,
+  HTML,
+  BLOCK,
+  INLINE,
+  TYPE_DEFINITION,
+  'boundaries/no-unknown-files',
+]
 
-const PAGE = 'src/pages/post/x.vue'
-const COMPONENT = 'src/pages/post/components/x.vue'
+const PAGE = 'src/pages/post/x-page/x-page.vue'
+const COMPONENT = 'src/pages/post/x-badge/x-badge.vue'
 const ROUTES = 'src/pages/post/post.routes.ts'
 const FORM = 'src/pages/post/post.form.ts'
 const AUTH_WRAPPER = 'src/core/interceptors/auth.interceptor.ts'
@@ -169,16 +179,16 @@ const violations: Violation[] = [
   [
     'app → page module file',
     'src/app/x.ts',
-    "import '@/pages/post/post-page.vue'",
+    "import '@/pages/post/post-page/post-page.vue'",
     BOUNDARY,
     'only through its *.routes.ts',
   ],
   // main.ts is the entry: app, core, shared, models.
   ['main → store', 'src/main.ts', "import '@/store/theme.store'", BOUNDARY, 'main.ts imports app/'],
   [
-    'main → components',
+    'main → layout',
     'src/main.ts',
-    "import '@/components/app-theme-toggle.vue'",
+    "import '@/layout/app-theme-toggle/app-theme-toggle.vue'",
     BOUNDARY,
     'main.ts imports app/',
   ],
@@ -189,41 +199,41 @@ const violations: Violation[] = [
     BOUNDARY,
     'main.ts imports app/',
   ],
-  // components/: core/config, core/providers, store, shared, models.
+  // layout/: core/config, core/providers, store, shared, models.
   [
-    'components → app',
-    'src/components/x.ts',
+    'layout → app',
+    'src/layout/x.ts',
     "import '@/app/nav'",
     BOUNDARY,
-    'components/ imports core/config',
+    'layout/ imports core/config',
   ],
   [
-    'components → page module',
-    'src/components/x.ts',
+    'layout → page module',
+    'src/layout/x.ts',
     "import '@/pages/post/post.routes'",
     BOUNDARY,
-    'components/ imports core/config',
+    'layout/ imports core/config',
   ],
   [
-    'components → services',
-    'src/components/x.ts',
+    'layout → services',
+    'src/layout/x.ts',
     "import '@/services/post.service'",
     BOUNDARY,
-    'components/ imports core/config',
+    'layout/ imports core/config',
   ],
   [
-    'components → core/guards',
-    'src/components/x.ts',
+    'layout → core/guards',
+    'src/layout/x.ts',
     "import '@/core/guards/auth.guard'",
     BOUNDARY,
-    'components/ imports core/config',
+    'layout/ imports core/config',
   ],
   [
-    'components → core/i18n',
-    'src/components/x.ts',
+    'layout → core/i18n',
+    'src/layout/x.ts',
     "import '@/core/i18n/i18n'",
     BOUNDARY,
-    'components/ imports core/config',
+    'layout/ imports core/config',
   ],
   // pages/<m>/*.vue: store, shared, models, core/config, core/providers, core/guards.
   [
@@ -242,9 +252,9 @@ const violations: Violation[] = [
   ],
   ['page → app', PAGE, "import '@/app/nav'", BOUNDARY, 'a page reads a store'],
   [
-    'page → components',
+    'page → layout',
     PAGE,
-    "import '@/components/app-theme-toggle.vue'",
+    "import '@/layout/app-theme-toggle/app-theme-toggle.vue'",
     BOUNDARY,
     'a page reads a store',
   ],
@@ -265,18 +275,18 @@ const violations: Violation[] = [
   [
     'page module → other page module',
     PAGE,
-    "import '@/pages/other/other-page.vue'",
+    "import '@/pages/other/other-page/other-page.vue'",
     BOUNDARY,
     'a page module never imports another page module',
   ],
   [
     'page module → other page module (relative path)',
     PAGE,
-    "import '../other/other-page.vue'",
+    "import '../../other/other-page/other-page.vue'",
     BOUNDARY,
     'a page module never imports another page module',
   ],
-  // pages/<m>/components/: shared, models.
+  // pages/<m>/<name>/ beside a *-page: shared, models.
   [
     'component → store',
     COMPONENT,
@@ -324,7 +334,7 @@ const violations: Violation[] = [
   [
     'form → shared/components',
     FORM,
-    "import '@/shared/components/base-button.vue'",
+    "import '@/shared/components/base-button/base-button.vue'",
     BOUNDARY,
     'a *.form.ts imports shared/validators',
   ],
@@ -402,9 +412,9 @@ const violations: Violation[] = [
     'core wiring (guards, initializers',
   ],
   [
-    'core/interceptors/error → components',
+    'core/interceptors/error → layout',
     ERROR_INTERCEPTOR,
-    "import '@/components/app-theme-toggle.vue'",
+    "import '@/layout/app-theme-toggle/app-theme-toggle.vue'",
     BOUNDARY,
     'core wiring (guards, initializers',
   ],
@@ -655,8 +665,8 @@ const violations: Violation[] = [
     '<button> only inside shared/components/',
   ],
   [
-    '<input> in components/',
-    'src/components/x.vue',
+    '<input> in layout/',
+    'src/layout/x.vue',
     SFC('', '<input />'),
     HTML,
     '<input> only inside shared/components/',
@@ -692,6 +702,20 @@ const violations: Violation[] = [
   ],
   ['a static style attribute', PAGE, SFC('', '<p style="color: red" />'), INLINE, ''],
   [
+    'a type alias in models/<entity>/interface.ts',
+    'src/models/post/interface.ts',
+    'export type Post = { id: number }',
+    TYPE_DEFINITION,
+    'Use an `interface` instead of a `type`',
+  ],
+  [
+    'an interface in models/<entity>/type.ts',
+    'src/models/post/type.ts',
+    'export interface Post { id: number }',
+    TYPE_DEFINITION,
+    'Use a `type` instead of an `interface`',
+  ],
+  [
     'a file in a directory no layer claims',
     'src/hooks/use-thing.ts',
     'export {}',
@@ -703,9 +727,9 @@ const violations: Violation[] = [
 // One allowed case per row, so a rule cannot be satisfied by refusing everything.
 const allowed: Allowed[] = [
   [
-    'app → components, store, shared, models, core',
+    'app → layout, store, shared, models, core',
     'src/app/x.ts',
-    "import '@/components/app-theme-toggle.vue'; import '@/store/theme.store'; import '@/shared/utils/time'; import '@/models/nav/interface'; import '@/core/config/env'; import '@/core/guards/auth.guard'",
+    "import '@/layout/app-theme-toggle/app-theme-toggle.vue'; import '@/store/theme.store'; import '@/shared/utils/time'; import '@/models/nav/interface'; import '@/core/config/env'; import '@/core/guards/auth.guard'",
   ],
   ['app → a page module *.routes.ts', 'src/app/x.ts', "import '@/pages/post/post.routes'"],
   [
@@ -714,32 +738,32 @@ const allowed: Allowed[] = [
     "import '@/app/plugins'; import '@/core/config/env'; import '@/shared/utils/time'; import '@/models/nav/interface'",
   ],
   [
-    'components → core/config, core/providers, store, shared, models',
-    'src/components/x.ts',
+    'layout → core/config, core/providers, store, shared, models',
+    'src/layout/x.ts',
     "import '@/core/config/constants'; import '@/core/providers/logger'; import '@/store/theme.store'; import '@/shared/utils/time'; import '@/models/nav/interface'",
   ],
   [
-    'components → shared component',
-    'src/components/x.ts',
-    "import '@/shared/components/base-button.vue'",
+    'layout → shared component',
+    'src/layout/x.ts',
+    "import '@/shared/components/base-button/base-button.vue'",
   ],
   [
     'page → store, shared, models, core/config, core/providers, core/guards',
     PAGE,
     "import '@/store/post.store'; import '@/shared/utils/time'; import '@/models/post/interface'; import '@/core/config/constants'; import '@/core/providers/logger'; import '@/core/guards/unsaved-changes.guard'",
   ],
-  ['page → its own component', PAGE, "import './components/post-badge.vue'"],
-  ['page → its own form', PAGE, "import './post.form'"],
+  ['page → its own component', PAGE, "import '../post-badge/post-badge.vue'"],
+  ['page → its own form', PAGE, "import '../post.form'"],
   ['page → generated types by an alias model', PAGE, "import '@/models/post/interface'"],
   [
     'component → shared, models',
     COMPONENT,
-    "import '@/shared/components/base-button.vue'; import '@/models/post/interface'",
+    "import '@/shared/components/base-button/base-button.vue'; import '@/models/post/interface'",
   ],
   [
     'routes → core/guards and its own pages',
     ROUTES,
-    "import '@/core/guards/auth.guard'; import('./post-page.vue')",
+    "import '@/core/guards/auth.guard'; import('./post-page/post-page.vue')",
   ],
   [
     'form → shared/validators, models, generated zod',
@@ -780,7 +804,7 @@ const allowed: Allowed[] = [
   [
     'error.interceptor → store, models, core',
     ERROR_INTERCEPTOR,
-    "import '@/store/theme.store'; import '@/models/api/response'; import '@/core/providers/logger'",
+    "import '@/store/theme.store'; import '@/models/api/type'; import '@/core/providers/logger'",
   ],
   ['error.interceptor → generated (import type)', ERROR_INTERCEPTOR, TYPES],
   [
@@ -791,12 +815,12 @@ const allowed: Allowed[] = [
   [
     'loading wrapper → store/loading.store.ts, core/config, core/providers, models',
     LOADING_WRAPPER,
-    "import '@/store/loading.store'; import '@/core/config/env'; import '@/core/providers/logger'; import '@/models/api/response'",
+    "import '@/store/loading.store'; import '@/core/config/env'; import '@/core/providers/logger'; import '@/models/api/type'",
   ],
   [
     'auth wrapper → core/config, core/providers, models',
     AUTH_WRAPPER,
-    "import '@/core/config/constants'; import '@/core/providers/session'; import '@/models/api/response'",
+    "import '@/core/config/constants'; import '@/core/providers/session'; import '@/models/api/type'",
   ],
   [
     'auth wrapper calls the global fetch',
@@ -806,7 +830,7 @@ const allowed: Allowed[] = [
   [
     'core/config → core/providers, core/i18n, core/errors, shared, models',
     'src/core/config/x.ts',
-    "import '@/core/providers/logger'; import '@/core/i18n/i18n'; import '@/core/errors/global-error-handler'; import '@/shared/utils/time'; import '@/models/api/response'",
+    "import '@/core/providers/logger'; import '@/core/i18n/i18n'; import '@/core/errors/global-error-handler'; import '@/shared/utils/time'; import '@/models/api/type'",
   ],
   [
     'api-client → the two fetch wrappers',
@@ -861,7 +885,7 @@ const allowed: Allowed[] = [
   [
     'a component tag <BaseButton> in a page',
     PAGE,
-    SFC("import BaseButton from '@/shared/components/base-button.vue'", '<BaseButton />'),
+    SFC("import BaseButton from '@/shared/components/base-button/base-button.vue'", '<BaseButton />'),
   ],
   [
     'an empty <style lang="scss" src> block',
@@ -871,6 +895,8 @@ const allowed: Allowed[] = [
   ],
   ['a script-only page', PAGE, SFC('const a = 1\nexport {}\nvoid a')],
   ['files in a claimed directory', 'src/shared/utils/x.ts', 'export {}'],
+  ['an interface in models/<entity>/interface.ts', 'src/models/post/interface.ts', 'export interface Post { id: number }'],
+  ['a type alias in models/<entity>/type.ts', 'src/models/post/type.ts', 'export type Post = { id: number }'],
 ]
 
 // The first lint loads the whole config (type-aware presets, plugins), which can take seconds.
@@ -903,7 +929,7 @@ describe('files outside every layer', { timeout: 60_000 }, () => {
     'src/utils/format.ts',
     'src/stray.ts',
     'src/hooks/use-thing.ts',
-    'src/layout/x.vue',
+    'src/components/x.vue',
     'src/features/x/y.vue',
   ])('%s is refused', async (file) => {
     expect(await messagesFor(file, 'export {}', 'boundaries/no-unknown-files')).toHaveLength(1)
@@ -914,8 +940,8 @@ describe('files outside every layer', { timeout: 60_000 }, () => {
     'src/vite-env.d.ts',
     'src/shared/utils/x.ts',
     'src/models/x.ts',
-    'src/components/app-x.vue',
-    'src/pages/post/x.vue',
+    'src/layout/app-x/app-x.vue',
+    'src/pages/post/x-page/x-page.vue',
   ])('%s is allowed', async (file) => {
     expect(await messagesFor(file, 'export {}', 'boundaries/no-unknown-files')).toEqual([])
   })

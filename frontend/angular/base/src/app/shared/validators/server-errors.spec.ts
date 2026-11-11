@@ -1,6 +1,6 @@
 import { FormControl, FormGroup } from '@angular/forms'
 
-import { ApiError } from '@app/models/api/response'
+import { ApiError } from '@app/services/api-error'
 
 import { applyFieldErrors } from './server-errors'
 

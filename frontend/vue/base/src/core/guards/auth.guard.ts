@@ -1,7 +1,7 @@
 import type { NavigationGuard, RouteLocationRaw } from 'vue-router'
 
 import { LOGIN_PATH } from '@/core/config/constants'
-import { NEXT_PARAM } from '@/models/user/constants'
+import { NEXT_PARAM } from '@/models/user/constant'
 import { useAuthStore } from '@/store/auth.store'
 
 // Sign-in with the page the visitor was heading to, query included, so sign-in can bring them

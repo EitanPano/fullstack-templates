@@ -1,9 +1,9 @@
 import type { ComponentProps } from 'react'
 import { useFormContext } from 'react-hook-form'
 
-import { Textarea } from '@/shared/components/textarea'
+import { Textarea } from '@/shared/components/form/textarea'
 
-import { FieldFrame } from './field-frame'
+import { FieldFrame } from './field-frame/field-frame'
 import type { FieldProps } from './text-field'
 import { useField } from './use-field'
 

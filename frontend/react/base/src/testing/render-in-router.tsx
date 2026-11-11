@@ -3,7 +3,7 @@ import type { ReactElement } from 'react'
 import { Provider } from 'react-redux'
 import { MemoryRouter, useLocation } from 'react-router'
 
-import { TooltipProvider } from '@/shared/components/tooltip'
+import { TooltipProvider } from '@/shared/components/tooltip/tooltip'
 import { createStore, type AppStore } from '@/store'
 
 // Shows where the router is, so a test can assert a navigation.

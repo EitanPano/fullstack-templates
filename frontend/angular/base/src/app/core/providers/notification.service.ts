@@ -2,7 +2,8 @@ import { Overlay, OverlayRef } from '@angular/cdk/overlay'
 import { ComponentPortal } from '@angular/cdk/portal'
 import { ComponentRef, DestroyRef, Injectable, inject, signal } from '@angular/core'
 
-import type { Toast, ToastAction, ToastKind, ToastParams } from '@app/models/notification/interface'
+import type { Toast, ToastAction } from '@app/models/notification/interface'
+import type { ToastKind, ToastParams } from '@app/models/notification/type'
 import { ToastComponent } from '@app/shared/components/toast/toast.component'
 
 const TIMEOUT_MS: Record<ToastKind, number> = {

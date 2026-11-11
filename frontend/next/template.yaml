@@ -51,21 +51,24 @@ onlyWhen:
     - src/app/(site)/profile
     - src/core/auth
     - src/core/actions/account-action.test.ts
-    - src/shared/components/auth-card.scss
-    - src/shared/components/auth-card.tsx
-    - src/models/user.ts
-    - src/models/auth.ts
-    - src/models/auth.test.ts
+    - src/shared/components/auth-card
+    - src/models/user
+    - src/models/auth
     - src/actions/auth.ts
     - src/actions/auth.test.ts
+    - src/actions/auth.form.ts
+    - src/actions/auth.form.test.ts
+    - src/actions/auth.copy.ts
+    - src/services/auth.ts
+    - src/services/auth.test.ts
     - src/services/user.ts
-    - src/components/app-account-menu.tsx
-    - src/components/app-account-menu-skeleton.scss
-    - src/components/app-account-menu-skeleton.tsx
-    - src/components/app-account-menu.test.tsx
-    - src/components/app-auth-loading.scss
-    - src/components/app-auth-loading.tsx
-    - src/components/app-sign-out-item.tsx
+    - src/services/user.test.ts
+    - src/shared/utils/initials.ts
+    - src/shared/utils/initials.test.ts
+    - src/layout/app-account-menu
+    - src/layout/app-account-menu-skeleton
+    - src/layout/app-auth-loading
+    - src/layout/app-sign-out-item.tsx
     - tests/e2e/auth-support.ts
     - tests/e2e/auth.spec.ts
     - tests/unit/proxy-config.test.ts

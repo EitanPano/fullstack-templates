@@ -30,12 +30,12 @@ template finds the same shape.
 <!-- matrix:start -->
 | Template | Kind | Version | Flags | Capabilities | Summary |
 | --- | --- | --- | --- | --- | --- |
-| `bun-express` | server | 2.4.3 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
-| `python-fastapi` | server | 1.2.2 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
-| `angular` | frontend | 3.1.0 | i18n, pwa | — | Angular 22 single-page app on standalone components and signals, @ngrx/signals stores, co-located SCSS on a global token tree and Hey API's Angular client, with Transloco and the service worker behind flags |
+| `bun-express` | server | 3.0.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
+| `python-fastapi` | server | 2.0.0 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
+| `angular` | frontend | 4.0.0 | i18n, pwa | — | Angular 22 single-page app on standalone components and signals, @ngrx/signals stores, co-located SCSS on a global token tree and Hey API's Angular client, with Transloco and the service worker behind flags |
 | `next` | frontend | 4.0.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
-| `react` | frontend | 5.1.0 | — | — | Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives styled by co-located SCSS on a global token tree |
-| `vue` | frontend | 3.1.0 | i18n, pwa | — | Vite and Vue 3 single-page app: Vue Router 5, Pinia 4 setup stores over a client generated from the server's contract, Reka UI primitives styled by co-located SCSS on a global token tree, vue-i18n and the service worker behind flags |
+| `react` | frontend | 6.0.0 | — | — | Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives styled by co-located SCSS on a global token tree |
+| `vue` | frontend | 4.0.0 | i18n, pwa | — | Vite and Vue 3 single-page app: Vue Router 5, Pinia 4 setup stores over a client generated from the server's contract, Reka UI primitives styled by co-located SCSS on a global token tree, vue-i18n and the service worker behind flags |
 
 | Stack | Packages | Summary |
 | --- | --- | --- |
@@ -203,9 +203,14 @@ stack; production does not refuse its credentials if you export them.
   `.angular/` copy exclude in the generator; `server/bun-express` 2.4.3 and `server/python-fastapi`
   1.2.2 cache a frontend's hashed build output immutable whatever its layout.
 - v1.12.0: `frontend/next` 4.0.0 takes the layer names of the single-page templates (`app/` as the
-  pages layer, `components/`, `services/`, `actions/`, `models/`, `shared/`, `core/`, `styles/`) and
+  pages layer, `layout/`, `services/`, `actions/`, `models/`, `shared/`, `core/`, `styles/`) and
   their SCSS tree, with a kit layer; Tailwind and shadcn leave
-  ([ADR 0012](docs/adr/0012-next-spa-tree-colocated-scss.md)). The other templates are unchanged.
+  ([ADR 0012](docs/adr/0012-next-spa-tree-colocated-scss.md)). All four frontends take one set of
+  folder rules (`models/<entity>/` of four file kinds, `layout/` for the chrome, the form controls
+  in `shared/components/form/`, a folder per multi-file component: `frontend/react` 6.0.0,
+  `frontend/vue` 4.0.0, `frontend/angular` 4.0.0), and the sign-up endpoint is
+  `POST /api/auth/signup` (`server/bun-express` 3.0.0, `server/python-fastapi` 2.0.0;
+  [ADR 0013](docs/adr/0013-owner-folder-rules-and-signup.md)).
 - Next: mongodb, redis, and a worker with rabbitmq.
 
 The design is in [ADR 0001](docs/adr/0001-catalog-architecture.md).

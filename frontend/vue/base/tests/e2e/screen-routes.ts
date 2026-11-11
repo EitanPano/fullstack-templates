@@ -5,10 +5,10 @@ import { NAV } from '../../src/app/nav'
 // the server's auth.
 export const AUTH_ROUTES: readonly string[] = [
   '/auth/login', // @server:auth
-  '/auth/register', // @server:auth
+  '/auth/signup', // @server:auth
 ]
 
-// What a role setup receives: the account just registered and the URL of the browser-test
+// What a role setup receives: the account just signuped and the URL of the browser-test
 // database. Without a database there is no URL, so a setup has nothing to promote with.
 export type SetupAccount = {
   email: string

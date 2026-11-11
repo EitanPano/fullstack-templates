@@ -17,7 +17,7 @@ export function loginForm() {
 }
 
 // The confirm control is not in the contract; `match` compares it with the password.
-export function registerForm() {
+export function signupForm() {
   return inject(NonNullableFormBuilder).group(
     { email: [''], password: [''], confirm: [''] },
     { validators: [zodValidator(zCredentials), match('password', 'confirm')] },

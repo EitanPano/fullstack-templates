@@ -391,7 +391,7 @@ class TestTheAuthContract:
         doc = build_openapi_document(app)
 
         paths = {path: set(as_object(item)) for path, item in as_object(doc["paths"]).items()}
-        assert paths["/api/auth/register"] == {"post"}
+        assert paths["/api/auth/signup"] == {"post"}
         assert paths["/api/auth/login"] == {"post"}
         assert paths["/api/auth/refresh"] == {"post"}
         assert paths["/api/auth/logout"] == {"post"}

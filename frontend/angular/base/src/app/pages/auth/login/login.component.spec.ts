@@ -4,7 +4,7 @@ import { Router, provideRouter } from '@angular/router'
 
 import { provideTestTranslator } from '@app/core/i18n/translator.testing'
 import { NotificationService } from '@app/core/providers/notification.service'
-import { ApiError } from '@app/models/api/response'
+import { ApiError } from '@app/services/api-error'
 import { AuthStore } from '@app/store/auth.store'
 
 import { LoginComponent } from './login.component'
@@ -53,11 +53,11 @@ describe('LoginComponent', () => {
     loading.set(false)
   })
 
-  it('has one h1 and links to the register screen', async () => {
+  it('has one h1 and links to the signup screen', async () => {
     const { element } = await render()
     expect(element.querySelectorAll('h1')).toHaveLength(1)
     expect(element.querySelector('h1')?.textContent).toBe('Sign in')
-    expect(element.querySelector('.login__alt a')?.getAttribute('href')).toBe('/auth/register')
+    expect(element.querySelector('.login__alt a')?.getAttribute('href')).toBe('/auth/signup')
   })
 
   // A malformed e-mail is not asserted: the bun-express contract has no e-mail pattern (the python
@@ -73,10 +73,10 @@ describe('LoginComponent', () => {
     expect(errors).toEqual(['Enter at least 8 characters'])
   })
 
-  it('carries next to the register screen', async () => {
+  it('carries next to the signup screen', async () => {
     const { element } = await render('/profile')
     expect(element.querySelector('.login__alt a')?.getAttribute('href')).toBe(
-      '/auth/register?next=%2Fprofile',
+      '/auth/signup?next=%2Fprofile',
     )
   })
 

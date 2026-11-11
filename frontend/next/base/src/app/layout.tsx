@@ -6,8 +6,8 @@ import type { Metadata } from 'next'
 import { ThemeProvider } from 'next-themes'
 import type { ReactNode } from 'react'
 
-import { Toaster } from '@/shared/components/toaster'
-import { TooltipProvider } from '@/shared/components/tooltip'
+import { Toaster } from '@/shared/components/toaster/toaster'
+import { TooltipProvider } from '@/shared/components/tooltip/tooltip'
 
 export const metadata: Metadata = {
   title: { template: '%s · __PROJECT_DISPLAY_NAME__', default: '__PROJECT_DISPLAY_NAME__' },

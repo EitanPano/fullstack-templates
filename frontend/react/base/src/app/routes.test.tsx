@@ -4,8 +4,8 @@ import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { AppMainError } from '@/components/app-main-error'
-import { AppMainLayout } from '@/components/app-main-layout'
+import { AppMainError } from '@/layout/app-main-error'
+import { AppMainLayout } from '@/layout/app-main-layout/app-main-layout'
 import { stubApi } from '@/testing/stub-api'
 import { renderRoutes } from '@/testing/render-routes'
 

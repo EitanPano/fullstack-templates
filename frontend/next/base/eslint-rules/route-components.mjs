@@ -4,14 +4,14 @@ import { projectFile, resolveFromRoot } from './client-server-import.mjs'
 
 // A `_components/` folder belongs to the route folder that holds it and the routes below it: a file
 // in that folder or any folder under it may import from it. A sibling route, a parent route or code
-// outside app/ may not; a piece two such routes share moves to components/app-<name>.
+// outside app/ may not; a piece two such routes share moves to layout/app-<name>.
 export const routeComponents = {
   meta: {
     type: 'problem',
     schema: [],
     messages: {
       foreign:
-        'a _components/ file belongs to its route folder and the routes below it: move a piece two routes share to components/app-<name>',
+        'a _components/ file belongs to its route folder and the routes below it: move a piece two routes share to layout/app-<name>',
     },
   },
   create(context) {

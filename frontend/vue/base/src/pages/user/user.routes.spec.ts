@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { authGuard } from '@/core/guards/auth.guard'
-import { PROFILE_PATH } from '@/models/user/constants'
+import { PROFILE_PATH } from '@/models/user/constant'
 
 import routes from './user.routes'
 

@@ -7,7 +7,7 @@ import pytest
 
 from app.api.user import controller as user
 from app.infra.pubsub import pubsub
-from app.infra.subscribers.send_welcome import handle_user_registered
+from app.infra.subscribers.send_welcome import handle_user_signedup
 from app.models.user.type import CreateUserInput
 from app.services.communicate import Message, register_provider
 from app.services.event import drain
@@ -40,7 +40,7 @@ class _Failing:
 
 @store_backed
 class TestSendWelcome:
-    async def test_mails_the_new_user_when_user_registered_is_published(
+    async def test_mails_the_new_user_when_user_signedup_is_published(
         self, outbox: Outbox
     ) -> None:
         await user.create_user(CreateUserInput(email="new@example.com", password=PASSWORD))
@@ -68,7 +68,7 @@ class TestSendWelcome:
         self, outbox: Outbox
     ) -> None:
         with pytest.raises(AppError):
-            await handle_user_registered({"user_id": "missing"})
+            await handle_user_signedup({"user_id": "missing"})
 
         assert outbox.sent == []
 

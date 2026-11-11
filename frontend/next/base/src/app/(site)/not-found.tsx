@@ -1,8 +1,8 @@
 import Link from 'next/link'
 
-import { Button } from '@/shared/components/button'
-import { EmptyState } from '@/shared/components/empty-state'
-import { Page } from '@/shared/components/page'
+import { Button } from '@/shared/components/button/button'
+import { EmptyState } from '@/shared/components/empty-state/empty-state'
+import { Page } from '@/shared/components/page/page'
 import './not-found.scss'
 
 export default function SiteNotFound() {

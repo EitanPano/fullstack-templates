@@ -5,7 +5,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { externalBaseUrl } from '../../scripts/e2e-base-url' // @server:auth
 import { NAV } from '../../src/app/nav'
 
-import { fillSignIn, HASHED, registerThroughUi, signOutThroughUi } from './auth-support' // @server:auth
+import { fillSignIn, HASHED, signupThroughUi, signOutThroughUi } from './auth-support' // @server:auth
 import { capturedRoutes } from './screen-routes'
 import { screenProblems } from './support'
 
@@ -14,7 +14,7 @@ import { screenProblems } from './support'
 // one. A blank value counts as unset (as in playwright.config.ts).
 const EXTERNAL = Boolean(externalBaseUrl(process.env.E2E_BASE_URL))
 
-// What a role setup receives: the account just registered and the URL of the browser-test
+// What a role setup receives: the account just signed up and the URL of the browser-test
 // database. Without a database there is nothing to promote, so a setup receives `never`.
 type SetupAccount = { email: string; databaseUrl: string } // @server:database
 type SetupAccount = never // @noserver:database
@@ -99,9 +99,9 @@ function setupAccount(email: string): Promise<SetupAccount> { // @noserver:datab
   throw new Error(`No database, so nothing to promote for ${email}`) // @noserver:database
 }
 
-// Entries without a setup share one account (the register route is rate limited); each with a
+// Entries without a setup share one account (the signup route is rate limited); each with a
 // setup has its own. Against a running stack (E2E_BASE_URL) the setup groups are left out when the
-// tests are collected, so no registration is spent: the one exclusion of container-mode e2e.
+// tests are collected, so no sign-up is spent: the one exclusion of container-mode e2e.
 const groups = [
   SIGNED_IN_ROUTES.filter((entry) => !entry.setup),
   ...(EXTERNAL ? [] : SIGNED_IN_ROUTES.filter((entry) => entry.setup).map((entry) => [entry])),
@@ -120,7 +120,7 @@ for (const group of groups) {
     test.setTimeout(
       REGISTRATION_MS * (setup ? 2 : 1) + MARGIN_MS + group.length * THEMES.length * CAPTURE_MS,
     )
-    const email = await registerThroughUi(page)
+    const email = await signupThroughUi(page)
     if (setup) {
       await setup(await setupAccount(email))
       // The role is a claim in the session's token, so the session the registration made still

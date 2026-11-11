@@ -31,7 +31,7 @@ from app.models.auth.type import Caller
 from app.models.user.enums import ContactType, UserRole, UserStatus
 from app.models.user.interface import UserRecord
 from app.models.user.type import ContactTarget, CreateUserInput, PublicUser, UserCredentials
-from app.services.event import USER_REGISTERED, publish
+from app.services.event import USER_SIGNEDUP, publish
 from app.services.security.crypto import hash_password
 from app.services.utils import clock
 from app.services.utils.error import AppError
@@ -130,7 +130,7 @@ async def get_caller_user(caller: Caller) -> PublicUser:
 
 
 async def create_user(data: CreateUserInput) -> PublicUser:
-    """Sends nothing itself: a subscriber to `user.registered` sends the welcome message."""
+    """Sends nothing itself: a subscriber to `user.signedup` sends the welcome message."""
     email = _normalise_email(data.email)
     if await service.find_user_by_email(email) is not None:
         raise AppError("conflict", "email already registered")
@@ -146,7 +146,7 @@ async def create_user(data: CreateUserInput) -> PublicUser:
             updated_at=now,
         )
     )
-    await publish(USER_REGISTERED, {"user_id": record.id})
+    await publish(USER_SIGNEDUP, {"user_id": record.id})
     return to_public(record)
 
 
