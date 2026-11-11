@@ -1059,6 +1059,34 @@ describe('generate: the deploy modes', () => {
     }
   })
 
+  test('a lone frontend rerun into a folder with a server warns and points at --stack', () => {
+    const out = tempDir()
+    generate(catalog, spa(out))
+    removeTree(path.join(out, 'frontend'))
+    const lines: string[] = []
+    generate(
+      catalog,
+      resolveRequest(catalog, request(out, { stack: undefined, template: 'frontend/mini-spa' })),
+      { log: (l) => lines.push(l) },
+    )
+    expect(
+      lines.filter((l) => /^warning: .*records a server package.*--stack/.test(l)),
+    ).toHaveLength(1)
+  })
+
+  test('a lone frontend into an empty folder does not warn', () => {
+    const lines: string[] = []
+    generate(
+      catalog,
+      resolveRequest(
+        catalog,
+        request(tempDir(), { stack: undefined, template: 'frontend/mini-spa' }),
+      ),
+      { log: (l) => lines.push(l) },
+    )
+    expect(lines.filter((l) => /warning/.test(l))).toEqual([])
+  })
+
   test('a rerun that adds one package keeps the mode recorded earlier', () => {
     const out = tempDir()
     generate(catalog, spa(out))

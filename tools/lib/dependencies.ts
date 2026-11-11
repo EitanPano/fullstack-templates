@@ -47,7 +47,7 @@ function applyNpm(file: string, change: DependencyChange, where: string): void {
     let found = false
     for (const key of MAP_KEYS) {
       const map = mapOf(pkg, key)
-      if (map?.[name] === undefined) continue
+      if (map === undefined || !Object.hasOwn(map, name)) continue
       delete map[name]
       found = true
     }
@@ -69,7 +69,7 @@ function applyNpmScripts(file: string, scripts: Record<string, string>, where: s
   const pkg = readManifest(file, where)
   const existing = isRecord(pkg.scripts) ? (pkg.scripts as Record<string, string>) : {}
   for (const name of Object.keys(scripts)) {
-    if (name in existing) {
+    if (Object.hasOwn(existing, name)) {
       throw new DependencyError(`${where}: script ${name} already exists in ${file}`)
     }
   }
@@ -81,7 +81,7 @@ function removeNpmScripts(file: string, names: readonly string[], where: string)
   const pkg = readManifest(file, where)
   const scripts = isRecord(pkg.scripts) ? { ...(pkg.scripts as Record<string, string>) } : {}
   for (const name of names) {
-    if (!(name in scripts))
+    if (!Object.hasOwn(scripts, name))
       throw new DependencyError(`${where}: script ${name} is missing from ${file}`)
     delete scripts[name]
   }

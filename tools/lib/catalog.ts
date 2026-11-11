@@ -342,6 +342,7 @@ function checkTemplateFiles(
       )
     }
   }
+  checkOnlyWhenOverlaps(templatePath, manifest, problems)
   for (const [name, value] of Object.entries(manifest.onlyWhen ?? {})) {
     if (manifest.kind === 'server') {
       problems.push(`${templatePath}: onlyWhen is not for a server template, which has no ${name}`)
@@ -363,6 +364,53 @@ function checkTemplateFiles(
     for (const only of flag.onlyPaths ?? []) {
       if (!existsSync(path.join(base, only))) {
         problems.push(`${templatePath}: flag "${name}" onlyPath "${only}" does not exist in base/`)
+      }
+    }
+  }
+}
+
+// Every key's removals are independent: `server:*` is off whenever `server` is, so a name or path
+// shared by two keys, or by a key and a flag's onlyPaths, would be removed twice, or a directory
+// would swallow a file another entry names. Only the lone generation would fail, so refuse it here.
+function checkOnlyWhenOverlaps(
+  templatePath: string,
+  manifest: TemplateManifest,
+  problems: string[],
+): void {
+  const owners: Array<{ owner: string; paths: string[] }> = []
+  const named = new Map<string, string>()
+  const note = (kind: string, owner: string, names: readonly string[]) => {
+    for (const name of names) {
+      const id = `${kind} ${name}`
+      const first = named.get(id)
+      if (first !== undefined && first !== owner) {
+        problems.push(
+          `${templatePath}: onlyWhen ${kind} "${name}" is removed by both ${first} and ${owner}`,
+        )
+      } else named.set(id, owner)
+    }
+  }
+  for (const [key, value] of Object.entries(manifest.onlyWhen ?? {})) {
+    const spec = onlyWhenSpec(value)
+    const owner = `onlyWhen "${key}"`
+    owners.push({ owner, paths: spec.onlyPaths ?? [] })
+    note('dependency', owner, spec.dependencies?.remove ?? [])
+    note('script', owner, spec.scripts?.remove ?? [])
+  }
+  for (const [flag, spec] of Object.entries(manifest.flags ?? {})) {
+    owners.push({ owner: `flag "${flag}"`, paths: spec.onlyPaths ?? [] })
+  }
+  const clean = (p: string) => p.replace(/\/+$/, '')
+  for (const [i, a] of owners.entries()) {
+    for (const b of owners.slice(i + 1)) {
+      for (const pa of a.paths.map(clean)) {
+        for (const pb of b.paths.map(clean)) {
+          if (pa === pb || pa.startsWith(`${pb}/`) || pb.startsWith(`${pa}/`)) {
+            problems.push(
+              `${templatePath}: ${a.owner} path "${pa}" and ${b.owner} path "${pb}" overlap`,
+            )
+          }
+        }
       }
     }
   }
@@ -413,8 +461,8 @@ function checkOnlyWhenRemovals(
   }
   for (const dependency of dependencies) {
     if (
-      mapOf('dependencies')[dependency] === undefined &&
-      mapOf('devDependencies')[dependency] === undefined
+      !Object.hasOwn(mapOf('dependencies'), dependency) &&
+      !Object.hasOwn(mapOf('devDependencies'), dependency)
     ) {
       problems.push(
         `${templatePath}: onlyWhen "${name}" dependency "${dependency}" is not in base/${declared.manifest}`,
@@ -429,7 +477,7 @@ function checkOnlyWhenRemovals(
     }
   }
   for (const script of scripts) {
-    if (mapOf('scripts')[script] === undefined) {
+    if (!Object.hasOwn(mapOf('scripts'), script)) {
       problems.push(
         `${templatePath}: onlyWhen "${name}" script "${script}" is not in base/${declared.manifest} scripts`,
       )

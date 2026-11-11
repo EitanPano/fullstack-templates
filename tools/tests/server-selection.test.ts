@@ -143,6 +143,49 @@ describe('onlyWhen loader checks', () => {
   })
 })
 
+describe('onlyWhen overlaps and prototype names', () => {
+  const overlap = (onlyWhen: string, extra = '') =>
+    catalogWith({ [spa]: (t) => t.replace('gitignore:', `${extra}gitignore:`) }, onlyWhen)
+
+  test('refuses a path listed under two keys', () => {
+    const load = overlap('onlyWhen:\n  server: [src/client.ts]\n  server:auth: [src/client.ts]\n')
+    expect(load).toThrow(/frontend\/mini-spa.*"src\/client\.ts".*overlap/s)
+  })
+
+  test('refuses a directory under one key that holds a path of another', () => {
+    const load = overlap('onlyWhen:\n  server: [src]\n  server:auth: [src/client.ts]\n')
+    expect(load).toThrow(/frontend\/mini-spa.*"src".*"src\/client\.ts".*overlap/s)
+  })
+
+  test('refuses a path that a flag onlyPaths also lists', () => {
+    const flag =
+      'flags:\n  extra:\n    summary: s\n    default: true\n    onlyPaths: [src/client.ts]\n'
+    const load = overlap('onlyWhen:\n  server: [src/client.ts]\n', flag)
+    expect(load).toThrow(/frontend\/mini-spa.*onlyWhen "server".*flag "extra".*overlap/s)
+  })
+
+  test('refuses a dependency or a script removed under two keys', () => {
+    const both = (kind: 'dependencies' | 'scripts', name: string) =>
+      `onlyWhen:\n  server:\n    ${kind}:\n      remove: ['${name}']\n  server:auth:\n    ${kind}:\n      remove: ['${name}']\n`
+    expect(overlap(both('dependencies', '@hey-api/openapi-ts'))).toThrow(
+      /dependency "@hey-api\/openapi-ts" is removed by both/,
+    )
+    expect(overlap(both('scripts', 'api:types'))).toThrow(/script "api:types" is removed by both/)
+  })
+
+  test('disjoint paths under two keys still load', () => {
+    const keys = 'onlyWhen:\n  server: [src/client.ts]\n  server:auth: [ok.ts]\n'
+    expect(overlap(keys)).not.toThrow()
+  })
+
+  test('a prototype name is not a script or a dependency of the base manifest', () => {
+    const script = 'onlyWhen:\n  server:\n    scripts:\n      remove: [constructor]\n'
+    expect(overlap(script)).toThrow(/script "constructor" is not in base/)
+    const dependency = 'onlyWhen:\n  server:\n    dependencies:\n      remove: [toString]\n'
+    expect(overlap(dependency)).toThrow(/dependency "toString" is not in base/)
+  })
+})
+
 describe('generation without a server', () => {
   test('removes the paths, dependencies and scripts, with no contract command or Compose file', () => {
     const catalog = catalogWith()()

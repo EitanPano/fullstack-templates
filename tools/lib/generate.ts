@@ -740,6 +740,25 @@ function ensureParents(mover: Mover, root: string, file: string): void {
   }
 }
 
+// A frontend generated alone is built without a server (ADR 0011). Into a folder that already
+// records a server package it leaves the project half wired, so the rerun says so.
+function warnLoneFrontendBesideServer(plan: GenerationPlan, log: (line: string) => void): void {
+  if (plan.packages.some((p) => p.serverDir !== null || p.template.manifest.kind === 'server'))
+    return
+  if (!plan.packages.some((p) => p.template.manifest.kind === 'frontend')) return
+  const earlier = path.join(plan.out, PROVENANCE_PATH)
+  if (!existsSync(earlier)) return
+  const previous = parse(readFileSync(earlier, 'utf8')) as Partial<Provenance> | null
+  const recorded = Object.values(previous?.packages ?? {}).some((p) =>
+    p.template.startsWith('server/'),
+  )
+  if (recorded) {
+    log(
+      `warning: ${plan.out} already records a server package, but this frontend is generated without one: no data layer, no dev proxy and no contract command. Generate it with --stack to wire it to the server.`,
+    )
+  }
+}
+
 export function generate(
   catalog: Catalog,
   plan: GenerationPlan,
@@ -757,6 +776,7 @@ export function generate(
     mkdirSync(plan.out, { recursive: true })
     if (!statSync(plan.out).isDirectory()) throw new GenerateError(`${plan.out} is not a directory`)
     checkPreconditions(plan, staging)
+    warnLoneFrontendBesideServer(plan, log)
     if (plan.ignoredBrand.length > 0) {
       log(
         `warning: no frontend in the plan, so these brand options are ignored: ${plan.ignoredBrand.join(', ')}`,

@@ -4,7 +4,7 @@ import path from 'node:path'
 import { parse } from 'yaml'
 import { loadCatalog } from '../lib/catalog'
 import { CATALOG_ROOT } from '../lib/cli'
-import { removeTree } from '../lib/files'
+import { listFiles, removeTree } from '../lib/files'
 import { generate } from '../lib/generate'
 import { resolveRequest } from '../lib/plan'
 import { tempDir } from './helpers'
@@ -177,4 +177,49 @@ describe('the generated .gitignore', () => {
       })
     },
   )
+})
+
+// ADR 0011 D8: a frontend generated alone is a subset of the same frontend in its default stack,
+// so the harness's three-way merge adds the server's part and never deletes or conflicts on a
+// product file. Generating also trips the placeholder net, so a server-coupled file left in a
+// lone tree fails here and not only in the case runner.
+describe('a frontend alone is a subset of its default stack', () => {
+  const frontends = catalog.index.templates.filter((entry) => entry.kind === 'frontend')
+
+  test('the catalog lists the four frontends', () => {
+    expect(frontends.length).toBeGreaterThan(0)
+  })
+
+  for (const entry of frontends) {
+    test(`${entry.path}: every path exists in the stack, scripts and dependencies are a subset`, () => {
+      const stackId = catalog.templates.get(entry.path)?.manifest.defaultStack
+      expect(stackId).toBeDefined()
+      const lone = tempDir()
+      const stack = tempDir()
+      try {
+        const base = { name: 'Demo', flags: [], capabilities: [], skipPostGenerate: true }
+        generate(catalog, resolveRequest(catalog, { ...base, out: lone, template: entry.path }))
+        generate(catalog, resolveRequest(catalog, { ...base, out: stack, stack: stackId }))
+        const loneDir = path.join(lone, 'frontend')
+        const stackDir = path.join(stack, 'frontend')
+        const missing = listFiles(loneDir)
+          .map((file) => path.relative(loneDir, file))
+          .filter((rel) => !existsSync(path.join(stackDir, rel)))
+        expect(missing).toEqual([])
+        const read = (dir: string) =>
+          JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8')) as Record<
+            string,
+            Record<string, string> | undefined
+          >
+        const [a, b] = [read(loneDir), read(stackDir)]
+        for (const key of ['scripts', 'dependencies', 'devDependencies']) {
+          const extra = Object.keys(a[key] ?? {}).filter((name) => b[key]?.[name] === undefined)
+          expect({ key, extra }).toEqual({ key, extra: [] })
+        }
+      } finally {
+        removeTree(lone)
+        removeTree(stack)
+      }
+    }, 60_000)
+  }
 })
