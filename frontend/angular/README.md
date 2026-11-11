@@ -22,7 +22,7 @@ navigation, footer or example screen (ADR 0010); the product builds its chrome.
   files that exist only with the server's `auth` flag (`server:auth`) or `database` capability, and
   `// @server:auth` markers cover the lines inside shared files.
 - `base/`: the files copied into the generated package, including `AGENTS.md`, `bun.lock` and the
-  committed `src/app/services/generated/`. Its `src/app/components/` holds the two layouts and the
+  committed `src/app/services/generated/`. Its `src/app/layout/` holds the two layouts and the
   components the product places: `app-theme-toggle`, with auth `app-account-menu`, with `i18n`
   `app-language-toggle`, with `pwa` `app-install-button` and `app-install-hint`.
 - `base/Dockerfile`, `base/nginx/`: the `dist` and `serve` image targets and the nginx config

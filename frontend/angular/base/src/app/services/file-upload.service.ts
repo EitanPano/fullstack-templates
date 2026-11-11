@@ -2,7 +2,7 @@ import { HttpClient, HttpEventType, HttpRequest } from '@angular/common/http'
 import { Injectable, inject } from '@angular/core'
 import { Observable, filter, map, throwError } from 'rxjs'
 
-import { ApiError } from '@app/models/api/response'
+import { ApiError } from '@app/services/api-error'
 
 export interface UploadLimits {
   // The largest file in bytes, checked before any request.

@@ -4,8 +4,8 @@ import { Router, provideRouter } from '@angular/router'
 
 import { provideTestTranslator } from '@app/core/i18n/translator.testing'
 import { NotificationService } from '@app/core/providers/notification.service'
-import { ApiError } from '@app/models/api/response'
-import type { PublicUser } from '@app/models/user/interface'
+import { ApiError } from '@app/services/api-error'
+import type { PublicUser } from '@app/models/user/type'
 import { AuthStore } from '@app/store/auth.store'
 
 import { VerifyOtpComponent } from './verify-otp.component'

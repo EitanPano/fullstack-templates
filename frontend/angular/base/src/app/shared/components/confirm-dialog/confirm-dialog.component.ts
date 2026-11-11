@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 
 import { TranslatePipe } from '../../pipes/translate.pipe'
 import { ButtonComponent } from '../button/button.component'
-import { MODAL_DATA, MODAL_REF, type ModalRef } from './modal.tokens'
+import { MODAL_DATA, MODAL_REF, type ModalRef } from '../modal/modal.tokens'
 
 export interface ConfirmData {
   readonly messageKey: string

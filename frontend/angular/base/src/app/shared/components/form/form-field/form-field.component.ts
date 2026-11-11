@@ -11,8 +11,8 @@ import {
 } from '@angular/core'
 import { FormGroupDirective, FormResetEvent, FormSubmittedEvent, NgControl } from '@angular/forms'
 
-import { Translator } from '../../i18n/translator'
-import { uniqueId } from '../../utils/unique-id'
+import { Translator } from '../../../i18n/translator'
+import { uniqueId } from '../../../utils/unique-id'
 import { FORM_FIELD, type FormFieldContext } from './form-field.token'
 
 type Params = Record<string, string | number>

@@ -7,7 +7,7 @@ import {
   type UrlSegment,
 } from '@angular/router'
 
-import { LOGIN_PATH, NEXT_PARAM } from '@app/models/user/constants'
+import { LOGIN_PATH, NEXT_PARAM } from '@app/models/user/constant'
 import { AuthStore } from '@app/store/auth.store'
 
 // The path the visitor was heading to, query included, so sign-in can bring them back. A canMatch

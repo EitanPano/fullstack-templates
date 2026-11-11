@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, forwardRef, input } from '@angular/core'
 import { NG_VALUE_ACCESSOR } from '@angular/forms'
 
-import { TranslatePipe } from '../../pipes/translate.pipe'
+import { TranslatePipe } from '../../../pipes/translate.pipe'
 import { ControlBase } from '../form-field/control-base'
 
 export interface SelectOption {

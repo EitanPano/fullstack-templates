@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing'
 
 import { provideApiClient } from '@app/core/config/api-client.provider'
 import { errorInterceptor } from '@app/core/interceptors/error.interceptor'
-import { isApiError } from '@app/models/api/response'
+import { isApiError } from '@app/services/api-error'
 
 import { AuthService } from './auth.service'
 

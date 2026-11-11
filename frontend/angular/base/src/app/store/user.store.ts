@@ -4,9 +4,9 @@ import { patchState, signalStore, withHooks, withMethods, withState } from '@ngr
 import { LoggerService } from '@app/core/providers/logger.service'
 import { NetworkService } from '@app/core/providers/network.service'
 import { NotificationService } from '@app/core/providers/notification.service'
-import { errorMessageKey } from '@app/models/api/error-copy'
-import { ApiError, isApiError } from '@app/models/api/response'
-import type { PublicUser, UpdateMeBody } from '@app/models/user/interface'
+import { errorMessageKey } from '@app/core/config/error-copy'
+import { ApiError, isApiError } from '@app/services/api-error'
+import type { PublicUser, UpdateMeBody } from '@app/models/user/type'
 import { UserService } from '@app/services/user.service'
 
 import { AuthStore } from './auth.store'

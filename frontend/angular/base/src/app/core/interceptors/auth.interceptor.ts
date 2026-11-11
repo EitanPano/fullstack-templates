@@ -5,7 +5,7 @@ import { Router } from '@angular/router'
 import { catchError, from, switchMap, throwError } from 'rxjs'
 
 import { toLogin } from '@app/core/guards/auth.guard'
-import { LOGIN_PATH } from '@app/models/user/constants'
+import { LOGIN_PATH } from '@app/models/user/constant'
 import { AuthStore } from '@app/store/auth.store'
 
 // Sign-in, sign-up, the OTP calls and the refresh itself answer 401 for reasons a refresh cannot

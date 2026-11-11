@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core'
 
-import { TranslatePipe } from '../../pipes/translate.pipe'
-import { ButtonComponent } from '../button/button.component'
+import { TranslatePipe } from '../../../pipes/translate.pipe'
+import { ButtonComponent } from '../../button/button.component'
 
 // The submit row of a form: a primary submit button (spinner and inert while `pending`) and an
 // optional secondary cancel. The submit is a real `type="submit"`, so the form's `(ngSubmit)` fires.

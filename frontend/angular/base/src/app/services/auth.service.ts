@@ -6,7 +6,7 @@ import type {
   OtpRequestBody,
   OtpVerificationBody,
   OtpVerified,
-} from '@app/models/user/interface'
+} from '@app/models/user/type'
 
 import {
   postApiAuthLogin,

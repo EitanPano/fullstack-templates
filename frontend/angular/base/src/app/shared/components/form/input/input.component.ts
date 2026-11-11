@@ -8,10 +8,10 @@ import {
 } from '@angular/core'
 import { NG_VALUE_ACCESSOR } from '@angular/forms'
 
-import { TranslatePipe } from '../../pipes/translate.pipe'
-import { ButtonComponent } from '../button/button.component'
+import { TranslatePipe } from '../../../pipes/translate.pipe'
+import { ButtonComponent } from '../../button/button.component'
 import { ControlBase } from '../form-field/control-base'
-import { IconComponent } from '../icon/icon.component'
+import { IconComponent } from '../../icon/icon.component'
 
 export type InputType = 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'search'
 export type InputMode = 'none' | 'text' | 'tel' | 'url' | 'email' | 'numeric' | 'decimal' | 'search'

@@ -4,7 +4,7 @@ import { Router, provideRouter } from '@angular/router'
 
 import { provideTestTranslator } from '@app/core/i18n/translator.testing'
 import { NotificationService } from '@app/core/providers/notification.service'
-import { ApiError } from '@app/models/api/response'
+import { ApiError } from '@app/services/api-error'
 import { AuthStore } from '@app/store/auth.store'
 
 import { RegisterComponent } from './register.component'

@@ -9,7 +9,7 @@ import { NAV_ENTRIES } from './core/config/nav.token'
 import { Translator } from '@app/shared/i18n/translator'
 import { appConfig } from './app.config'
 import en from './core/i18n/translations/en.json' // @i18n
-import { AppMainLayoutComponent } from './components/app-main-layout/app-main-layout.component'
+import { AppMainLayoutComponent } from './layout/app-main-layout/app-main-layout.component'
 import { NAV } from './nav'
 import { HomeComponent } from './pages/home/home/home.component'
 

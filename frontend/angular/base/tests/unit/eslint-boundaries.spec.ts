@@ -22,15 +22,15 @@ const FILES = [
   'src/app/app.config.ts',
   'src/app/app.routes.ts',
   'src/app/nav.ts',
-  'src/app/components/app-main-layout/app-main-layout.component.ts',
+  'src/app/layout/app-main-layout/app-main-layout.component.ts',
   'src/app/pages/post/post.routes.ts',
   'src/app/pages/post/post.form.ts',
   'src/app/pages/post/post-list/post-list.component.ts',
-  'src/app/pages/post/components/post-badge/post-badge.component.ts',
+  'src/app/pages/post/post-list/post-badge/post-badge.component.ts',
   'src/app/pages/other/other.routes.ts',
   'src/app/pages/other/other.form.ts',
   'src/app/pages/other/other-page/other-page.component.ts',
-  'src/app/pages/other/components/other-card/other-card.component.ts',
+  'src/app/pages/other/other-page/other-card/other-card.component.ts',
   'src/app/store/post.store.ts',
   'src/app/services/post.service.ts',
   'src/app/services/generated/sdk.gen.ts',
@@ -90,7 +90,7 @@ const BOUNDARY = 'boundaries/dependencies'
 const RESTRICTED = 'no-restricted-imports'
 
 const PAGE = 'src/app/pages/post/post-list/x.ts'
-const COMPONENT = 'src/app/pages/post/components/post-badge/x.ts'
+const COMPONENT = 'src/app/pages/post/post-list/post-badge/x.ts'
 const ROUTES = 'src/app/pages/post/x.routes.ts'
 const FORM = 'src/app/pages/post/x.form.ts'
 const CROSS = 'a page module never imports another page module'
@@ -105,7 +105,7 @@ const violations: Violation[] = [
     'src/app/app.config.ts',
     "import '@app/services/post.service'",
     BOUNDARY,
-    'app/ wires components/',
+    'app/ wires layout/',
   ],
   [
     'app → page',
@@ -115,18 +115,18 @@ const violations: Violation[] = [
     'import a page only through its module *.routes.ts',
   ],
   [
-    'components → services',
-    'src/app/components/app-main-layout/x.ts',
+    'layout → services',
+    'src/app/layout/app-main-layout/x.ts',
     "import '@app/services/post.service'",
     BOUNDARY,
-    'components/ imports core/',
+    'layout/ imports core/',
   ],
   [
-    'components → page',
-    'src/app/components/app-main-layout/x.ts',
+    'layout → page',
+    'src/app/layout/app-main-layout/x.ts',
     "import '@app/pages/post/post-list/post-list.component'",
     BOUNDARY,
-    'components/ imports core/',
+    'layout/ imports core/',
   ],
   // Pages inject stores, never services; a page module never reaches into another page module.
   [
@@ -146,7 +146,7 @@ const violations: Violation[] = [
   [
     'page → other module component',
     PAGE,
-    "import '@app/pages/other/components/other-card/other-card.component'",
+    "import '@app/pages/other/other-page/other-card/other-card.component'",
     BOUNDARY,
     CROSS,
   ],
@@ -189,7 +189,7 @@ const violations: Violation[] = [
   [
     'routes → its own module component',
     ROUTES,
-    "import '@app/pages/post/components/post-badge/post-badge.component'",
+    "import '@app/pages/post/post-list/post-badge/post-badge.component'",
     BOUNDARY,
     'a module routes file imports core/guards and its own pages only',
   ],
@@ -365,18 +365,18 @@ const violations: Violation[] = [
 
 // A folder no layer claims is refused, so the old homes cannot come back unnoticed.
 const unknown: [what: string, file: string][] = [
-  ['src/app/layout/', 'src/app/layout/x.ts'],
+  ['src/app/components/', 'src/app/components/x.ts'],
   ['src/app/features/<module>/', 'src/app/features/post/x.ts'],
-  ['a component outside components/ and pages/', 'src/app/widgets/x.ts'],
+  ['a component outside layout/, shared/ and pages/', 'src/app/widgets/x.ts'],
 ]
 
 const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   ['app → core/config', 'src/app/app.config.ts', "import '@app/core/config/constants'", BOUNDARY],
   ['app → app', 'src/app/app.config.ts', "import './app.routes'", BOUNDARY],
   [
-    'app → components',
+    'app → layout',
     'src/app/app.routes.ts',
-    "import '@app/components/app-main-layout/app-main-layout.component'",
+    "import '@app/layout/app-main-layout/app-main-layout.component'",
     BOUNDARY,
   ],
   [
@@ -387,8 +387,8 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   ],
   ['app → store', 'src/app/app.config.ts', "import '@app/store/post.store'", BOUNDARY],
   [
-    'components → core/providers',
-    'src/app/components/app-main-layout/x.ts',
+    'layout → core/providers',
+    'src/app/layout/app-main-layout/x.ts',
     "import '@app/core/providers/storage.service'",
     BOUNDARY,
   ],
@@ -397,12 +397,7 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   ['page → models', PAGE, "import '@app/models/post/interface'", BOUNDARY],
   ['page → core/config', PAGE, "import '@app/core/config/constants'", BOUNDARY],
   ['page → core/providers', PAGE, "import '@app/core/providers/storage.service'", BOUNDARY],
-  [
-    'page → its own module components',
-    PAGE,
-    "import '../components/post-badge/post-badge.component'",
-    BOUNDARY,
-  ],
+  ['page → its own component folder', PAGE, "import './post-badge/post-badge.component'", BOUNDARY],
   ['page → its own module form', PAGE, "import '@app/pages/post/post.form'", BOUNDARY],
   [
     'component → shared',
@@ -488,12 +483,7 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     "import '@app/shared/validators/zod-validator'",
     BOUNDARY,
   ],
-  [
-    'shared → models',
-    'src/app/shared/utils/x.ts',
-    "import '@app/models/post/interface'",
-    BOUNDARY,
-  ],
+  ['shared → models', 'src/app/shared/utils/x.ts', "import '@app/models/post/interface'", BOUNDARY],
   [
     'models → generated types (import type)',
     'src/app/models/post/x.ts',

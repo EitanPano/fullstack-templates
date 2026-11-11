@@ -25,7 +25,7 @@ const CORE = [...CORE_WIRING, ...CORE_LEAVES]
 const PAGE = ['page', 'page-components', 'page-routes', 'page-form']
 const LAYERS = [
   'app',
-  'components',
+  'layout',
   ...PAGE,
   'store',
   'services',
@@ -70,13 +70,13 @@ const row = (from, allowed, message) => [
 const policies = [
   ...row(
     'app',
-    [sel(['app', 'components', 'page-routes', ...CORE, 'store', ...SHARED, 'models'])],
-    'app/ wires components/, pages/ (lazy routes only), core/, store/, shared/ and models/: import a page only through its module *.routes.ts, and reach services/ through a store',
+    [sel(['app', 'layout', 'page-routes', ...CORE, 'store', ...SHARED, 'models'])],
+    'app/ wires layout/, pages/ (lazy routes only), core/, store/, shared/ and models/: import a page only through its module *.routes.ts, and reach services/ through a store',
   ),
   ...row(
-    'components',
+    'layout',
     [sel([...CORE, 'store', ...SHARED, 'models'])],
-    'components/ imports core/, store/, shared/ and models/: read data through store/, not services/ or pages/',
+    'layout/ imports core/, store/, shared/ and models/: read data through store/, not services/ or pages/',
   ),
   ...row(
     'page',
@@ -85,7 +85,7 @@ const policies = [
       sel('page-components', { feature: same('element') }),
       sel('page-form', { feature: same('element') }),
     ],
-    'a page imports store/, shared/, models/, core/config, core/providers and its own module components/ and *.form.ts: call services through a store method, never directly',
+    'a page imports store/, shared/, models/, core/config, core/providers, its own components and its module *.form.ts: call services through a store method, never directly',
   ),
   ...row(
     'page-components',
@@ -125,7 +125,7 @@ const policies = [
   ...row(
     SHARED,
     [sel([...SHARED, 'models'])],
-    'shared/ is product-agnostic: it imports only shared/ and models/. Move the code to core/, components/ or a page module, or pass the value in as an input',
+    'shared/ is product-agnostic: it imports only shared/ and models/. Move the code to core/, layout/ or a page module, or pass the value in as an input',
   ),
   ...row(
     'models',
@@ -137,7 +137,7 @@ const policies = [
     from: sel(PAGE.filter((name) => FILE_LAYERS.includes(name) === (kind === 'file'))),
     disallow: { to: sel(PAGE, { feature: other(kind) }) },
     message:
-      'a page module never imports another page module: lift the shared part to shared/ or compose both in app/ or components/',
+      'a page module never imports another page module: lift the shared part to shared/ or compose both in app/ or layout/',
   })),
   {
     from: sel(LAYERS.filter((name) => name !== 'services')),
@@ -240,11 +240,12 @@ export default defineConfig([
         { pattern: 'src/app/pages/*/*.form.ts', category: 'page-form', capture: ['feature'] },
       ],
       'boundaries/elements': [
-        { type: 'components', pattern: 'src/app/components', partialMatch: false },
-        // The module's own components come first so they match before the page element.
+        { type: 'layout', pattern: 'src/app/layout', partialMatch: false },
+        // A component folder inside a page folder, pages/<module>/<page>/<component>: it comes
+        // first so it matches before the page element.
         {
           type: 'page-components',
-          pattern: 'src/app/pages/*/components',
+          pattern: 'src/app/pages/*/*/*',
           partialMatch: false,
           capture: ['feature'],
         },

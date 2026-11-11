@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing'
 import { provideRouter } from '@angular/router'
 
 import { provideTestTranslator } from '@app/core/i18n/translator.testing'
-import type { PublicUser } from '@app/models/user/interface'
+import type { PublicUser } from '@app/models/user/type'
 import { AuthStore } from '@app/store/auth.store'
 
 import { AppAccountMenuComponent } from './app-account-menu.component'

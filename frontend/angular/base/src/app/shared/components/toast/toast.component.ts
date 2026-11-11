@@ -12,7 +12,8 @@ import {
   untracked,
 } from '@angular/core'
 
-import type { Toast, ToastKind } from '@app/models/notification/interface'
+import type { Toast } from '@app/models/notification/interface'
+import type { ToastKind } from '@app/models/notification/type'
 
 import { TranslatePipe } from '../../pipes/translate.pipe'
 import { ButtonComponent } from '../button/button.component'

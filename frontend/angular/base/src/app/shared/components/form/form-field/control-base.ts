@@ -1,7 +1,7 @@
 import { computed, inject, signal, type WritableSignal } from '@angular/core'
 import type { ControlValueAccessor } from '@angular/forms'
 
-import { uniqueId } from '../../utils/unique-id'
+import { uniqueId } from '../../../utils/unique-id'
 import { FORM_FIELD } from './form-field.token'
 
 // What every form control shares: the ControlValueAccessor plumbing (value and disabled as signals)
