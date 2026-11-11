@@ -75,8 +75,8 @@ Per template, every file or line that exists only to reach the server:
 - **No `docker-compose.yml`** is written for a plan without a server. A lone frontend still
   ships its Dockerfile; it deploys as its own image or to a static host (ADR 0003's `split` side
   without the server).
-- ▲ `DEFAULT_SERVER` stays only for the marker dry-run; generation without a server gets no
-  `SERVER_*` value (D2's net).
+- ▲ `DEFAULT_SERVER` stays as the fallback when the plan's server declares no port or command;
+  without a server no `SERVER_*` value is defined (D2's net).
 - A plan with a server is unchanged: the same files, byte for byte. This is what lets a part be
   added later as a difference between two generations.
 
@@ -98,7 +98,10 @@ Per template, every file or line that exists only to reach the server:
   project the harness scaffolds for a brief that needs neither.
 - Tools tests: the bare key and the object form in the schema and the loader; dependency and
   script removal; no `contract` command and no Compose file without a server; a stack plan's
-  output unchanged (the existing fixture snapshots).
+  output unchanged. `tools/tests/real-catalog.test.ts` proves a frontend alone is a subset of its
+  default stack (paths, scripts, dependencies; every frontend in the index) and generates without
+  tripping the placeholder net; the stack's byte identity was checked by diffing its generated
+  tree against v1.10.0's (28d557c).
 
 ### D6. Documents
 
@@ -169,3 +172,8 @@ client; the harness refuses a lock that differs from provenance).
 - **JSON a template cannot mark stays as inert lines in a lone project:** Angular's `ngsw-config.json`
   `!/api/**` navigation exclusion, and the `errors.*` keys of the Angular (Transloco) and Vue
   (`en.json`, `he.json`) translation files.
+- **A lone frontend rerun beside a server warns.** Generating `--template frontend/<id>` into a
+  folder whose `.fullstack/catalog.yaml` already records a server package logs a warning pointing
+  at `--stack` and proceeds: the rerun mode is documented (ADR 0001) and a test generates exactly
+  that, so a refusal would break it. The frontend is built without a data layer, a dev proxy or a
+  contract command.

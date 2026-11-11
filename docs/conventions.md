@@ -74,7 +74,7 @@ that enforces them, and where an addition goes. The rationale is in
    without a server has no generated client and no `contract` command. No hand-written API types.
    A form schema derives from the generated request schema and never copies a validation limit.
 2. **One origin.** The API is reached at relative `/api/*` on the page's origin in every deploy
-   mode; the dev server proxies it; no API URL is compiled in; CORS stays off. One env module is
+   mode; with a server the dev server proxies it; no API URL is compiled in; CORS stays off. One env module is
    the only reader of build-time environment, browser-visible values only, never a secret. A
    server-rendered frontend forwards no `X-Forwarded-For` unless the optional `CLIENT_IP_HEADER`
    names a header a trusted proxy sets ([ADR 0005](adr/0005-frontend-foundation.md), F14).
@@ -162,7 +162,7 @@ template's `AGENTS.md` holds its layer map). The rationale is in
   and on a refresh 400, 401 or 403 (a refresh without a cookie answers 400). The client refreshes
   only when it is set; without it the page shows the signed-out view.
 - A client-side `noindex` is a known limitation: a crawler without JavaScript does not see it.
-- The dev server proxies `/api` to the server's port. The client address is the browser's own (the
+- With a server, the dev server proxies `/api` to its port. The client address is the browser's own (the
   dev proxy, nginx or the server sees it), so `CLIENT_IP_HEADER` does not apply to an SPA.
 - `build` writes `dist/`: `index.html` at its root, content-hashed files beside it or under
   `dist/assets/`. The manifest declares `static: { out: dist }`; a frontend without `static`
