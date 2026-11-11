@@ -1,13 +1,16 @@
 import Link from 'next/link'
 
+import { Button } from '@/shared/components/button'
+import './not-found.scss'
+
 // The fallback for a URL outside every route group; the site group has its own inside `main`.
 export default function NotFound() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-4 p-4">
-      <h1 className="text-2xl font-semibold">Page not found</h1>
-      <Link href="/" className="inline-flex h-11 w-fit items-center underline">
-        Back to the start
-      </Link>
+    <main className="root-not-found">
+      <h1 className="root-not-found__title">Page not found</h1>
+      <Button asChild variant="link" className="root-not-found__back">
+        <Link href="/">Back to the start</Link>
+      </Button>
     </main>
   )
 }

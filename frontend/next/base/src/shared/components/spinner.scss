@@ -1,0 +1,18 @@
+@layer kit {
+  // Decorative: the parent names the status (a status role or an aria-live region).
+  .spinner {
+    display: inline-block;
+    inline-size: 1rem;
+    block-size: 1rem;
+    border: 2px solid currentcolor;
+    border-block-start-color: transparent;
+    border-radius: 50%;
+    animation: spinner-turn 700ms linear infinite;
+  }
+
+  @keyframes spinner-turn {
+    to {
+      rotate: 1turn;
+    }
+  }
+}

@@ -6,15 +6,14 @@ import Link from 'next/link'
 import { useEffect } from 'react'
 import { toast } from 'sonner'
 
-import { Button } from '@/shared/ui/button'
-import { hasField, ignoreNavigation, unplacedMessage } from '@/shared/ui/form/action-form'
-import { Form } from '@/shared/ui/form/form'
-import { PasswordField } from '@/shared/ui/form/password-field'
-import { TextField } from '@/shared/ui/form/text-field'
-import { FormActions } from '@/shared/ui/pattern/form-actions'
-
-import { signInSchema } from '@/models/auth'
 import { signIn } from '@/actions/auth'
+import { signInSchema } from '@/models/auth'
+import { Button } from '@/shared/components/button'
+import { hasField, ignoreNavigation, unplacedMessage } from '@/shared/components/form/action-form'
+import { Form } from '@/shared/components/form/form'
+import { PasswordField } from '@/shared/components/form/password-field'
+import { TextField } from '@/shared/components/form/text-field'
+import { FormActions } from '@/shared/components/form-actions'
 
 // The form recipe: the action's result lands in the form (field errors on their fields, through
 // the adapter) or in a toast (the outcome: refused, rate limited, unreachable). A success
@@ -45,11 +44,7 @@ export function SignInForm({ next }: { next?: string }) {
   }, [done, reset])
 
   return (
-    <Form
-      form={form}
-      onSubmit={ignoreNavigation(handleSubmitWithAction)}
-      className="flex flex-col gap-4"
-    >
+    <Form form={form} onSubmit={ignoreNavigation(handleSubmitWithAction)} className="auth-form">
       <TextField name="email" label="Email" type="email" autoComplete="email" />
       <PasswordField name="password" label="Password" autoComplete="current-password" />
       <FormActions>

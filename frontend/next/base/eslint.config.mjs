@@ -94,13 +94,13 @@ const policies = [
 ]
 
 const RAW_CONTROLS = [
-  ['button', 'Button from @/shared/ui/button'],
-  ['input', 'Input from @/shared/ui/input'],
-  ['select', 'Select from @/shared/ui/select'],
-  ['textarea', 'Textarea from @/shared/ui/textarea'],
+  ['button', 'Button from @/shared/components/button'],
+  ['input', 'Input from @/shared/components/input'],
+  ['select', 'Select from @/shared/components/select'],
+  ['textarea', 'Textarea from @/shared/components/textarea'],
 ].map(([tag, use]) => ({
   selector: `JSXOpeningElement[name.type='JSXIdentifier'][name.name='${tag}']`,
-  message: `Use ${use}, not a raw <${tag}>: only shared/ui renders the browser controls`,
+  message: `Use ${use}, not a raw <${tag}>: only shared/components renders the browser controls`,
 }))
 const NETWORK = [
   {
@@ -114,6 +114,42 @@ const NETWORK = [
       'revalidatePath is reserved to services/: use refresh() from next/cache in an action, or updateTag for a tagged read',
   },
 ]
+// CSS lives in a stylesheet beside the component or page (src/styles/ holds the global tree); a
+// component renders class names.
+const STYLE = [
+  {
+    selector: "JSXAttribute[name.name='style']",
+    message: "add a class to the component's stylesheet, never an inline style",
+  },
+]
+// A stylesheet import is the owner's sibling `./<stem>.scss`; only app/layout.tsx loads the global
+// tree from src/styles/.
+const STYLESHEETS = {
+  'no-restricted-imports': [
+    'error',
+    {
+      patterns: [
+        {
+          group: ['@/styles/**', '**/styles/**'],
+          message: 'only src/app/layout.tsx loads the global style tree',
+        },
+        {
+          // The styles tree has its own pattern (and message) above; it is not reported twice.
+          group: [
+            '@/**/*.scss',
+            '@/**/*.css',
+            '../**/*.scss',
+            '../**/*.css',
+            '**/*.css',
+            '!@/styles/**',
+            '!**/styles/**',
+          ],
+          message: "import the component's own sibling sheet, './<stem>.scss'",
+        },
+      ],
+    },
+  ],
+}
 const restrictSyntax = (...selectors) => ({
   'no-restricted-syntax': ['error', ...selectors.flat()],
 })
@@ -170,7 +206,8 @@ export default defineConfig([
       'boundaries/include': ['src/**/*'],
       // A test file is the consumer the layers exist for: it may import any of them. The proxy is
       // Next's own entry file and sits outside the layers.
-      'boundaries/ignore': ['src/**/*.test.{ts,tsx}', 'src/proxy.ts'],
+      // The styles tree is CSS, not code, and sits outside the layers.
+      'boundaries/ignore': ['src/**/*.test.{ts,tsx}', 'src/proxy.ts', 'src/styles/**'],
       // A file matches every element that fits, so the nested generated folder stops the search.
       'boundaries/elements': [
         { type: 'app', pattern: 'src/app', partialMatch: false },
@@ -196,18 +233,24 @@ export default defineConfig([
       'boundaries/no-unknown-files': 'error',
       'local/client-server-import': 'error',
       'local/route-components': 'error',
-      ...restrictSyntax(RAW_CONTROLS, NETWORK),
+      ...restrictSyntax(RAW_CONTROLS, NETWORK, STYLE),
+      ...STYLESHEETS,
     },
   },
   {
     // The browser controls live here, wrapped once; everything else uses the wrappers.
-    files: ['src/shared/ui/**'],
-    rules: restrictSyntax(NETWORK),
+    files: ['src/shared/components/**'],
+    rules: restrictSyntax(NETWORK, STYLE),
   },
   {
     // The typed client is the one place that names fetch and revalidates.
     files: ['src/services/**'],
-    rules: restrictSyntax(RAW_CONTROLS),
+    rules: restrictSyntax(RAW_CONTROLS, STYLE),
+  },
+  {
+    // The one file that loads the global style tree.
+    files: ['src/app/layout.tsx'],
+    rules: { 'no-restricted-imports': 'off' },
   },
   {
     files: [

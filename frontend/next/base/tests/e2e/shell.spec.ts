@@ -55,7 +55,7 @@ test('an unknown URL answers 404 and renders inside main', async ({ page }) => {
 })
 
 // The 44 px rule is the touch rule, so its checks are tagged @phone and the desktop project
-// leaves them out; the shadcn densities are @desktop. The projects in playwright.config.ts select
+// leaves them out; the 36 px and 32 px densities are @desktop. The projects in playwright.config.ts select
 // by tag, so no test is skipped at run time.
 
 // A locator pierces open shadow roots; a hidden element has no box and is skipped. The skip link
@@ -107,7 +107,7 @@ test(
 )
 
 test(
-  'controls keep the shadcn densities on the desktop project',
+  'controls keep the 36 px and 32 px densities on the desktop project',
   { tag: '@desktop' },
   async ({ page }) => {
     await page.goto('/no/such/page')

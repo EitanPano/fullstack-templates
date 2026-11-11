@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
 
-import { AuthCardSkeleton } from '@/shared/ui/pattern/skeletons'
+import { AppAuthLoading } from '@/components/app-auth-loading'
 import { SignIn } from './_components/sign-in'
 
 export const metadata: Metadata = { title: 'Sign in' }
@@ -14,7 +14,7 @@ export default function SignInPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   return (
-    <Suspense fallback={<AuthCardSkeleton />}>
+    <Suspense fallback={<AppAuthLoading />}>
       <SignIn searchParams={searchParams} />
     </Suspense>
   )

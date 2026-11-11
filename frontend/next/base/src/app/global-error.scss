@@ -1,0 +1,9 @@
+@use 'setup/functions';
+
+// The root layout has failed, so its styles may be missing: this frame centres itself and the
+// kit's alert reads whatever tokens did load.
+.global-error {
+  max-inline-size: 28rem;
+  margin-inline: auto;
+  padding: functions.space(4);
+}

@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
-import { Button } from '@/shared/ui/button'
-import { Page, PageHeader } from '@/shared/ui/pattern/page-layout'
+import { Button } from '@/shared/components/button'
+import { Page, PageHeader } from '@/shared/components/page'
+import './page.scss'
 
 export const metadata: Metadata = { title: 'Access denied', robots: { index: false } }
 
@@ -16,7 +17,7 @@ export default function ForbiddenPage() {
         title="Access denied"
         description="Your account does not have access to this page."
       />
-      <Button asChild className="w-fit">
+      <Button asChild className="forbidden__back">
         <Link href="/">Back to the start</Link>
       </Button>
     </Page>

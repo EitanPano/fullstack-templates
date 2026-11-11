@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
 
-import { SignOutButton } from './_components/sign-out-button'
-import { Page, PageHeader } from '@/shared/ui/pattern/page-layout'
-import { CardSkeleton } from '@/shared/ui/pattern/skeletons'
+import { Page, PageHeader } from '@/shared/components/page'
+import { CardSkeleton } from '@/shared/components/skeletons'
 import { ProfileCard } from './_components/profile-card'
+import { SignOutButton } from './_components/sign-out-button'
 
 export const metadata: Metadata = { title: 'Profile', robots: { index: false } }
 

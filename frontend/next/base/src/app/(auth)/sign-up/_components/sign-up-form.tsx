@@ -6,15 +6,14 @@ import Link from 'next/link'
 import { useEffect } from 'react'
 import { toast } from 'sonner'
 
-import { Button } from '@/shared/ui/button'
-import { hasField, ignoreNavigation, unplacedMessage } from '@/shared/ui/form/action-form'
-import { Form } from '@/shared/ui/form/form'
-import { PasswordField } from '@/shared/ui/form/password-field'
-import { TextField } from '@/shared/ui/form/text-field'
-import { FormActions } from '@/shared/ui/pattern/form-actions'
-
-import { signUpSchema } from '@/models/auth'
 import { signUp } from '@/actions/auth'
+import { signUpSchema } from '@/models/auth'
+import { Button } from '@/shared/components/button'
+import { hasField, ignoreNavigation, unplacedMessage } from '@/shared/components/form/action-form'
+import { Form } from '@/shared/components/form/form'
+import { PasswordField } from '@/shared/components/form/password-field'
+import { TextField } from '@/shared/components/form/text-field'
+import { FormActions } from '@/shared/components/form-actions'
 
 // A taken email comes back as an error on the email field (the action maps the 409 there), so
 // only outcomes without a field (the rate limit, an outage) are toasts.
@@ -44,11 +43,7 @@ export function SignUpForm({ next }: { next?: string }) {
   }, [done, reset])
 
   return (
-    <Form
-      form={form}
-      onSubmit={ignoreNavigation(handleSubmitWithAction)}
-      className="flex flex-col gap-4"
-    >
+    <Form form={form} onSubmit={ignoreNavigation(handleSubmitWithAction)} className="auth-form">
       <TextField name="email" label="Email" type="email" autoComplete="email" />
       <PasswordField name="password" label="Password" autoComplete="new-password" />
       <PasswordField name="confirm" label="Confirm password" autoComplete="new-password" />

@@ -1,5 +1,6 @@
 import { requireAccount } from '@/core/auth/session'
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/card'
+import './profile-card.scss'
 
 // The guarded-page example: `requireAccount` sends a visitor to sign-in with this page's path,
 // and sign-in brings them back. It is a request-time hole (it reads the session), so its page
@@ -12,10 +13,10 @@ export async function ProfileCard() {
         <CardTitle>Your account</CardTitle>
       </CardHeader>
       <CardContent>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-          <dt className="text-muted-foreground">Email</dt>
-          <dd className="break-all">{user.email}</dd>
-          <dt className="text-muted-foreground">Role</dt>
+        <dl className="profile__facts">
+          <dt>Email</dt>
+          <dd>{user.email}</dd>
+          <dt>Role</dt>
           <dd>{user.role}</dd>
         </dl>
       </CardContent>

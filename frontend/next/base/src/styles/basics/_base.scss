@@ -1,0 +1,96 @@
+@use '../setup/mixins';
+
+@layer basics {
+  // Logical properties only (margin-inline, padding-block, inset-inline-start), so dir="rtl" works.
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  * {
+    margin: 0;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    min-block-size: 100dvh;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  img,
+  svg,
+  video {
+    display: block;
+    max-inline-size: 100%;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  a {
+    color: var(--primary);
+    text-underline-offset: 0.2em;
+  }
+
+  h1,
+  h2,
+  h3 {
+    line-height: var(--leading-tight);
+    text-wrap: balance;
+  }
+
+  h1 {
+    font-size: var(--text-2xl);
+  }
+
+  h2 {
+    font-size: var(--text-xl);
+  }
+
+  :focus-visible {
+    @include mixins.focus-ring;
+  }
+
+  // The skip link targets main; the programmatic focus it gives needs no ring.
+  main:focus {
+    outline: none;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  // Compact density tightens spacing; a touch target never drops below 44 px under a coarse pointer
+  // (the touch-target mixin sets the floor on every control, and these rules do not touch it).
+  [data-density='compact'] {
+    body {
+      font-size: var(--text-sm);
+    }
+  }
+}

@@ -34,7 +34,7 @@ const FILES = [
   'src/core/auth/session.ts',
   'src/core/config/env.ts',
   'src/shared/utils/cn.ts',
-  'src/shared/ui/button.tsx',
+  'src/shared/components/button.tsx',
   'src/models/post.ts',
 ]
 for (const file of FILES) {
@@ -83,6 +83,7 @@ const UNKNOWN = 'boundaries/no-unknown-files'
 const SYNTAX = 'no-restricted-syntax'
 const CLIENT = 'local/client-server-import'
 const ROUTE = 'local/route-components'
+const STYLESHEET = 'no-restricted-imports'
 
 type Violation = [rule: string, file: string, code: string, ruleId: string, message: string]
 
@@ -216,7 +217,7 @@ const violations: Violation[] = [
   ],
   [
     'shared → core',
-    'src/shared/ui/x.tsx',
+    'src/shared/components/x.tsx',
     "import '@/core/config/env'",
     BOUNDARY,
     'shared/ is product-agnostic',
@@ -351,34 +352,92 @@ const violations: Violation[] = [
     ROUTE,
     'a _components/ file belongs to its route folder',
   ],
-  // Raw controls outside shared/ui.
+  // Raw controls outside shared/components.
   [
-    '<button> outside shared/ui',
+    '<button> outside shared/components',
     'src/components/x.tsx',
     'export const x = <button />',
     SYNTAX,
-    'Button from @/shared/ui/button',
+    'Button from @/shared/components/button',
   ],
   [
-    '<input> outside shared/ui',
+    '<input> outside shared/components',
     'src/components/x.tsx',
     'export const x = <input />',
     SYNTAX,
-    'Input from @/shared/ui/input',
+    'Input from @/shared/components/input',
   ],
   [
-    '<select> outside shared/ui',
+    '<select> outside shared/components',
     'src/app/(site)/post/_components/x.tsx',
     'export const x = <select />',
     SYNTAX,
-    'Select from @/shared/ui/select',
+    'Select from @/shared/components/select',
   ],
   [
-    '<textarea> outside shared/ui',
+    '<textarea> outside shared/components',
     'src/app/x.tsx',
     'export const x = <textarea />',
     SYNTAX,
-    'Textarea from @/shared/ui/textarea',
+    'Textarea from @/shared/components/textarea',
+  ],
+  // CSS is a class in a stylesheet beside its owner, never an inline style.
+  [
+    'a style attribute in a component',
+    'src/components/x.tsx',
+    "export const x = <p style={{ color: 'red' }} />",
+    SYNTAX,
+    'never an inline style',
+  ],
+  [
+    'a style attribute in a route file',
+    'src/app/(site)/post/page.tsx',
+    "export const x = <p style={{ color: 'red' }} />",
+    SYNTAX,
+    'never an inline style',
+  ],
+  [
+    'a style attribute in shared/components',
+    'src/shared/components/x.tsx',
+    "export const x = <p style={{ color: 'red' }} />",
+    SYNTAX,
+    'never an inline style',
+  ],
+  // A stylesheet import is the owner's sibling; only app/layout.tsx loads the global tree.
+  [
+    'the global tree from a component',
+    'src/components/x.tsx',
+    "import '@/styles/styles.scss'",
+    STYLESHEET,
+    'only src/app/layout.tsx loads the global style tree',
+  ],
+  [
+    'the brand tokens from a route file',
+    'src/app/(site)/post/page.tsx',
+    "import '@/styles/themes/brand.css'",
+    STYLESHEET,
+    'only src/app/layout.tsx loads the global style tree',
+  ],
+  [
+    "another folder's sheet by a relative path",
+    'src/components/x.tsx',
+    "import '../shared/components/button.scss'",
+    STYLESHEET,
+    "import the component's own sibling sheet",
+  ],
+  [
+    'a sheet through the alias',
+    'src/components/x.tsx',
+    "import '@/shared/components/button.scss'",
+    STYLESHEET,
+    "import the component's own sibling sheet",
+  ],
+  [
+    'a plain CSS sibling',
+    'src/components/x.tsx',
+    "import './x.css'",
+    STYLESHEET,
+    "import the component's own sibling sheet",
   ],
   // revalidatePath and a bare fetch( belong to services/.
   [
@@ -403,8 +462,8 @@ const violations: Violation[] = [
     'call the API through services/',
   ],
   [
-    'bare fetch in shared/ui',
-    'src/shared/ui/x.tsx',
+    'bare fetch in shared/components',
+    'src/shared/components/x.tsx',
     "await fetch('/api/post')",
     SYNTAX,
     'call the API through services/',
@@ -425,13 +484,13 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   ['app → actions', 'src/app/x.tsx', "import '@/actions/post'", BOUNDARY],
   ['app → store', 'src/app/x.tsx', "import '@/store/theme'", BOUNDARY],
   ['app → core', 'src/app/x.tsx', "import '@/core/auth/session'", BOUNDARY],
-  ['app → shared', 'src/app/x.tsx', "import '@/shared/ui/button'", BOUNDARY],
+  ['app → shared', 'src/app/x.tsx', "import '@/shared/components/button'", BOUNDARY],
   ['app → models', 'src/app/x.tsx', "import '@/models/post'", BOUNDARY],
   ['components → services', 'src/components/x.tsx', "import '@/services/post'", BOUNDARY],
   ['components → actions', 'src/components/x.tsx', "import '@/actions/post'", BOUNDARY],
   ['components → store', 'src/components/x.tsx', "import '@/store/theme'", BOUNDARY],
   ['components → core', 'src/components/x.tsx', "import '@/core/auth/session'", BOUNDARY],
-  ['components → shared', 'src/components/x.tsx', "import '@/shared/ui/button'", BOUNDARY],
+  ['components → shared', 'src/components/x.tsx', "import '@/shared/components/button'", BOUNDARY],
   ['components → models', 'src/components/x.tsx', "import '@/models/post'", BOUNDARY],
   ['actions → services', 'src/actions/x.ts', "import '@/services/post'", BOUNDARY],
   ['actions → core', 'src/actions/x.ts', "import '@/core/auth/session'", BOUNDARY],
@@ -450,8 +509,8 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   ['core → shared', 'src/core/x.ts', "import '@/shared/utils/cn'", BOUNDARY],
   ['core → models', 'src/core/x.ts', "import '@/models/post'", BOUNDARY],
   ['core → core', 'src/core/x.ts', "import '@/core/config/env'", BOUNDARY],
-  ['shared → shared', 'src/shared/ui/x.tsx', "import '@/shared/utils/cn'", BOUNDARY],
-  ['shared → models', 'src/shared/ui/x.tsx', "import '@/models/post'", BOUNDARY],
+  ['shared → shared', 'src/shared/components/x.tsx', "import '@/shared/utils/cn'", BOUNDARY],
+  ['shared → models', 'src/shared/components/x.tsx', "import '@/models/post'", BOUNDARY],
   ['models → models', 'src/models/x.ts', "import '@/models/post'", BOUNDARY],
   [
     'models → generated types (import type)',
@@ -541,8 +600,28 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     "import '@/app/(site)/post/_components/post-list'",
     ROUTE,
   ],
-  ['<button> in shared/ui', 'src/shared/ui/x.tsx', 'export const x = <button />', SYNTAX],
-  ['<input> in shared/ui', 'src/shared/ui/x.tsx', 'export const x = <input />', SYNTAX],
+  ['a sibling sheet', 'src/components/x.tsx', "import './x.scss'", STYLESHEET],
+  ['a route sheet', 'src/app/(site)/post/page.tsx', "import './page.scss'", STYLESHEET],
+  ['a kit sheet', 'src/shared/components/x.tsx', "import './x.scss'", STYLESHEET],
+  [
+    'the global tree from app/layout.tsx',
+    'src/app/layout.tsx',
+    "import '@/styles/themes/brand.css'\nimport '@/styles/styles.scss'",
+    STYLESHEET,
+  ],
+  ['a class name', 'src/components/x.tsx', "export const x = <p className='x' />", SYNTAX],
+  [
+    '<button> in shared/components',
+    'src/shared/components/x.tsx',
+    'export const x = <button />',
+    SYNTAX,
+  ],
+  [
+    '<input> in shared/components',
+    'src/shared/components/x.tsx',
+    'export const x = <input />',
+    SYNTAX,
+  ],
   ['a component used as <Button>', 'src/components/x.tsx', 'export const x = <Button />', SYNTAX],
   [
     'revalidatePath in services',

@@ -1,13 +1,15 @@
 import Link from 'next/link'
 
-import { Button } from '@/shared/ui/button'
-import { EmptyState } from '@/shared/ui/pattern/empty-state'
-import { Page } from '@/shared/ui/pattern/page-layout'
+import { Button } from '@/shared/components/button'
+import { EmptyState } from '@/shared/components/empty-state'
+import { Page } from '@/shared/components/page'
+import './not-found.scss'
 
 export default function SiteNotFound() {
   return (
     <Page>
       <EmptyState
+        className="site-not-found"
         title="Page not found"
         description="The page you asked for does not exist."
         action={

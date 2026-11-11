@@ -51,7 +51,8 @@ onlyWhen:
     - src/app/(site)/profile
     - src/core/auth
     - src/core/actions/account-action.test.ts
-    - src/shared/ui/pattern/auth-card.tsx
+    - src/shared/components/auth-card.scss
+    - src/shared/components/auth-card.tsx
     - src/models/user.ts
     - src/models/auth.ts
     - src/models/auth.test.ts
@@ -59,8 +60,11 @@ onlyWhen:
     - src/actions/auth.test.ts
     - src/services/user.ts
     - src/components/app-account-menu.tsx
+    - src/components/app-account-menu-skeleton.scss
     - src/components/app-account-menu-skeleton.tsx
     - src/components/app-account-menu.test.tsx
+    - src/components/app-auth-loading.scss
+    - src/components/app-auth-loading.tsx
     - src/components/app-sign-out-item.tsx
     - tests/e2e/auth-support.ts
     - tests/e2e/auth.spec.ts

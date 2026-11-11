@@ -1,0 +1,15 @@
+@use 'setup/functions';
+
+@layer kit {
+  // Sonner injects its own unlayered stylesheet, which beats any layered rule that is not
+  // important; these declarations are !important for that reason (an important rule in a layer
+  // beats an important or normal one outside it).
+  .toaster[data-sonner-toaster][data-sonner-theme] {
+    --normal-bg: var(--popover) !important;
+    --normal-text: var(--popover-foreground) !important;
+    --normal-border: var(--border) !important;
+    --border-radius: var(--radius) !important;
+    font-family: var(--font-sans) !important;
+    z-index: functions.z(toast) !important;
+  }
+}

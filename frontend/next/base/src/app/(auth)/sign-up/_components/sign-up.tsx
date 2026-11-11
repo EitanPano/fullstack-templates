@@ -1,6 +1,6 @@
-import { SignUpForm } from './sign-up-form'
 import { safeNextPath } from '@/core/auth/next-path'
-import { AuthCard } from '@/shared/ui/pattern/auth-card'
+import { AuthCard } from '@/shared/components/auth-card'
+import { SignUpForm } from './sign-up-form'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 

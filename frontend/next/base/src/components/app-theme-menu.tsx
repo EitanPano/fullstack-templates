@@ -6,7 +6,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-} from '@/shared/ui/dropdown-menu'
+} from '@/shared/components/dropdown-menu'
 
 const CHOICES = [
   { value: 'light', label: 'Light' },

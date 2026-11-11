@@ -3,21 +3,21 @@
 import { UserIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-import { Avatar, AvatarFallback } from '@/shared/ui/avatar'
-import { Button } from '@/shared/ui/button'
+import { AppThemeMenu } from '@/components/app-theme-menu'
+import { Avatar, AvatarFallback } from '@/shared/components/avatar'
+import { Button } from '@/shared/components/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/shared/ui/dropdown-menu'
+} from '@/shared/components/dropdown-menu'
+import './app-user-menu.scss'
 
-import { AppThemeMenu } from './app-theme-menu'
-
-// An avatar trigger with an items slot above the theme choices. Without auth, or for a visitor,
-// the slot is empty and the menu is the theme menu. An account passes its email (shown as the
-// first line of the menu, never in the header) and its items, such as Sign out.
+// An avatar trigger with an items slot above the theme choices. Without an account the slot is
+// empty and the menu is the theme menu. An account passes its email (the first line of the menu,
+// never beside the trigger) and its items, such as Sign out.
 export function AppUserMenu({
   children,
   initials,
@@ -33,24 +33,21 @@ export function AppUserMenu({
         <Button
           variant="ghost"
           size="icon"
-          className="rounded-full"
-          // The visible initials must sit inside the accessible name (WCAG 2.5.3); aria-hidden on
-          // them does not satisfy axe, so the label carries them.
+          className="user-menu__trigger"
+          // The visible initials must sit inside the accessible name (WCAG 2.5.3).
           aria-label={initials ? `Account menu, ${initials}` : 'Account menu'}
         >
           <Avatar size="sm">
             <AvatarFallback>
-              {initials ?? <UserIcon aria-hidden className="size-4" />}
+              {initials ?? <UserIcon aria-hidden="true" className="icon" />}
             </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-44">
+      <DropdownMenuContent align="end">
         {email ? (
           <>
-            <DropdownMenuLabel className="max-w-64 truncate font-normal text-muted-foreground">
-              {email}
-            </DropdownMenuLabel>
+            <DropdownMenuLabel className="user-menu__email">{email}</DropdownMenuLabel>
             <DropdownMenuSeparator />
           </>
         ) : null}

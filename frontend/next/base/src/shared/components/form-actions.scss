@@ -1,0 +1,38 @@
+@use 'setup/breakpoints';
+@use 'setup/functions';
+
+@layer kit {
+  // Phones: stacked, full width, stuck to the bottom of the viewport so the primary action stays
+  // in thumb reach. From md: inline, end-aligned, in the flow. The negative margin cancels the
+  // page gutter that `.page` defines.
+  .form-actions {
+    position: sticky;
+    inset-block-end: 0;
+    display: flex;
+    flex-direction: column;
+    gap: functions.space(2);
+    margin-inline: calc(-1 * var(--page-gutter));
+    padding-block: functions.space(3);
+    padding-inline: var(--page-gutter);
+    border-block-start: 1px solid var(--border);
+    background: var(--background);
+
+    .button {
+      inline-size: 100%;
+    }
+
+    @include breakpoints.up(md) {
+      position: static;
+      flex-direction: row;
+      justify-content: flex-end;
+      margin-inline: 0;
+      padding: 0;
+      border-block-start: 0;
+      background: transparent;
+
+      .button {
+        inline-size: auto;
+      }
+    }
+  }
+}
