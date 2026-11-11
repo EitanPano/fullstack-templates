@@ -1,5 +1,5 @@
 import { clearSessionHint, setSessionHint } from '@/core/auth/session-hint'
-import type { User } from '@/models/user'
+import type { User } from '@/models/user/type'
 import { api } from '@/services/api'
 import { call } from '@/services/call'
 import {

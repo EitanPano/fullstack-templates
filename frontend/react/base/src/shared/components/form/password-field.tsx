@@ -2,10 +2,10 @@ import { EyeIcon, EyeOffIcon } from 'lucide-react'
 import { useState, type ComponentProps } from 'react'
 import { useFormContext } from 'react-hook-form'
 
-import { Button } from '@/shared/components/button'
-import { Input } from '@/shared/components/input'
+import { Button } from '@/shared/components/button/button'
+import { Input } from '@/shared/components/form/input'
 
-import { FieldFrame } from './field-frame'
+import { FieldFrame } from './field-frame/field-frame'
 import type { FieldProps } from './text-field'
 import { useField } from './use-field'
 

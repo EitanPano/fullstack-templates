@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 import { Provider } from 'react-redux'
 
-import { Toaster } from '@/shared/components/toaster'
-import { TooltipProvider } from '@/shared/components/tooltip'
+import { Toaster } from '@/shared/components/toaster/toaster'
+import { TooltipProvider } from '@/shared/components/tooltip/tooltip'
 import type { AppStore } from '@/store'
 import { useAppSelector } from '@/store/hooks'
 import { selectTheme } from '@/store/theme.slice'

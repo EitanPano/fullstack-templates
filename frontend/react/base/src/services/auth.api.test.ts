@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { clearSessionHint, hasSessionHint, setSessionHint } from '@/core/auth/session-hint'
-import { withCopy } from '@/models/api-error'
+import { withCopy } from '@/services/with-copy'
 import { authApi } from '@/services/auth.api'
 import { userApi } from '@/services/user.api'
 import { createStore } from '@/store'

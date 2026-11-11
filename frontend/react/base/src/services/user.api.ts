@@ -1,4 +1,4 @@
-import type { User } from '@/models/user'
+import type { User } from '@/models/user/type'
 import { api, refetchIfRejected } from '@/services/api'
 import { call } from '@/services/call'
 import { getApiUserMe } from '@/services/generated/sdk.gen'

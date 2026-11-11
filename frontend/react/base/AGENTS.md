@@ -10,7 +10,7 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
 - `app/`: the wiring, no product logic, no fetch. `providers.tsx` (`AppProviders`: Redux
   `Provider`, tooltips, toaster), `routes.tsx` (`createRoutes(store)`: route objects, loaders and
   groups; the root route has no loader), `nav.ts` (`NAV`, the one navigation table),
-  `root-error.tsx` (`RootError`, the last-resort boundary, a whole page).
+  `root-error/root-error.tsx` (`RootError`, the last-resort boundary, a whole page).
 - `core/`: glue below `app/`, above the pages; `shared/` never imports it. `config/`: `env.ts`
   (the only reader of `import.meta`, zod-parsed, `VITE_*` is public), `api-client.ts` (the <!-- @server -->
   generated client's runtime config, with auth the 401 refresh), `constants.ts` (`STORAGE_KEYS`, <!-- @server -->
@@ -25,8 +25,8 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
 
 <!-- @server:auth-end -->
 
-- `components/`: the app-wide components, every file `app-*` with its `.scss` beside it when
-  styled. The layout and its group screens: `app-main-layout` (`AppMainLayout`: the skip link and
+- `layout/`: the app-wide components, every one `app-*`, a folder named for it when it has a
+  `.scss` or a test beside it. The layout and its group screens: `app-main-layout` (`AppMainLayout`: the skip link and
   the one `main`), `app-main-loading` (the group's `HydrateFallback`), `app-main-error` (its
   `ErrorBoundary`). Components the product places in its own shell, rendered by no template file:
   `app-user-menu` (the avatar menu, which carries the theme items) is the control a product
@@ -42,10 +42,10 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
 <!-- @server:auth-end -->
 
 - `pages/<module>/`: one directory per server module or screen group, named for the glossary
-  noun, flat: `<module>.routes.tsx` (`<module>Routes(store)`), the routed `<name>-page.tsx` files
-  beside it each with its `<name>-page.scss`, when needed `<module>.form.ts` and
-  `<module>.copy.ts`; `components/` is the one sub-directory, for the module's own pieces. A page
-  never imports another module. `home/` is the index route (one `h1`, no data call); `not-found/`
+  noun, flat: `<module>.routes.tsx` (`<module>Routes(store)`), the routed `<name>-page` files and the
+  module's own components beside it, each a file or, with a `.scss` or a test, a folder named for it
+  (`home-page/home-page.tsx`), when needed `<module>.form.ts` and `<module>.copy.ts`; no
+  `components/` folder. A page never imports another module. `home/` is the index route (one `h1`, no data call); `not-found/`
   is the `*` route, last in the main group, so a 404 keeps the layout.
 
 <!-- @server:auth-start -->
@@ -77,12 +77,12 @@ a wrong role).
 
 <!-- @server:auth-end -->
 
-- `shared/`: product-agnostic; imports `shared/` and `models/` only. `components/`: one file per
-  component with its `.scss` beside it, Radix rendered with the tree's classes: primitives (`button`, `badge`, `card`,
-  `avatar`, `alert`, `separator`, `skeleton`, `spinner`, `input`, `textarea`, `label`, `checkbox`,
-  `radio-group`, `switch`, `select`, `dialog`, `sheet`, `dropdown-menu`, `tooltip`, `tabs`,
-  `toaster`) and patterns (`page`, `empty-state`, `error-state`, `skeletons`, `form-actions`,
-  `confirm-dialog`). `components/form/`: `form`, `field-frame`, `use-field`, the `*-field` bindings
+- `shared/`: product-agnostic; imports `shared/` and `models/` only. `components/`: one folder per
+  component with its `.scss` and test beside it (a one-file component stays a file), Radix rendered with the tree's classes: primitives (`button`, `badge`, `card`,
+  `avatar`, `alert`, `separator`, `skeleton`, `spinner`, `dialog`, `sheet`, `dropdown-menu`, `tooltip`, `tabs`,
+  `toaster`) and patterns (`page`, `empty-state`, `error-state`, `skeletons`,
+  `confirm-dialog`). `components/form/`: `form`, `field-frame`, `use-field`, the controls (`input`,
+  `textarea`, `label`, `checkbox`, `radio-group`, `switch`, `select`, `form-actions`), the `*-field` bindings
   (`text`, `textarea`, `number`, `select`, `checkbox`, `password`, `date-time`), `report-failure`. <!-- @server -->
   (`text`, `textarea`, `number`, `select`, `checkbox`, `password`, `date-time`). <!-- @noserver -->
   `hooks/`: `useMediaQuery`, `useOnlineStatus` (both on `useSyncExternalStore`) and
@@ -93,17 +93,21 @@ a wrong role).
 
 <!-- @server:auth-start -->
 
-`components/auth-card.tsx`, `utils/next-path.ts` (`safeNextPath`).
+`components/auth-card/`, `utils/next-path.ts` (`safeNextPath`), `utils/is-user.ts` (`isUser`),
+`utils/initials.ts` (`initials`).
 
 <!-- @server:auth-end -->
 
-- `models/`: one file per glossary noun: the contract's types re-exported, UI-only shapes, pure <!-- @server -->
-  helpers. `api-error.ts` (`ApiError`, `isApiError`, `withCopy`), `nav.ts`. <!-- @server -->
-- `models/`: one file per glossary noun: UI-only shapes, pure helpers. `nav.ts`. <!-- @noserver -->
+- `models/`: one folder per glossary noun holding only `interface.ts`, `type.ts`, `enum.ts` or <!-- @server -->
+  `constant.ts`: the contract's types re-exported, UI-only shapes, constants. `api-error/type.ts` <!-- @server -->
+  (`ApiError`; its `isApiError` is `shared/utils/is-api-error.ts`, `withCopy` is <!-- @server -->
+  `services/with-copy.ts`), `nav/interface.ts`. <!-- @server -->
+- `models/`: one folder per glossary noun holding only `interface.ts`, `type.ts`, `enum.ts` or <!-- @noserver -->
+  `constant.ts`: UI-only shapes, constants. `nav/interface.ts`. <!-- @noserver -->
 
 <!-- @server:auth-start -->
 
-`user.ts` (`User`, `Role`, `isUser`, `initials`).
+`user/type.ts` (`User`, `Role`), `user/constant.ts` (`ROLES`).
 
 <!-- @server:auth-end -->
 
@@ -121,18 +125,18 @@ a wrong role).
 
 | Addition                                      | Home                                                               |
 | --------------------------------------------- | ------------------------------------------------------------------ |
-| A contract type, or a noun's pure helper      | `models/<noun>.ts`                                                 | <!-- @server -->
+| A contract type, or a noun's constant         | `models/<entity>/type.ts`, `constant.ts`                           | <!-- @server -->
 | A read or a mutation                          | `services/<module>.api.ts` (`api.injectEndpoints`)                 | <!-- @server -->
 | A page, its components, its form schema, copy | `pages/<module>/`                                                  |
 | State shared across pages (client-only)       | `store/<name>.slice.ts`; its side effect in `store/listeners.ts`   |
 | A route                                       | `pages/<module>/<module>.routes.tsx`, composed in `app/routes.tsx` |
-| A primitive (button, input, dialog)           | `shared/components/<name>.tsx` + `<name>.scss` beside it           |
-| An app-wide component (a menu, the header)    | `components/app-<name>.tsx` + `app-<name>.scss` beside it          |
+| A primitive (button, input, dialog)           | `shared/components/<name>/<name>.tsx` + `<name>.scss` beside it    |
+| An app-wide component (a menu, the header)    | `layout/app-<name>/app-<name>.tsx` + `app-<name>.scss` beside it   |
 | A pattern (`Page`, `EmptyState`, …)           | `shared/components/`                                               |
-| A form field binding                          | `shared/components/form/`                                          |
+| A form control or field binding               | `shared/components/form/`                                          |
 | A formatting or date helper                   | `shared/utils/`                                                    |
 | A product-agnostic hook                       | `shared/hooks/use-<name>.ts` + its test                            |
-| A hook a page and an app-wide component share | `store/use-<name>.ts`: pages never import `components/`           |
+| A hook a page and an app-wide component share | `store/use-<name>.ts`: pages never import `layout/`                |
 | A route guard (with the server's auth)        | `core/auth/guards.ts`                                              |
 | An environment variable                       | `core/config/env.ts` plus `.env.example`                           |
 | A navigation entry                            | `app/nav.ts`                                                       |
@@ -143,9 +147,9 @@ page never imports another page; `shared/` never imports `core/`, `store/` or `s
 
 | From                                                     | May import                                                                         |
 | -------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `app/`                                                   | components, pages (`*.routes.tsx` only), core, store, shared, models               |
+| `app/`                                                   | layout, pages (`*.routes.tsx` only), core, store, shared, models                   |
 | `main.tsx` (the `entry` category)                        | app, store, core, shared, models                                                   |
-| `components/`                                            | core, store, services (the hooks), shared, models; never `app/`, `pages/`          |
+| `layout/`                                                | core, store, services (the hooks), shared, models; never `app/`, `pages/`          |
 | `pages/<m>/`                                             | core, store, services (the hooks), shared, models; its own module                  |
 | `pages/<m>/*.form.ts`                                    | shared, models, the generated zod schemas (`@/services/generated/zod.gen`)         | <!-- @server -->
 | `store/`                                                 | services (reducer, middleware, matchers), `core/theme`, `core/config`, models      |
@@ -159,7 +163,7 @@ page never imports another page; `shared/` never imports `core/`, `store/` or `s
 Also lint-enforced:
 
 - The generated runtime is imported only in `services/`; its types only by `services/`, `store/`, <!-- @server -->
-  `core/` and `models/` (everything else reads them through `models/<noun>.ts`). <!-- @server -->
+  `core/` and `models/` (everything else reads them through `models/<entity>/type.ts`). <!-- @server -->
 - `fetch(`, `globalThis.fetch(`, `window.fetch(` only in `core/config/api-client.ts`; <!-- @server -->
   `import.meta` only in `core/config/env.ts`. <!-- @server -->
 - `import.meta` only in `core/config/env.ts`. <!-- @noserver -->
@@ -189,7 +193,8 @@ harness (`scripts/scaffold.mjs`), never by a hand copy:
 - The typed client: `openapi-ts.config.ts`, the `api:types` script, `@hey-api/openapi-ts` and
   `src/services/generated/`.
 - The data layer: `services/api.ts` (the one RTK Query `createApi`), `services/call.ts`,
-  `models/api-error.ts`, `core/config/api-client.ts`, `shared/components/form/report-failure.ts`, their
+  `models/api-error/type.ts`, `services/with-copy.ts`, `shared/utils/is-api-error.ts`,
+  `core/config/api-client.ts`, `shared/components/form/report-failure/report-failure.ts`, their
   tests, and `api.reducer` and `api.middleware` in `store/index.ts`.
 - The `/api` proxy of `vite.config.ts`, the API web server of `playwright.config.ts`, the
   `GET /api/health` smoke test and the `/api/` proxy of `nginx/default.conf`.
@@ -204,12 +209,12 @@ generated SDK -> fetch client**. A component never calls `fetch` or the SDK; a o
 needs an endpoint first. For a new server module (the noun, by its `.doc/glossary.md` name; `post`
 below). In the blocks, `Post`, `PostRow`, `PostList`, `getApiPost`, `patchApiPostById`, the `'Post'` tag
 and the `postApi` hooks are the example feature's own names: they exist once the server has the
-endpoint, `bun run api:types` has regenerated the client and `models/post.ts` exists. Everything
+endpoint, `bun run api:types` has regenerated the client and `models/post/type.ts` exists. Everything
 else in the blocks already exists in the template.
 
 1. **Glossary and contract.** Name the noun and the actions in `.doc/glossary.md`. If the contract
    changed, run `bun run api:types`: `src/services/generated/` is regenerated and committed.
-2. **Model** `models/<noun>.ts`: re-export the contract's types, add UI-only shapes and helpers.
+2. **Model** `models/<noun>/type.ts`: re-export the contract's types, add UI-only shapes and constants.
 3. **Endpoints** `services/<noun>.api.ts`: `api.injectEndpoints`, a `build.query` per read with
    `providesTags`, a `build.mutation` per write with `invalidatesTags`, the exported hooks. Add
    the tag to `tagTypes` in `services/api.ts`.
@@ -252,7 +257,7 @@ else in the blocks already exists in the template.
              subscription.unsubscribe()
            }
          },
-         lazy: () => import('./post-page'),
+         lazy: () => import('./post-page/post-page'),
        },
      ]
    }
@@ -261,11 +266,11 @@ else in the blocks already exists in the template.
    The entry stays cached after `unsubscribe`, so the page's hook finds it: one request. A
    rejected `unwrap()` reaches the group's `ErrorBoundary`.
 
-5. **Page** `pages/<noun>/<page>-page.tsx`: exports the page as `Component` (the `lazy`
+5. **Page** `pages/<noun>/<page>-page/<page>-page.tsx`: exports the page as `Component` (the `lazy`
    contract): a `Page` with a `<title>`, a `PageHeader` and the module's components.
 
    ```tsx
-   // pages/post/post-page.tsx
+   // pages/post/post-page/post-page.tsx
    function PostPage() {
      return (
        <Page>
@@ -279,12 +284,12 @@ else in the blocks already exists in the template.
    export { PostPage as Component }
    ```
 
-6. **Components** `pages/<noun>/components/*`: read the hook; a skeleton with the same layout
+6. **Components** `pages/<noun>/*`, beside the routes file: read the hook; a skeleton with the same layout
    while `isLoading`, `ErrorState` on `isError` with `refetch` as `onRetry`, the data otherwise.
    `<noun>.form.ts` (the zod schema) and `<noun>.copy.ts` (the copy tables) when needed.
 
    ```tsx
-   // pages/post/components/post-list.tsx
+   // pages/post/post-list.tsx
    export function PostList() {
      const { data, error, isLoading, isError, isFetching, refetch } = useListPostsQuery()
      if (isLoading) return <ListSkeleton />
@@ -318,9 +323,9 @@ else in the blocks already exists in the template.
     `shared/components/` with its sibling `.scss`.
 
 **The shell.** The template renders no header, navigation or footer: `AppMainLayout` is the skip
-link and the page's one `main`. A product's chrome is a component in `components/` (this
+link and the page's one `main`. A product's chrome is a component in `layout/` (this
 template's home for app-wide components) that `AppMainLayout` renders between the skip link and
-`main`. The nav table lives in `app/nav.ts` and `components/` never imports `app/`, so
+`main`. The nav table lives in `app/nav.ts` and `layout/` never imports `app/`, so
 `app/routes.tsx` passes it in: give `AppMainLayout` a prop, such as `nav`, for the chrome to read.
 `AppUserMenu` is ready to place there (it carries the theme items); `AppThemeMenu` is a fragment
 of menu items for a menu the product writes, and throws outside one.
@@ -464,7 +469,7 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
   `requireRole(store, 'admin', returnToOf(request))`, and give every staff loader the same call.
   No staff page ships.
 - **Renaming the roles.** The roles are `user` and `admin`. A product that renames them changes
-  `isUser` in `models/user.ts` (another role reads as signed out), every `requireRole(...)` call,
+  `isUser` in `shared/utils/is-user.ts` and `ROLES` in `models/user/constant.ts` (another role reads as signed out), every `requireRole(...)` call,
   the role-gated group, the unit tests that use a role, and this file, after the server's roles
   and the `contract` command. A role-gated route also needs a setup in the e2e screens list.
 
@@ -478,12 +483,12 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
   cascade layers (`@layer setup, themes, basics`). Every page and component owns a sibling
   `.scss` with its stem and imports it as `import './x.scss'`, the last import of the file; it
   `@use`s `setup/...` only and is never layered, so its rules win over the global ones. A partial
-  two sibling files share (`controls.scss`: `input.tsx`, `textarea.tsx`) is imported by each. A
+  two sibling files share (`form/controls.scss`: `input.tsx`, `textarea.tsx`) is imported by each. A
   component renders BEM classes (`.button--primary`, `.page-header__title`) composed with `cn` from
   `@/shared/utils/cn`. `main.tsx` imports Inter, `themes/brand.css`, then `styles.scss`.
   `tests/unit/styles-tree.test.ts` enforces it: `src/styles/` holds only the global tree, every
   sheet has its owner, the owner's import is last, imports are siblings, no `style` attribute,
-  `components/` files carry `app-`, and the global partials hold only `@use`, comments and the
+  `layout/` entries carry `app-`, and the global partials hold only `@use`, comments and the
   one layer block.
 - **Tokens.** The generator writes the brand's light and dark colour blocks, `--radius` and
   `color-scheme` into `themes/brand.css` under `:root` and `[data-theme='dark']`: plain CSS, since
@@ -513,7 +518,7 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
   padding, so every route that renders in it (a page, the 404, the group's loading and error) is
   wrapped in `Page`, which carries the width, the gutters and the vertical padding (tighter under
   compact density); a full-bleed screen is a route that renders without it. `AppUserMenu` in
-  `components/` is the control the product places in its header; `AppThemeMenu` is its theme items.
+  `layout/` is the control the product places in its header; `AppThemeMenu` is its theme items.
   Use a pattern before writing a layout by hand. A page never adds a landmark set; it sets its
   title with a `<title>` element.
 - **Forms** use `shared/components/form/`. **Status** is a `Badge` by meaning
@@ -522,9 +527,9 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
 
 ## Errors
 
-- Every route has a loading and an error state, its own or its group's: `app-main-loading.tsx` and
-  `app-main-error.tsx` for the main group, `app-auth-loading.tsx` and `app-auth-error.tsx` for the auth screens,
-  `app/root-error.tsx` for what no group caught. A group is a pathless route inside the group's
+- Every route has a loading and an error state, its own or its group's: `layout/app-main-loading` and
+  `layout/app-main-error` for the main group, `layout/app-auth-loading` and `layout/app-auth-error` for the auth screens,
+  `app/root-error/root-error.tsx` for what no group caught. A group is a pathless route inside the group's
   layout, so its boundary renders inside `main`, in a `Page`. Every data section has a skeleton that matches
   its layout. Messages are user-safe: no stack trace, query text, internal URL or secret. A
   boundary logs the cause with `console.error`; its Try again button calls `revalidate()`. A lazy
@@ -534,11 +539,11 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
   `{ data, error, response }`, and on a network failure `response` is undefined and `error` is the
   thrown value. `call` (`src/services/call.ts`) is the only place that reads the result and returns
   `{ data }` or `{ error: ApiError }` (RTK Query's `queryFn` contract); it does not throw.
-- `ApiError` (`models/api-error.ts`) is a plain object, never an `Error` subclass: RTK Query keeps a
+- `ApiError` (`models/api-error/type.ts`) is a plain object, never an `Error` subclass: RTK Query keeps a
   failed query's error in the Redux state, which refuses class instances. A hook's `error` and the
-  rejection of `.unwrap()` are the same object; `isApiError` is the guard. A `queryFn` that throws
+  rejection of `.unwrap()` are the same object; `isApiError` (`shared/utils/is-api-error.ts`) is the guard. A `queryFn` that throws
   loses the copy mapping: return the error.
-- The message is copy we wrote: the page's table through `withCopy` (`code:second` when the
+- The message is copy we wrote: the page's table through `withCopy` (`services/with-copy.ts`; `code:second` when the
   contract adds a discriminator read from `error.details`, then `code`), then the default below. The server's `message` is never
   shown. A 5xx, a missing envelope or an unreachable API is logged with its request id first.
 
@@ -566,7 +571,7 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
 
 - Unit tests run with `bun run test` (Vitest, jsdom, React Testing Library): co-located
   `src/**/*.test.ts(x)`. `tests/unit/` holds the tooling checks:
-  `eslint-boundaries` (import rules), `styles-tree` (the stylesheet owner, import-last, layer and `app-`
+  `eslint-boundaries` (import rules), `folders` (the `models/` file names, a component of several files in a folder, one `components` folder), `styles-tree` (the stylesheet owner, import-last, layer and `app-`
   prefix scans, no `style` attribute, with seeded temporary trees), `density` (compiled sizes), `main-imports` (zod configured first), `zod-config` (no
   `new Function` under the CSP), `playwright-config` (blank `E2E_BASE_URL`), `screen-routes`
   (`capturedRoutes`), and with a database `e2e-database-url`. Co-located checks of the glue include

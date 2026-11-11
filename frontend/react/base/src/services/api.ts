@@ -1,6 +1,6 @@
 import { createApi, fakeBaseQuery } from '@reduxjs/toolkit/query/react'
 
-import type { ApiError } from '@/models/api-error'
+import type { ApiError } from '@/models/api-error/type'
 
 // A query whose last answer was a failure is fetched again by the next `initiate()`, even if an
 // earlier answer is still inside the 30 s window: RTK Query keeps the old `fulfilledTimeStamp`

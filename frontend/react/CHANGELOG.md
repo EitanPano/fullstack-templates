@@ -1,5 +1,43 @@
 # Changelog
 
+## 6.0.0 — 2026-11-11
+
+The owner's folder rules on the tree: `models/` holds one folder per entity and only declarations, the app chrome is `layout/`, there is one `components` folder (`shared/components/`), the form controls sit in `shared/components/form/`, and a component of two or more files is a folder named for it. A breaking move: no behaviour, markup, class name, copy or route changes. A project generated from 5.x keeps its tree; there is no migration tool, the table is the migration. All paths are under `src/`.
+
+### Breaking
+
+| Before | Now |
+| --- | --- |
+| `components/app-<name>.{tsx,scss,test.tsx}` | `layout/app-<name>/app-<name>.{tsx,scss,test.tsx}` for `app-account-menu`, `app-auth-layout`, `app-main-layout`, `app-main-loading`, `app-theme-menu`, `app-user-menu` |
+| `components/app-auth-error.tsx`, `app-auth-loading.tsx`, `app-main-error.tsx` (one file each) | `layout/app-auth-error.tsx`, `layout/app-auth-loading.tsx`, `layout/app-main-error.tsx` |
+| `app/root-error.{tsx,scss}` | `app/root-error/root-error.{tsx,scss}` |
+| `pages/<module>/<name>-page.{tsx,scss,test.tsx}` (`home`, `not-found`, `forbidden`, `user/profile-page`) | `pages/<module>/<name>-page/<name>-page.{tsx,scss,test.tsx}`; the `lazy` imports in `*.routes.tsx` name the new path |
+| `pages/auth/components/sign-in-form.*`, `sign-up-form.*` | `pages/auth/sign-in-form/`, `pages/auth/sign-up-form/` |
+| `pages/user/components/profile-card.tsx` | `pages/user/profile-card.tsx` |
+| `pages/user/components/sign-out-button.*` | `pages/user/sign-out-button/sign-out-button.{tsx,test.tsx}` |
+| `shared/components/<name>.{tsx,scss,test.tsx}` for `alert`, `auth-card`, `avatar`, `badge`, `button`, `card`, `confirm-dialog`, `dialog`, `dropdown-menu`, `empty-state`, `error-state`, `page`, `separator`, `sheet`, `skeleton`, `spinner`, `tabs`, `toaster`, `tooltip` | `shared/components/<name>/<name>.*` (`skeletons.tsx` stays a file) |
+| `shared/components/{checkbox,radio-group,select,switch,label,form-actions}.*`, `input.tsx`, `textarea.tsx`, `controls.scss` | `shared/components/form/<name>/<name>.*` for the first six; `form/input.tsx`, `form/textarea.tsx`, `form/controls.scss` |
+| `shared/components/form/{date-time-field,field-frame,report-failure}.*` | `form/<name>/<name>.*` |
+| `models/nav.ts` (`type NavEntry`) | `models/nav/interface.ts` (`interface NavEntry`) |
+| `models/api-error.ts` (types) | `models/api-error/type.ts` (`ApiError`, `ErrorCode`, `CopyTable`, `WithCopyOptions`) |
+| `models/api-error.ts` `isApiError` and its test | `shared/utils/is-api-error.ts` (+ test); `shared/` cannot import `services/` |
+| `models/api-error.ts` `withCopy` and its test | `services/with-copy.ts` (+ test) |
+| `models/user.ts` types `User`, `Role` | `models/user/type.ts` |
+| `models/user.ts` `ROLES` | `models/user/constant.ts` |
+| `models/user.ts` `isUser`, `initials`; `models/user.test.ts` | `shared/utils/is-user.ts`, `shared/utils/initials.ts` with their tests; `initials` takes `{ email: string }` |
+
+### Changed
+
+- `eslint.config.mjs`: the `components` element is `layout` (`src/layout`) and its messages say so; the `RAW_CONTROLS` messages name `@/shared/components/button/button`, `form/input`, `form/select/select`, `form/textarea`; `@typescript-eslint/consistent-type-definitions` is `interface` in `src/models/*/interface.ts` and `type` everywhere else.
+- `template.yaml`: the `server` and `server:auth` file lists name the new paths; `src/models/api-error`, `src/models/user`, `src/layout/app-account-menu`, `src/layout/app-auth-layout` and `src/shared/components/auth-card` are folders.
+- `AGENTS.md`: the layer list, "Where does X go", the import table and the feature steps name the new paths.
+
+### Tests
+
+- New `tests/unit/folders.test.ts`: the `models/` file names, a component of several files in a folder named for it (`app/`, `layout/`, `pages/`, `shared/components/`; route tables, form schemas and copy tables are not components), one `components` folder. Seeded trees prove each rule refused and allowed.
+- `eslint-boundaries.test.ts`: re-pathed, plus the interface/type keyword rule (refused and allowed). `styles-tree.test.ts`: the `app-` prefix rule reads `layout/` entries.
+- The `isUser`, `initials`, `isApiError` and `withCopy` cases moved with their code; none was dropped.
+
 ## 5.1.0 — 2026-11-11
 
 The package generates without a server ([ADR 0011](../../docs/adr/0011-frontend-without-a-server.md)). A stack's output is unchanged (provenance records the new version, nothing else differs); generated alone, everything that reaches the server is left out and the package still passes `check` and its e2e suite. The harness adds the parts later (`scripts/scaffold.mjs`).
