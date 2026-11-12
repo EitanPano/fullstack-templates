@@ -11,14 +11,14 @@ vi.mock('@/core/auth/session', () => ({
   // The account of the faked session, as getCurrentUser reads it.
   getCurrentUser: async () => ((await readSession()) as { user: unknown } | null)?.user ?? null,
 }))
-vi.mock('@/actions/auth', () => ({
+vi.mock('@/actions/auth/auth', () => ({
   signOut: vi.fn(),
   signIn: vi.fn(),
   signUp: vi.fn(),
 }))
 vi.mock('next-themes', () => ({ useTheme: () => ({ theme: 'light', setTheme: vi.fn() }) }))
 
-const { signOut } = await import('@/actions/auth')
+const { signOut } = await import('@/actions/auth/auth')
 
 const user = { id: 'u1', email: 'ada.lovelace@example.com', role: 'user' }
 

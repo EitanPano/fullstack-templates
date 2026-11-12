@@ -33,11 +33,11 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
 - `services/auth.ts` (`login`, `signup`, `logout`, `refresh`), `services/user.ts` (`getMe`, one
   `GET /api/user/me` per request for the session and the page; `getProfile`, the profile page's read).
 <!-- @server:auth-end -->
-- `actions/`: per glossary noun, `<noun>.ts` (Server Actions, `'use server'`, one export per action),
-  `<noun>.form.ts` (a form's zod schema, shared by the action and the client form) and
-  `<noun>.copy.ts` (the outcome copy).
+- `actions/`: one folder per glossary noun, every file in it named for the noun: `<noun>/<noun>.ts`
+  (Server Actions, `'use server'`, one export per action), `<noun>.form.ts` (a form's schema,
+  shared by the action and the client form), `<noun>.copy.ts` (the outcome copy) and their tests.
 <!-- @server:auth-start -->
-- `actions/auth.ts` (`signIn`, `signUp`, `signOut`), `auth.form.ts`, `auth.copy.ts`.
+- `actions/auth/`: `auth.ts` (`signIn`, `signUp`, `signOut`), `auth.form.ts`, `auth.copy.ts`.
 <!-- @server:auth-end -->
 - `store/`: a named layer that ships no file: client-only state two or more routes read (a
   `'use client'` provider and its hook). The theme is `next-themes`'; create the folder with the first.
@@ -56,13 +56,14 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
   (`text`, `textarea`, `number`, `select`, `checkbox`, `password`, `date-time`) and the form
   controls (`input`, `textarea`, `checkbox`, `radio-group`, `select`, `switch`, `label`, `form-actions`). Only `confirm-dialog`, `error-state`, `toaster` and the `form/` bindings are
   Client Components. `utils/`: `cn`, `date`, `initials`,
-  `zod-messages` (zod's global messages, imported first by every file that builds a schema).
+  `validation` (the one file that imports zod: the functions every schema is built and run
+  with, and the message map that words the common failures).
 <!-- @server:auth-start -->
 - `shared/components/auth-card/auth-card.tsx` (`AuthCard`).
 <!-- @server:auth-end -->
 - `core/`: glue below the pages; `shared/` never imports it. `actions/`: `safe-action.ts` (`action`)
   and `action-error.ts` (`ActionError`). `config/env.ts`: the only reader of `process.env`,
-  zod-parsed; browser-visible values are `NEXT_PUBLIC_*`.
+  parsed with `validation`; browser-visible values are `NEXT_PUBLIC_*`.
 <!-- @server:auth-start -->
 - `core/auth/`: `session.ts` (with `getCurrentUser`), `cookies.ts`, `refresh.ts`, `token.ts`, `next-path.ts` (a `'use client'`
   file imports no value from it); `core/actions/safe-action.ts` also holds `accountAction`, `roleAction`.
@@ -74,10 +75,11 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
 | Addition                                                  | Home                                                 |
 | --------------------------------------------------------- | ---------------------------------------------------- |
 | A contract type, an interface, an enum, a constant        | `models/<noun>/{type,interface,enum,constant}.ts`    |
-| A form's zod schema, its outcome copy                     | `actions/<noun>.form.ts`, `actions/<noun>.copy.ts`   |
+| A form's schema, its outcome copy                         | `actions/<noun>/<noun>.form.ts`, `<noun>.copy.ts`    |
 | A read from the API                                       | `services/<noun>.ts`                                 | <!-- @server -->
 | A read of the product's data                              | `services/<noun>.ts`                                 | <!-- @noserver -->
-| A mutation                                                | `actions/<noun>.ts`                                  |
+| A mutation                                                | `actions/<noun>/<noun>.ts`                           |
+| A validation rule `validation` has no function for        | a named function in `shared/utils/validation.ts`     |
 | A route, its layout, loading and error                    | `app/(group)/…`, its sheet beside it                 |
 | A section of one route, or the form that runs a mutation  | `app/<route>/_components/<name>/<name>.tsx` + `.scss`|
 | A component a layout or several routes use                | `layout/app-<name>/app-<name>.tsx` + `.scss`         |
@@ -116,6 +118,10 @@ Also lint-enforced:
   `revalidatePath` and a bare `fetch(` only in `services/`. `process.env` only in `core/config/env.ts`.
 - The `style` JSX attribute nowhere; a stylesheet import is only the owner's sibling
   `./<stem>.scss`; only `app/layout.tsx` and `app/global-error.tsx` load the global tree.
+- `zod` and `@hookform/resolvers` are imported only by `shared/utils/validation.ts`. Everything
+  else builds and runs a schema with its functions (`text`, `number`, `email`, `url`, `isoDateTime`, `literal`, `object`, `extend`, `field`, `optional`, `withDefault`, `check`, `transform`, `pipe`, `validate`, `isValid`, `parse`, `formResolver`;
+  types `Input`, `Output`) and calls no method on a schema, the generated ones included, so a
+  library switch is that file and the client generator's plugin.
 - `boundaries/no-unknown-files` is on: a file in a directory no layer claims (`src/lib/`,
   `src/hooks/`) is an error; `src/styles/**` and the tests are exempt.
 
@@ -132,7 +138,7 @@ This package has no server. What arrives with one is added by the harness (`scri
 <!-- @noserver-end -->
 
 1. Name the noun and the action in `.doc/glossary.md`. The noun gets `models/post/` and
-   `services/post.ts`, the action an export of `actions/post.ts`, the page `app/(site)/post/`.
+   `services/post.ts`, the action an export of `actions/post/post.ts`, the page `app/(site)/post/`.
 <!-- @server-start -->
 2. If the server's contract changed, run `bun run api:types`: `src/services/generated/` is
    regenerated and committed, never edited.
@@ -147,10 +153,10 @@ everything else in them already exists in the template.
 
 <!-- @server-start -->
 3. The model, `models/post/type.ts`: the contract's types re-exported; the form schema is
-   `actions/post.form.ts` (it extends the generated request schema, after
-   `@/shared/utils/zod-messages`) and the copy table `actions/post.copy.ts`.
+   `actions/post/post.form.ts` (`extend` of `@/shared/utils/validation`
+   over the generated request schema) and the copy table `actions/post/post.copy.ts`.
 <!-- @server-end -->
-3. The model, `models/post/type.ts`: the types; the form schema `actions/post.form.ts` (it imports `@/shared/utils/zod-messages` first), the copy `actions/post.copy.ts`. <!-- @noserver -->
+3. The model, `models/post/type.ts`: the types; the form schema `actions/post/post.form.ts` (built with `@/shared/utils/validation`), the copy `actions/post/post.copy.ts`. <!-- @noserver -->
 4. A read is a function of `services/post.ts` (Reads has the rules):
 
    ```ts
@@ -165,10 +171,10 @@ everything else in them already exists in the template.
    ```
 
 <!-- @server-start -->
-5. A mutation is an export of `actions/post.ts` over a write of `services/post.ts` (the blocks
+5. A mutation is an export of `actions/post/post.ts` over a write of `services/post.ts` (the blocks
    under Mutations) and a client leaf that runs it, in the route's `_components/`:
 <!-- @server-end -->
-5. A mutation is an export of `actions/post.ts` (Mutations has the rules) and a client leaf that runs it, in the route's `_components/`: <!-- @noserver -->
+5. A mutation is an export of `actions/post/post.ts` (Mutations has the rules) and a client leaf that runs it, in the route's `_components/`: <!-- @noserver -->
 
    ```tsx
    // app/(site)/post/_components/rename-post-button/rename-post-button.tsx
@@ -288,7 +294,7 @@ export async function updatePost(id: string, body: { title: string }) {
   return patchApiPostById({ client: await createRequestApi(), path: { id }, body })
 }
 
-// actions/post.ts
+// actions/post/post.ts
 'use server'
 export const renamePost = action.inputSchema(renamePostSchema).action(async ({ parsedInput }) => {
   const post = await call(
@@ -328,16 +334,16 @@ An action is `action.inputSchema(schema).action(handler)`, and the handler ends 
 
 ### Forms
 
-React Hook Form with `zodResolver`, wired by `useHookFormAction` (from
-`@next-safe-action/adapter-react-hook-form/hooks`).
+React Hook Form with `formResolver` (from `@/shared/utils/validation`), wired by
+`useHookFormAction` (from `@next-safe-action/adapter-react-hook-form/hooks`).
 
 <!-- @server-start -->
-- The schema is in `actions/<noun>.form.ts` and extends the generated request schema
-  (`zPostApiXBody.extend({ … })`); limits are never copied. A field whose message is ours sets
+- The schema is in `actions/<noun>/<noun>.form.ts` and extends the generated request schema
+  (`extend(zPostApiXBody, { … })`); limits are never copied. A field whose message is ours sets
   that message itself, whatever the generated schema carries (the servers' schemas differ). The
-  same schema goes to `.inputSchema` and to `zodResolver`.
+  same schema goes to `.inputSchema` and to `formResolver`.
 <!-- @server-end -->
-- The schema is in `actions/<noun>.form.ts`; the same schema goes to `.inputSchema` and to `zodResolver`. <!-- @noserver -->
+- The schema is in `actions/<noun>/<noun>.form.ts`; the same schema goes to `.inputSchema` and to `formResolver`. <!-- @noserver -->
 - `<Form form={form} onSubmit={ignoreNavigation(handleSubmitWithAction)}>` provides the context; `TextField`,
   `TextareaField`, `NumberField`, `SelectField`, `CheckboxField`, `PasswordField` and
   `DateTimeField` (all in `shared/components/form/`) take a `name` and a `label`. An error shows
@@ -380,10 +386,10 @@ expiry fields). The browser never talks to the API and never holds a token in Ja
   `{ user, accessToken }` or `null`, failing closed; `requireAccount(returnTo?)` redirects a
   visitor to `/sign-in?next=…`; `requireRole('admin', returnTo?)` does the same and sends an
   account with another role to `/forbidden`. The role is the API's answer, never a claim in the token.
-- `actions/auth.ts`: `signUp`, `signIn` and `signOut`, over `services/auth.ts`. A success sets the cookies and
+- `actions/auth/auth.ts`: `signUp`, `signIn` and `signOut`, over `services/auth.ts`. A success sets the cookies and
   redirects to a safe `next` path (`safeNextPath` accepts only a path on this site); `signOut`
   clears the cookies even if the API cannot be reached.
-- `actions/auth.form.ts`: the schemas run the generated email check and `z.email()` in one `superRefine`
+- `actions/auth/auth.form.ts`: the schemas run the generated email check and `email()` in one `check`
   (one server's schema has no format check); `SIGN_IN_COPY` maps 401 to "Email or password is
   wrong." because the API cannot tell the two apart. `SignInForm` and `SignUpForm`
   (`app/(auth)/*/_components/*/`) are the form pattern.

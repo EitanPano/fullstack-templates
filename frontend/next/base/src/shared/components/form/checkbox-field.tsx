@@ -8,7 +8,7 @@ import { FieldFrame } from './field-frame/field-frame'
 import type { FieldProps } from './text-field'
 import { useField } from './use-field'
 
-// The value is a boolean. A "must accept" box is a schema's `z.literal(true)`.
+// The value is a boolean. A "must accept" box is a schema's `literal(true)`.
 export function CheckboxField({ name, label, description }: FieldProps) {
   const field = useField(name, description !== undefined)
   const { field: control } = useController({ name })

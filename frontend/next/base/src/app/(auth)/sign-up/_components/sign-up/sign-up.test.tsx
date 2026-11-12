@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { SignUp } from './sign-up'
 
-vi.mock('@/actions/auth', () => ({
+vi.mock('@/actions/auth/auth', () => ({
   signIn: vi.fn(),
   signUp: vi.fn(),
   signOut: vi.fn(),

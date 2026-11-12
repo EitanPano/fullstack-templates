@@ -6,10 +6,10 @@ import { SignInForm } from './sign-in-form'
 
 // The action and the toast library are boundaries: the action is a fake that answers like
 // next-safe-action does, so the test asserts what the person sees.
-vi.mock('@/actions/auth', () => ({ signIn: vi.fn(), signUp: vi.fn() }))
+vi.mock('@/actions/auth/auth', () => ({ signIn: vi.fn(), signUp: vi.fn() }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
-const { signIn } = await import('@/actions/auth')
+const { signIn } = await import('@/actions/auth/auth')
 const { toast } = await import('sonner')
 
 async function fill(email: string, password: string) {

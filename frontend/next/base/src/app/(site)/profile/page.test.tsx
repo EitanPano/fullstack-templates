@@ -9,13 +9,13 @@ import Profile, { metadata } from '@/app/(site)/profile/page'
 vi.mock('./_components/profile-card/profile-card', () => ({
   ProfileCard: () => <p>the profile card</p>,
 }))
-vi.mock('@/actions/auth', () => ({
+vi.mock('@/actions/auth/auth', () => ({
   signOut: vi.fn(),
   signIn: vi.fn(),
   signUp: vi.fn(),
 }))
 
-const { signOut } = await import('@/actions/auth')
+const { signOut } = await import('@/actions/auth/auth')
 
 describe('the profile page', () => {
   beforeEach(() => {

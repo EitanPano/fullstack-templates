@@ -1,6 +1,6 @@
 # Changelog
 
-## 6.0.0 — 2026-11-11
+## 6.0.0 — 2026-11-12
 
 The owner's folder rules on the tree: `models/` holds one folder per entity and only declarations, the app chrome is `layout/`, there is one `components` folder (`shared/components/`), the form controls sit in `shared/components/form/`, and a component of two or more files is a folder named for it. A breaking move: no behaviour, markup, class name, copy or route changes. A project generated from 5.x keeps its tree; there is no migration tool, the table is the migration. All paths are under `src/`.
 

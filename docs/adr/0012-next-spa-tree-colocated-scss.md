@@ -59,7 +59,7 @@ The ten invariants of `docs/conventions.md › Frontend` hold; invariant 6 loses
   `next-themes`'. The agents file and the lint name the layer so a product's first shared state
   has one place; an empty folder is not committed.
 - ▲ **`actions/` is keyed by noun, not by action**, so it reads like `services/`: `actions/auth.ts`
-  exports `signIn`, `signUp` and `signOut`. The glossary still lists each action as a verb.
+  exports `signIn`, `signUp` and `signOut` (a folder per noun, `actions/auth/auth.ts`, since ADR 0013 F8). The glossary still lists each action as a verb.
 - A page is `page.tsx`, and its sheet is `page.scss` beside it; the route folder names both.
 - **The owner's folder rules (2026-11-11).** `models/` is a folder per entity holding only
   `interface.ts`, `type.ts`, `enum.ts` and `constant.ts`, each when needed. `services/` is the

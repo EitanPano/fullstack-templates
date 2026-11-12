@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.0.0 — 2026-11-11
+## 4.0.0 — 2026-11-12
 
 The owner's folder rules ([ADR 0012](../../docs/adr/0012-next-spa-tree-colocated-scss.md)): `models/` holds one folder per noun with four file names, one folder is named `components`, and a component of two or more files is a folder. Markup, class names, copy, routes, URLs and behaviour are unchanged. A project generated from 3.x keeps its tree; there is no migration tool.
 
