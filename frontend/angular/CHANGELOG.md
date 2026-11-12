@@ -28,6 +28,9 @@ All paths are under `src/app/`.
 - `eslint.config.mjs`: the element `components` is `layout`; `page-components` matches a component folder inside a page folder.
 - `tests/unit/eslint-boundaries.spec.ts`, `tests/unit/component-styles.spec.ts`: re-pathed; every rule keeps one refused and one allowed case. The "no layer claims it" case now refuses `src/app/components/`.
 - `AGENTS.md`: the layer list, the "Where does X go" and import tables, the models, error-envelope, shell, shared-sheet and test paragraphs name the new paths and the models rule.
+- zod behind one facade, `shared/utils/validation.ts` (`text`, `number`, `literal`, `object`, `field`, `pick`, `either`, `check`, `validate`, the types `Schema`, `Input`, `Output`, `Issue`, `IssueKind`, `Result`). `shared/validators/zod.validator.ts` is `schema.validator.ts`; `zodValidator` is `schemaValidator` and reads the facade's `validate` result; the control error key `zod` is `schema` (`errors.schema`), `ZodErrorValue` is `SchemaErrorValue`. No file but the facade calls a method on a schema (`user.form.ts`, `auth.form.ts` and the specs go through it). A project generated before keeps `zod.validator.ts` and `errors.zod`.
+- `eslint.config.mjs`: `no-restricted-imports` refuses `zod` outside `shared/utils/validation.ts`; a `*.form.ts` may import that one file. `tests/unit/eslint-boundaries.spec.ts` has a refused case (page, form, services, validators) and an allowed one (the facade).
+- `AGENTS.md`: the form recipe and import tables name `schemaValidator` and the facade; an "External libraries" rule lists the facades.
 
 ### Tests
 

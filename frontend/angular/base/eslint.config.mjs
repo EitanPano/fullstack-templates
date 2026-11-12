@@ -100,7 +100,7 @@ const policies = [
   ...row(
     'page-form',
     [sel(['shared-validators', 'models'])],
-    'a *.form.ts imports shared/validators, models/ and the generated zod schemas (services/generated/zod.gen) only',
+    'a *.form.ts imports shared/validators, shared/utils/validation, models/ and the generated zod schemas (services/generated/zod.gen) only',
   ),
   ...row(
     'store',
@@ -168,6 +168,10 @@ const policies = [
     allow: { to: sel('services-generated', { fileInternalPath: 'zod.gen.ts' }) },
   },
   {
+    from: sel('page-form'),
+    allow: { to: sel('shared', { fileInternalPath: 'utils/validation.ts' }) },
+  },
+  {
     from: sel('services'),
     allow: { to: sel('services-generated') },
   },
@@ -178,6 +182,16 @@ const HTTP = [
     name: '@angular/common/http',
     message:
       'HttpClient is imported only in services/, core/interceptors/ and core/config/: call the API through a service facade over the generated client',
+  },
+]
+
+// An external library is imported only by its facade (AGENTS.md: "External libraries"). The
+// framework, rxjs and the libraries ADR 0006 chose as the architecture are exempt.
+const VALIDATION_LIBRARY = [
+  {
+    name: 'zod',
+    message:
+      'zod is imported only by shared/utils/validation.ts: build and run schemas through its functions',
   },
 ]
 
@@ -275,7 +289,7 @@ export default defineConfig([
     rules: {
       'boundaries/dependencies': ['error', { default: 'disallow', policies }],
       'boundaries/no-unknown-files': 'error',
-      'no-restricted-imports': ['error', { paths: HTTP }],
+      'no-restricted-imports': ['error', { paths: [...HTTP, ...VALIDATION_LIBRARY] }],
     },
   },
   {
@@ -287,6 +301,11 @@ export default defineConfig([
       'src/app/core/config/**/*.ts',
       'src/app/core/i18n/transloco-http.loader*.ts', // @i18n
     ],
+    rules: { 'no-restricted-imports': ['error', { paths: VALIDATION_LIBRARY }] },
+  },
+  {
+    // The validation facade is the one file that names the library.
+    files: ['src/app/shared/utils/validation.ts'],
     rules: { 'no-restricted-imports': 'off' },
   },
   {

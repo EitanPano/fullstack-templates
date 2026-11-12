@@ -16,6 +16,6 @@ describe('profileForm', () => {
     expect(form.valid).toBe(true)
     form.controls.phone.setValue('0501234567')
     expect(form.valid).toBe(false)
-    expect(form.controls.phone.errors?.['zod']).toEqual({ messageKey: 'errors.pattern' })
+    expect(form.controls.phone.errors?.['schema']).toEqual({ messageKey: 'errors.pattern' })
   })
 })
