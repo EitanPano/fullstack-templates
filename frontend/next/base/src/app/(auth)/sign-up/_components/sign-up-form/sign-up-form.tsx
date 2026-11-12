@@ -1,24 +1,28 @@
 'use client'
 
-import { useHookFormAction } from '@next-safe-action/adapter-react-hook-form/hooks'
 import Link from 'next/link'
 import { useEffect } from 'react'
-import { toast } from 'sonner'
 
 import { signUp } from '@/actions/auth/auth'
 import { signUpSchema } from '@/actions/auth/auth.form'
 import { Button } from '@/shared/components/button/button'
-import { hasField, ignoreNavigation, unplacedMessage } from '@/shared/components/form/action-form/action-form'
+import {
+  hasField,
+  ignoreNavigation,
+  unplacedMessage,
+  useActionForm,
+} from '@/shared/components/form/action-form/action-form'
 import { Form } from '@/shared/components/form/form'
 import { PasswordField } from '@/shared/components/form/password-field'
 import { TextField } from '@/shared/components/form/text-field'
 import { FormActions } from '@/shared/components/form/form-actions/form-actions'
+import { toastError } from '@/shared/components/toaster/toaster'
 import { formResolver } from '@/shared/utils/validation'
 
 // A taken email comes back as an error on the email field (the action maps the 409 there), so
 // only outcomes without a field (the rate limit, an outage) are toasts.
 export function SignUpForm({ next }: { next?: string }) {
-  const { form, handleSubmitWithAction, action } = useHookFormAction(
+  const { form, handleSubmitWithAction, action } = useActionForm(
     signUp,
     formResolver(signUpSchema),
     {
@@ -28,7 +32,7 @@ export function SignUpForm({ next }: { next?: string }) {
           const message =
             error.serverError ??
             unplacedMessage(error.validationErrors, (path) => hasField(form, path))
-          if (message) toast.error(message)
+          if (message) toastError(message)
         },
       },
     },

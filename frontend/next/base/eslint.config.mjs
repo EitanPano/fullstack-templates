@@ -152,13 +152,59 @@ const STYLESHEETS = [
     message: "import the component's own sibling sheet, './<stem>.scss'",
   },
 ]
-// The validation library is named in one file, so a library switch rewrites that file (and the
-// plugin behind services/generated/zod.gen.ts, which lint ignores).
-const VALIDATION_LIBRARY = {
-  group: ['zod', 'zod/**', '@hookform/resolvers', '@hookform/resolvers/**'],
-  message:
-    "build and run a schema through '@/shared/utils/validation', the one file that imports zod",
+// An external library is imported by its facade alone, so a library switch rewrites that file
+// (for zod also the plugin behind services/generated/zod.gen.ts, which lint ignores). The kit
+// libraries (radix-ui, react-hook-form) are imported across the folder that wraps them.
+const library = (modules, message) => ({
+  group: modules.flatMap((name) => [name, `${name}/**`]),
+  message,
+})
+const VALIDATION_LIBRARY = library(
+  ['zod', '@hookform/resolvers'],
+  "build and run a schema through '@/shared/utils/validation'",
+)
+const ICON_LIBRARY = library(['lucide-react'], "import an icon from '@/shared/components/icons'")
+const TOAST_LIBRARY = library(
+  ['sonner'],
+  "show a toast with toastError from '@/shared/components/toaster/toaster'",
+)
+const THEME_LIBRARY = library(
+  ['next-themes'],
+  "use ThemeProvider and useAppTheme from '@/shared/components/theme/theme'",
+)
+const ACTION_LIBRARY = library(
+  ['next-safe-action', '@next-safe-action'],
+  "define an action in '@/core/actions/safe-action' (field errors: '@/core/actions/field-errors'); run one with useServerAction or useActionForm from '@/shared/components/form/action-form/action-form'",
+)
+const FORM_LIBRARY = library(
+  ['react-hook-form'],
+  'react-hook-form is used inside src/shared/components/form/ only: build a form with the form components',
+)
+const KIT_LIBRARY = library(
+  ['radix-ui', '@radix-ui'],
+  'radix-ui is used inside src/shared/components/ only: wrap the primitive there',
+)
+const CLASS_LIBRARY = library(['clsx'], "compose class names with cn from '@/shared/utils/cn'")
+const DATE_LIBRARY = library(
+  ['date-fns', '@date-fns'],
+  "format and shift dates through '@/shared/utils/date'",
+)
+const LIBRARIES = {
+  validation: VALIDATION_LIBRARY,
+  icon: ICON_LIBRARY,
+  toast: TOAST_LIBRARY,
+  theme: THEME_LIBRARY,
+  action: ACTION_LIBRARY,
+  form: FORM_LIBRARY,
+  kit: KIT_LIBRARY,
+  cls: CLASS_LIBRARY,
+  date: DATE_LIBRARY,
 }
+// Every library's restriction except the named ones: a facade file lifts only its own.
+const librariesExcept = (...names) =>
+  Object.entries(LIBRARIES)
+    .filter(([name]) => !names.includes(name))
+    .map(([, pattern]) => pattern)
 const restrictImports = (...patterns) => ({
   'no-restricted-imports': ['error', { patterns }],
 })
@@ -248,7 +294,7 @@ export default defineConfig([
       'local/client-server-import': 'error',
       'local/route-components': 'error',
       ...restrictSyntax(RAW_CONTROLS, NETWORK, STYLE),
-      ...restrictImports(...STYLESHEETS, VALIDATION_LIBRARY),
+      ...restrictImports(...STYLESHEETS, ...librariesExcept()),
     },
   },
   {
@@ -269,12 +315,36 @@ export default defineConfig([
     // The two files that load the global style tree: the root layout and global-error.tsx, which
     // renders its own document when the layout fails.
     files: ['src/app/layout.tsx', 'src/app/global-error.tsx'],
-    rules: restrictImports(VALIDATION_LIBRARY),
+    rules: restrictImports(...librariesExcept()),
+  },
+  // Facades: each file below lifts the restriction of its own library and keeps the rest. A
+  // block replaces the rule for its files, so a file matched by two of them (the kit, then the
+  // form folder, then a facade inside it) states everything it may import.
+  {
+    files: ['src/shared/components/**'],
+    rules: restrictImports(...STYLESHEETS, ...librariesExcept('kit')),
   },
   {
-    files: ['src/shared/utils/validation.ts'],
-    rules: restrictImports(...STYLESHEETS),
+    files: ['src/shared/components/form/**'],
+    rules: restrictImports(...STYLESHEETS, ...librariesExcept('kit', 'form')),
   },
+  {
+    files: ['src/shared/components/form/action-form/action-form.ts'],
+    rules: restrictImports(...STYLESHEETS, ...librariesExcept('form', 'action')),
+  },
+  ...[
+    ['src/shared/utils/validation.ts', 'validation'],
+    ['src/shared/utils/cn.ts', 'cls'],
+    ['src/shared/utils/date.ts', 'date'],
+    ['src/shared/components/icons.ts', 'icon'],
+    ['src/shared/components/toaster/toaster.tsx', 'toast'],
+    ['src/shared/components/theme/theme.tsx', 'theme'],
+    ['src/core/actions/safe-action.ts', 'action'],
+    ['src/core/actions/field-errors.ts', 'action'],
+  ].map(([file, name]) => ({
+    files: [file],
+    rules: restrictImports(...STYLESHEETS, ...librariesExcept(name)),
+  })),
   {
     files: [
       'src/core/config/env.ts',

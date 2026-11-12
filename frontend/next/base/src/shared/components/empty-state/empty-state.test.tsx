@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react'
-import { InboxIcon } from 'lucide-react'
 import { describe, expect, it } from 'vitest'
 
 import { Button } from '@/shared/components/button/button'
+import { InboxIcon } from '@/shared/components/icons'
 import { EmptyState } from '@/shared/components/empty-state/empty-state'
 
 describe('EmptyState', () => {

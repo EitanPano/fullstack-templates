@@ -9,10 +9,10 @@ import {
 } from '@/shared/components/dropdown-menu/dropdown-menu'
 import { AppThemeMenu } from '@/layout/app-theme-menu/app-theme-menu'
 
-// next-themes is a boundary: its hook is faked so the test asserts which theme is requested.
+// The theme hook is a boundary: its hook is faked so the test asserts which theme is requested.
 const setTheme = vi.fn()
 let theme: string | undefined = 'dark'
-vi.mock('next-themes', () => ({ useTheme: () => ({ theme, setTheme }) }))
+vi.mock('@/shared/components/theme/theme', () => ({ useAppTheme: () => ({ theme, setTheme }) }))
 
 // The toggle renders menu items, so it needs an open menu around it.
 async function openToggle() {

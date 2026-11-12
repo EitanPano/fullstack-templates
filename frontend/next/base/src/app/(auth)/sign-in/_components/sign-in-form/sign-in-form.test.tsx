@@ -7,10 +7,10 @@ import { SignInForm } from './sign-in-form'
 // The action and the toast library are boundaries: the action is a fake that answers like
 // next-safe-action does, so the test asserts what the person sees.
 vi.mock('@/actions/auth/auth', () => ({ signIn: vi.fn(), signUp: vi.fn() }))
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('@/shared/components/toaster/toaster', () => ({ toastError: vi.fn() }))
 
 const { signIn } = await import('@/actions/auth/auth')
-const { toast } = await import('sonner')
+const { toastError } = await import('@/shared/components/toaster/toaster')
 
 async function fill(email: string, password: string) {
   if (email) await userEvent.type(screen.getByLabelText('Email'), email)
@@ -35,7 +35,7 @@ describe('SignInForm', () => {
       password: 'correct horse',
       next: '/profile',
     })
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('clears the fields after success, so no typed password stays in a kept page', async () => {
@@ -79,7 +79,7 @@ describe('SignInForm', () => {
     expect(screen.getByText('Enter a valid email address')).toHaveAttribute('role', 'alert')
     expect(screen.getByLabelText('Password')).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByText('Use at least 8 characters')).toBeInTheDocument()
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('reports a refused sign-in (wrong password) with a toast, leaving the fields unmarked', async () => {
@@ -88,7 +88,7 @@ describe('SignInForm', () => {
 
     await fill('a@b.co', 'correct horse')
 
-    expect(toast.error).toHaveBeenCalledWith('Email or password is wrong.')
+    expect(toastError).toHaveBeenCalledWith('Email or password is wrong.')
     expect(screen.getByLabelText('Email')).not.toHaveAttribute('aria-invalid')
     expect(screen.getByLabelText('Password')).not.toHaveAttribute('aria-invalid')
   })
@@ -103,7 +103,7 @@ describe('SignInForm', () => {
 
     expect(await screen.findByText('Check this field.')).toHaveAttribute('role', 'alert')
     expect(screen.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'true')
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('toasts the message of an error for a field the form does not have', async () => {
@@ -115,7 +115,7 @@ describe('SignInForm', () => {
     await fill('a@b.co', 'correct horse')
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Pick another nickname.')
+      expect(toastError).toHaveBeenCalledWith('Pick another nickname.')
     })
   })
 

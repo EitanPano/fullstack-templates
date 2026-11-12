@@ -1,4 +1,4 @@
-import { CircleIcon } from 'lucide-react'
+import { CircleIcon } from '@/shared/components/icons'
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui'
 import type { ComponentProps } from 'react'
 

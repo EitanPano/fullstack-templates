@@ -1,6 +1,12 @@
 import type { BaseSyntheticEvent } from 'react'
 import { get } from 'react-hook-form'
 
+// The client side of the action library: the hooks a Client Component calls, named for what they
+// do. This file is the one that imports it (the server side is core/actions/).
+// useServerAction runs an action; useActionForm is a react-hook-form bound to one.
+export { useAction as useServerAction } from 'next-safe-action/hooks'
+export { useHookFormAction as useActionForm } from '@next-safe-action/adapter-react-hook-form/hooks'
+
 // Next signals a redirect or a not-found by throwing an error with a `digest`; the router reads
 // it, so a form must not report it. These are Next's own prefixes (its `isNextRouterError`).
 const NAVIGATION = ['NEXT_REDIRECT', 'NEXT_NOT_FOUND', 'NEXT_HTTP_ERROR_FALLBACK']

@@ -18,7 +18,7 @@ export function handleServerError(error: Error): string {
 }
 
 // Every action starts from one of these clients. `.inputSchema(schema)` validates the input,
-// `.action(handler)` is the Server Action; `returnValidationErrors` puts an error on a field.
+// `.action(handler)` is the Server Action; `returnFieldErrors` (field-errors.ts) puts an error on a field.
 export const action = createSafeActionClient({ handleServerError })
 
 // @server:auth-start

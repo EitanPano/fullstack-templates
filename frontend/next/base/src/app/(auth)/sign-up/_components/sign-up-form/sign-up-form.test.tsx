@@ -5,10 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SignUpForm } from './sign-up-form'
 
 vi.mock('@/actions/auth/auth', () => ({ signIn: vi.fn(), signUp: vi.fn() }))
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('@/shared/components/toaster/toaster', () => ({ toastError: vi.fn() }))
 
 const { signUp } = await import('@/actions/auth/auth')
-const { toast } = await import('sonner')
+const { toastError } = await import('@/shared/components/toaster/toaster')
 
 async function fill(email: string, password: string, confirm: string) {
   await userEvent.type(screen.getByLabelText('Email'), email)
@@ -94,7 +94,7 @@ describe('SignUpForm', () => {
       await screen.findByText('That email is already registered. Sign in instead.'),
     ).toHaveAttribute('role', 'alert')
     expect(screen.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'true')
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('reports the rate limit (429) with a toast', async () => {
@@ -105,7 +105,7 @@ describe('SignUpForm', () => {
 
     await fill('a@b.co', 'correct horse', 'correct horse')
 
-    expect(toast.error).toHaveBeenCalledWith(
+    expect(toastError).toHaveBeenCalledWith(
       'Too many sign-up attempts. Wait a few minutes and try again.',
     )
   })
@@ -119,7 +119,7 @@ describe('SignUpForm', () => {
     await fill('a@b.co', 'correct horse', 'correct horse')
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Pick another nickname.')
+      expect(toastError).toHaveBeenCalledWith('Pick another nickname.')
     })
   })
 

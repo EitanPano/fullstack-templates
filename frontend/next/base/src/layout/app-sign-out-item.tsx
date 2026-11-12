@@ -1,14 +1,13 @@
 'use client'
 
-import { LogOutIcon } from 'lucide-react'
-import { useAction } from 'next-safe-action/hooks'
-
 import { signOut } from '@/actions/auth/auth'
 import { DropdownMenuItem } from '@/shared/components/dropdown-menu/dropdown-menu'
+import { useServerAction } from '@/shared/components/form/action-form/action-form'
+import { LogOutIcon } from '@/shared/components/icons'
 
 // A menu item for the AppUserMenu's items slot. The action clears the cookies and redirects.
 export function AppSignOutItem() {
-  const { execute } = useAction(signOut)
+  const { execute } = useServerAction(signOut)
   return (
     <DropdownMenuItem
       onSelect={() => {

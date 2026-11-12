@@ -1,12 +1,11 @@
 'use client'
 
-import { useTheme } from 'next-themes'
-
 import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from '@/shared/components/dropdown-menu/dropdown-menu'
+import { useAppTheme } from '@/shared/components/theme/theme'
 
 const CHOICES = [
   { value: 'light', label: 'Light' },
@@ -17,7 +16,7 @@ const CHOICES = [
 // The theme choices as menu items; the AppUserMenu renders them. `theme` is undefined until the
 // provider has mounted, which reads as System, the provider's own default.
 export function AppThemeMenu() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme } = useAppTheme()
   return (
     <>
       <DropdownMenuLabel>Theme</DropdownMenuLabel>
