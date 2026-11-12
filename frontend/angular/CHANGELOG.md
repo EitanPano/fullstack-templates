@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.0.0 — 2026-11-11
+## 4.0.0 — 2026-11-12
 
 The folder rules of the owner: `models/` holds only entity files, there is one `components` folder, the form controls live together, and a component of several files is a folder named for it. Markup, class names, selectors, copy, routes and behaviour do not change. A project generated from 3.x keeps its tree; there is no migration tool.
 

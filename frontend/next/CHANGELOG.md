@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.0.0 — 2026-11-11
+## 4.0.0 — 2026-11-12
 
 The layer names of the single-page templates, and their styling system (ADR 0012). `app/` stays as the pages layer, and `widget/`, `feature/`, `entity/` and the Feature-Sliced `shared/` give way to `layout/`, `services/`, `actions/`, `store/`, `models/`, `shared/`, `core/` and `styles/`; Tailwind and the copied shadcn primitives give way to React's kit on a global SCSS tree in cascade layers, with a sibling `.scss` beside every page and component. A project generated from 3.x keeps its tree; there is no migration tool.
 
