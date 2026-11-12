@@ -158,7 +158,7 @@ describe('withRefresh', () => {
 
   it.each([
     '/api/auth/login',
-    '/api/auth/register',
+    '/api/auth/signup',
     '/api/auth/refresh',
     '/api/auth/otp',
     '/api/auth/otp/verification',

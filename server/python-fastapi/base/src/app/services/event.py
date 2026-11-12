@@ -14,11 +14,11 @@ from app.infra.pubsub import SubscriberEntry, Unsubscribe, pubsub
 
 __all__ = [
     "MODULE_CREATED",
-    "USER_REGISTERED",  # @auth
+    "USER_SIGNEDUP",  # @auth
     "ModuleCreated",
     "Topic",
     "Unsubscribe",
-    "UserRegistered",  # @auth
+    "UserSignedUp",  # @auth
     "detach",
     "drain",
     "publish",
@@ -43,11 +43,11 @@ MODULE_CREATED: Final = Topic[ModuleCreated]("module.created")
 
 
 # @auth-start
-class UserRegistered(TypedDict):
+class UserSignedUp(TypedDict):
     user_id: str
 
 
-USER_REGISTERED: Final = Topic[UserRegistered]("user.registered")
+USER_SIGNEDUP: Final = Topic[UserSignedUp]("user.signedup")
 # @auth-end
 
 

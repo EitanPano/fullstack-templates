@@ -1,4 +1,4 @@
-const AUTH_SCREENS = /^\/auth\/(login|register)(\/|\?|#|$)/
+const AUTH_SCREENS = /^\/auth\/(login|signup)(\/|\?|#|$)/
 // Backslashes and control characters: browsers read `/\host` as `//host`, and a newline can split
 // a header.
 // eslint-disable-next-line no-control-regex -- the control characters are what this rejects

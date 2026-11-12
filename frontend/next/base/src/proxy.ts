@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server'
 
-import { refreshSession } from '@/shared/auth/refresh'
+import { refreshSession } from '@/core/auth/refresh'
 
 // Keeps the session alive: an expired access token is refreshed here, before the page renders,
 // because a Server Component cannot set cookies. This file never decides who may see what; that

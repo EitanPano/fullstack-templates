@@ -1,6 +1,6 @@
-import { AuthCardSkeleton } from '@/shared/ui/pattern/skeletons'
+import { AppAuthLoading } from '@/layout/app-auth-loading/app-auth-loading'
 
 // The loading state of every screen in the group, inside the layout's `main`.
 export default function Loading() {
-  return <AuthCardSkeleton />
+  return <AppAuthLoading />
 }

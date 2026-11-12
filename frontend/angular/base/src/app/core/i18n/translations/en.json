@@ -93,10 +93,10 @@
       "description": "Welcome back. Sign in to continue.",
       "submit": "Sign in",
       "noAccount": "No account yet?",
-      "registerLink": "Create an account",
+      "signupLink": "Create an account",
       "invalid": "The email or password is incorrect."
     },
-    "register": {
+    "signup": {
       "title": "Create your account",
       "description": "Use your email and a password of at least 8 characters.",
       "submit": "Create account",

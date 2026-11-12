@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs'
 
 import { expect, test, type Page } from '@playwright/test'
 
-import { registerThroughApi } from './auth-support' // @server:auth
+import { signupThroughApi } from './auth-support' // @server:auth
 import { capturedRoutes } from './screen-routes'
 import { SIGNED_IN_ROUTES } from './screen-routes' // @server:auth
 import { screenProblems, setTheme } from './support'
@@ -59,7 +59,7 @@ test('the signed-in screens', async ({ page }, info) => {
   test.setTimeout(
     REGISTRATION_MS + MARGIN_MS + SIGNED_IN_ROUTES.length * THEMES.length * CAPTURE_MS,
   )
-  await registerThroughApi(page, 'screens')
+  await signupThroughApi(page, 'screens')
 
   const problems: string[] = []
   for (const route of SIGNED_IN_ROUTES) {

@@ -7,9 +7,9 @@ import vuejsAccessibility from 'eslint-plugin-vuejs-accessibility'
 import tseslint from 'typescript-eslint'
 import vueParser from 'vue-eslint-parser'
 
-// The layer map (AGENTS.md › Layers): app → components, pages → core, store, services → shared,
-// models; components/ and pages/<module>/ never import each other. Every import the layers forbid is a `boundaries/dependencies` error whose message names
-// the layer to use. tests/unit/eslint-boundaries.spec.ts lints one violation and one allowed case
+// The layer map (AGENTS.md › Layers): app → layout, pages → core, store, services → shared,
+// models; layout/ and pages/<module>/ never import each other. Every import the layers forbid is a
+// `boundaries/dependencies` error whose message names the layer to use. tests/unit/eslint-boundaries.spec.ts lints one violation and one allowed case
 // per rule through this file, so a rule that stops firing fails the suite.
 //
 // ESLint flat config does not merge one rule's options across blocks: the last block that
@@ -22,7 +22,7 @@ const CORE_WIRING = ['core-guards', 'core-initializers', 'core-interceptors']
 // layer), so the layer lists below leave it out.
 const ALL = [
   'app',
-  'components',
+  'layout',
   'page',
   'store',
   'services',
@@ -33,7 +33,12 @@ const ALL = [
   'testing',
 ]
 const except = (...types) => ALL.filter((type) => !types.includes(type))
-const SHARED_BEYOND_VALIDATORS = ['components/**', 'composables/**', 'directives/**', 'utils/**']
+const SHARED_BEYOND_VALIDATORS = [
+  'components/**',
+  'composables/**',
+  'directives/**',
+  'utils/!(validation).ts',
+]
 
 const GENERATED_MESSAGE =
   "read the contract's types through models/<noun>/; only services/ and core/interceptors/http.provider.ts import the generated runtime, and store/, core/ and models/ may import its types"
@@ -44,7 +49,7 @@ const policies = [
     from: { element: { type: 'app' } },
     disallow: { to: { element: { type: ['services'] } } },
     message:
-      'app/ only wires: read data through a store in a page or in components/, never services/',
+      'app/ only wires: read data through a store in a page or in layout/, never services/',
   },
   {
     from: { element: { type: 'app' } },
@@ -70,12 +75,12 @@ const policies = [
       'main.ts imports app/, core/, shared/ and models/ only: plugins and routes are wired in app/',
   },
   {
-    from: { element: { type: 'components' } },
+    from: { element: { type: 'layout' } },
     disallow: {
       to: {
         element: {
           type: except(
-            'components',
+            'layout',
             'store',
             'core-config',
             'core-providers',
@@ -87,16 +92,23 @@ const policies = [
       },
     },
     message:
-      'components/ imports core/config, core/providers, store/, shared/ and models/ only: compose pages in app/routes.ts and read data through a store',
+      'layout/ imports core/config, core/providers, store/, shared/ and models/ only: compose pages in app/routes.ts and read data through a store',
   },
   {
-    from: { element: { type: 'page', fileInternalPath: ['*.vue', '!(*.routes|*.form).ts'] } },
+    // A page screen (<name>-page/<name>-page.vue) and the module's plain .ts files; a component of
+    // the page sits beside it and has the stricter rule below.
+    from: {
+      element: {
+        type: 'page',
+        fileInternalPath: ['*-page.vue', '*/*-page.vue', '!(*.routes|*.form).ts'],
+      },
+    },
     disallow: {
       to: {
         element: {
           type: [
             'app',
-            'components',
+            'layout',
             'services',
             'core-i18n',
             'core-errors',
@@ -110,7 +122,9 @@ const policies = [
       'a page reads a store, never services/: add a facade method and a store method first (a page imports store/, shared/, models/, core/config, core/providers, core/guards and its own page module only)',
   },
   {
-    from: { element: { type: 'page', fileInternalPath: 'components/**' } },
+    from: {
+      element: { type: 'page', fileInternalPath: ['!(*-page).vue', '*/!(*-page).vue'] },
+    },
     disallow: { to: { element: { type: except('page', 'shared', 'models', 'testing') } } },
     message:
       'a page component imports shared/ and models/ only: take data as props and read stores in the page',
@@ -127,13 +141,13 @@ const policies = [
     from: { element: { type: 'page', fileInternalPath: '*.form.ts' } },
     disallow: { to: { element: { type: except('page', 'shared', 'models', 'testing') } } },
     message:
-      'a *.form.ts imports shared/validators, models/ and the generated zod schemas only: keep the form schema pure',
+      'a *.form.ts imports shared/validators, shared/utils/validation, models/ and the generated zod schemas only: keep the form schema pure',
   },
   {
     from: { element: { type: 'page', fileInternalPath: '*.form.ts' } },
     disallow: { to: { element: { type: 'shared', fileInternalPath: SHARED_BEYOND_VALIDATORS } } },
     message:
-      'a *.form.ts imports shared/validators, models/ and the generated zod schemas only: keep the form schema pure',
+      'a *.form.ts imports shared/validators, shared/utils/validation, models/ and the generated zod schemas only: keep the form schema pure',
   },
   {
     from: { element: { type: 'page' } },
@@ -166,7 +180,7 @@ const policies = [
       },
     },
     message:
-      'store/ imports store/, services/, models/, core/providers, core/config and core/i18n only: it never knows pages, components/ or shared/',
+      'store/ imports store/, services/, models/, core/providers, core/config and core/i18n only: it never knows pages, layout/ or shared/',
   },
   {
     from: { element: { type: 'services' } },
@@ -178,7 +192,7 @@ const policies = [
   },
   {
     from: { element: { type: CORE_WIRING } },
-    disallow: { to: { element: { type: ['app', 'components', 'page'] } } },
+    disallow: { to: { element: { type: ['app', 'layout', 'page'] } } },
     message:
       'core wiring (guards, initializers, error and http interceptors) imports store/, services/, core/, shared/ and models/ only: routes and screens are composed in app/',
   },
@@ -289,7 +303,42 @@ const GENERATED_GROUP = {
   message: RUNTIME_MESSAGE,
 }
 const STYLE_GROUP = { group: ['**/*.css', '**/*.scss'], message: STYLE_MESSAGE }
-const restrictImports = (...patterns) => ({ 'no-restricted-imports': ['error', { patterns }] })
+// An external library is imported by its facade only; each facade file lifts its own entry
+// (restrictImportsAllowing). Generated code keeps its imports (src/services/generated is ignored);
+// the framework and its official ecosystem (vue, vue-router, pinia, vue-i18n) are exempt.
+const LIBRARIES = {
+  validation: {
+    group: ['zod', 'zod/*'],
+    message:
+      'zod is imported only by shared/utils/validation.ts: use its functions (text, object, validate, ...)',
+  },
+  primitives: {
+    group: ['reka-ui', 'reka-ui/*'],
+    message:
+      'reka-ui is imported only inside shared/components/: wrap the primitive in a kit component',
+  },
+  icons: {
+    group: ['lucide-vue-next', 'lucide-vue-next/*'],
+    message:
+      'lucide-vue-next is imported only by shared/components/icons.ts: add the icon there under the app’s name',
+  },
+  pwa: {
+    group: ['workbox-window', 'workbox-window/*', 'virtual:pwa-register', 'virtual:pwa-register/*'],
+    message:
+      'the service worker library is imported only by store/app-update.store.ts: add a method there',
+  },
+}
+const restrictImportsRaw = (...patterns) => ({
+  'no-restricted-imports': ['error', { patterns }],
+})
+const restrictImportsAllowing = (allowed, ...patterns) =>
+  restrictImportsRaw(
+    ...Object.entries(LIBRARIES)
+      .filter(([name]) => !allowed.includes(name))
+      .map(([, pattern]) => pattern),
+    ...patterns,
+  )
+const restrictImports = (...patterns) => restrictImportsAllowing([], ...patterns)
 
 export default defineConfig([
   globalIgnores([
@@ -370,7 +419,7 @@ export default defineConfig([
       // A file matches every element that fits, so the nested generated folder stops the search.
       'boundaries/elements': [
         { type: 'app', pattern: 'src/app', partialMatch: false },
-        { type: 'components', pattern: 'src/components', partialMatch: false },
+        { type: 'layout', pattern: 'src/layout', partialMatch: false },
         { type: 'page', pattern: 'src/pages/*', partialMatch: false, capture: ['page'] },
         { type: 'store', pattern: 'src/store', partialMatch: false },
         {
@@ -403,9 +452,35 @@ export default defineConfig([
     },
   },
   {
+    // interface.ts holds interfaces and type.ts holds type aliases, so the name says which.
+    files: ['src/models/*/interface.ts'],
+    rules: { '@typescript-eslint/consistent-type-definitions': ['error', 'interface'] },
+  },
+  {
     // The browser controls live here, wrapped once; everything else uses the wrappers.
     files: ['src/shared/components/**'],
     rules: { 'vue/no-restricted-html-elements': 'off' },
+  },
+  {
+    // The kit wraps the headless primitives: the one place reka-ui is imported.
+    files: ['src/shared/components/**'],
+    ignores: ['**/*.spec.ts'],
+    rules: restrictImportsAllowing(['primitives'], GENERATED_GROUP, STYLE_GROUP),
+  },
+  {
+    // The icon set is wrapped once, in the kit.
+    files: ['src/shared/components/icons.ts'],
+    rules: restrictImportsAllowing(['primitives', 'icons'], GENERATED_GROUP, STYLE_GROUP),
+  },
+  {
+    // The one file that names the validation library.
+    files: ['src/shared/utils/validation.ts'],
+    rules: restrictImportsAllowing(['validation'], GENERATED_GROUP, STYLE_GROUP),
+  },
+  {
+    // The one file that registers the service worker.
+    files: ['src/store/app-update.store.ts'],
+    rules: restrictImportsAllowing(['pwa'], GENERATED_GROUP, STYLE_GROUP),
   },
   {
     // The entry imports the stylesheets, and nothing else.
@@ -468,6 +543,11 @@ export default defineConfig([
     // A spec and the test helpers drive the code from outside: they stub and call fetch.
     files: ['src/**/*.spec.ts', 'src/testing/**'],
     rules: { ...restrictImports(), ...restrictSyntax(ENV) },
+  },
+  {
+    // A kit spec may import the primitive its component wraps, to stand in for the host.
+    files: ['src/shared/components/**/*.spec.ts'],
+    rules: { ...restrictImportsAllowing(['primitives']), ...restrictSyntax(ENV) },
   },
   {
     files: ['vite.config.ts', 'vitest.config.mts', 'playwright.config.ts'],

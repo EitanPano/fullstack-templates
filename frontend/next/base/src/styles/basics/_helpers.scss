@@ -1,0 +1,47 @@
+@use '../setup/functions';
+@use '../setup/mixins';
+@use '../setup/variables';
+
+@layer basics {
+  .visually-hidden {
+    @include mixins.visually-hidden;
+  }
+
+  // First in tab order; off screen until it takes focus. It is 44 px tall on any pointer, because
+  // it is the one control a keyboard user always meets.
+  .skip-link {
+    position: absolute;
+    inset-block-start: functions.space(2);
+    inset-inline-start: functions.space(2);
+    z-index: functions.z(skip-link);
+    display: inline-flex;
+    align-items: center;
+    min-block-size: variables.$touch-target;
+    padding-inline: functions.space(4);
+    border-radius: var(--radius);
+    background: var(--primary);
+    color: var(--primary-foreground);
+    text-decoration: none;
+    translate: 0 -200%;
+
+    &:focus,
+    &:focus-visible {
+      translate: 0;
+    }
+
+    @include mixins.touch-target;
+  }
+
+  // Lucide icons: 1 rem inside a button or a line of text, `icon--lg` for an empty state.
+  .icon {
+    flex: none;
+    inline-size: 1rem;
+    block-size: 1rem;
+  }
+
+  // Arrows and chevrons would mirror here; the set has none, so the icons stay as drawn in rtl.
+  .icon--lg {
+    inline-size: 2.5rem;
+    block-size: 2.5rem;
+  }
+}

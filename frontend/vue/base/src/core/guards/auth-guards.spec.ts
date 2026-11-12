@@ -23,7 +23,7 @@ function makeRouter() {
       { path: '/members', component: Page, beforeEnter: roleGuard },
       { path: '/forbidden', component: Page },
       { path: '/auth/login', component: Page, beforeEnter: guestGuard },
-      { path: '/auth/register', component: Page, beforeEnter: guestGuard },
+      { path: '/auth/signup', component: Page, beforeEnter: guestGuard },
     ],
   })
 }
@@ -196,12 +196,12 @@ describe('the route guards', () => {
   })
 
   describe('guestGuard', () => {
-    it('shows login and register to a visitor', async () => {
+    it('shows login and signup to a visitor', async () => {
       const router = makeRouter()
 
-      await router.push('/auth/register')
+      await router.push('/auth/signup')
 
-      expect(router.currentRoute.value.path).toBe('/auth/register')
+      expect(router.currentRoute.value.path).toBe('/auth/signup')
     })
 
     it('sends an account on login home', async () => {

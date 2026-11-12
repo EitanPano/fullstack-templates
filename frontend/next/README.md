@@ -3,9 +3,11 @@
 Next.js 16 App Router with a typed API client, SDK and zod schemas generated from the server's
 OpenAPI contract (Hey API), server actions on next-safe-action, forms on React Hook Form, Cache
 Components, date helpers on `date-fns`, and, when the stack's server has its `auth` flag on, the
-session glue (HttpOnly cookies, `proxy.ts` refresh, sign-in and sign-up). Tailwind CSS v4, shadcn/ui,
-Vitest and Playwright with axe. Generated alone or as the `frontend` of the `next-bun-express`
-stack.
+session glue (HttpOnly cookies, `proxy.ts` refresh, sign-in and sign-up). The layer names of the
+single-page templates (`app/` as the pages layer, `layout/`, `services/`, `actions/`, `models/`,
+`shared/`, `core/`, `styles/`), Radix primitives on a global SCSS tree in cascade layers with a
+sibling `.scss` beside every page and component (ADR 0012), Vitest and Playwright with axe.
+Generated alone or as the `frontend` of the `next-bun-express` stack.
 
 A generated app has no header, navigation, footer or example screen: `src/app/(site)/` is a skip link, one
 `main` and an index route of one `h1`; the product builds its own chrome (ADR 0010).
@@ -14,7 +16,7 @@ A generated app has no header, navigation, footer or example screen: `src/app/(s
 
 - `template.yaml`: the manifest (commands, contract, HTTP surface).
 - `base/`: the files copied into the generated package, including `AGENTS.md`, `bun.lock` and
-  the committed `src/shared/api/generated/`. `onlyWhen` in the manifest lists the files that exist
+  the committed `src/services/generated/`. `onlyWhen` in the manifest lists the files that exist
   only with a server (`server`: the generated client, `createApi`, the env module, `.env.example`) or
   with its `auth` flag (`server:auth`), and `@server` and `@server:auth` markers cover the lines
   inside shared files.
@@ -39,7 +41,7 @@ A generated app has no header, navigation, footer or example screen: `src/app/(s
 
 ## Contract
 
-`bun run api:types` (Hey API, `base/openapi-ts.config.ts`) regenerates `src/shared/api/generated/` from the server's `openapi.json`.
+`bun run api:types` (Hey API, `base/openapi-ts.config.ts`) regenerates `src/services/generated/` from the server's `openapi.json`.
 Generated without a server, the package has no generated client, no `api:types` script, no API address and no API web server in the e2e config (ADR 0011); the harness adds them with a server.
 
 The layer map of the generated package is in `base/AGENTS.md`.

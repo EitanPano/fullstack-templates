@@ -1,0 +1,16 @@
+// The global and app-wide CSS (app/layout.tsx imports it after themes/brand.css): the tokens and
+// tools, the themes, and the basics. Every page and component carries a sibling stylesheet of its
+// own, imported by its file, so a route ships its page's CSS in its own chunk.
+// The global groups and the kit sit in cascade layers (declared first, in order); a page's or an
+// app component's sheet stays unlayered. An unlayered rule beats a layered one at any specificity,
+// so it wins over the global tree and the kit whatever order the bundler links the chunks in.
+@use 'setup/layers';
+@use 'setup/variables';
+@use 'setup/breakpoints';
+@use 'setup/functions';
+@use 'setup/mixins';
+@use 'setup/typography';
+@use 'themes';
+@use 'basics/helpers';
+@use 'basics/base';
+@use 'basics/layout';

@@ -1,6 +1,4 @@
-export type ToastKind = 'success' | 'error' | 'info' | 'warning'
-
-export type ToastParams = Record<string, string | number>
+import type { ToastKind, ToastParams } from './type'
 
 // An optional button on a toast: `labelKey` is a key of the copy table. A toast with an action
 // stays until it is dismissed or the action ran, because the user has a decision to make.

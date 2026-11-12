@@ -11,7 +11,7 @@ export function userRoutes(store: AppStore): RouteObject[] {
     {
       path: 'profile',
       loader: ({ request }) => requireAccount(store, returnToOf(request)),
-      lazy: () => import('./profile-page'),
+      lazy: () => import('./profile-page/profile-page'),
     },
   ]
 }

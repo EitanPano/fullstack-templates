@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing'
 import { patchState, signalStore, withState } from '@ngrx/signals'
 
-import { ApiError } from '@app/models/api/response'
+import { ApiError } from '@app/services/api-error'
 
 import { setError, setLoaded, setLoading, withRequestStatus } from './with-request-status'
 

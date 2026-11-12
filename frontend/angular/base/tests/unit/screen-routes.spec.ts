@@ -32,9 +32,9 @@ describe('capturedRoutes', () => {
 // @server:auth-start
 describe('the auth screens', () => {
   it('are captured signed out, and the account screens signed in', () => {
-    expect(AUTH_ROUTES).toEqual(expect.arrayContaining(['/auth/login', '/auth/register']))
+    expect(AUTH_ROUTES).toEqual(expect.arrayContaining(['/auth/login', '/auth/signup']))
     expect(SIGNED_IN_ROUTES).toEqual(['/profile', '/auth/verify-otp'])
-    expect(capturedRoutes()).toEqual(expect.arrayContaining(['/auth/login', '/auth/register']))
+    expect(capturedRoutes()).toEqual(expect.arrayContaining(['/auth/login', '/auth/signup']))
   })
 })
 // @server:auth-end

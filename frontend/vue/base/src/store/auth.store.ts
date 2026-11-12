@@ -3,9 +3,10 @@ import { computed, ref } from 'vue'
 
 import { logger } from '@/core/providers/logger'
 import { clearSessionHint, hasSessionHint, setSessionHint } from '@/core/providers/session'
-import { errorMessageKey } from '@/models/api/error-copy'
-import { isApiError, type ApiErrorCode } from '@/models/api/response'
-import type { Credentials, PublicUser } from '@/models/user/interface'
+import { errorMessageKey } from '@/core/config/error-copy'
+import type { ApiErrorCode } from '@/models/api/type'
+import { isApiError } from '@/services/api-error'
+import type { Credentials, PublicUser } from '@/models/user/type'
 import { authService } from '@/services/auth.service'
 import { userService } from '@/services/user.service'
 
@@ -135,8 +136,8 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
-  function register(credentials: Credentials): Promise<boolean> {
-    return enter('register', () => authService.register(credentials), {
+  function signup(credentials: Credentials): Promise<boolean> {
+    return enter('signup', () => authService.signup(credentials), {
       conflict: null,
     })
   }
@@ -212,7 +213,7 @@ export const useAuthStore = defineStore('auth', () => {
     roles,
     restoreSession,
     login,
-    register,
+    signup,
     logout,
     forget,
     requestOtp,

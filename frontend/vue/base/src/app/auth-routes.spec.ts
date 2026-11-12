@@ -68,7 +68,7 @@ describe('the route table with auth', () => {
     useAuthStore().user = ADMIN
     const router = makeRouter()
 
-    await router.push('/auth/register')
+    await router.push('/auth/signup')
 
     expect(router.currentRoute.value.path).toBe('/')
   })

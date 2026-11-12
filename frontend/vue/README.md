@@ -27,11 +27,12 @@ screen are product code (ADR 0010, `base/AGENTS.md › The shell`).
   `// @server:auth` markers cover the lines inside shared files. A `.vue` file takes template block
   markers only, so no template file imports a file that exists only with a flag.
 - `base/`: the files copied into the generated package, including `AGENTS.md`, `bun.lock` and, in a
-  stack, the committed `src/services/generated/`. Its `src/` is `app/` (routes, nav table), `components/`
+  stack, the committed `src/services/generated/`. Its `src/` is `app/` (routes, nav table), `layout/`
   (`app-main-layout`, `app-toast-host`, and the components a product places: `app-theme-toggle`,
   with the flags `app-account-menu`, `app-language-toggle`, `app-install-button`), `pages/`
   (`home/`, `not-found/`, and with auth `auth/`, `user/`, `forbidden/`), `shared/components/`
-  (the `base-*` primitives and patterns, `page-container` among them), `store/`, `services/`.
+  (the `base-*` primitives and patterns, `page-container` among them, the form controls in
+  `form/`), `models/` (one folder per noun), `store/`, `services/`.
 - `base/Dockerfile`, `base/nginx/`: the `dist` and `serve` image targets and the nginx config
   template and headers snippet of the `split` mode.
 - `compose.yaml`: the Compose service body, keyed by the package directory at generation and

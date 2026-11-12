@@ -36,7 +36,7 @@ class RateLimit:
 
 @dataclass(frozen=True)
 class RateLimits:
-    register_per_ip: RateLimit  # @auth
+    signup_per_ip: RateLimit  # @auth
     login_per_ip: RateLimit  # @auth
     login_per_email: RateLimit  # @auth
     refresh_per_ip: RateLimit  # @auth
@@ -47,7 +47,7 @@ class RateLimits:
 
 
 RATE_LIMITS: Final = RateLimits(
-    register_per_ip=RateLimit(limit=10, window="15m"),  # @auth
+    signup_per_ip=RateLimit(limit=10, window="15m"),  # @auth
     login_per_ip=RateLimit(limit=10, window="15m"),  # @auth
     login_per_email=RateLimit(limit=5, window="15m"),  # @auth
     refresh_per_ip=RateLimit(limit=30, window="15m"),  # @auth

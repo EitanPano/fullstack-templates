@@ -7,7 +7,7 @@ const REFRESH_PATH = '/api/auth/refresh'
 // the session.
 const EXEMPT = new Set([
   '/api/auth/login',
-  '/api/auth/register',
+  '/api/auth/signup',
   REFRESH_PATH,
   '/api/auth/otp',
   '/api/auth/otp/verification',

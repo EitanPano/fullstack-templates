@@ -236,7 +236,7 @@ test('the bundle runs under a CSP that forbids eval', async ({ page }) => {
   ).toBeVisible()
   // @server:auth-start
   // The form's first parse runs zod, which probes `new Function('')` unless it runs jitless.
-  await page.goto('/auth/register')
+  await page.goto('/auth/signup')
   await expect(page.getByRole('heading', { level: 1, name: 'Create your account' })).toBeVisible()
   await page.getByLabel('Email').fill('csp@example.com')
   await page.getByLabel('Password', { exact: true }).fill('short')

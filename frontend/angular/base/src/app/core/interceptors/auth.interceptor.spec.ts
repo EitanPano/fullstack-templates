@@ -12,7 +12,7 @@ import { firstValueFrom } from 'rxjs'
 import { provideApiClient } from '@app/core/config/api-client.provider'
 import { STORAGE_KEYS } from '@app/core/config/constants'
 import { StorageService } from '@app/core/providers/storage.service'
-import { isApiError } from '@app/models/api/response'
+import { isApiError } from '@app/services/api-error'
 import { AuthStore } from '@app/store/auth.store'
 import { AuthService } from '@app/services/auth.service'
 import { UserService } from '@app/services/user.service'
@@ -178,7 +178,7 @@ describe('authInterceptor', () => {
 
     it.each([
       ['sign-in', '/api/auth/login', (auth: AuthService) => auth.login(CREDENTIALS)],
-      ['sign-up', '/api/auth/register', (auth: AuthService) => auth.register(CREDENTIALS)],
+      ['sign-up', '/api/auth/signup', (auth: AuthService) => auth.signup(CREDENTIALS)],
       ['the refresh itself', '/api/auth/refresh', (auth: AuthService) => auth.refresh()],
       [
         'an OTP request',

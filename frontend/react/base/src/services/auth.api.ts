@@ -1,11 +1,11 @@
 import { clearSessionHint, setSessionHint } from '@/core/auth/session-hint'
-import type { User } from '@/models/user'
+import type { User } from '@/models/user/type'
 import { api } from '@/services/api'
 import { call } from '@/services/call'
 import {
   postApiAuthLogin,
   postApiAuthLogout,
-  postApiAuthRegister,
+  postApiAuthSignup,
 } from '@/services/generated/sdk.gen'
 import { userApi } from '@/services/user.api'
 
@@ -17,7 +17,7 @@ export type Credentials = { email: string; password: string }
 // The cache writes of a success happen inside `queryFn`, before it returns, so every `unwrap()`
 // caller sees them: the next loader (the page the visitor was sent back to) must find the account
 // and not the visitor an earlier guard cached. `onQueryStarted` would run after the caller.
-function signedIn(name: 'login' | 'register') {
+function signedIn(name: 'login' | 'signup') {
   return async (
     body: Credentials,
     {
@@ -25,7 +25,7 @@ function signedIn(name: 'login' | 'register') {
     }: { dispatch: (action: ReturnType<typeof userApi.util.upsertQueryData>) => unknown },
   ) => {
     const result = await call(
-      name === 'login' ? postApiAuthLogin({ body }) : postApiAuthRegister({ body }),
+      name === 'login' ? postApiAuthLogin({ body }) : postApiAuthSignup({ body }),
     )
     if ('error' in result) return result
     setSessionHint()
@@ -37,7 +37,7 @@ function signedIn(name: 'login' | 'register') {
 export const authApi = api.injectEndpoints({
   endpoints: (build) => ({
     login: build.mutation<User, Credentials>({ queryFn: signedIn('login') }),
-    register: build.mutation<User, Credentials>({ queryFn: signedIn('register') }),
+    signup: build.mutation<User, Credentials>({ queryFn: signedIn('signup') }),
     // Revokes the session at the API and forgets the hint whatever the API said: a visitor who
     // asked to sign out is signed out here even if the server session lives on until it expires.
     // The caller resets the API state after the await: a reset inside the running mutation aborts
@@ -57,4 +57,4 @@ export const authApi = api.injectEndpoints({
   }),
 })
 
-export const { useLoginMutation, useRegisterMutation, useLogoutMutation } = authApi
+export const { useLoginMutation, useSignupMutation, useLogoutMutation } = authApi

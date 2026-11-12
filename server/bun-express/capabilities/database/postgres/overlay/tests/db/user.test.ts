@@ -96,13 +96,13 @@ describeStore('GET /api/user on postgres', () => {
   })
 })
 
-describeStore('POST /api/auth/register on postgres', () => {
+describeStore('POST /api/auth/signup on postgres', () => {
   it('answers one 201 and one 409 conflict for two concurrent registrations of one email', async () => {
     await pubsub.connect()
     try {
       const send = () =>
         request(app)
-          .post('/api/auth/register')
+          .post('/api/auth/signup')
           .send({ email: 'race@example.com', password: 'correct horse battery' })
 
       const responses = await Promise.all([send(), send()])

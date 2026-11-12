@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.0 — 2026-11-12
+
+### Changed (breaking)
+
+- The sign-up endpoint is `POST /api/auth/signup`, not `/api/auth/register`; method, request, responses, status codes and rate limits are unchanged.
+- Renamed: `register` → `signup` (controller), `register_limiter` → `signup_limiter`, `RATE_LIMITS.register_per_ip` → `signup_per_ip` (limiter name `registerPerIp` → `signupPerIp`), event `user.registered` → `user.signedup`, `USER_REGISTERED` → `USER_SIGNEDUP`, `UserRegistered` → `UserSignedUp`, `handle_user_registered` → `handle_user_signedup`. No environment variable changes.
+- Migration for a project generated earlier: rename the route and the names above, or keep the old path; regenerate `openapi.json` and the frontend's client.
+
 ## 1.2.2 — 2026-11-07
 
 ### Fixed

@@ -1,0 +1,55 @@
+@use 'setup/mixins';
+
+@layer kit {
+  // Radix Checkbox: a button with a check indicator. The state hooks are Radix's data attributes.
+  .checkbox {
+    position: relative;
+    flex: none;
+    inline-size: 1.125rem;
+    block-size: 1.125rem;
+    margin-block-start: 0.15rem;
+    padding: 0;
+    border: 1px solid var(--input);
+    border-radius: 4px;
+    background: var(--background);
+    color: var(--primary-foreground);
+    cursor: pointer;
+
+    &[data-state='checked'] {
+      border-color: var(--primary);
+      background: var(--primary);
+    }
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+
+    &[aria-invalid='true'] {
+      border-color: var(--destructive);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    // The visible box stays small; the hit area grows to 44 px on a touch screen.
+    @include mixins.coarse-pointer {
+      &::after {
+        content: '';
+        position: absolute;
+        inset: -0.875rem;
+      }
+    }
+  }
+
+  .checkbox__indicator {
+    display: grid;
+    place-content: center;
+
+    .icon {
+      inline-size: 0.875rem;
+      block-size: 0.875rem;
+    }
+  }
+}

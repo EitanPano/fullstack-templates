@@ -9,6 +9,7 @@ the global SCSS tree; amended by [ADR 0008](0008-vue-pinia.md), which took the n
 Amended by [ADR 0009](0009-pages-components-colocated-styles.md) (2.0.0 of this template): A2 the Angular tree, A2.4 styling.
 Amended by [ADR 0010](0010-no-chrome-no-example-screen.md) (v1.10.0): invariants 4, 6, 7, 8 and 10 of `docs/conventions.md › Frontend`.
 Amended in part by [ADR 0011](0011-frontend-without-a-server.md): invariant 1's generated contract types exist only with a server.
+Amended by [ADR 0012](0012-next-spa-tree-colocated-scss.md) (v1.12.0): the SCSS tree reaches Next, with its own layer map (A2.4's "once a build proves it costs nothing").
 
 ## Context
 

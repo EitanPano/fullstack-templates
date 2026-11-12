@@ -3,9 +3,9 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { renderWithApp } from '@/testing/render'
 
-import { loginForm, otpForm, registerForm } from './auth.form'
+import { loginForm, otpForm, signupForm } from './auth.form'
 
-// Runs a form factory inside a component's setup, where useZodForm needs the app's i18n.
+// Runs a form factory inside a component's setup, where useSchemaForm needs the app's i18n.
 async function formOf<T>(make: () => T): Promise<T> {
   let form: T | undefined
   await renderWithApp(
@@ -66,9 +66,9 @@ describe('loginForm', () => {
   })
 })
 
-describe('registerForm', () => {
+describe('signupForm', () => {
   it('submits the credentials without the confirm field', async () => {
-    const form = await formOf(registerForm)
+    const form = await formOf(signupForm)
     form.values.email = 'ada@example.com'
     form.values.password = PASSWORD
     form.values.confirm = PASSWORD
@@ -80,7 +80,7 @@ describe('registerForm', () => {
   })
 
   it('puts errors.match on the confirm field when the passwords differ', async () => {
-    const form = await formOf(registerForm)
+    const form = await formOf(signupForm)
     form.values.email = 'ada@example.com'
     form.values.password = PASSWORD
     form.values.confirm = 'something-else-1'

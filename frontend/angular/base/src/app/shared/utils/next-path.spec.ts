@@ -17,7 +17,7 @@ describe('safeNextPath', () => {
     ['null', null],
     ['an array', ['/a']],
     ['the login screen', '/auth/login'],
-    ['the register screen with a query', '/auth/register?x=1'],
+    ['the signup screen with a query', '/auth/signup?x=1'],
     ['the login screen with a hash', '/auth/login#x'],
     ['a malformed escape', '/%zz'],
   ])('sends %s home', (_what, value) => {

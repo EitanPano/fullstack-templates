@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.0.0 — 2026-11-12
+
+### Changed (breaking)
+
+- The sign-up endpoint is `POST /api/auth/signup`, not `/api/auth/register`; method, request, responses, status codes and rate limits are unchanged.
+- Renamed: `register` → `signup` (controller), `registerRequest` → `signupRequest`, `registerLimiter` → `signupLimiter`, `validateRegister` → `validateSignup`, rate limit `registerPerIp` → `signupPerIp` (`RATE_LIMITS` and the limiter name), event `user.registered` → `user.signedup` (`services/event.ts`, `send-welcome` subscriber). No environment variable changes.
+- Migration for a project generated earlier: rename the route and the names above, or keep the old path; regenerate the frontend's client (`openapi.json` names `/api/auth/signup`).
+
 ## 2.4.3 — 2026-11-07
 
 ### Fixed

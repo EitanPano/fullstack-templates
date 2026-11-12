@@ -2,7 +2,7 @@ schemaVersion: 1
 id: next
 kind: frontend
 name: Next.js 16 App Router
-version: 3.1.0
+version: 4.0.0
 summary: "Next.js 16 App Router with a typed client generated from the server's contract"
 runtime: { language: typescript, platform: node, minVersion: '24' }
 tools:
@@ -32,10 +32,12 @@ onlyWhen:
   server:
     onlyPaths:
       - openapi-ts.config.ts
-      - src/shared/api
-      - tests/unit/api-client.test.ts
-      - tests/unit/call.test.ts
-      - tests/unit/config-client-ip.test.ts
+      - src/services/generated
+      - src/services/client.ts
+      - src/services/client.test.ts
+      - src/services/call.ts
+      - src/services/call.test.ts
+      - src/core/config/env.test.ts
     dependencies:
       remove:
         - '@hey-api/openapi-ts'
@@ -47,29 +49,24 @@ onlyWhen:
     - src/app/(auth)
     - src/app/(site)/forbidden
     - src/app/(site)/profile
-    - src/shared/auth
-    - src/shared/ui/pattern/auth-card.tsx
-    - src/entity/user
-    - src/feature/auth
-    - src/widget/account-menu
-    - src/widget/guest-only
-    - src/widget/profile
-    - src/widget/sign-in
-    - src/widget/sign-up
-    - tests/unit/account-action.test.ts
-    - tests/unit/account-menu.test.tsx
-    - tests/unit/profile.test.tsx
-    - tests/unit/profile-page.test.tsx
-    - tests/unit/auth-actions.test.ts
-    - tests/unit/auth-model.test.ts
-    - tests/unit/auth-pages.test.tsx
+    - src/core/auth
+    - src/core/actions/account-action.test.ts
+    - src/shared/components/auth-card
+    - src/models/user
+    - src/models/auth
+    - src/actions/auth
+    - src/services/auth.ts
+    - src/services/auth.test.ts
+    - src/services/user.ts
+    - src/services/user.test.ts
+    - src/shared/utils/initials.ts
+    - src/shared/utils/initials.test.ts
+    - src/layout/app-account-menu
+    - src/layout/app-account-menu-skeleton
+    - src/layout/app-auth-loading
+    - src/layout/app-sign-out-item.tsx
     - tests/e2e/auth-support.ts
     - tests/e2e/auth.spec.ts
-    - tests/unit/session-cookies.test.ts
-    - tests/unit/session-proxy.test.ts
-    - tests/unit/session.test.ts
-    - tests/unit/sign-in-form.test.tsx
-    - tests/unit/sign-up-form.test.tsx
     - tests/unit/proxy-config.test.ts
   server:database:
     - scripts/e2e-database-url.ts

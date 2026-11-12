@@ -1,0 +1,52 @@
+@use 'setup/functions';
+
+@layer kit {
+  // An icon, when given, takes the first column; the text always sits in the second.
+  .alert {
+    display: grid;
+    grid-template-columns: 0 1fr;
+    align-items: start;
+    row-gap: 2px;
+    padding-block: functions.space(3);
+    padding-inline: functions.space(4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--card);
+    color: var(--card-foreground);
+    font-size: var(--text-sm);
+
+    &:has(> .icon) {
+      grid-template-columns: 1rem 1fr;
+      column-gap: functions.space(3);
+    }
+
+    > .icon {
+      grid-column: 1;
+      grid-row: 1;
+      margin-block-start: 2px;
+    }
+  }
+
+  .alert__title,
+  .alert__description,
+  .alert__actions {
+    grid-column: 2;
+  }
+
+  .alert__title {
+    font-weight: var(--weight-medium);
+  }
+
+  .alert__description {
+    color: var(--muted-foreground);
+  }
+
+  .alert__actions {
+    margin-block-start: functions.space(2);
+  }
+
+  .alert--destructive {
+    border-color: var(--destructive);
+    color: var(--destructive);
+  }
+}

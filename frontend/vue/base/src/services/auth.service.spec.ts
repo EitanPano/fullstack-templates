@@ -33,9 +33,9 @@ describe('authService', () => {
   })
 
   it('signs up with the credentials', async () => {
-    stubApi({ 'POST /api/auth/register': Response.json(SESSION, { status: 201 }) })
+    stubApi({ 'POST /api/auth/signup': Response.json(SESSION, { status: 201 }) })
 
-    const session = await authService.register({ email: USER.email, password: 'a-long-password' })
+    const session = await authService.signup({ email: USER.email, password: 'a-long-password' })
 
     expect(session.user.email).toBe(USER.email)
   })

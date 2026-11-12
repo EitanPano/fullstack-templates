@@ -6,8 +6,8 @@
 // (transport lives here and only here) and sends the status and body.
 // It does not belong: middleware (routes.ts) or a direct store import.
 //
-// Accepted tradeoffs: register's 409 discloses that an email exists (bounded by the
-// registerPerIp limit), and loginPerEmail lets an attacker lock a victim out of password login
+// Accepted tradeoffs: signup's 409 discloses that an email exists (bounded by the
+// signupPerIp limit), and loginPerEmail lets an attacker lock a victim out of password login
 // for the window; OTP login is no way round it, since otpPerTarget (5/h) and the overwrite of a
 // pending code by a new request let the same attacker starve it too.
 import type { Request, Response } from 'express'
@@ -41,7 +41,7 @@ import {
   logoutRequest,
   otpRequest,
   otpVerificationRequest,
-  registerRequest,
+  signupRequest,
 } from './schema'
 
 async function tokensFor(account: PublicUser, issued: IssuedSession): Promise<AuthTokens> {
@@ -111,8 +111,8 @@ async function deliver(target: ContactTarget, purpose: OtpPurpose, code: string)
 
 // HTTP handlers: routes.ts mounts each one behind its rate limiters and auth middleware.
 
-export async function register(_req: Request, res: Response): Promise<void> {
-  const { body } = readInput(res, registerRequest)
+export async function signup(_req: Request, res: Response): Promise<void> {
+  const { body } = readInput(res, signupRequest)
   const account = await user.createUser(body)
   const session: AuthSession = { user: account, tokens: await issueTokens(account) }
   setAuthCookies(res, session.tokens)

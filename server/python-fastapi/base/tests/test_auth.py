@@ -88,10 +88,10 @@ def credentials(email: str, password: str = PASSWORD) -> dict[str, str]:
     return {"email": email, "password": password}
 
 
-async def register(
+async def signup(
     client: httpx.AsyncClient, email: str, password: str = PASSWORD
 ) -> httpx.Response:
-    return await client.post("/api/auth/register", json=credentials(email, password))
+    return await client.post("/api/auth/signup", json=credentials(email, password))
 
 
 async def login(client: httpx.AsyncClient, email: str, password: str = PASSWORD) -> httpx.Response:
@@ -111,7 +111,7 @@ def refresh_cookie(response: httpx.Response) -> str:
 
 
 async def signed_in(client: httpx.AsyncClient, email: str) -> tuple[SessionPayload, httpx.Response]:
-    response = await register(client, email)
+    response = await signup(client, email)
     assert response.status_code == 201
     return session_of(response), response
 
@@ -148,11 +148,11 @@ def attributes_of(line: str) -> dict[str, str]:
     return attributes
 
 
-class TestRegister:
+class TestSignup:
     async def test_answers_201_with_tokens_two_http_only_cookies_and_no_password_hash(
         self, client: httpx.AsyncClient
     ) -> None:
-        res = await register(client, "ada@example.com")
+        res = await signup(client, "ada@example.com")
 
         assert res.status_code == 201
         body = res.json()
@@ -175,9 +175,9 @@ class TestRegister:
         assert refresh["samesite"].lower() == "lax"
 
     async def test_answers_409_for_a_duplicate_email(self, client: httpx.AsyncClient) -> None:
-        await register(client, "ada@example.com")
+        await signup(client, "ada@example.com")
 
-        res = await register(client, "ADA@example.com")
+        res = await signup(client, "ADA@example.com")
 
         assert res.status_code == 409
         assert error_of(res).code == "conflict"
@@ -185,7 +185,7 @@ class TestRegister:
     async def test_answers_400_for_a_short_password_with_details(
         self, client: httpx.AsyncClient
     ) -> None:
-        res = await register(client, "ada@example.com", "short")
+        res = await signup(client, "ada@example.com", "short")
 
         assert res.status_code == 400
         assert error_of(res).code == "validation_failed"
@@ -195,13 +195,13 @@ class TestRegister:
         self, client: httpx.AsyncClient
     ) -> None:
         for email in ("nope", "a@", "@b.co", "a b@example.com", "a@b", "a..b@example.com"):
-            res = await register(client, email)
+            res = await signup(client, email)
 
             assert res.status_code == 400, email
             assert error_of(res).details[0].path == "email"
 
     async def test_trims_and_lowercases_the_email(self, client: httpx.AsyncClient) -> None:
-        res = await register(client, "  Ada@Example.COM ")
+        res = await signup(client, "  Ada@Example.COM ")
 
         assert res.status_code == 201
         assert session_of(res).user.email == "ada@example.com"
@@ -209,14 +209,14 @@ class TestRegister:
     async def test_answers_400_for_an_email_over_254_characters(
         self, client: httpx.AsyncClient
     ) -> None:
-        res = await register(client, f"{'a' * 250}@example.com")
+        res = await signup(client, f"{'a' * 250}@example.com")
 
         assert res.status_code == 400
 
     async def test_answers_400_for_a_password_over_128_characters(
         self, client: httpx.AsyncClient
     ) -> None:
-        res = await register(client, "ada@example.com", "p" * 129)
+        res = await signup(client, "ada@example.com", "p" * 129)
 
         assert res.status_code == 400
 
@@ -224,15 +224,15 @@ class TestRegister:
         self, client: httpx.AsyncClient
     ) -> None:
         res = await client.post(
-            "/api/auth/register", json={"email": "ada@example.com", "password": 12345678}
+            "/api/auth/signup", json={"email": "ada@example.com", "password": 12345678}
         )
 
         assert res.status_code == 400
 
-    async def test_delivers_the_welcome_template_through_user_registered(
+    async def test_delivers_the_welcome_template_through_user_signedup(
         self, client: httpx.AsyncClient, outbox: Outbox
     ) -> None:
-        await register(client, "ada@example.com")
+        await signup(client, "ada@example.com")
         await drain()
 
         welcome = next(m for m in outbox.sent if m.template.name == "welcome")
@@ -241,9 +241,9 @@ class TestRegister:
     async def test_is_limited_per_ip(self, client: httpx.AsyncClient) -> None:
         """Row: Rate limit."""
         for index in range(10):
-            assert (await register(client, f"u{index}@example.com")).status_code == 201
+            assert (await signup(client, f"u{index}@example.com")).status_code == 201
 
-        limited = await register(client, "u10@example.com")
+        limited = await signup(client, "u10@example.com")
 
         assert limited.status_code == 429
         assert limited.headers["retry-after"] == "900"
@@ -251,21 +251,21 @@ class TestRegister:
     async def test_limits_before_validating_the_body(self, client: httpx.AsyncClient) -> None:
         """Row: Gate order. The limiter runs before the body's validation errors are raised."""
         for _ in range(10):
-            await client.post("/api/auth/register", json={"email": "x"})
+            await client.post("/api/auth/signup", json={"email": "x"})
 
-        res = await client.post("/api/auth/register", json={"email": "x"})
+        res = await client.post("/api/auth/signup", json={"email": "x"})
 
         assert res.status_code == 429
 
     async def test_sets_cache_control_no_store(self, client: httpx.AsyncClient) -> None:
-        res = await register(client, "ada@example.com")
+        res = await signup(client, "ada@example.com")
 
         assert res.headers["cache-control"] == "no-store"
 
 
 class TestLogin:
     async def test_answers_200_with_tokens(self, client: httpx.AsyncClient) -> None:
-        await register(client, "ada@example.com")
+        await signup(client, "ada@example.com")
 
         res = await login(client, "Ada@example.com")
 
@@ -276,7 +276,7 @@ class TestLogin:
     async def test_answers_the_same_401_for_an_unknown_email_and_a_wrong_password(
         self, client: httpx.AsyncClient
     ) -> None:
-        await register(client, "ada@example.com")
+        await signup(client, "ada@example.com")
 
         unknown = await login(client, "nobody@example.com")
         wrong = await login(client, "ada@example.com", "not the password")
@@ -290,7 +290,7 @@ class TestLogin:
         self, client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Row: login does not reveal whether an email exists: both cost one verification."""
-        await register(client, "ada@example.com")
+        await signup(client, "ada@example.com")
         seen: list[str] = []
         real = verify_password
 
@@ -329,7 +329,7 @@ class TestLogin:
         assert error_of(wrong).message == "invalid credentials"
 
     async def test_is_limited_per_email(self, client: httpx.AsyncClient) -> None:
-        await register(client, "ada@example.com")
+        await signup(client, "ada@example.com")
         for _ in range(5):
             assert (await login(client, "ada@example.com", "wrong password")).status_code == 401
 
@@ -358,7 +358,7 @@ class TestLogin:
         assert limited.status_code == 429
 
     async def test_sets_cache_control_no_store(self, client: httpx.AsyncClient) -> None:
-        await register(client, "ada@example.com")
+        await signup(client, "ada@example.com")
 
         assert (await login(client, "ada@example.com")).headers["cache-control"] == "no-store"
 
@@ -432,7 +432,7 @@ class TestRefresh:
     async def test_revokes_all_sessions_when_a_rotated_token_is_replayed_after_the_grace_window(
         self, client: httpx.AsyncClient, clock: time_machine.Traveller
     ) -> None:
-        a = await register(client, "ada@example.com")
+        a = await signup(client, "ada@example.com")
         b = await login(client, "ada@example.com")
         a1 = refresh_cookie(a)
         a2 = refresh_cookie(await refresh_with(client, a1))
@@ -445,7 +445,7 @@ class TestRefresh:
     async def test_rotates_again_when_a_rotated_token_is_replayed_inside_the_grace_window(
         self, client: httpx.AsyncClient, clock: time_machine.Traveller
     ) -> None:
-        a = await register(client, "ada@example.com")
+        a = await signup(client, "ada@example.com")
         b = await login(client, "ada@example.com")
         a1 = refresh_cookie(a)
         a2 = refresh_cookie(await refresh_with(client, a1))
@@ -568,7 +568,7 @@ class TestOtpRequest:
     async def test_answers_202_for_a_known_email_and_delivers_the_code_by_mail(
         self, client: httpx.AsyncClient, outbox: Outbox
     ) -> None:
-        await register(client, "ada@example.com")
+        await signup(client, "ada@example.com")
         await settle(outbox)
 
         res = await client.post(
@@ -631,7 +631,7 @@ class TestOtpRequest:
         carries the template name and channel only."""
         logger, sink = recording_logger()
         target = {"type": "email", "value": "ada@example.com"}
-        await register(client, "ada@example.com")
+        await signup(client, "ada@example.com")
         await drain()
         console = create_console_provider("mail", development=False, logger=logger)
 
@@ -699,7 +699,7 @@ class TestOtpRequest:
     async def test_sets_cache_control_no_store_on_token_issuing_responses(
         self, client: httpx.AsyncClient
     ) -> None:
-        res = await register(client, "ada@example.com")
+        res = await signup(client, "ada@example.com")
 
         assert res.headers["cache-control"] == "no-store"
         assert (await login(client, "ada@example.com")).headers["cache-control"] == "no-store"
@@ -715,7 +715,7 @@ class TestOtpRequest:
     async def test_answers_403_for_verify_on_another_user_email(
         self, client: httpx.AsyncClient
     ) -> None:
-        await register(client, "ada@example.com")
+        await signup(client, "ada@example.com")
         bob, _ = await signed_in(client, "bob@example.com")
 
         res = await client.post(
@@ -762,7 +762,7 @@ class TestOtpVerification:
         )
 
     async def request_login_code(self, client: httpx.AsyncClient, outbox: Outbox) -> str:
-        await register(client, "ada@example.com")
+        await signup(client, "ada@example.com")
         await settle(outbox)
         await client.post("/api/auth/otp", json={"target": EMAIL_TARGET, "purpose": "login"})
         await flush()
@@ -942,7 +942,7 @@ class TestOtpLoginVerifiesTheTarget:
     async def test_sets_email_verified_at_and_revokes_the_sessions_that_existed_before(
         self, client: httpx.AsyncClient, outbox: Outbox
     ) -> None:
-        first = await register(client, "ada@example.com")
+        first = await signup(client, "ada@example.com")
         other = await login(client, "ada@example.com")
 
         out = await self.verify_login(client, await self.login_code(client, outbox))
@@ -955,7 +955,7 @@ class TestOtpLoginVerifiesTheTarget:
     async def test_keeps_the_other_sessions_when_the_email_was_already_verified(
         self, client: httpx.AsyncClient, outbox: Outbox
     ) -> None:
-        first = await register(client, "ada@example.com")
+        first = await signup(client, "ada@example.com")
         await verify_contact(session_of(first).user.id, "email")
         other = await login(client, "ada@example.com")
 
@@ -968,7 +968,7 @@ class TestOtpLoginVerifiesTheTarget:
     async def test_answers_401_for_a_deleted_account(
         self, client: httpx.AsyncClient, outbox: Outbox
     ) -> None:
-        first = await register(client, "ada@example.com")
+        first = await signup(client, "ada@example.com")
         code = await self.login_code(client, outbox)
         await delete_record("user", session_of(first).user.id)
 
@@ -1072,7 +1072,7 @@ class TestDeliveryFailures:
     async def test_answers_202_for_a_login_code_when_the_provider_fails_and_logs_the_name_only(
         self, client: httpx.AsyncClient, outbox: Outbox, caplog: pytest.LogCaptureFixture
     ) -> None:
-        await register(client, "ada@example.com")
+        await signup(client, "ada@example.com")
         await settle(outbox)
         register_provider("mail", _Failing())
 
@@ -1103,7 +1103,7 @@ class TestDetachedDelivery:
     async def test_flush_waits_for_a_provider_that_yields(
         self, client: httpx.AsyncClient, outbox: Outbox
     ) -> None:
-        await register(client, "ada@example.com")
+        await signup(client, "ada@example.com")
         await settle(outbox)
         register_provider("mail", _Slow(outbox))
 
@@ -1117,7 +1117,7 @@ class TestDetachedDelivery:
     async def test_a_login_code_in_flight_at_shutdown_is_delivered_before_the_bus_closes(
         self, client: httpx.AsyncClient, outbox: Outbox
     ) -> None:
-        await register(client, "ada@example.com")
+        await signup(client, "ada@example.com")
         await settle(outbox)
         register_provider("mail", _Slow(outbox))
         await client.post("/api/auth/otp", json={"target": EMAIL_TARGET, "purpose": "login"})
@@ -1140,7 +1140,7 @@ class TestTokensNeverInLogs:
         monkeypatch.setattr(log, "_quiet", False)
         caplog.set_level(logging.DEBUG)
         secret_password = "a very distinctive password 8472"
-        reg = await register(client, "ada@example.com", secret_password)
+        reg = await signup(client, "ada@example.com", secret_password)
         old = refresh_cookie(reg)
         rotated = await refresh_with(client, old)
         await client.post(

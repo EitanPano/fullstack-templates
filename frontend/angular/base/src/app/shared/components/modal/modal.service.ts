@@ -3,7 +3,10 @@ import { Injectable, inject } from '@angular/core'
 import { firstValueFrom } from 'rxjs'
 
 import { uniqueId } from '../../utils/unique-id'
-import { ConfirmDialogComponent, type ConfirmData } from './confirm-dialog.component'
+import {
+  ConfirmDialogComponent,
+  type ConfirmData,
+} from '../confirm-dialog/confirm-dialog.component'
 import { ModalComponent } from './modal.component'
 import type { ModalContent, ModalFrameData, ModalOptions, ModalRef } from './modal.tokens'
 

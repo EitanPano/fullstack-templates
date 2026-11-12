@@ -1,3 +1,5 @@
+import path from 'node:path'
+
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -5,21 +7,17 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   reactStrictMode: true,
   // Cache Components: the static shell of a route is prerendered at build, everything else is a
-  // request-time hole inside Suspense. A data widget awaits `connection()` before its
+  // request-time hole inside Suspense. A data section awaits `connection()` before its
   // `'use cache'` loader (AGENTS.md › Adding to a layer › Reads), so the image build never needs
   // the API.
   cacheComponents: true,
   // The docs enable both together; setting it explicitly also silences the build warning.
   partialPrefetching: true,
-  // Tailwind v4 runs inside Turbopack (create-next-app 16 default); there is no PostCSS
-  // config and none should be added.
-  turbopack: {
-    rules: {
-      '*.css': {
-        loaders: ['@tailwindcss/turbopack'],
-        as: '*.css',
-      },
-    },
+  // Sheets `@use 'setup/functions'` through this load path, as in the other frontends; it is
+  // derived from this file, so it holds whatever directory the build starts from.
+  sassOptions: {
+    implementation: 'sass-embedded',
+    loadPaths: [path.join(import.meta.dirname, 'src/styles')],
   },
 }
 

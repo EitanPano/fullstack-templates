@@ -1,4 +1,4 @@
-import type { User } from '@/models/user'
+import type { User } from '@/models/user/type'
 
 // What the auth tests share: an account as the API names it, the sign-in response around it, and
 // an error envelope. Kept out of each test so the contract's shape is spelled once.

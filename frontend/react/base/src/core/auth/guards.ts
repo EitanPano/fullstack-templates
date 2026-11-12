@@ -1,7 +1,8 @@
 import { redirect } from 'react-router'
 
 import { FORBIDDEN_PATH, SIGN_IN_PATH } from '@/core/config/constants'
-import { isUser, type Role, type User } from '@/models/user'
+import type { Role, User } from '@/models/user/type'
+import { isUser } from '@/shared/utils/is-user'
 import { userApi } from '@/services/user.api'
 import type { AppStore } from '@/store'
 

@@ -45,7 +45,7 @@ describeStore('sendWelcome', () => {
     })
   })
 
-  it('mails the new user when user.registered is published', async () => {
+  it('mails the new user when user.signedup is published', async () => {
     await user.createUser({ email: 'new@example.com', password: PASSWORD })
     await drain()
 

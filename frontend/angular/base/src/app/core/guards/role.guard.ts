@@ -7,7 +7,7 @@ import {
   type UrlSegment,
 } from '@angular/router'
 
-import { FORBIDDEN_PATH } from '@app/models/user/constants'
+import { FORBIDDEN_PATH } from '@app/models/user/constant'
 import { AuthStore } from '@app/store/auth.store'
 
 import { toLogin } from './auth.guard'

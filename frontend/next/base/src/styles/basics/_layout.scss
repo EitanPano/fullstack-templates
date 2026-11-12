@@ -1,0 +1,13 @@
+@layer basics {
+  // The layout is a column: the skip link and main. A product's header and footer sit around main.
+  .shell {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 100dvh;
+  }
+
+  // Main carries no width and no padding: the Page pattern owns the container and the gutters.
+  .main {
+    flex: 1;
+  }
+}

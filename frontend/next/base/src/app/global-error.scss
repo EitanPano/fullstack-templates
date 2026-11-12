@@ -1,0 +1,9 @@
+@use 'setup/functions';
+
+// This screen loads the global tree itself; the frame centres the error on the page and the
+// kit's error state fills it.
+.global-error {
+  max-inline-size: 28rem;
+  margin-inline: auto;
+  padding: functions.space(4);
+}

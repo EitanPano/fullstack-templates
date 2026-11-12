@@ -1,7 +1,8 @@
 import { computed, ref } from 'vue'
 
 import { logger } from '@/core/providers/logger'
-import { isApiError, toApiError, type ApiError } from '@/models/api/response'
+import type { ApiError } from '@/models/api/type'
+import { isApiError, toApiError } from '@/services/api-error'
 
 export type RequestStatus = 'idle' | 'loading' | 'loaded' | 'error'
 

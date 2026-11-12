@@ -2,7 +2,7 @@ schemaVersion: 1
 id: vue
 kind: frontend
 name: Vue 3 SPA (Vite)
-version: 3.1.0
+version: 4.0.0
 summary: "Vite and Vue 3 single-page app: Vue Router 5, Pinia 4 setup stores over a client generated from the server's contract, Reka UI primitives styled by co-located SCSS on a global token tree, vue-i18n and the service worker behind flags"
 runtime: { language: typescript, platform: node, minVersion: "24" }
 tools:
@@ -31,9 +31,9 @@ flags:
     summary: "vue-i18n with English and Hebrew (RTL), a language toggle and a lazily loaded Hebrew copy table"
     default: true
     onlyPaths:
-      - src/components/app-language-toggle.spec.ts
-      - src/components/app-language-toggle.vue
-      - src/components/rtl.spec.ts
+      - src/layout/app-language-toggle/app-language-toggle.spec.ts
+      - src/layout/app-language-toggle/app-language-toggle.vue
+      - src/layout/rtl.spec.ts
       - src/core/i18n/languages.ts
       - src/core/i18n/translations/he.json
       - src/core/initializers/i18n.initializer.spec.ts
@@ -51,8 +51,8 @@ flags:
       - public/icons/icon-512.png
       - public/icons/icon.svg
       - public/icons/maskable-512.png
-      - src/components/app-install-button.spec.ts
-      - src/components/app-install-button.vue
+      - src/layout/app-install-button/app-install-button.spec.ts
+      - src/layout/app-install-button/app-install-button.vue
       - src/core/initializers/pwa.initializer.spec.ts
       - src/core/initializers/pwa.initializer.ts
       - src/store/app-update.store.spec.ts
@@ -63,7 +63,7 @@ flags:
     dependencies:
       remove: ["vite-plugin-pwa", "workbox-window"]
 # Everything that reaches the server exists while the plan has one (ADR 0011): the generated
-# client, its wrapper and interceptors, the error envelope's models and copy table, the form
+# client, its wrapper and interceptors, the error envelope's models, helpers and copy table, the form
 # helper that reads a server field error, the request stores and the fetch stub of the specs.
 # Lines inside shared files carry // @server markers (a .vue file takes template block markers
 # only). The auth glue (server:auth) and the database-only files exist while the stack's server has the
@@ -75,6 +75,8 @@ onlyWhen:
       - openapi-ts.config.ts
       - src/core/config/api-client.spec.ts
       - src/core/config/api-client.ts
+      - src/core/config/error-copy.spec.ts
+      - src/core/config/error-copy.ts
       - src/core/interceptors/error.interceptor.spec.ts
       - src/core/interceptors/error.interceptor.ts
       - src/core/interceptors/http.provider.spec.ts
@@ -82,6 +84,8 @@ onlyWhen:
       - src/core/interceptors/loading.interceptor.spec.ts
       - src/core/interceptors/loading.interceptor.ts
       - src/models/api
+      - src/services/api-error.spec.ts
+      - src/services/api-error.ts
       - src/services/generated
       - src/shared/validators/server-errors.spec.ts
       - src/shared/validators/server-errors.ts
@@ -97,12 +101,12 @@ onlyWhen:
       remove: ["api:types"]
   server:auth:
     - src/app/auth-routes.spec.ts
-    - src/components/app-account-menu.scss
-    - src/components/app-account-menu.spec.ts
-    - src/components/app-account-menu.vue
-    - src/components/app-auth-layout.scss
-    - src/components/app-auth-layout.spec.ts
-    - src/components/app-auth-layout.vue
+    - src/layout/app-account-menu/app-account-menu.scss
+    - src/layout/app-account-menu/app-account-menu.spec.ts
+    - src/layout/app-account-menu/app-account-menu.vue
+    - src/layout/app-auth-layout/app-auth-layout.scss
+    - src/layout/app-auth-layout/app-auth-layout.spec.ts
+    - src/layout/app-auth-layout/app-auth-layout.vue
     - src/core/guards/auth-guards.spec.ts
     - src/core/guards/auth.guard.ts
     - src/core/guards/guest.guard.ts
@@ -121,9 +125,9 @@ onlyWhen:
     - src/services/auth.service.ts
     - src/services/user.service.spec.ts
     - src/services/user.service.ts
-    - src/shared/components/auth-card.scss
-    - src/shared/components/auth-card.spec.ts
-    - src/shared/components/auth-card.vue
+    - src/shared/components/auth-card/auth-card.scss
+    - src/shared/components/auth-card/auth-card.spec.ts
+    - src/shared/components/auth-card/auth-card.vue
     - src/shared/directives/has-role.spec.ts
     - src/shared/directives/has-role.ts
     - src/shared/utils/next-path.spec.ts
@@ -135,6 +139,7 @@ onlyWhen:
     - src/testing/auth-fixtures.ts
     - tests/e2e/auth-support.ts
     - tests/e2e/auth.spec.ts
+    - tests/unit/user-constant.spec.ts
   server:database:
     - scripts/e2e-database-url.ts
     - tests/unit/e2e-database-url.spec.ts

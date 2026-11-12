@@ -1,0 +1,5 @@
+// The error state sits in the same measure as the account card, inside the layout's `main`.
+.auth-error {
+  inline-size: 100%;
+  max-inline-size: 26rem;
+}

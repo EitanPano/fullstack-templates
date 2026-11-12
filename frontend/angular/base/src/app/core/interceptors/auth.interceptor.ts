@@ -5,7 +5,7 @@ import { Router } from '@angular/router'
 import { catchError, from, switchMap, throwError } from 'rxjs'
 
 import { toLogin } from '@app/core/guards/auth.guard'
-import { LOGIN_PATH } from '@app/models/user/constants'
+import { LOGIN_PATH } from '@app/models/user/constant'
 import { AuthStore } from '@app/store/auth.store'
 
 // Sign-in, sign-up, the OTP calls and the refresh itself answer 401 for reasons a refresh cannot
@@ -13,7 +13,7 @@ import { AuthStore } from '@app/store/auth.store'
 // the session. The generated client passes no HttpContext, so the exemption is by URL.
 const EXEMPT_PATHS: ReadonlySet<string> = new Set([
   '/api/auth/login',
-  '/api/auth/register',
+  '/api/auth/signup',
   '/api/auth/refresh',
   '/api/auth/otp',
   '/api/auth/otp/verification',

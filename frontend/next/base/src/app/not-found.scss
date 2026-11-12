@@ -1,0 +1,22 @@
+@use 'setup/functions';
+
+// Outside every group there is no frame, so the page centres itself.
+.root-not-found {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: functions.space(4);
+  min-block-size: 100dvh;
+  max-inline-size: 28rem;
+  margin-inline: auto;
+  padding: functions.space(4);
+}
+
+.root-not-found__title {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+}
+
+.root-not-found__back {
+  inline-size: fit-content;
+}

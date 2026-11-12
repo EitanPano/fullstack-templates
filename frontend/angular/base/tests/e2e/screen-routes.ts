@@ -5,7 +5,7 @@ import { NAV } from '../../src/app/nav'
 // the server's auth.
 export const AUTH_ROUTES: readonly string[] = [
   '/auth/login', // @server:auth
-  '/auth/register', // @server:auth
+  '/auth/signup', // @server:auth
   '/forbidden', // @server:auth
 ]
 

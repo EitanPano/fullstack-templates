@@ -1,4 +1,4 @@
-import type { ApiError, ErrorCode } from '@/models/api-error'
+import type { ApiError, ErrorCode } from '@/models/api-error/type'
 import type { ErrorBody } from '@/services/generated/types.gen'
 
 // `call` is how an endpoint reads the generated client's result: `{ data }` on success, `{ error }`

@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router'
 
-import { AppAuthLayoutComponent } from './components/app-auth-layout/app-auth-layout.component' // @server:auth
-import { AppMainLayoutComponent } from './components/app-main-layout/app-main-layout.component'
+import { AppAuthLayoutComponent } from './layout/app-auth-layout/app-auth-layout.component' // @server:auth
+import { AppMainLayoutComponent } from './layout/app-main-layout/app-main-layout.component'
 
 export const routes: Routes = [
   // @server:auth-start

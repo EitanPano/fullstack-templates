@@ -25,7 +25,7 @@ const CORE = [...CORE_WIRING, ...CORE_LEAVES]
 const PAGE = ['page', 'page-components', 'page-routes', 'page-form']
 const LAYERS = [
   'app',
-  'components',
+  'layout',
   ...PAGE,
   'store',
   'services',
@@ -70,13 +70,13 @@ const row = (from, allowed, message) => [
 const policies = [
   ...row(
     'app',
-    [sel(['app', 'components', 'page-routes', ...CORE, 'store', ...SHARED, 'models'])],
-    'app/ wires components/, pages/ (lazy routes only), core/, store/, shared/ and models/: import a page only through its module *.routes.ts, and reach services/ through a store',
+    [sel(['app', 'layout', 'page-routes', ...CORE, 'store', ...SHARED, 'models'])],
+    'app/ wires layout/, pages/ (lazy routes only), core/, store/, shared/ and models/: import a page only through its module *.routes.ts, and reach services/ through a store',
   ),
   ...row(
-    'components',
+    'layout',
     [sel([...CORE, 'store', ...SHARED, 'models'])],
-    'components/ imports core/, store/, shared/ and models/: read data through store/, not services/ or pages/',
+    'layout/ imports core/, store/, shared/ and models/: read data through store/, not services/ or pages/',
   ),
   ...row(
     'page',
@@ -85,7 +85,7 @@ const policies = [
       sel('page-components', { feature: same('element') }),
       sel('page-form', { feature: same('element') }),
     ],
-    'a page imports store/, shared/, models/, core/config, core/providers and its own module components/ and *.form.ts: call services through a store method, never directly',
+    'a page imports store/, shared/, models/, core/config, core/providers, its own components and its module *.form.ts: call services through a store method, never directly',
   ),
   ...row(
     'page-components',
@@ -100,7 +100,7 @@ const policies = [
   ...row(
     'page-form',
     [sel(['shared-validators', 'models'])],
-    'a *.form.ts imports shared/validators, models/ and the generated zod schemas (services/generated/zod.gen) only',
+    'a *.form.ts imports shared/validators, shared/utils/validation, models/ and the generated zod schemas (services/generated/zod.gen) only',
   ),
   ...row(
     'store',
@@ -125,7 +125,7 @@ const policies = [
   ...row(
     SHARED,
     [sel([...SHARED, 'models'])],
-    'shared/ is product-agnostic: it imports only shared/ and models/. Move the code to core/, components/ or a page module, or pass the value in as an input',
+    'shared/ is product-agnostic: it imports only shared/ and models/. Move the code to core/, layout/ or a page module, or pass the value in as an input',
   ),
   ...row(
     'models',
@@ -137,7 +137,7 @@ const policies = [
     from: sel(PAGE.filter((name) => FILE_LAYERS.includes(name) === (kind === 'file'))),
     disallow: { to: sel(PAGE, { feature: other(kind) }) },
     message:
-      'a page module never imports another page module: lift the shared part to shared/ or compose both in app/ or components/',
+      'a page module never imports another page module: lift the shared part to shared/ or compose both in app/ or layout/',
   })),
   {
     from: sel(LAYERS.filter((name) => name !== 'services')),
@@ -168,6 +168,10 @@ const policies = [
     allow: { to: sel('services-generated', { fileInternalPath: 'zod.gen.ts' }) },
   },
   {
+    from: sel('page-form'),
+    allow: { to: sel('shared', { fileInternalPath: 'utils/validation.ts' }) },
+  },
+  {
     from: sel('services'),
     allow: { to: sel('services-generated') },
   },
@@ -178,6 +182,16 @@ const HTTP = [
     name: '@angular/common/http',
     message:
       'HttpClient is imported only in services/, core/interceptors/ and core/config/: call the API through a service facade over the generated client',
+  },
+]
+
+// An external library is imported only by its facade (AGENTS.md: "External libraries"). The
+// framework, rxjs and the libraries ADR 0006 chose as the architecture are exempt.
+const VALIDATION_LIBRARY = [
+  {
+    name: 'zod',
+    message:
+      'zod is imported only by shared/utils/validation.ts: build and run schemas through its functions',
   },
 ]
 
@@ -240,11 +254,12 @@ export default defineConfig([
         { pattern: 'src/app/pages/*/*.form.ts', category: 'page-form', capture: ['feature'] },
       ],
       'boundaries/elements': [
-        { type: 'components', pattern: 'src/app/components', partialMatch: false },
-        // The module's own components come first so they match before the page element.
+        { type: 'layout', pattern: 'src/app/layout', partialMatch: false },
+        // A component folder inside a page folder, pages/<module>/<page>/<component>: it comes
+        // first so it matches before the page element.
         {
           type: 'page-components',
-          pattern: 'src/app/pages/*/components',
+          pattern: 'src/app/pages/*/*/*',
           partialMatch: false,
           capture: ['feature'],
         },
@@ -274,7 +289,7 @@ export default defineConfig([
     rules: {
       'boundaries/dependencies': ['error', { default: 'disallow', policies }],
       'boundaries/no-unknown-files': 'error',
-      'no-restricted-imports': ['error', { paths: HTTP }],
+      'no-restricted-imports': ['error', { paths: [...HTTP, ...VALIDATION_LIBRARY] }],
     },
   },
   {
@@ -286,6 +301,11 @@ export default defineConfig([
       'src/app/core/config/**/*.ts',
       'src/app/core/i18n/transloco-http.loader*.ts', // @i18n
     ],
+    rules: { 'no-restricted-imports': ['error', { paths: VALIDATION_LIBRARY }] },
+  },
+  {
+    // The validation facade is the one file that names the library.
+    files: ['src/app/shared/utils/validation.ts'],
     rules: { 'no-restricted-imports': 'off' },
   },
   {

@@ -1,5 +1,42 @@
 # Changelog
 
+## 4.0.0 — 2026-11-12
+
+The folder rules of the owner: `models/` holds only entity files, there is one `components` folder, the form controls live together, and a component of several files is a folder named for it. Markup, class names, selectors, copy, routes and behaviour do not change. A project generated from 3.x keeps its tree; there is no migration tool.
+
+### Breaking
+
+All paths are under `src/app/`.
+
+| What | Before | Now, and what a project generated before does |
+| --- | --- | --- |
+| App chrome | `components/app-<name>/` | `layout/app-<name>/` (`app-main-layout`, `app-auth-layout`, `app-account-menu`, `app-theme-toggle`, `app-language-toggle`, `app-install-button`, `app-install-hint`). The lint element is `layout`; its message reads `layout/ imports core/, store/, shared/ and models/`. An old project keeps `components/`. |
+| Form controls | `shared/components/{input,textarea,checkbox,select,form-field,form-actions}/` and `shared/components/controls.scss` | `shared/components/form/<name>/` and `shared/components/form/controls.scss` (`styleUrls: ['../controls.scss']` is unchanged). |
+| Confirm dialog | `shared/components/modal/confirm-dialog.component.*` | `shared/components/confirm-dialog/` (a component of several files is a folder named for it); `modal/` keeps the modal, its service and its tokens. |
+| Page components | `pages/<module>/components/<name>/` (no template page used it) | A folder inside the page's folder, `pages/<module>/<page>/<name>/`. The lint element `page-components` matches `pages/*/*/*`; its rule (shared and models only) is unchanged. |
+| `models/user/constants.ts` | `constants.ts` | `constant.ts` (the four file names are `interface.ts`, `type.ts`, `enum.ts`, `constant.ts`). |
+| `models/user/interface.ts` | Re-exports of the generated types | `models/user/type.ts` (they are `type` re-exports; `Role` sits beside them). Importers read `@app/models/user/type`. |
+| `models/notification/interface.ts` | `Toast`, `ToastAction` and the `ToastKind`, `ToastParams` aliases | The interfaces stay; the aliases are in `models/notification/type.ts`. |
+| `models/api/response.ts` | The error types, `ApiError`, `isApiError()`, `Paginated<T>` | The types are `models/api/type.ts` and `models/api/interface.ts` (`ApiErrorInit`); `ApiError` and `isApiError()` are `services/api-error.ts`; its cases are `services/api-error.spec.ts`. |
+| `models/api/error-copy.ts` | The code table and `errorMessageKey()` | The table is `ERROR_CODES` in `models/api/constant.ts`; `errorMessageKey()` is `core/config/error-copy.ts`, because a store and a page both read it. Its spec moved with it and imports the table. |
+| `shared/validators/server-errors.ts` | Took an `ApiError` | Takes `{ fieldErrors? }`, so `shared/` imports nothing from `services/`; every caller still passes an `ApiError`. |
+| Sign-up endpoint and flow names | `POST /api/auth/register`, `postApiAuthRegister`, `AuthService.register()`, `AuthStore.register()`, `registerForm()`, `RegisterComponent` (`app-register`), `pages/auth/register/`, `/auth/register`, `auth.register.*` and `auth.login.registerLink` keys, `.register__*` classes | `POST /api/auth/signup`, `postApiAuthSignup`, `signup()`, `signupForm()`, `SignupComponent` (`app-signup`), `pages/auth/signup/`, `/auth/signup`, `auth.signup.*` and `auth.login.signupLink` keys, `.signup__*` classes. The generated client is regenerated from the new contract; the copy does not change. A project generated before keeps the old names. |
+
+### Changed
+
+- `template.yaml`: the `i18n` and `pwa` flag paths and the `server:auth` paths read `layout/`; `onlyWhen: server` lists `services/api-error.*` and `core/config/error-copy.*` beside `models/api`.
+- `eslint.config.mjs`: the element `components` is `layout`; `page-components` matches a component folder inside a page folder.
+- `tests/unit/eslint-boundaries.spec.ts`, `tests/unit/component-styles.spec.ts`: re-pathed; every rule keeps one refused and one allowed case. The "no layer claims it" case now refuses `src/app/components/`.
+- `AGENTS.md`: the layer list, the "Where does X go" and import tables, the models, error-envelope, shell, shared-sheet and test paragraphs name the new paths and the models rule.
+- zod behind one facade, `shared/utils/validation.ts` (`text`, `number`, `literal`, `object`, `field`, `pick`, `either`, `check`, `validate`, the types `Schema`, `Input`, `Output`, `Issue`, `IssueKind`, `Result`). `shared/validators/zod.validator.ts` is `schema.validator.ts`; `zodValidator` is `schemaValidator` and reads the facade's `validate` result; the control error key `zod` is `schema` (`errors.schema`), `ZodErrorValue` is `SchemaErrorValue`. No file but the facade calls a method on a schema (`user.form.ts`, `auth.form.ts` and the specs go through it). A project generated before keeps `zod.validator.ts` and `errors.zod`.
+- `eslint.config.mjs`: `no-restricted-imports` refuses `zod` outside `shared/utils/validation.ts`; a `*.form.ts` may import that one file. `tests/unit/eslint-boundaries.spec.ts` has a refused case (page, form, services, validators) and an allowed one (the facade).
+- `AGENTS.md`: the form recipe and import tables name `schemaValidator` and the facade; an "External libraries" rule lists the facades.
+
+### Tests
+
+- New `tests/unit/folders.spec.ts`: every file under `models/` is `<noun>/(interface|type|enum|constant).ts`; two files of one stem in `layout/`, `shared/components/`, `pages/` or `app/` sit in a folder of that name; no `components/` folder exists outside `shared/`. Each rule has a seeded refused and allowed case.
+- `error-copy.spec.ts` (the code table and `errorMessageKey()`) and `api-error.spec.ts` (`ApiError`, `isApiError()`) are the two halves of the old `models/api/error-copy.spec.ts`; no test is deleted, skipped or focused.
+
 ## 3.1.0 — 2026-11-11
 
 The template generates correctly without a server ([ADR 0011](../../docs/adr/0011-frontend-without-a-server.md)). A generation with a server is unchanged except for the dev proxy file (below).

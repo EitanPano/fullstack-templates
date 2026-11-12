@@ -197,12 +197,12 @@ directories (`config/`, `api/<module>/{routes,controller,schema,service}`, `mode
 gates -> controller handler -> service -> db seam -> infra store`), import direction enforced by
 the language's own tool (ESLint import zones in bun-express, import-linter contracts in
 `pyproject.toml` for python-fastapi), OpenAPI 3.1 produced from the validation schemas, one error
-envelope, `/api/health` and `/api/health/ready`. A frontend is `app/` for routing only,
-`feature/<name>/` (`ui/`, a data layer, `model`), product-agnostic `shared/`, and `lib/api/` holding
-the client generated from the server's `openapi.json` (the `contract` command). It has one of two
-shapes: server-rendered (`next`: `feature/*/server/`, the Next server calls the API through
-`API_URL`) or a single-page app (`react`: `feature/*/api/` route loaders, the browser calls relative
-`/api`, no CORS). An SPA declares `static: { out: dist }`, has a Dockerfile with a `dist` and a
+envelope, `/api/health` and `/api/health/ready`. A frontend's layer map is in its
+`AGENTS.md`; the shared names are `layout/`, `services/`, `store/`, `models/`, `shared/`,
+`core/`, `styles/`, plus `pages/` in the SPAs or `app/` and `actions/` in Next. The client generated
+from the server's `openapi.json` (the `contract` command) is in `services/generated/` (Angular:
+`src/app/services/generated/`). Server-rendered (Next's server calls the API through `API_URL`) or
+single-page (the browser calls relative `/api`, no CORS). An SPA declares `static: { out: dist }`, has a Dockerfile with a `dist` and a
 `serve` target, and passes the contract in `docs/conventions.md › Frontend, single-page app`.
 
 **Deploy modes** (`--deploy`, ADR 0003). `split`: one image per package, the frontend public and the

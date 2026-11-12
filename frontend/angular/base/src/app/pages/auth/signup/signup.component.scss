@@ -1,0 +1,10 @@
+@use 'setup/functions';
+
+.signup__form {
+  display: grid;
+  gap: functions.space(4);
+}
+
+.signup__alt {
+  margin: 0;
+}

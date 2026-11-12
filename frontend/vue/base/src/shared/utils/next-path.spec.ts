@@ -22,7 +22,7 @@ describe('safeNextPath', () => {
     ['a javascript URL', 'javascript:alert(1)'],
     ['a relative path', 'profile'],
     ['a sign-in screen', '/auth/login?next=/x'],
-    ['the register screen', '/auth/register'],
+    ['the signup screen', '/auth/signup'],
     ['nothing', undefined],
     ['a list', ['/a', '/b']],
     ['a number', 7],

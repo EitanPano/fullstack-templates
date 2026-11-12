@@ -1,8 +1,8 @@
-import type { ApiError } from '@/models/api/response'
+import type { ApiError } from '@/models/api/type'
 
-import type { FieldError } from './zod-form'
+import type { FieldError } from './schema-form'
 
-// What applyFieldErrors needs of a form: the object `useZodForm` returns satisfies it.
+// What applyFieldErrors needs of a form: the object `useSchemaForm` returns satisfies it.
 type ServerErrorTarget = {
   values: Record<string, unknown>
   serverErrors: Record<string, FieldError>

@@ -123,22 +123,22 @@ function encapsulationProblems(root: string): string[] {
   return [...none, ...deep, ...inline]
 }
 
-// Rule 5: a folder in components/ carries the app- prefix, and its component class carries App.
+// Rule 5: a folder in layout/ carries the app- prefix, and its component class carries App.
 function unprefixed(root: string): string[] {
-  const dir = join(root, 'app/components')
+  const dir = join(root, 'app/layout')
   return readdirSync(dir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .flatMap((entry) => {
       const problems: string[] = []
       if (!entry.name.startsWith('app-')) {
-        problems.push(`app/components/${entry.name}: a folder in components/ starts with app-`)
+        problems.push(`app/layout/${entry.name}: a folder in layout/ starts with app-`)
       }
       for (const file of readdirSync(join(dir, entry.name))) {
         if (!file.endsWith('.component.ts')) continue
         const text = readFileSync(join(dir, entry.name, file), 'utf8')
         const name = /export class (\w+)/.exec(text)?.[1] ?? ''
         if (!name.startsWith('App')) {
-          problems.push(`app/components/${entry.name}/${file}: the class ${name} starts with App`)
+          problems.push(`app/layout/${entry.name}/${file}: the class ${name} starts with App`)
         }
       }
       return problems
@@ -231,7 +231,7 @@ describe('the styles tree', () => {
     expect(encapsulationProblems(REAL_SRC)).toEqual([])
   })
 
-  it('prefixes every folder in components/ with app- and its class with App', () => {
+  it('prefixes every folder in layout/ with app- and its class with App', () => {
     expect(unprefixed(REAL_SRC)).toEqual([])
   })
 
@@ -291,12 +291,12 @@ describe('the scan itself', () => {
       'styles/basics/_base.scss': LAYERED('basics'),
       'styles/basics/_helpers.scss': LAYERED('basics'),
       'styles/basics/_layout.scss': LAYERED('basics'),
-      'app/components/app-ok/app-ok.component.ts': component(
+      'app/layout/app-ok/app-ok.component.ts': component(
         'app-ok',
         'AppOkComponent',
         "  styleUrl: './app-ok.component.scss',\n",
       ),
-      'app/components/app-ok/app-ok.component.scss': RULE,
+      'app/layout/app-ok/app-ok.component.scss': RULE,
       ...extra,
     }
     for (const [path, text] of Object.entries(files)) {
@@ -325,13 +325,13 @@ describe('the scan itself', () => {
 
   it('accepts a sheet that two sibling components reference', () => {
     const root = seed({
-      'app/shared/components/controls.scss': RULE,
-      'app/shared/components/input/input.component.ts': component(
+      'app/shared/components/form/controls.scss': RULE,
+      'app/shared/components/form/input/input.component.ts': component(
         'app-input',
         'InputComponent',
         "  styleUrls: ['../controls.scss'],\n",
       ),
-      'app/shared/components/textarea/textarea.component.ts': component(
+      'app/shared/components/form/textarea/textarea.component.ts': component(
         'app-textarea',
         'TextareaComponent',
         "  styleUrls: ['../controls.scss'],\n",
@@ -344,8 +344,8 @@ describe('the scan itself', () => {
 
   it('refuses a shared sheet that only one component references', () => {
     const root = seed({
-      'app/shared/components/controls.scss': RULE,
-      'app/shared/components/input/input.component.ts': component(
+      'app/shared/components/form/controls.scss': RULE,
+      'app/shared/components/form/input/input.component.ts': component(
         'app-input',
         'InputComponent',
         "  styleUrls: ['../controls.scss'],\n",
@@ -353,7 +353,7 @@ describe('the scan itself', () => {
     })
 
     expect(ownerless(root)).toEqual([
-      'app/shared/components/controls.scss: its one referencer (app/shared/components/input/input.component.ts) is not the sibling with its stem',
+      'app/shared/components/form/controls.scss: its one referencer (app/shared/components/form/input/input.component.ts) is not the sibling with its stem',
     ])
   })
 
@@ -404,11 +404,11 @@ describe('the scan itself', () => {
 
   it('refuses ::ng-deep in a sheet', () => {
     const root = seed({
-      'app/components/app-ok/app-ok.component.scss': ':host ::ng-deep p {\n  color: red;\n}\n',
+      'app/layout/app-ok/app-ok.component.scss': ':host ::ng-deep p {\n  color: red;\n}\n',
     })
 
     expect(encapsulationProblems(root)).toEqual([
-      'app/components/app-ok/app-ok.component.scss: ::ng-deep is refused (use an input, :host or :host-context)',
+      'app/layout/app-ok/app-ok.component.scss: ::ng-deep is refused (use an input, :host or :host-context)',
     ])
   })
 
@@ -426,23 +426,21 @@ describe('the scan itself', () => {
     ])
   })
 
-  it('refuses a folder in components/ without the app- prefix', () => {
+  it('refuses a folder in layout/ without the app- prefix', () => {
     const root = seed({
-      'app/components/thing/thing.component.ts': component('app-thing', 'AppThingComponent'),
+      'app/layout/thing/thing.component.ts': component('app-thing', 'AppThingComponent'),
     })
 
-    expect(unprefixed(root)).toEqual([
-      'app/components/thing: a folder in components/ starts with app-',
-    ])
+    expect(unprefixed(root)).toEqual(['app/layout/thing: a folder in layout/ starts with app-'])
   })
 
   it('refuses a component class in components/ without the App prefix', () => {
     const root = seed({
-      'app/components/app-thing/app-thing.component.ts': component('app-thing', 'ThingComponent'),
+      'app/layout/app-thing/app-thing.component.ts': component('app-thing', 'ThingComponent'),
     })
 
     expect(unprefixed(root)).toEqual([
-      'app/components/app-thing/app-thing.component.ts: the class ThingComponent starts with App',
+      'app/layout/app-thing/app-thing.component.ts: the class ThingComponent starts with App',
     ])
   })
 
@@ -463,10 +461,10 @@ describe('the scan itself', () => {
   })
 
   it('refuses a layered component sheet', () => {
-    const root = seed({ 'app/components/app-ok/app-ok.component.scss': LAYERED('basics') })
+    const root = seed({ 'app/layout/app-ok/app-ok.component.scss': LAYERED('basics') })
 
     expect(layerProblems(root)).toEqual([
-      'app/components/app-ok/app-ok.component.scss: a component sheet is never layered (unlayered rules win)',
+      'app/layout/app-ok/app-ok.component.scss: a component sheet is never layered (unlayered rules win)',
     ])
   })
 

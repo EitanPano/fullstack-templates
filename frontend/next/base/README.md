@@ -9,7 +9,7 @@ the repository's `AGENTS.md`; nothing here repeats them.
 <!-- @server-end -->
 - `bun run dev` starts the dev server on port 3000. <!-- @noserver -->
 - `bun run check` runs every gate; `bun run test:e2e` runs Playwright.
-- `bun run api:types` regenerates `src/shared/api/generated/` from `../__SERVER_DIR__/openapi.json`. <!-- @server -->
+- `bun run api:types` regenerates `src/services/generated/` from `../__SERVER_DIR__/openapi.json`. <!-- @server -->
 
 `AGENTS.md` in this directory ships with the package and holds its layer map. Next.js appends
 its own section on the first `dev` run; read that section before touching framework APIs.
