@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.0 — 2026-11-12
+
+### Added
+
+- A 401 for a request with no valid access token (`authentication required`) carries `WWW-Authenticate: Bearer`, built by `authentication_required()` in `services/utils/error.py`; wrong credentials, an invalid refresh token and an invalid code carry none, so a client can refresh on the header alone. The envelope is unchanged.
+
 ## 2.0.0 — 2026-11-12
 
 ### Changed (breaking)

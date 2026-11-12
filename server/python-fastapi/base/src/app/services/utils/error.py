@@ -56,6 +56,19 @@ class AppError(Exception):
         self.headers: Final = headers
 
 
+# The one 401 a session refresh can fix: the request carries no valid access token. Any other 401
+# (wrong credentials, invalid refresh token, invalid code) is built without this challenge.
+BEARER_CHALLENGE: Final = "Bearer"
+
+
+def authentication_required() -> AppError:
+    return AppError(
+        "unauthenticated",
+        "authentication required",
+        headers={"WWW-Authenticate": BEARER_CHALLENGE},
+    )
+
+
 class ErrorDetail(ResponseModel):
     code: ErrorCode
     message: str

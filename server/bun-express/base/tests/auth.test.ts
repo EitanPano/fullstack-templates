@@ -173,6 +173,8 @@ describeStore('login', () => {
 
     expect(unknown.status).toBe(401)
     expect(wrong.status).toBe(401)
+    expect(unknown.headers['www-authenticate']).toBeUndefined()
+    expect(wrong.headers['www-authenticate']).toBeUndefined()
     expect(body(unknown).error.code).toBe(body(wrong).error.code)
     expect(body(unknown).error.message).toBe(body(wrong).error.message)
   })
@@ -234,7 +236,10 @@ describeStore('refresh', () => {
   })
 
   it('answers 401 for a garbage token', async () => {
-    expect((await refreshWith('not-a-jwt')).status).toBe(401)
+    const res = await refreshWith('not-a-jwt')
+
+    expect(res.status).toBe(401)
+    expect(res.headers['www-authenticate']).toBeUndefined()
   })
 
   it('revokes all sessions when a rotated token is replayed after the grace window', async () => {
@@ -317,7 +322,10 @@ describeStore('logout', () => {
   })
 
   it('answers 401 when unauthenticated', async () => {
-    expect((await request(app).post('/api/auth/logout')).status).toBe(401)
+    const res = await request(app).post('/api/auth/logout')
+
+    expect(res.status).toBe(401)
+    expect(res.headers['www-authenticate']).toBe('Bearer')
   })
 
   it('issues an access token from the body that works as a bearer on GET /api/user/me', async () => {
@@ -445,6 +453,7 @@ describeStore('otp request', () => {
       .send({ target: { type: 'email', value: 'ada@example.com' }, purpose: 'verify' })
 
     expect(out.status).toBe(401)
+    expect(out.headers['www-authenticate']).toBe('Bearer')
   })
 
   it('sets Cache-Control: no-store on token-issuing responses', async () => {

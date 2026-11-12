@@ -24,7 +24,7 @@ import type {
 } from '../../models/user/type'
 import { publish } from '../../services/event'
 import { hashPassword } from '../../services/security/crypto'
-import { AppError } from '../../services/utils/error'
+import { AppError, authenticationRequired } from '../../services/utils/error'
 import { getUserRequest, listUserRequest, updateMeRequest } from './schema'
 import * as service from './service'
 
@@ -60,7 +60,7 @@ async function requireRecord(id: string): Promise<UserRecord> {
 // that is a 401, not a missing resource.
 async function requireCallerRecord(caller: Caller): Promise<UserRecord> {
   const record = await service.findById(caller.id)
-  if (record === undefined) throw new AppError('unauthenticated', 'authentication required')
+  if (record === undefined) throw authenticationRequired()
   return record
 }
 

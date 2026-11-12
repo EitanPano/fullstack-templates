@@ -34,7 +34,7 @@ from app.models.user.type import ContactTarget, CreateUserInput, PublicUser, Use
 from app.services.event import USER_SIGNEDUP, publish
 from app.services.security.crypto import hash_password
 from app.services.utils import clock
-from app.services.utils.error import AppError
+from app.services.utils.error import AppError, authentication_required
 from app.services.utils.pagination import PageQuery
 
 
@@ -116,7 +116,7 @@ async def _require_caller_record(caller: Caller) -> UserRecord:
     that is a 401, not a missing resource."""
     record = await service.find_user_by_id(caller.id)
     if record is None:
-        raise AppError("unauthenticated", "authentication required")
+        raise authentication_required()
     return record
 
 

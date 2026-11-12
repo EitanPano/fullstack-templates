@@ -30,8 +30,8 @@ template finds the same shape.
 <!-- matrix:start -->
 | Template | Kind | Version | Flags | Capabilities | Summary |
 | --- | --- | --- | --- | --- | --- |
-| `bun-express` | server | 3.0.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
-| `python-fastapi` | server | 2.0.0 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
+| `bun-express` | server | 3.1.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
+| `python-fastapi` | server | 2.1.0 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
 | `angular` | frontend | 4.0.0 | i18n, pwa | — | Angular 22 single-page app on standalone components and signals, @ngrx/signals stores, co-located SCSS on a global token tree and Hey API's Angular client, with Transloco and the service worker behind flags |
 | `next` | frontend | 4.0.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
 | `react` | frontend | 6.0.0 | — | — | Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives styled by co-located SCSS on a global token tree |

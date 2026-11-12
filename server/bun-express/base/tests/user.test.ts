@@ -55,6 +55,7 @@ describeStore('GET /api/user/me', () => {
 
     expect(res.status).toBe(401)
     expect((res.body as ErrorBody).error.code).toBe('unauthenticated')
+    expect(res.headers['www-authenticate']).toBe('Bearer')
   })
 
   it('answers 200 with the access_token cookie', async () => {
@@ -90,6 +91,7 @@ describeStore('GET /api/user/me', () => {
 
     expect(res.status).toBe(401)
     expect((res.body as ErrorBody).error.code).toBe('unauthenticated')
+    expect(res.headers['www-authenticate']).toBe('Bearer')
   })
 })
 
