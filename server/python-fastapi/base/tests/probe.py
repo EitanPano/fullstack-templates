@@ -14,7 +14,7 @@ from pydantic import Field
 from app.middleware.context import client_ip_of
 from app.server import create_app
 from app.services.utils.api_model import RequestModel, ResponseModel
-from app.services.utils.error import AppError
+from app.services.utils.error import AppError, authentication_required
 
 
 class Greeting(RequestModel):
@@ -45,6 +45,10 @@ def probe_app(app: FastAPI | None = None) -> FastAPI:
     @probe.get("/limited")
     async def limited() -> None:
         raise AppError("rate_limited", "too many requests", headers={"Retry-After": "900"})
+
+    @probe.get("/challenge")
+    async def challenge() -> None:
+        raise authentication_required()
 
     @probe.get("/detailed")
     async def detailed() -> None:

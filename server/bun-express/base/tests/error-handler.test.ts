@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, spyOn } from 'bun:test'
 import express from 'express'
 import request from 'supertest'
 
-import { AppError } from '../src/services/utils/error'
+import { AppError, authenticationRequired } from '../src/services/utils/error'
 import { readInput, validate } from '../src/middleware/validate'
 import { z } from '../src/services/utils/zod'
 import { errorHandler } from '../src/middleware/error-handler'
@@ -24,6 +24,9 @@ function probeApp() {
   })
   app.get('/missing', () => {
     throw new AppError('not_found', 'thing 7 not found')
+  })
+  app.get('/challenge', () => {
+    throw authenticationRequired()
   })
   app.get('/boom', () => {
     throw new Error('connection string leaked here')
@@ -96,6 +99,23 @@ describe('the error handler', () => {
       error: { code: 'not_found', message: 'thing 7 not found' },
       requestId: res.headers['x-request-id'],
     })
+  })
+
+  it('applies the headers of an AppError and keeps the envelope unchanged', async () => {
+    const res = await request(probeApp()).get('/challenge')
+
+    expect(res.status).toBe(401)
+    expect(res.headers['www-authenticate']).toBe('Bearer')
+    expect(res.body).toEqual({
+      error: { code: 'unauthenticated', message: 'authentication required' },
+      requestId: res.headers['x-request-id'],
+    })
+  })
+
+  it('sends no challenge with an AppError that carries no headers', async () => {
+    const res = await request(probeApp()).get('/missing')
+
+    expect(res.headers['www-authenticate']).toBeUndefined()
   })
 
   it('hides an unexpected error behind a bare internal envelope and logs it', async () => {

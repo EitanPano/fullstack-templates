@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.1.0 — 2026-11-12
+
+### Added
+
+- A 401 for a request with no valid access token (`authentication required`) carries `WWW-Authenticate: Bearer`, built by `authenticationRequired()` in `services/utils/error.ts`; wrong credentials, an invalid refresh token and an invalid code carry none, so a client can refresh on the header alone. `AppError` takes optional `headers`, applied by `middleware/error-handler.ts`; the envelope is unchanged.
+
 ## 3.0.0 — 2026-11-12
 
 ### Changed (breaking)

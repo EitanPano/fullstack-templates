@@ -4,6 +4,7 @@ import { Router, provideRouter } from '@angular/router'
 
 import { provideTestTranslator } from '@app/core/i18n/translator.testing'
 import { NotificationService } from '@app/core/providers/notification.service'
+import type { Outcome } from '@app/models/api/type'
 import { ApiError } from '@app/services/api-error'
 import { AuthStore } from '@app/store/auth.store'
 
@@ -16,8 +17,7 @@ function type(input: HTMLInputElement | undefined, value: string) {
 }
 
 describe('SignupComponent', () => {
-  const signup = vi.fn<(credentials: unknown) => Promise<boolean>>()
-  const error = signal<ApiError | null>(null)
+  const signup = vi.fn<(credentials: unknown) => Promise<Outcome<unknown>>>()
   const showError = vi.fn<(key: string) => number>(() => 1)
 
   async function render(next?: string) {
@@ -25,7 +25,7 @@ describe('SignupComponent', () => {
       providers: [
         provideRouter([]),
         provideTestTranslator(),
-        { provide: AuthStore, useValue: { signup, error, loading: signal(false) } },
+        { provide: AuthStore, useValue: { signup, loading: signal(false) } },
         { provide: NotificationService, useValue: { showError } },
       ],
     })
@@ -52,7 +52,6 @@ describe('SignupComponent', () => {
   beforeEach(() => {
     signup.mockReset()
     showError.mockClear()
-    error.set(null)
   })
 
   it('has one h1 and links to the login screen', async () => {
@@ -73,7 +72,7 @@ describe('SignupComponent', () => {
   })
 
   it('signs up with the email and password only, then goes to next', async () => {
-    signup.mockResolvedValue(true)
+    signup.mockResolvedValue({ ok: true, value: undefined })
     const { navigate, submit, fill } = await render('/profile')
     fill('ada@example.com', 'longenough1', 'longenough1')
     await submit()
@@ -82,7 +81,7 @@ describe('SignupComponent', () => {
   })
 
   it('goes home by default', async () => {
-    signup.mockResolvedValue(true)
+    signup.mockResolvedValue({ ok: true, value: undefined })
     const { navigate, submit, fill } = await render()
     fill('ada@example.com', 'longenough1', 'longenough1')
     await submit()
@@ -90,8 +89,7 @@ describe('SignupComponent', () => {
   })
 
   it('stays after a conflict without a second toast', async () => {
-    signup.mockResolvedValue(false)
-    error.set(new ApiError({ status: 409, code: 'conflict' }))
+    signup.mockResolvedValue({ ok: false, error: new ApiError({ status: 409, code: 'conflict' }) })
     const { navigate, submit, fill } = await render()
     fill('ada@example.com', 'longenough1', 'longenough1')
     await submit()
@@ -100,14 +98,14 @@ describe('SignupComponent', () => {
   })
 
   it('puts a server field error on its field', async () => {
-    signup.mockResolvedValue(false)
-    error.set(
-      new ApiError({
+    signup.mockResolvedValue({
+      ok: false,
+      error: new ApiError({
         status: 400,
         code: 'validation_failed',
         fieldErrors: { password: ['invalid'] },
       }),
-    )
+    })
     const { element, submit, fill } = await render()
     fill('ada@example.com', 'longenough1', 'longenough1')
     await submit()

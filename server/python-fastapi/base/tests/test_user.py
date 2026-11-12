@@ -56,6 +56,7 @@ class TestGetMe:
 
         assert res.status_code == 401
         assert error_of(res).code == "unauthenticated"
+        assert res.headers["www-authenticate"] == "Bearer"
 
     async def test_answers_200_with_the_access_token_cookie(
         self, client: httpx.AsyncClient
@@ -102,6 +103,7 @@ class TestGetMe:
         res = await client.get("/api/user/me", headers=headers)
 
         assert res.status_code == 401
+        assert res.headers["www-authenticate"] == "Bearer"
         assert error_of(res).code == "unauthenticated"
 
 

@@ -8,7 +8,7 @@ import type { RequestHandler, Response } from 'express'
 import type { Caller } from '../models/auth/type'
 import { readAccessToken } from '../services/security/cookies'
 import { verifyAccess } from '../services/security/jwt'
-import { AppError } from '../services/utils/error'
+import { authenticationRequired } from '../services/utils/error'
 
 // Never rejects: the OTP endpoints are optional-auth. An absent or invalid token leaves no caller.
 export const authenticate: RequestHandler = async (req, res, next) => {
@@ -28,7 +28,7 @@ export const authenticate: RequestHandler = async (req, res, next) => {
 
 export const rejectAnonymous: RequestHandler = (_req, res, next) => {
   if (res.locals.caller === undefined) {
-    next(new AppError('unauthenticated', 'authentication required'))
+    next(authenticationRequired())
     return
   }
   next()
@@ -46,6 +46,6 @@ export const requireAuth: RequestHandler = (req, res, next) => {
 
 export function requireCaller(res: Response): Caller {
   const caller = res.locals.caller
-  if (caller === undefined) throw new AppError('unauthenticated', 'authentication required')
+  if (caller === undefined) throw authenticationRequired()
   return caller
 }

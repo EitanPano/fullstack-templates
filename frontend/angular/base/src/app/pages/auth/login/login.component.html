@@ -12,7 +12,7 @@
     <app-form-field [label]="'auth.password' | t">
       <app-input formControlName="password" type="password" autocomplete="current-password" />
     </app-form-field>
-    <app-form-actions submitKey="auth.login.submit" [pending]="store.loading()" />
+    <app-form-actions submitKey="auth.login.submit" [pending]="submission.pending()" />
   </form>
   <p footer class="login__alt">
     {{ 'auth.login.noAccount' | t }}

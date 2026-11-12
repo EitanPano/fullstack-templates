@@ -19,6 +19,7 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, _req, res, _ne
   const requestId = res.locals.requestId
   const appError = toAppError(error)
   if (appError.status >= 500) log.error(appError.message, { requestId }, error)
+  if (appError.headers !== undefined) res.set(appError.headers)
   res.status(appError.status).json(toErrorBody(appError, requestId))
 }
 

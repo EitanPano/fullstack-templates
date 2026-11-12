@@ -4,6 +4,7 @@ import { Router, provideRouter } from '@angular/router'
 
 import { provideTestTranslator } from '@app/core/i18n/translator.testing'
 import { NotificationService } from '@app/core/providers/notification.service'
+import type { Outcome } from '@app/models/api/type'
 import { ApiError } from '@app/services/api-error'
 import type { PublicUser } from '@app/models/user/type'
 import { AuthStore } from '@app/store/auth.store'
@@ -11,9 +12,8 @@ import { AuthStore } from '@app/store/auth.store'
 import { VerifyOtpComponent } from './verify-otp.component'
 
 describe('VerifyOtpComponent', () => {
-  const requestOtp = vi.fn<() => Promise<boolean>>()
-  const verifyOtp = vi.fn<(code: string) => Promise<boolean>>()
-  const error = signal<ApiError | null>(null)
+  const requestOtp = vi.fn<() => Promise<Outcome<unknown>>>()
+  const verifyOtp = vi.fn<(code: string) => Promise<Outcome<unknown>>>()
   const showError = vi.fn<(key: string) => number>(() => 1)
   const showSuccess = vi.fn<(key: string) => number>(() => 1)
 
@@ -27,7 +27,6 @@ describe('VerifyOtpComponent', () => {
           useValue: {
             requestOtp,
             verifyOtp,
-            error,
             loading: signal(false),
             user: signal({ email: 'ada@example.com' } as PublicUser),
           },
@@ -54,7 +53,6 @@ describe('VerifyOtpComponent', () => {
     verifyOtp.mockReset()
     showError.mockClear()
     showSuccess.mockClear()
-    error.set(null)
   })
 
   it('first offers to send a code to the account address', async () => {
@@ -65,7 +63,7 @@ describe('VerifyOtpComponent', () => {
   })
 
   it('shows the code field once a code was sent', async () => {
-    requestOtp.mockResolvedValue(true)
+    requestOtp.mockResolvedValue({ ok: true, value: undefined })
     const { element, clickByText } = await render()
     await clickByText('Send code')
     expect(requestOtp).toHaveBeenCalledOnce()
@@ -74,7 +72,7 @@ describe('VerifyOtpComponent', () => {
   })
 
   it('keeps the send button when sending failed', async () => {
-    requestOtp.mockResolvedValue(false)
+    requestOtp.mockResolvedValue({ ok: false, error: null })
     const { element, clickByText } = await render()
     await clickByText('Send code')
     expect(element.querySelector('input')).toBeNull()
@@ -82,7 +80,7 @@ describe('VerifyOtpComponent', () => {
   })
 
   async function sendAndEnter(code: string) {
-    requestOtp.mockResolvedValue(true)
+    requestOtp.mockResolvedValue({ ok: true, value: undefined })
     const page = await render()
     await page.clickByText('Send code')
     const input = page.element.querySelector('input')
@@ -101,7 +99,7 @@ describe('VerifyOtpComponent', () => {
   })
 
   it('verifies a valid code, toasts success and returns to the profile', async () => {
-    verifyOtp.mockResolvedValue(true)
+    verifyOtp.mockResolvedValue({ ok: true, value: undefined })
     const { navigate } = await sendAndEnter('123456')
     expect(verifyOtp).toHaveBeenCalledWith('123456')
     expect(showSuccess).toHaveBeenCalledWith('auth.otp.verified')
@@ -109,8 +107,10 @@ describe('VerifyOtpComponent', () => {
   })
 
   it('stays on the page when the store refuses the code, with no second toast', async () => {
-    verifyOtp.mockResolvedValue(false)
-    error.set(new ApiError({ status: 429, code: 'rate_limited' }))
+    verifyOtp.mockResolvedValue({
+      ok: false,
+      error: new ApiError({ status: 429, code: 'rate_limited' }),
+    })
     const { navigate } = await sendAndEnter('123456')
     expect(navigate).not.toHaveBeenCalled()
     expect(showError).not.toHaveBeenCalled()

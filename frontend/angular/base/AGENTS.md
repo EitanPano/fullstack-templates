@@ -22,7 +22,8 @@ The layer map of this package. Commands are in `package.json`.
     `config/` (`constants.ts` with the `STORAGE_KEYS`, `app-config.token.ts`, `http-context.ts`),
 <!-- @noserver-end -->
     `interceptors/`, `guards/`, `initializers/`, `providers/` (storage, logger, notification,
-    theme, network, loading, install-prompt and app-update; the last two with the `pwa` flag),
+    theme, network, loading, install-prompt and app-update, the last two with the `pwa` flag;
+    `form-submit.ts` with a server),
     `i18n/` (the translator binding in `translator.provider.ts`; with the `i18n`
     flag also Transloco's config, the HTTP loader, `language.service.ts` and `translations/he.json`),
     `errors/`.
@@ -44,7 +45,8 @@ The layer map of this package. Commands are in `package.json`.
     `<page>/<component>/` (the page's own presentational pieces, a folder named for each). A page module never imports
     another one. `home/` is the index route; `not-found/` is the `**` route.
 <!-- @server-start -->
-  - `store/`: `@ngrx/signals` stores, one per noun, and `with-request-status.ts`.
+  - `store/`: `@ngrx/signals` stores, one per noun, `with-request-status.ts` (the call runner) and,
+    with auth, `session.store.ts`.
 <!-- @server-end -->
 <!-- @noserver-start -->
   - `store/`: `@ngrx/signals` stores, one per noun.
@@ -180,7 +182,7 @@ harness's `scripts/scaffold.mjs` (never a hand copy):
   the `api:types` script and `@hey-api/openapi-ts`;
 - the client wiring (`core/config/api-client*.ts`, `provideApiClient()` in `app.config.ts`);
 - the error envelope: `models/api/`, `error.interceptor.ts`, `server-errors.ts`,
-  `with-request-status.ts` and `file-upload.service.ts`;
+  `with-request-status.ts`, `form-submit.ts` and `file-upload.service.ts`;
 - the dev proxy's `/api` entry (`proxy.conf.mjs`, which `angular.json` names), the `/api` rules of
   the e2e static server and the nginx config, and the API web server and health journey of the e2e
   suite.
@@ -216,78 +218,50 @@ A page injects the store and never `HttpClient`; `@angular/common/http` appears 
    ```
 
 3. **Service.** `@Injectable({ providedIn: 'root' })`, one method per call, each returning the
-   call's `data`. A failure rejects with the `ApiError` the interceptor built.
+   call's `data` (`openapi-ts.config.ts` sets `throwOnError` once). A failure rejects with the
+   `ApiError` the interceptor built.
 
    ```ts
    // app/services/module.service.ts
    @Injectable({ providedIn: 'root' })
    export class ModuleService {
      async list(): Promise<ModulePage> {
-       const { data } = await getApiModule({ throwOnError: true })
+       const { data } = await getApiModule()
        return data
      }
 
      async create(body: CreateModuleBody): Promise<Module> {
-       const { data } = await postApiModule({ body, throwOnError: true })
+       const { data } = await postApiModule({ body })
        return data
      }
    }
    ```
 
-4. **Store.** A read is `patchState(store, setLoading())`, `await` the service,
-   `patchState(store, { ... }, setLoaded())`; in the `catch` it `setError(error)`s and toasts
-   `errors.<code>` once; a cause that is not an `ApiError` is first logged
-   (`LoggerService.error`, as the block shows) and then shown as `errors.unknown`, so a
-   bug is never silent. A mutation first checks `NetworkService.online()` and toasts `errors.offline`
-   instead of sending, and returns whether it worked.
+4. **Store.** `withRequestStatus({ store, calls })` gives each named call its own status
+   (`loading('list')`, `loaded`, `failed`, `error`) and `_call`, the one way a method calls a
+   service. `_call` resolves to an `Outcome` (`{ ok, value }` or `{ ok: false, error }`) and never
+   rejects; it records a failure, logs a cause that is not an `ApiError` and toasts
+   `errors.<code>` once (`overrides` names better copy, `form: true` leaves `validation_failed` to
+   the page, `silent: true` toasts nothing). `mutation: true` toasts `errors.offline` instead of
+   sending. The latest call of a name wins: an older answer, or one in flight at `_resetCalls()`, is
+   dropped (`error: null`), so a method never checks for staleness itself.
 
    ```ts
    // app/store/module.store.ts
    export const ModuleStore = signalStore(
      { providedIn: 'root' },
      withState<{ page: ModulePage | null }>({ page: null }),
-     withRequestStatus(),
-     withMethods(
-       (
-         store,
-         service = inject(ModuleService),
-         network = inject(NetworkService),
-         notifications = inject(NotificationService),
-         logger = inject(LoggerService),
-       ) => {
-         const fail = (cause: unknown): void => {
-           if (!isApiError(cause)) logger.error('ModuleStore failed', cause)
-           const error = isApiError(cause) ? cause : new ApiError({ status: 0, code: 'unknown' })
-           patchState(store, setError(error))
-           notifications.showError(errorMessageKey(error.code))
-         }
-
-         return {
-           async load(): Promise<void> {
-             patchState(store, setLoading())
-             try {
-               patchState(store, { page: await service.list() }, setLoaded())
-             } catch (cause) {
-               fail(cause)
-             }
+     withRequestStatus({ store: 'ModuleStore', calls: ['list', 'create'] }),
+     withMethods((store, service = inject(ModuleService)) => ({
+       list: () =>
+         store._call('list', () => service.list(), {
+           onSuccess: (page) => {
+             patchState(store, { page })
            },
-
-           async create(body: CreateModuleBody): Promise<boolean> {
-             if (!network.online()) {
-               notifications.showError('errors.offline')
-               return false
-             }
-             try {
-               await service.create(body)
-               return true
-             } catch (cause) {
-               fail(cause)
-               return false
-             }
-           },
-         }
-       },
-     ),
+         }),
+       create: (body: CreateModuleBody) =>
+         store._call('create', () => service.create(body), { mutation: true, form: true }),
+     })),
    )
    ```
 
@@ -295,9 +269,9 @@ A page injects the store and never `HttpClient`; `@angular/common/http` appears 
    <!-- @server:auth-start -->
 
    **Account data.** A store that holds an account's data (`UserStore` is the example)
-   exposes `reset()` and clears itself with an `effect` on `AuthStore.isLoggedIn()` (`withHooks`
-   `onInit`), so sign-out and a refused refresh leave nothing for the next account; its `load()`
-   drops the old value before it calls, and ignores an answer that arrives after sign-out.
+   exposes `reset()` (`_resetCalls()` and the initial state) and calls it from an `effect` on
+   `AuthStore.isLoggedIn()` (`withHooks` `onInit`), so sign-out and a refused refresh leave nothing
+   for the next account, not even an answer in flight; its `load()` drops the old value first.
 
    <!-- @server:auth-end -->
 <!-- @server-start -->
@@ -312,8 +286,8 @@ A page injects the store and never `HttpClient`; `@angular/common/http` appears 
    <!-- app/pages/module/module-list/module-list.component.html -->
    <app-page>
      <app-page-header [heading]="'module.title' | t" />
-     @if (store.failed()) {
-       <app-error-state [description]="'errors.unknown' | t" (retry)="store.load()" />
+     @if (store.failed('list')) {
+       <app-error-state [description]="'errors.unknown' | t" (retry)="store.list()" />
      } @else {
        @for (item of store.page()?.items; track item.id) {
          <p>{{ item.name }}</p>
@@ -414,18 +388,20 @@ query string through `safeNextPath` (`shared/utils/next-path.ts`): only a path o
 followed, anything else is `/`.
 
 **The session hint.** The session is two HttpOnly cookies; JavaScript never holds a token.
-`AuthStore` keeps a flag (`STORAGE_KEYS.session`, the value `'1'`, through `StorageService`): "this
-browser signed in". With the flag, start-up reads `GET /api/user/me` (`session.initializer.ts`) and a
+`SessionStore` keeps a flag (`STORAGE_KEYS.session`, the value `'1'`, read once at start as
+`active()`): "this browser signed in"; `AuthStore.user()` shows the account only while it holds. With the flag, start-up reads `GET /api/user/me` (`session.initializer.ts`) and a
 401 may trigger a refresh; without it a visitor's page load calls neither. A login or signup sets
 it, a sign-out or a refused refresh clears it, and a network error or an outage keeps it. Never store
-anything else under it, and never branch on it outside the auth store and interceptor.
+anything else under it, and never branch on it outside the stores and the auth interceptor.
 
 **The form recipe, by example.** `pages/auth/auth.form.ts` is the pattern: one function per form
 (`loginForm()`, `signupForm()` with a `match('password', 'confirm')` confirm control,
 `otpForm()`), each a `NonNullableFormBuilder` group validated by `schemaValidator` over the generated
 request schema (`zCredentials`, `pick(zOtpVerificationBody, ['code'])`), so no limit is copied. The
-page calls the function in a field initializer, submits only a valid form, awaits a store method
-that returns whether it worked, and on `validation_failed` calls `applyFieldErrors`.
+page calls the function and `injectFormSubmit(form)` (`core/providers/form-submit.ts`) in field
+initializers and submits through `submission.run(() => store.method(...))`: it sends nothing for an
+invalid form or a pending submit, binds `submission.pending()`, and puts a `validation_failed` on
+the fields (see Errors).
 
 <!-- @server-end -->
 ## Styling
@@ -565,7 +541,7 @@ as a group error on the form (`form.errors.schema`; no template page toasts it).
 <!-- @noserver-end -->
 `<form [formGroup]="form" (ngSubmit)="submit()">`, one `<app-form-field [label]="'auth.email' | t">`
 around each control (`<app-input formControlName="email" type="email" autocomplete="email" />`), and
-`<app-form-actions [pending]="store.loading()" />`. The field finds its control through
+`<app-form-actions [pending]="submission.pending()" />`. The field finds its control through
 `NgControl`, takes the control's id for the label's `for`, shows the first error once the control is
 touched or the `[formGroup]` was submitted, and sets `aria-invalid` and `aria-describedby` on the
 control through the `FORM_FIELD` token. Error text is `errors.<validator key>` in `en.json`
@@ -590,22 +566,22 @@ store method that awaited the call shows the outcome.
   `errors.unexpected`. `errorMessageKey(code)` returns the key, `errors.unknown` for anything else;
   a spec compares the code list with `en.json`, and a code added to the contract fails the build in
   `models/api/constant.ts` until it is listed.
-- **Failure rejects.** The client is configured with `throwOnError: true` and each facade call repeats
-  it, so a facade returns the call's `data` and a failure rejects with the `ApiError`. The awaiting
-  store method (or page) catches it and toasts through the copy table.
+- **Failure rejects.** `throwOnError` is set once, in `openapi-ts.config.ts` and the client config,
+  so a facade returns the call's `data` and a failure rejects with the `ApiError`. A store's `_call`
+  catches it and toasts through the copy table.
 - **Interceptors.** `provideHttp()` in `core/interceptors/http.provider.ts` is the one place the
   order is set: loading (outermost, so one exchange counts once even if the auth interceptor replays
   it), then the error mapper, then the auth interceptor appended last. A request marked
   `BACKGROUND` (`core/config/http-context.ts`) skips the loading count; the generated SDK takes no
   `HttpContext`, so only a request made with `HttpClient` directly can set it.
 - **401 and the session (with auth).** The auth interceptor, innermost, sends the cookies and turns a
-  401 into one refresh and one replay, only when the session hint is set and the request is not one
-  of the exempt calls (`/api/auth/login`, `signup`, `refresh`, `otp`, `otp/verification`: they answer
-  401 for reasons a refresh cannot fix, and the generated client takes no `HttpContext`, so the
-  exemption is by URL). Concurrent 401s share the one in-flight `AuthStore.refresh()`; a replay that
+  401 into one refresh and one replay, only when the session hint is set and the 401 carries the
+  server's `WWW-Authenticate: Bearer` challenge: the access-token gate sends it, while wrong
+  credentials, a wrong code and a refused refresh do not, so no URL is listed (the refresh itself
+  never refreshes). Concurrent 401s share the one in-flight `SessionStore.refresh()`; a replay that
   fails again reaches the caller, and so does the original 401 when the refresh fails (a 400, 401 or
-  403 also clears the hint and the account). Sign-out is not exempt: with only the refresh cookie
-  left it needs a refresh to revoke the session. `unauthenticated` reads "Your session has expired.
+  403 also ends the session, which hides the account). Sign-out refreshes like any gated call: with
+  only the refresh cookie left it needs one to revoke the session. `unauthenticated` reads "Your session has expired.
   Sign in again." everywhere except sign-in, where the store shows `auth.login.invalid` (the
   credentials are wrong, nothing expired); `forbidden` reads "You do not have access to this." and a
   role the account lacks goes to `/forbidden` instead.
@@ -622,13 +598,12 @@ store method that awaited the call shows the outcome.
   then starts as a visitor (logged once, hint kept), so a hung API cannot block the first render. A
   start that fails closed sends a guarded deep link to `/auth/login?next=...`; the visitor signs in
   again, or reloads if the API was only slow.
-- **Field errors.** On an `ApiError` with `code === 'validation_failed'` the page calls
+- **Field errors.** On a `validation_failed` outcome the form's `injectFormSubmit` calls
   `applyFieldErrors(form, error)` (`shared/validators/server-errors.ts`): each path in `fieldErrors`
   (dotted, like `items.1.label`) that names a control gets a `server` error with `errors.invalid`
-  and shows in its field; the unmapped paths come back and the page toasts `errors.validation_failed` once
-  for them (none: nothing). Any other code toasts its own copy. A store method behind a form does not
-  toast `validation_failed` itself; it leaves the error in the store for the page. A field error is
-  never also a toast.
+  and shows in its field; for the unmapped paths it toasts `errors.validation_failed` once (none:
+  nothing). Any other code was toasted by the store's call, which (with `form: true`) leaves
+  `validation_failed` alone. A field error is never also a toast.
 <!-- @server-end -->
 <!-- @noserver-start -->
 Without a server there is no request to fail: the `ApiError` envelope, its copy table, the error

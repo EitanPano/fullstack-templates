@@ -49,6 +49,18 @@ class TestTheEnvelope:
         assert res.headers["retry-after"] == "900"
         assert res.json()["error"]["code"] == "rate_limited"
 
+    async def test_challenges_with_bearer_only_for_authentication_required(self) -> None:
+        """Row: Authentication challenge. The 401 a refresh can fix carries WWW-Authenticate."""
+        async with http_client(probe_app()) as http:
+            res = await http.get("/challenge")
+
+        assert res.status_code == 401
+        assert res.headers["www-authenticate"] == "Bearer"
+        assert res.json() == {
+            "error": {"code": "unauthenticated", "message": "authentication required"},
+            "requestId": res.headers["x-request-id"],
+        }
+
     def test_status_per_code(self) -> None:
         """Row: Status per code. The table, pinned."""
         assert STATUS_BY_CODE == {

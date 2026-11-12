@@ -16,6 +16,7 @@ import { AuthService } from '@app/services/auth.service'
 import { UserService } from '@app/services/user.service'
 
 import { AuthStore } from './auth.store'
+import { SessionStore } from './session.store'
 import { UserStore } from './user.store'
 
 const USER: PublicUser = {
@@ -72,7 +73,7 @@ describe('AuthStore', () => {
     it('sets the account and the session hint', async () => {
       auth.login.mockResolvedValue({ user: USER, tokens: {} })
       const store = TestBed.inject(AuthStore)
-      expect(await store.login(CREDENTIALS)).toBe(true)
+      expect((await store.login(CREDENTIALS)).ok).toBe(true)
       expect(auth.login).toHaveBeenCalledWith(CREDENTIALS)
       expect(store.user()).toEqual(USER)
       expect(store.isLoggedIn()).toBe(true)
@@ -84,7 +85,7 @@ describe('AuthStore', () => {
     it('toasts wrong credentials once and stays signed out', async () => {
       auth.login.mockRejectedValue(api(401, 'unauthenticated'))
       const store = TestBed.inject(AuthStore)
-      expect(await store.login(CREDENTIALS)).toBe(false)
+      expect((await store.login(CREDENTIALS)).ok).toBe(false)
       expect(store.user()).toBeNull()
       expect(hint()).toBeNull()
       expect(showError).toHaveBeenCalledTimes(1)
@@ -100,15 +101,17 @@ describe('AuthStore', () => {
         }),
       )
       const store = TestBed.inject(AuthStore)
-      expect(await store.login(CREDENTIALS)).toBe(false)
-      expect(store.error()?.code).toBe('validation_failed')
+      const result = await store.login(CREDENTIALS)
+      expect(result.ok).toBe(false)
+      expect(!result.ok && result.error?.code).toBe('validation_failed')
+      expect(store.error('login')?.code).toBe('validation_failed')
       expect(showError).not.toHaveBeenCalled()
     })
 
     it('logs a cause that is not an ApiError and shows errors.unknown', async () => {
       auth.login.mockRejectedValue(new TypeError('boom'))
       const store = TestBed.inject(AuthStore)
-      expect(await store.login(CREDENTIALS)).toBe(false)
+      expect((await store.login(CREDENTIALS)).ok).toBe(false)
       expect(logError).toHaveBeenCalledTimes(1)
       expect(showError).toHaveBeenCalledWith('errors.unknown')
     })
@@ -116,7 +119,7 @@ describe('AuthStore', () => {
     it('does not send while offline', async () => {
       online.set(false)
       const store = TestBed.inject(AuthStore)
-      expect(await store.login(CREDENTIALS)).toBe(false)
+      expect((await store.login(CREDENTIALS)).ok).toBe(false)
       expect(auth.login).not.toHaveBeenCalled()
       expect(showError).toHaveBeenCalledWith('errors.offline')
     })
@@ -126,7 +129,7 @@ describe('AuthStore', () => {
     it('signs the new account in', async () => {
       auth.signup.mockResolvedValue({ user: USER, tokens: {} })
       const store = TestBed.inject(AuthStore)
-      expect(await store.signup(CREDENTIALS)).toBe(true)
+      expect((await store.signup(CREDENTIALS)).ok).toBe(true)
       expect(store.user()).toEqual(USER)
       expect(hint()).toBe('1')
     })
@@ -134,7 +137,7 @@ describe('AuthStore', () => {
     it('toasts the taken address on a conflict', async () => {
       auth.signup.mockRejectedValue(api(409, 'conflict'))
       const store = TestBed.inject(AuthStore)
-      expect(await store.signup(CREDENTIALS)).toBe(false)
+      expect((await store.signup(CREDENTIALS)).ok).toBe(false)
       expect(showError).toHaveBeenCalledWith('auth.signup.conflict')
     })
   })
@@ -145,7 +148,7 @@ describe('AuthStore', () => {
       auth.logout.mockResolvedValue(undefined)
       const store = TestBed.inject(AuthStore)
       await store.login(CREDENTIALS)
-      expect(await store.logout()).toBe(true)
+      expect((await store.logout()).ok).toBe(true)
       expect(store.user()).toBeNull()
       expect(store.isLoggedIn()).toBe(false)
       expect(store.roles()).toEqual([])
@@ -157,7 +160,7 @@ describe('AuthStore', () => {
       auth.logout.mockRejectedValue(api(401, 'unauthenticated'))
       setHint()
       const store = TestBed.inject(AuthStore)
-      expect(await store.logout()).toBe(true)
+      expect((await store.logout()).ok).toBe(true)
       expect(hint()).toBeNull()
       expect(showError).not.toHaveBeenCalled()
     })
@@ -167,7 +170,7 @@ describe('AuthStore', () => {
       auth.logout.mockRejectedValue(api(503, 'upstream_unavailable'))
       const store = TestBed.inject(AuthStore)
       await store.login(CREDENTIALS)
-      expect(await store.logout()).toBe(false)
+      expect((await store.logout()).ok).toBe(false)
       expect(store.isLoggedIn()).toBe(true)
       expect(hint()).toBe('1')
       expect(showError).toHaveBeenCalledWith('errors.upstream_unavailable')
@@ -214,71 +217,27 @@ describe('AuthStore', () => {
     })
   })
 
-  describe('refresh failures', () => {
-    it('logs a refresh that failed for a reason other than a refusal', async () => {
-      auth.refresh.mockRejectedValue(api(503, 'upstream_unavailable'))
-      setHint()
-      expect(await TestBed.inject(AuthStore).refresh()).toBe(false)
-      expect(logError).toHaveBeenCalledTimes(1)
-      expect(hint()).toBe('1')
-    })
-
-    it('does not log a refusal', async () => {
-      auth.refresh.mockRejectedValue(api(401, 'unauthenticated'))
-      await TestBed.inject(AuthStore).refresh()
-      expect(logError).not.toHaveBeenCalled()
+  describe('a session ended elsewhere', () => {
+    it('forgets the account when the session ends (a refused refresh)', async () => {
+      auth.login.mockResolvedValue({ user: USER, tokens: {} })
+      const store = TestBed.inject(AuthStore)
+      await store.login(CREDENTIALS)
+      TestBed.inject(SessionStore).end()
+      expect(store.user()).toBeNull()
+      expect(store.isLoggedIn()).toBe(false)
+      expect(store.roles()).toEqual([])
     })
   })
 
-  describe('refresh', () => {
-    it('resolves true when the cookies are renewed', async () => {
-      auth.refresh.mockResolvedValue({ user: USER, tokens: {} })
-      setHint()
-      expect(await TestBed.inject(AuthStore).refresh()).toBe(true)
-      expect(hint()).toBe('1')
-    })
-
-    it.each([400, 401, 403])(
-      'a %i ends the session: false, hint and account forgotten',
-      async (status) => {
-        auth.login.mockResolvedValue({ user: USER, tokens: {} })
-        auth.refresh.mockRejectedValue(api(status, 'unauthenticated'))
-        const store = TestBed.inject(AuthStore)
-        await store.login(CREDENTIALS)
-        expect(await store.refresh()).toBe(false)
-        expect(hint()).toBeNull()
-        expect(store.user()).toBeNull()
-      },
-    )
-
-    it.each([
-      ['a 500', api(500, 'internal')],
-      ['a rate limit', api(429, 'rate_limited')],
-      ['no response', api(0, 'network')],
-    ])('%s says nothing about the cookies: false, hint kept', async (_what, error) => {
-      auth.refresh.mockRejectedValue(error)
-      setHint()
-      expect(await TestBed.inject(AuthStore).refresh()).toBe(false)
-      expect(hint()).toBe('1')
-    })
-
-    it('shares one in-flight refresh between concurrent callers', async () => {
-      let finish: () => void = () => undefined
-      auth.refresh.mockReturnValue(
-        new Promise((resolve) => {
-          finish = () => {
-            resolve({ user: USER, tokens: {} })
-          }
-        }),
-      )
+  describe('one call does not block another', () => {
+    it('keeps a status per call: a code request in flight leaves verify idle', async () => {
+      auth.login.mockResolvedValue({ user: USER, tokens: {} })
+      auth.requestOtp.mockReturnValue(new Promise(() => undefined))
       const store = TestBed.inject(AuthStore)
-      const results = [store.refresh(), store.refresh(), store.refresh()]
-      finish()
-      expect(await Promise.all(results)).toEqual([true, true, true])
-      expect(auth.refresh).toHaveBeenCalledTimes(1)
-      auth.refresh.mockResolvedValue({ user: USER, tokens: {} })
-      await store.refresh()
-      expect(auth.refresh).toHaveBeenCalledTimes(2)
+      await store.login(CREDENTIALS)
+      void store.requestOtp()
+      expect(store.loading('requestOtp')).toBe(true)
+      expect(store.loading('verifyOtp')).toBe(false)
     })
   })
 
@@ -288,7 +247,7 @@ describe('AuthStore', () => {
       auth.requestOtp.mockResolvedValue(undefined)
       const store = TestBed.inject(AuthStore)
       await store.login(CREDENTIALS)
-      expect(await store.requestOtp()).toBe(true)
+      expect((await store.requestOtp()).ok).toBe(true)
       expect(auth.requestOtp).toHaveBeenCalledWith({
         target: { type: 'email', value: USER.email },
         purpose: 'verify',
@@ -297,8 +256,8 @@ describe('AuthStore', () => {
 
     it('does nothing without an account', async () => {
       const store = TestBed.inject(AuthStore)
-      expect(await store.requestOtp()).toBe(false)
-      expect(await store.verifyOtp('123456')).toBe(false)
+      expect(await store.requestOtp()).toEqual({ ok: false, error: null })
+      expect(await store.verifyOtp('123456')).toEqual({ ok: false, error: null })
       expect(auth.requestOtp).not.toHaveBeenCalled()
       expect(auth.verifyOtp).not.toHaveBeenCalled()
     })
@@ -309,7 +268,7 @@ describe('AuthStore', () => {
       auth.verifyOtp.mockResolvedValue({ user: verified })
       const store = TestBed.inject(AuthStore)
       await store.login(CREDENTIALS)
-      expect(await store.verifyOtp('123456')).toBe(true)
+      expect((await store.verifyOtp('123456')).ok).toBe(true)
       expect(auth.verifyOtp).toHaveBeenCalledWith({
         target: { type: 'email', value: USER.email },
         purpose: 'verify',
@@ -323,7 +282,7 @@ describe('AuthStore', () => {
       auth.verifyOtp.mockRejectedValue(api(429, 'rate_limited'))
       const store = TestBed.inject(AuthStore)
       await store.login(CREDENTIALS)
-      expect(await store.verifyOtp('000000')).toBe(false)
+      expect((await store.verifyOtp('000000')).ok).toBe(false)
       expect(showError).toHaveBeenCalledTimes(1)
       expect(showError).toHaveBeenCalledWith('errors.rate_limited')
       expect(store.isLoggedIn()).toBe(true)
@@ -332,6 +291,8 @@ describe('AuthStore', () => {
   describe('restoreSession through the real HTTP chain', () => {
     const UNAUTH = { error: { code: 'unauthenticated', message: 'x' }, requestId: 'r' }
     const REFUSED = { status: 401, statusText: 'Unauthorized' }
+    // A 401 of the access-token gate: the challenge a refresh can answer.
+    const CHALLENGED = { ...REFUSED, headers: { 'WWW-Authenticate': 'Bearer' } }
 
     it('handles a refused refresh: hint and account cleared, no redirect, no throw', async () => {
       TestBed.resetTestingModule()
@@ -345,8 +306,9 @@ describe('AuthStore', () => {
         ],
       })
       const http = TestBed.inject(HttpTestingController)
-      const store = TestBed.inject(AuthStore)
+      // The hint is in storage before start-up: the session store reads it once.
       setHint()
+      const store = TestBed.inject(AuthStore)
       const probe = store.restoreSession()
       expect(store.restoring()).toBe(true)
 
@@ -354,7 +316,7 @@ describe('AuthStore', () => {
       await vi.waitFor(() => {
         expect(
           http.match(path('/api/user/me')).map((r) => {
-            r.flush(UNAUTH, REFUSED)
+            r.flush(UNAUTH, CHALLENGED)
             return r
           }),
         ).toHaveLength(1)
@@ -390,15 +352,16 @@ describe('AuthStore', () => {
         ],
       })
       const http = TestBed.inject(HttpTestingController)
-      const store = TestBed.inject(AuthStore)
+      // The hint is in storage before start-up: the session store reads it once.
       setHint()
+      const store = TestBed.inject(AuthStore)
       const probe = store.restoreSession()
 
       const path = (name: string) => (req: { url: string }) => new URL(req.url).pathname === name
       await vi.waitFor(() => {
         expect(
           http.match(path('/api/user/me')).map((r) => {
-            r.flush(UNAUTH, REFUSED)
+            r.flush(UNAUTH, CHALLENGED)
             return r
           }),
         ).toHaveLength(1)
@@ -449,7 +412,7 @@ describe('AuthStore', () => {
       TestBed.tick()
       expect(profiles.profile()).toEqual(USER)
       auth.refresh.mockRejectedValue(api(401, 'unauthenticated'))
-      await store.refresh()
+      await TestBed.inject(SessionStore).refresh()
       TestBed.tick()
       expect(profiles.profile()).toBeNull()
     })
