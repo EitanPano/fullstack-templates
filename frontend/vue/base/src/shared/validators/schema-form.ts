@@ -1,6 +1,8 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type * as z from 'zod'
+
+import { validate } from '@/shared/utils/validation'
+import type { Issue, Output, Schema } from '@/shared/utils/validation'
 
 export type FieldError = {
   messageKey: string
@@ -20,39 +22,41 @@ type Analysis = {
   valid: boolean
 }
 
-// The copy for one zod issue. The rules come from the generated schema, so the numbers in the // @server
+// The copy for one schema issue. The rules come from the generated schema, so the numbers in the // @server
 // message are the schema's, never a copy of the server's limits. // @server
-// The copy for one zod issue. The numbers in the // @noserver
+// The copy for one schema issue. The numbers in the // @noserver
 // message are the schema's, never a copy of a limit. // @noserver
-function describe(issue: z.core.$ZodIssue): FieldError {
-  switch (issue.code) {
-    case 'invalid_type':
+function describe(issue: Issue): FieldError {
+  switch (issue.rule) {
+    case 'required':
       return { messageKey: 'errors.required' }
-    case 'too_small': {
-      const min = Number(issue.minimum)
-      if (issue.origin === 'string') {
-        return min <= 1
+    case 'tooSmall': {
+      const min = issue.limit
+      if (issue.kind === 'text') {
+        return min === undefined || min <= 1
           ? { messageKey: 'errors.required' }
           : { messageKey: 'errors.minlength', params: { min } }
       }
-      return { messageKey: 'errors.min', params: { min } }
+      return { messageKey: 'errors.min', params: { min: min ?? 0 } }
     }
-    case 'too_big': {
-      const max = Number(issue.maximum)
-      return issue.origin === 'string'
+    case 'tooBig': {
+      const max = issue.limit ?? 0
+      return issue.kind === 'text'
         ? { messageKey: 'errors.maxlength', params: { max } }
         : { messageKey: 'errors.max', params: { max } }
     }
-    case 'invalid_format':
-      return { messageKey: issue.format === 'email' ? 'errors.email' : 'errors.pattern' }
+    case 'email':
+      return { messageKey: 'errors.email' }
+    case 'pattern':
+      return { messageKey: 'errors.pattern' }
     default:
       return { messageKey: 'errors.invalid' }
   }
 }
 
-// A form over a generated zod request schema (`zCredentials`, ...): the rules are the server's // @server
+// A form over a generated request schema (`zCredentials`, ...): the rules are the server's // @server
 // contract, written once. Call it in a component's setup (it reads the app's `t`). // @server
-// A form over a zod schema: the rules are written once. Call it in a component's setup // @noserver
+// A form over a schema: the rules are written once. Call it in a component's setup // @noserver
 // (it reads the app's `t`). // @noserver
 //
 // - `values` is the reactive object the controls bind to with `v-model`. Fields are flat: a
@@ -65,7 +69,7 @@ function describe(issue: z.core.$ZodIssue): FieldError {
 //   does not know, such as `confirm`, is not in it); an invalid form calls nothing.
 // - A server field error (`applyFieldErrors`) lives in `serverErrors` and clears when its field
 //   is edited.
-export function useZodForm<S extends z.ZodType, T extends Record<string, unknown>>(
+export function useSchemaForm<S extends Schema, T extends Record<string, unknown>>(
   schema: S,
   initial: T,
   rules: FormRule<T>[] = [],
@@ -80,11 +84,11 @@ export function useZodForm<S extends z.ZodType, T extends Record<string, unknown
   const analysis = computed<Analysis>(() => {
     // Spread the reactive proxy, never `toRaw(values)`: only the proxy read is tracked.
     const snapshot = { ...values }
-    const result = schema.safeParse(snapshot)
+    const result = validate(schema, snapshot)
     const byPath: Record<string, FieldError> = {}
     const unmapped: string[] = []
-    if (!result.success) {
-      for (const issue of result.error.issues) {
+    if (!result.ok) {
+      for (const issue of result.issues) {
         const path = issue.path.join('.')
         if (!Object.hasOwn(snapshot, path)) {
           unmapped.push(path)
@@ -96,8 +100,8 @@ export function useZodForm<S extends z.ZodType, T extends Record<string, unknown
     for (const rule of rules) {
       for (const [path, error] of Object.entries(rule(snapshot) ?? {})) byPath[path] ??= error
     }
-    const valid = result.success && Object.keys(byPath).length === 0
-    return { byPath, unmapped, data: result.success ? result.data : undefined, valid }
+    const valid = result.ok && Object.keys(byPath).length === 0
+    return { byPath, unmapped, data: result.ok ? result.value : undefined, valid }
   })
 
   // A server error goes when its field is edited.
@@ -125,13 +129,13 @@ export function useZodForm<S extends z.ZodType, T extends Record<string, unknown
     touched.add(name)
   }
 
-  async function submit(handler: (value: z.output<S>) => void | Promise<void>): Promise<void> {
+  async function submit(handler: (value: Output<S>) => void | Promise<void>): Promise<void> {
     if (submitting.value) return
     submitted.value = true
     if (!analysis.value.valid) return
     submitting.value = true
     try {
-      await handler(analysis.value.data as z.output<S>)
+      await handler(analysis.value.data as Output<S>)
     } finally {
       submitting.value = false
     }

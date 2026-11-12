@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import type { FieldError } from './zod-form'
+import type { FieldError } from './schema-form'
 import { applyFieldErrors } from './server-errors'
 
 function target() {

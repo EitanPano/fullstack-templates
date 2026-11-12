@@ -8,7 +8,7 @@ The layer map of this package. Commands are in `package.json`; the contract code
 **`src/`**
 
 - `main.ts`: imports the font, `styles/themes/brand.css`, `styles/styles.scss` and
-  `shared/validators/zod-config`, creates the app, calls `installPlugins(app)` and mounts in its
+  `shared/utils/validation`, creates the app, calls `installPlugins(app)` and mounts in its
   `.then` (the saved language loads before the first render). It installs
   `core/initializers/preload-error`: one reload per 30 s on `vite:preloadError` (a chunk the new
   build no longer has), then the error surfaces.
@@ -51,7 +51,7 @@ The layer map of this package. Commands are in `package.json`; the contract code
 - `pages/<module>/`: one directory per server module or screen group, named for the glossary
   noun: `<module>.routes.ts` (a default export of `RouteRecordRaw[]`), the routed
   `<name>-page/` folders beside it (each holds `<name>-page.vue`, which reads a store, with its
-  `<name>-page.scss` and spec), when needed `<module>.form.ts` (a form over the generated zod
+  `<name>-page.scss` and spec), when needed `<module>.form.ts` (a form over the generated
   schemas); the module's own presentational pieces sit beside the pages (a folder of their name
   when they have a sheet or a spec), never in a `components/` folder. A page never imports another
   module. `home/` is the index route and `not-found/` the catch-all.
@@ -117,7 +117,7 @@ the alias `@/*` (`src/*`); imports inside one page module stay relative. Specs s
 | `pages/<m>/` screens (`*-page.vue` and any other `.ts` beside them, not `*.routes.ts` or `*.form.ts`)        | store, shared, models, `core/config`, `core/providers`, `core/guards` (the unsaved-changes composable), its own module's components and `*.form.ts`     |
 | `pages/<m>/` components (a `.vue` that is not a `*-page.vue`)                                                 | shared, models                                                                                                                                         |
 | `pages/<m>/*.routes.ts`                                                                                       | `core/guards`, its own module's pages                                                                                                                  |
-| `pages/<m>/*.form.ts`                                                                                         | `shared/validators`, models, the generated zod schemas (`@/services/generated/zod.gen`)                                                                |
+| `pages/<m>/*.form.ts`                                                                                         | `shared/validators`, `shared/utils/validation`, models, the generated zod schemas (`@/services/generated/zod.gen`)                                     |
 | `store/`                                                                                                      | store, services, models, `core/providers`, `core/config`, `core/i18n` (the language store applies the locale)                                          |
 | `services/`                                                                                                   | models, `core/config`, `services/generated`                                                                                                            |
 | `core/guards`, `core/initializers`, `core/interceptors/error.interceptor.ts`, `http.provider.ts`              | store, services, core, shared, models (they are the wiring); `http.provider.ts` alone imports the generated client                                     |
@@ -424,9 +424,9 @@ discarded, and a guarded deep link lands on sign-in with `next`.
 <!-- @server-start -->
 **The form recipe, by example.** `pages/auth/auth.form.ts` is the pattern: one function per form
 (`loginForm()`, `signupForm()` with `match('password', 'confirm')` as its rule, `otpForm()`),
-each `useZodForm(schema, initial, rules?)` (`shared/validators/zod-form.ts`) over the generated
-request schema (`zCredentials`, `zOtpVerificationBody.pick({ code: true })`), so no limit is
-copied. The file's first import is `@/shared/validators/zod-config` (see below). `useZodForm`
+each `useSchemaForm(schema, initial, rules?)` (`shared/validators/schema-form.ts`) over the generated
+request schema (`zCredentials`, `pick(zOtpVerificationBody, ['code'])`), so no limit is
+copied. The file's first import is `@/shared/utils/validation` (see below). `useSchemaForm`
 returns `values` (the reactive object `v-model` binds), `error(name)`, `errorText(name)`
 (translated, for a field's `error` prop), `touch(name)`, `submit(handler)`, `submitting`,
 `submitted`, `valid`, `unmapped`, `serverErrors` and `reset()`; call it in `setup`, it reads the
@@ -446,21 +446,21 @@ meaning "remove the number", and keeps the rule itself). A checkbox carries its 
 field no `label`.
 <!-- @server-end -->
 
-<!-- @server-start -->
-**zod and the CSP.** zod 4 probes `new Function('')` at its first parse, a violation of the
-deployed `script-src 'self'`. `shared/validators/zod-config.ts` calls `z.config({ jitless: true })`;
-`main.ts` imports it, and so must every module that imports `zod` or `@/services/generated/zod.gen`
-at run time, as its first import (the build splits shared code into chunks, so `main.ts` alone is
-not enough). A new `*.form.ts` begins `import '@/shared/validators/zod-config'`;
-`tests/unit/zod-config.spec.ts` fails the module that does not.
-<!-- @server-end -->
-<!-- @noserver-start -->
-**zod and the CSP.** zod 4 probes `new Function('')` at its first parse, a violation of the
-deployed `script-src 'self'`. `shared/validators/zod-config.ts` calls `z.config({ jitless: true })`;
-`main.ts` imports it, and so must every module that imports `zod` at run time, as its first import
-(the build splits shared code into chunks, so `main.ts` alone is not enough).
-`tests/unit/zod-config.spec.ts` fails the module that does not.
-<!-- @noserver-end -->
+**zod, its facade and the CSP.** `shared/utils/validation.ts` is the one file that imports `zod`: the
+app builds and runs every schema through its functions (`text`, `number`, `flag`, `object`, `field`,
+`pick`, `either`, `validate`, `isValid`, `parse`) and no file calls a method on a schema, the
+generated ones included. zod 4 probes `new Function('')` when a schema is built, a violation of the
+deployed `script-src 'self'`; the facade calls `z.config({ jitless: true })` as it loads. `main.ts`
+imports it, and so must every module that imports `@/services/generated/zod.gen` at run time, as its
+first import (the build splits shared code into chunks, so `main.ts` alone is not enough). A new
+`*.form.ts` begins `import '@/shared/utils/validation'`; `tests/unit/validation-first.spec.ts` fails
+the module that does not.
+
+**External libraries sit behind a facade.** An external library is imported only by its facade, and
+lint refuses it elsewhere: `zod` by `shared/utils/validation.ts`, `reka-ui` by `shared/components/`
+(the kit), `lucide-vue-next` by `shared/components/icons.ts`; with `pwa`, the service worker
+library (`virtual:pwa-register`, `workbox-window`) by `store/app-update.store.ts`. The framework and its
+official ecosystem (`vue`, `vue-router`, `pinia`, `vue-i18n`) and the generated code are exempt.
 
 ## Styling
 
@@ -497,9 +497,9 @@ basics, and the three groups sit in cascade layers (`@layer setup, themes, basic
 - **44 px.** Every control spans at least 44 px under `(pointer: coarse)`, whatever
   `data-density` says: use `@include touch-target` on any new control.
 - **Icons.** One set: `shared/components/base-icon/base-icon.vue` over `lucide-vue-next` (the entries of
-  `icons.ts`). One concept, one icon; a new concept adds an entry there, never a second set.
+  `icons.ts`, the one file that imports it). One concept, one icon; a new concept adds an entry there, never a second set.
 - **Toasts.** One implementation: `store/notification.store.ts` holds the list and
-  `layout/app-toast-host/app-toast-host.vue` renders it through Reka Toast. A toast may carry one action
+  `layout/app-toast-host/app-toast-host.vue` renders it through Reka Toast (`shared/components/base-toast/base-toast-host.vue`). A toast may carry one action
   (`{ labelKey, run }`; only `showInfo` and `showWarning` take it): it never times out and is
   dismissed when the action runs.
 - **Motion.** `<Transition>` and `<TransitionGroup>` wrap only elements the component renders

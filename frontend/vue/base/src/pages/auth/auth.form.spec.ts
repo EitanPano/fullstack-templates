@@ -5,7 +5,7 @@ import { renderWithApp } from '@/testing/render'
 
 import { loginForm, otpForm, signupForm } from './auth.form'
 
-// Runs a form factory inside a component's setup, where useZodForm needs the app's i18n.
+// Runs a form factory inside a component's setup, where useSchemaForm needs the app's i18n.
 async function formOf<T>(make: () => T): Promise<T> {
   let form: T | undefined
   await renderWithApp(

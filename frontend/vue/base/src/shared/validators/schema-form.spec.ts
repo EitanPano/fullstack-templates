@@ -2,29 +2,26 @@ import { screen } from '@testing-library/vue'
 import userEvent from '@testing-library/user-event'
 import { defineComponent, h } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import * as z from 'zod'
 
 import BaseInput from '@/shared/components/form/base-input.vue'
 import FormField from '@/shared/components/form/form-field/form-field.vue'
+import { object, text } from '@/shared/utils/validation'
 import { renderWithApp } from '@/testing/render'
 
 import { match } from './match'
 import { applyFieldErrors } from './server-errors' // @server
-import { useZodForm } from './zod-form'
+import { useSchemaForm } from './schema-form'
 
 const INITIAL = { email: '', password: '', confirm: '' }
 
 // A credentials-like schema owned by this spec: the generated one exists only with auth and its
 // email rule differs per server, so the spec never imports it.
-const zCredentials = z.object({
-  email: z
-    .string()
-    .max(254)
-    .regex(/^[\w.+'-]+@(?:[A-Za-z0-9][A-Za-z0-9-]*\.)+[A-Za-z]{2,}$/),
-  password: z.string().min(8).max(128),
+const zCredentials = object({
+  email: text({ max: 254, pattern: /^[\w.+'-]+@(?:[A-Za-z0-9][A-Za-z0-9-]*\.)+[A-Za-z]{2,}$/ }),
+  password: text({ min: 8, max: 128 }),
 })
 
-type Form = ReturnType<typeof useZodForm<typeof zCredentials, typeof INITIAL>>
+type Form = ReturnType<typeof useSchemaForm<typeof zCredentials, typeof INITIAL>>
 
 // A signup-like form over the generated credentials schema, with the confirm rule. // @server
 // A signup-like form over the credentials schema above, with the confirm rule. // @noserver
@@ -34,7 +31,7 @@ function harness(
 ) {
   return defineComponent({
     setup() {
-      const form = useZodForm(zCredentials, INITIAL, [match('password', 'confirm')])
+      const form = useSchemaForm(zCredentials, INITIAL, [match('password', 'confirm')])
       capture(form)
       const field = (name: 'email' | 'password' | 'confirm', label: string) =>
         h(FormField, { label, error: form.errorText(name) }, () =>
@@ -68,7 +65,7 @@ function harness(
   })
 }
 
-describe('useZodForm', () => {
+describe('useSchemaForm', () => {
   it('shows no error before a field is touched or the form submitted', async () => {
     await renderWithApp(harness())
 
@@ -236,10 +233,10 @@ describe('useZodForm', () => {
   })
 
   it('reports validity and the paths of issues no field has', async () => {
-    let form: ReturnType<typeof useZodForm<typeof zCredentials, { email: string }>> | undefined
+    let form: ReturnType<typeof useSchemaForm<typeof zCredentials, { email: string }>> | undefined
     const probe = {
       setup() {
-        form = useZodForm(zCredentials, { email: '' })
+        form = useSchemaForm(zCredentials, { email: '' })
         return () => null
       },
     }
