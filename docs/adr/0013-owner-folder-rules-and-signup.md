@@ -91,29 +91,50 @@ noun's folder is named for the noun. The folder test refuses an action file outs
 ▲ `services/` stays flat (`auth.ts` beside `auth.test.ts`): one module and its test, the same
 reading as F5's one-file component. The other frontends have no `actions/`.
 
-### F9. Next: `shared/utils/validation.ts` is the only file that imports zod
+### F9. An external library sits behind one facade
 
-The owner, 2026-11-12: zod is wrapped by one utility file of properly named functions, so that a
-library switch is made in one file. `validation.ts` exports the builders (`text`, `number`,
-`email`, `url`, `isoDateTime`, `literal`, `object`, `extend`, `field`), the modifiers (`optional`,
-`withDefault`, `check`, `transform`, `pipe`), the runners (`validate`, `isValid`, `parse`), the form
-resolver (`formResolver`) and the types `Input` and `Output`, and it holds the message map
-(`zod-messages.ts` is gone). Lint refuses `zod` and `@hookform/resolvers` in every other file,
-tests included.
+The owner, 2026-11-12: "any external lib that's not part of the framework should have a facade
+wrapper", so that a library switch is made in one file. His first case was zod behind one
+`validation.ts` of properly named functions.
 
+- One file imports the library and exports names in the app's words; everything else, tests
+  included, imports the facade. Each template's lint refuses the library anywhere else, with a
+  refused and an allowed case per library in its lint test.
+- **Validation (zod), all four frontends:** `shared/utils/validation.ts`. It exports the builders
+  the template uses (`text`, `number`, `literal`, `object`, `field`, …), `check`, the runners
+  (`validate` returns the value or the issues) and the types `Schema`, `Input`, `Output`; it holds
+  zod's configuration (the message map in Next and React, `jitless` for the CSP in React and Vue).
+  No other file calls a method on a schema. Vue's `useZodForm` is `useSchemaForm`
+  (`schema-form.ts`); Angular's `zodValidator` is `schemaValidator` (`schema.validator.ts`) and
+  its control error key `schema`.
+- **Next and React:** icons (`lucide-react`) in `shared/components/icons.ts`, as Vue already
+  had; toasts (`sonner`) in the toaster's file, which exports the functions that show one;
+  `clsx` in `shared/utils/cn.ts` and `date-fns` in `shared/utils/date.ts` as before, now
+  lint-enforced. Next also: the theme library in `shared/components/theme/theme.tsx`, and the
+  action library's client hooks in `shared/components/form/action-form/action-form.ts`.
+- ▲ **A folder is the facade** where a library is wrapped component by component: the UI primitives
+  (`radix-ui`, `reka-ui`) only in `shared/components/`, React Hook Form only in
+  `shared/components/form/`.
+- ▲ **Not wrapped: the framework and the architecture the ADRs chose.** The router, the store and
+  i18n (`react-router`, Redux Toolkit, Pinia, `vue-router`, `vue-i18n`, NgRx Signals, Transloco,
+  every `@angular/*` package, `rxjs`) are used across the tree, and a facade over one would
+  re-declare its whole API. Transloco and NgRx Signals are already confined to `core/i18n/` and
+  `store/`.
 - ▲ The generated `services/generated/zod.gen.ts` still imports zod: Hey API's plugin writes it. A
-  switch is `validation.ts`, that plugin's line in the generator config, and the two dependencies.
-- ▲ The functions return the library's own schema types, so inference stays exact with no type
-  layer of our own. The price: TypeScript does not stop a method call on a schema (`.min()`,
-  `.safeParse()`); the agents file forbids it and the template has none.
-- React, Vue and Angular keep their direct zod imports until the owner asks for the same there.
+  validation-library switch is `validation.ts`, that plugin's line and the dependencies.
+- ▲ The facade's functions may return the library's own types, so inference stays exact with no
+  type layer of our own. TypeScript therefore does not stop a method call on a schema; the agents
+  files forbid it and the templates have none.
+- ▲ Two server-side files name Next's action library (`core/actions/safe-action.ts` and
+  `field-errors.ts`, which `services/` can import without a cycle). React's `store/` may import
+  the toaster's file, its one reach into `shared/`.
 
 ### F7. Enforcement
 
 Each frontend has a folder test in its tooling tests (`tests/unit/folders.test.ts` or
 `folders.spec.ts`): the `models/` file names, the component-folder rule, no top-level
-`components/`, no `components/` under `pages/`; in Next also the `actions/` folders, and a lint case for the
-validation library's imports. The layer lint renames its `components` element to
+`components/`, no `components/` under `pages/`; in Next also the `actions/` folders. Each lint test
+holds the facade cases of F9. The layer lint renames its `components` element to
 `layout`.
 
 ## Consequences
