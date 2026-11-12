@@ -1,4 +1,4 @@
-import { UserIcon } from 'lucide-react'
+import { UserIcon } from '@/shared/components/icons'
 import type { ReactNode } from 'react'
 
 import { AppThemeMenu } from '@/layout/app-theme-menu/app-theme-menu'

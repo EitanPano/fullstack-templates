@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { InboxIcon } from 'lucide-react'
+import { InboxIcon } from '@/shared/components/icons'
 import { describe, expect, it } from 'vitest'
 
 import { Button } from '@/shared/components/button/button'

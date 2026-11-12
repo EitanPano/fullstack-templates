@@ -1,4 +1,4 @@
-import { LogOutIcon } from 'lucide-react'
+import { LogOutIcon } from '@/shared/components/icons'
 import { Link } from 'react-router'
 
 import { SIGN_IN_PATH } from '@/core/config/constants'

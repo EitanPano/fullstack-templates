@@ -552,6 +552,70 @@ const violations: Violation[] = [
     SYNTAX,
     'never an inline style',
   ],
+  // An external library is imported by its facade only.
+  [
+    'zod outside its facade',
+    'src/pages/post/x.form.ts',
+    "import { z } from 'zod'\nexport const x = z.string()",
+    IMPORTS,
+    "build and run a schema through '@/shared/utils/validation'",
+  ],
+  [
+    'the zod resolver outside its facade',
+    'src/shared/components/form/x.tsx',
+    "import { zodResolver } from '@hookform/resolvers/zod'\nexport const x = zodResolver",
+    IMPORTS,
+    "build and run a schema through '@/shared/utils/validation'",
+  ],
+  [
+    'lucide-react outside its facade',
+    'src/shared/components/x.tsx',
+    "import { XIcon } from 'lucide-react'\nexport const x = XIcon",
+    IMPORTS,
+    "import an icon from '@/shared/components/icons'",
+  ],
+  [
+    'sonner outside its facade',
+    'src/store/x.ts',
+    "import { toast } from 'sonner'\nexport const x = toast",
+    IMPORTS,
+    "show a toast through '@/shared/components/toaster/toaster'",
+  ],
+  [
+    'react-hook-form outside its facade',
+    'src/pages/post/x.tsx',
+    "import { useForm } from 'react-hook-form'\nexport const x = useForm",
+    IMPORTS,
+    'react-hook-form is imported by shared/components/form/ only',
+  ],
+  [
+    'radix-ui outside its facade',
+    'src/layout/x.tsx',
+    "import { Slot } from 'radix-ui'\nexport const x = Slot",
+    IMPORTS,
+    'radix-ui is imported by shared/components/ only',
+  ],
+  [
+    'clsx outside its facade',
+    'src/shared/components/x.tsx',
+    "import { clsx } from 'clsx'\nexport const x = clsx",
+    IMPORTS,
+    "build class names with 'cn'",
+  ],
+  [
+    'date-fns outside its facade',
+    'src/pages/post/x.tsx',
+    "import { format } from 'date-fns'\nexport const x = format",
+    IMPORTS,
+    "format and zone dates through '@/shared/utils/date'",
+  ],
+  [
+    '@date-fns/tz outside its facade',
+    'src/layout/x.tsx',
+    "import { tz } from '@date-fns/tz'\nexport const x = tz",
+    IMPORTS,
+    "format and zone dates through '@/shared/utils/date'",
+  ],
 ]
 
 const allowed: [what: string, file: string, code: string, ruleId: string][] = [
@@ -655,7 +719,7 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   [
     'main.tsx → app, store, core, shared',
     'src/main.tsx',
-    "import '@/app/providers'; import '@/store/index'; import '@/core/theme/theme'; import '@/shared/utils/zod-messages'",
+    "import '@/app/providers'; import '@/store/index'; import '@/core/theme/theme'; import '@/shared/utils/validation'",
     BOUNDARY,
   ],
   ['models → models', 'src/models/x/type.ts', "import '@/models/api-error/type'", BOUNDARY],
@@ -695,6 +759,67 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     SYNTAX,
   ],
   ['a className in a page', PAGE_FILE, 'export const x = <p className="a" />', SYNTAX],
+  // ...and the facade itself may.
+  [
+    'zod in its facade',
+    'src/shared/utils/validation.ts',
+    "import { z } from 'zod'\nexport const x = z.string()",
+    IMPORTS,
+  ],
+  [
+    'the zod resolver in its facade',
+    'src/shared/utils/validation.ts',
+    "import { zodResolver } from '@hookform/resolvers/zod'\nexport const x = zodResolver",
+    IMPORTS,
+  ],
+  [
+    'lucide-react in its facade',
+    'src/shared/components/icons.ts',
+    "export { XIcon } from 'lucide-react'",
+    IMPORTS,
+  ],
+  [
+    'sonner in its facade',
+    'src/shared/components/toaster/toaster.tsx',
+    "import { toast } from 'sonner'\nexport const x = toast",
+    IMPORTS,
+  ],
+  [
+    'react-hook-form in its facade',
+    'src/shared/components/form/use-schema-form.ts',
+    "import { useForm } from 'react-hook-form'\nexport const x = useForm",
+    IMPORTS,
+  ],
+  [
+    'radix-ui in its facade',
+    'src/shared/components/button/button.tsx',
+    "import { Slot } from 'radix-ui'\nexport const x = Slot",
+    IMPORTS,
+  ],
+  [
+    'clsx in its facade',
+    'src/shared/utils/cn.ts',
+    "export { clsx as cn } from 'clsx'",
+    IMPORTS,
+  ],
+  [
+    'date-fns in its facade',
+    'src/shared/utils/date.ts',
+    "import { format } from 'date-fns'\nexport const x = format",
+    IMPORTS,
+  ],
+  [
+    '@date-fns/tz in its facade',
+    'src/shared/utils/date.ts',
+    "import { tz } from '@date-fns/tz'\nexport const x = tz",
+    IMPORTS,
+  ],
+  [
+    'store → the toast facade',
+    'src/store/x.ts',
+    "import '@/shared/components/toaster/toaster'",
+    BOUNDARY,
+  ],
 ]
 
 const UNKNOWN_FILES = 'boundaries/no-unknown-files'

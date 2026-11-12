@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router'
-import { toast } from 'sonner'
 
 import { SIGN_IN_PATH } from '@/core/config/constants'
 import { api } from '@/services/api'
 import { useLogoutMutation } from '@/services/auth.api'
+import { showWarningToast } from '@/shared/components/toaster/toaster'
 import { useAppDispatch } from '@/store/hooks'
 
 // Sign-out asks the API to revoke the session (the mutation also drops the hint), then forgets
@@ -22,7 +22,7 @@ export function useSignOut() {
     void logout()
       .unwrap()
       .then(async ({ revoked }) => {
-        if (!revoked) toast.warning(NOT_REVOKED_COPY)
+        if (!revoked) showWarningToast(NOT_REVOKED_COPY)
         dispatch(api.util.resetApiState())
         await navigate(SIGN_IN_PATH)
       })

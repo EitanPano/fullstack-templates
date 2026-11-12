@@ -14,7 +14,7 @@ function Where() {
 
 // One component under the store, tooltips and a memory router, for a test that needs the router
 // context but not the route table (a form, the account menu). No Toaster: a test that asserts a
-// toast mocks sonner, and the mock has no component to render.
+// toast mocks the toaster module, and the mock has no component to render.
 export function renderInRouter(
   ui: ReactElement,
   { route = '/', store = createStore() }: { route?: string; store?: AppStore } = {},
