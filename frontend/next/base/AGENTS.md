@@ -40,7 +40,7 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
 - `actions/auth/`: `auth.ts` (`signIn`, `signUp`, `signOut`), `auth.form.ts`, `auth.copy.ts`.
 <!-- @server:auth-end -->
 - `store/`: a named layer that ships no file: client-only state two or more routes read (a
-  `'use client'` provider and its hook). The theme is `next-themes`'; create the folder with the first.
+  `'use client'` provider and its hook). The theme provider is `shared/components/theme/theme.tsx`; create the folder with the first.
 - `models/`: one folder per glossary noun holding only `interface.ts`, `type.ts`, `enum.ts` and
   `constant.ts`, each when needed (`models/nav/interface.ts`: `NavEntry`); no schema, copy, helper
   or test. The contract's types are re-exported from `models/<noun>/type.ts`.
@@ -118,10 +118,18 @@ Also lint-enforced:
   `revalidatePath` and a bare `fetch(` only in `services/`. `process.env` only in `core/config/env.ts`.
 - The `style` JSX attribute nowhere; a stylesheet import is only the owner's sibling
   `./<stem>.scss`; only `app/layout.tsx` and `app/global-error.tsx` load the global tree.
-- `zod` and `@hookform/resolvers` are imported only by `shared/utils/validation.ts`. Everything
-  else builds and runs a schema with its functions (`text`, `number`, `email`, `url`, `isoDateTime`, `literal`, `object`, `extend`, `field`, `optional`, `withDefault`, `check`, `transform`, `pipe`, `validate`, `isValid`, `parse`, `formResolver`;
-  types `Input`, `Output`) and calls no method on a schema, the generated ones included, so a
-  library switch is that file and the client generator's plugin.
+- An external library is imported only by its facade, in the app's own names; lint refuses it
+  anywhere else, so a library switch is that file: `zod` and `@hookform/resolvers` by
+  `shared/utils/validation.ts` (`text`, `number`, `email`, `url`, `isoDateTime`, `literal`, `object`,
+  `extend`, `field`, `optional`, `withDefault`, `check`, `transform`, `pipe`, `validate`, `isValid`,
+  `parse`, `formResolver`; types `Input`, `Output`; no method is called on a schema, the generated
+  ones included), `lucide-react` by `shared/components/icons.ts`, `sonner` by
+  `shared/components/toaster/toaster.tsx` (`Toaster`, `toastError`), `next-themes` by
+  `shared/components/theme/theme.tsx` (`ThemeProvider`, `useAppTheme`), `next-safe-action` by
+  `core/actions/safe-action.ts` and `field-errors.ts` (the server) and `form/action-form/action-form.ts`
+  (`useServerAction`, `useActionForm`), `clsx` by `shared/utils/cn.ts`, `date-fns` and
+  `@date-fns/tz` by `shared/utils/date.ts`; `radix-ui` only under `shared/components/` and
+  `react-hook-form` only under `shared/components/form/`. The framework (`next`, `react`) is exempt.
 - `boundaries/no-unknown-files` is on: a file in a directory no layer claims (`src/lib/`,
   `src/hooks/`) is an error; `src/styles/**` and the tests are exempt.
 
@@ -335,7 +343,7 @@ An action is `action.inputSchema(schema).action(handler)`, and the handler ends 
 ### Forms
 
 React Hook Form with `formResolver` (from `@/shared/utils/validation`), wired by
-`useHookFormAction` (from `@next-safe-action/adapter-react-hook-form/hooks`).
+`useActionForm` (from `@/shared/components/form/action-form/action-form`).
 
 <!-- @server-start -->
 - The schema is in `actions/<noun>/<noun>.form.ts` and extends the generated request schema
@@ -435,7 +443,7 @@ expiry fields). The browser never talks to the API and never holds a token in Ja
   skeleton, `--backdrop`, shadows), the same keys in both; `setup/_typography.scss` takes the
   brand's font stack. Never a literal colour. Spacing is `space()` on a 4 px base (`space(4)` is
   16 px); breakpoints `sm` 576 to `xxl` 1536 through `breakpoints.up()`; mobile first.
-- **Theming.** `next-themes` (`ThemeProvider` in `app/layout.tsx`, `attribute="data-theme"`,
+- **Theming.** The theme provider (`ThemeProvider` in `app/layout.tsx`, `data-theme`,
   default from the brief) sets `data-theme` on `<html>` to `light` or `dark` with its own blocking
   script before first paint. `AppThemeMenu` writes the choice, `Toaster` follows it. No
   `prefers-color-scheme` block.
@@ -444,8 +452,8 @@ expiry fields). The browser never talks to the API and never holds a token in Ja
   icon buttons the same square. Use the `setup/_mixins.scss` mixins in this order:
   `control-height`, `compact-density`, then `touch-target` last. No page scrolls horizontally.
 - **Primitives** are Radix (`radix-ui`) with the tree's classes; its data attributes
-  (`data-state`, `data-side`) are the styling hooks. One icon set (`lucide-react`, `aria-hidden`
-  next to a label), one toast implementation (`sonner`).
+  (`data-state`, `data-side`) are the styling hooks. One icon set (`shared/components/icons.ts`, `aria-hidden`
+  next to a label), one toast function (`toastError`).
 - **Patterns** in `shared/components/`: `Page`, `PageHeader`, `Section`, `EmptyState`,
   `ErrorState` (with retry), `ListSkeleton`, `CardSkeleton`, `FormActions` (sticky on phones),
   `ConfirmDialog`; `AuthCard` with auth. `main` has no width and no padding: every route that
@@ -495,7 +503,7 @@ expiry fields). The browser never talks to the API and never holds a token in Ja
 - A public cached read lets the `ActionError` propagate; the section renders `ErrorState`. An
   unexpected error reaches the nearest `error.tsx`. In an action, `ActionError` becomes
   `serverError`; anything else is logged by `handleServerError` and becomes "Something went wrong.
-  Try again." The client leaf shows `serverError` with `toast.error` from its handler.
+  Try again." The client leaf shows `serverError` with `toastError` from its handler.
 
 ## Tests
 

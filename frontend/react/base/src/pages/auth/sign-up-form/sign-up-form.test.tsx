@@ -8,8 +8,8 @@ import { SESSION, envelope } from '@/testing/auth-fixtures'
 import { renderInRouter } from '@/testing/render-in-router'
 import { stubApi } from '@/testing/stub-api'
 
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
-const { toast } = await import('sonner')
+vi.mock('@/shared/components/toaster/toaster', () => ({ showErrorToast: vi.fn() }))
+const { showErrorToast } = await import('@/shared/components/toaster/toaster')
 
 async function fill(email: string, password: string, confirm = password) {
   await userEvent.type(screen.getByLabelText('Email'), email)
@@ -66,7 +66,7 @@ describe('SignUpForm', () => {
     const message = await screen.findByText('That email is already registered. Sign in instead.')
     expect(message).toHaveAttribute('role', 'alert')
     expect(screen.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'true')
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(showErrorToast).not.toHaveBeenCalled()
     expect(hasSessionHint()).toBe(false)
   })
 
@@ -77,8 +77,9 @@ describe('SignUpForm', () => {
     await fill('a@b.co', 'correct horse')
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith(
+      expect(showErrorToast).toHaveBeenCalledWith(
         'Too many sign-up attempts. Wait a few minutes and try again.',
+        undefined,
       )
     })
   })

@@ -47,7 +47,8 @@ const FILES = [
   'src/app/core/errors/global-error-handler.ts',
   'src/app/shared/components/button/button.component.ts',
   'src/app/shared/utils/time.ts',
-  'src/app/shared/validators/zod-validator.ts',
+  'src/app/shared/utils/validation.ts',
+  'src/app/shared/validators/schema.validator.ts',
   'src/app/models/post/interface.ts',
 ]
 for (const file of FILES) {
@@ -360,7 +361,42 @@ const violations: Violation[] = [
     "import { HttpClient } from '@angular/common/http'",
     RESTRICTED,
     'HttpClient is imported only in services/',
+  ],  [
+    'zod in a page',
+    PAGE,
+    "import * as z from 'zod'",
+    RESTRICTED,
+    'zod is imported only by shared/utils/validation.ts',
   ],
+  [
+    'zod in a form',
+    FORM,
+    "import * as z from 'zod'",
+    RESTRICTED,
+    'zod is imported only by shared/utils/validation.ts',
+  ],
+  [
+    'zod in services/ (outside the generated folder)',
+    'src/app/services/x.ts',
+    "import * as z from 'zod'",
+    RESTRICTED,
+    'zod is imported only by shared/utils/validation.ts',
+  ],
+  [
+    'zod in shared/validators/',
+    'src/app/shared/validators/x.ts',
+    "import * as z from 'zod'",
+    RESTRICTED,
+    'zod is imported only by shared/utils/validation.ts',
+  ],
+  [
+    'form → shared/utils other than validation',
+    FORM,
+    "import '@app/shared/utils/time'",
+    BOUNDARY,
+    'a *.form.ts imports',
+  ],
+
 ]
 
 // A folder no layer claims is refused, so the old homes cannot come back unnoticed.
@@ -413,7 +449,8 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     "import('./post-list/post-list.component')",
     BOUNDARY,
   ],
-  ['form → shared/validators', FORM, "import '@app/shared/validators/zod-validator'", BOUNDARY],
+  ['form → shared/validators', FORM, "import '@app/shared/validators/schema.validator'", BOUNDARY],
+  ['form → shared/utils/validation', FORM, "import '@app/shared/utils/validation'", BOUNDARY],
   ['form → models', FORM, "import '@app/models/post/interface'", BOUNDARY],
   ['form → generated zod schemas', FORM, "import '@app/services/generated/zod.gen'", BOUNDARY],
   ['store → services', 'src/app/store/x.ts', "import '@app/services/post.service'", BOUNDARY],
@@ -480,7 +517,7 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   [
     'shared → shared/validators',
     'src/app/shared/components/button/x.ts',
-    "import '@app/shared/validators/zod-validator'",
+    "import '@app/shared/validators/schema.validator'",
     BOUNDARY,
   ],
   ['shared → models', 'src/app/shared/utils/x.ts', "import '@app/models/post/interface'", BOUNDARY],
@@ -528,6 +565,12 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     RESTRICTED,
   ],
   // @i18n-end
+  [
+    'zod in the validation facade',
+    'src/app/shared/utils/validation.ts',
+    "import * as z from 'zod'",
+    RESTRICTED,
+  ],
   [
     '@angular/common/http in core/config/',
     'src/app/core/config/x.ts',

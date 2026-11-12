@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AppAccountMenu } from './app-account-menu'
 
-// The session read, the sign-out action and next-themes are boundaries.
+// The session read, the sign-out action and the theme hook are boundaries.
 const readSession = vi.fn()
 vi.mock('@/core/auth/session', () => ({
   readSession: () => readSession() as unknown,
@@ -16,7 +16,7 @@ vi.mock('@/actions/auth/auth', () => ({
   signIn: vi.fn(),
   signUp: vi.fn(),
 }))
-vi.mock('next-themes', () => ({ useTheme: () => ({ theme: 'light', setTheme: vi.fn() }) }))
+vi.mock('@/shared/components/theme/theme', () => ({ useAppTheme: () => ({ theme: 'light', setTheme: vi.fn() }) }))
 
 const { signOut } = await import('@/actions/auth/auth')
 

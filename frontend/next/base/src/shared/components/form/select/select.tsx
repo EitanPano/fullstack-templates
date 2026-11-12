@@ -1,4 +1,4 @@
-import { CheckIcon, ChevronDownIcon } from 'lucide-react'
+import { CheckIcon, ChevronDownIcon } from '@/shared/components/icons'
 import { Select as SelectPrimitive } from 'radix-ui'
 import type { ComponentProps } from 'react'
 

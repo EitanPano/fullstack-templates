@@ -1,17 +1,15 @@
 <script setup lang="ts">
-import { ToastProvider, ToastViewport } from 'reka-ui'
-
 import BaseToast from '@/shared/components/base-toast/base-toast.vue'
+import BaseToastHost from '@/shared/components/base-toast/base-toast-host.vue'
 import { useNotificationStore } from '@/store/notification.store'
 
-// The notification store list, rendered through Reka Toast: the provider and viewport live here,
-// each toast is a presentational BaseToast. Reka owns the timers (each toast has its `timeoutMs`; 0
-// stays until answered) and pauses them while the list is hovered or focused.
+// The notification store list, rendered through BaseToastHost, each toast a presentational
+// BaseToast. Each toast has its `timeoutMs`; 0 stays until answered.
 const notifications = useNotificationStore()
 </script>
 
 <template>
-  <ToastProvider :label="$t('toast.label')">
+  <BaseToastHost :label="$t('toast.label')" :viewport-label="$t('toast.region')" class="toast-viewport">
     <BaseToast
       v-for="toast in notifications.toasts"
       :key="toast.id"
@@ -22,8 +20,7 @@ const notifications = useNotificationStore()
       @action="toast.action?.run()"
       @dismiss="notifications.dismiss(toast.id)"
     />
-    <ToastViewport class="toast-viewport" :label="$t('toast.region')" />
-  </ToastProvider>
+  </BaseToastHost>
 </template>
 
 <style lang="scss" src="./app-toast-host.scss"></style>

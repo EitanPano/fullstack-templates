@@ -1,4 +1,4 @@
-import { TriangleAlertIcon } from 'lucide-react'
+import { TriangleAlertIcon } from '@/shared/components/icons'
 
 import { Alert, AlertDescription, AlertTitle } from '@/shared/components/alert/alert'
 import { Button } from '@/shared/components/button/button'

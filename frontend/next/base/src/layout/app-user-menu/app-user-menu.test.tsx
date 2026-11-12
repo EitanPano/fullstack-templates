@@ -4,10 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AppUserMenu } from '@/layout/app-user-menu/app-user-menu'
 
-// next-themes is a boundary: its hook is faked so the test asserts which theme is requested.
+// The theme hook is a boundary: its hook is faked so the test asserts which theme is requested.
 const setTheme = vi.fn()
 let theme: string | undefined = 'light'
-vi.mock('next-themes', () => ({ useTheme: () => ({ theme, setTheme }) }))
+vi.mock('@/shared/components/theme/theme', () => ({ useAppTheme: () => ({ theme, setTheme }) }))
 
 describe('AppUserMenu with the theme toggle', () => {
   beforeEach(() => {

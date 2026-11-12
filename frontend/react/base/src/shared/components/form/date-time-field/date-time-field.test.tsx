@@ -1,26 +1,25 @@
-import { zodResolver } from '@hookform/resolvers/zod'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useForm } from 'react-hook-form'
 import { describe, expect, it, vi } from 'vitest'
-import { z } from 'zod'
 
 import { DateTimeField } from '@/shared/components/form/date-time-field/date-time-field'
 import { Form } from '@/shared/components/form/form'
+import { formResolver, isoDateTime, object, type Input, type Output } from '@/shared/utils/validation'
 
 // The form holds an instant (an ISO string with Z, what the API takes); the control shows and
 // accepts wall time in the zone it is given. Europe/London changes on 2026-03-29 and 2026-10-25.
-const schema = z.object({ startsAt: z.iso.datetime() })
+const schema = object({ startsAt: isoDateTime() })
 
 function Harness({
   onValid = vi.fn(),
   defaultValue = '',
 }: {
-  onValid?: (values: z.output<typeof schema>) => void
+  onValid?: (values: Output<typeof schema>) => void
   defaultValue?: string
 }) {
-  const form = useForm<z.input<typeof schema>, unknown, z.output<typeof schema>>({
-    resolver: zodResolver(schema),
+  const form = useForm<Input<typeof schema>, unknown, Output<typeof schema>>({
+    resolver: formResolver(schema),
     defaultValues: { startsAt: defaultValue },
   })
   return (

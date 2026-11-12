@@ -1,8 +1,7 @@
 import 'server-only'
 
-import { returnValidationErrors } from 'next-safe-action'
-
 import { ActionError } from '@/core/actions/action-error'
+import { returnFieldErrors } from '@/core/actions/field-errors'
 
 import type { ErrorBody } from './generated/types.gen'
 
@@ -33,7 +32,7 @@ export const DEFAULT_COPY: Record<ErrorCode | 'network', string> = {
 type ApiResult = { data?: unknown; error?: unknown; response?: Response }
 type Data<R> = R extends { error?: undefined; data: infer D } ? D : never
 
-type SchemaOf = Parameters<typeof returnValidationErrors>[0]
+type SchemaOf = Parameters<typeof returnFieldErrors>[0]
 
 export type CallOptions = {
   // The action's input schema: lets a 400 with details, or a code in `fields`, become errors
@@ -165,7 +164,7 @@ export async function call<R extends ApiResult>(
       }
     }
     if (Object.keys(errors).length > 0) {
-      returnValidationErrors(options.schema, errors as never)
+      returnFieldErrors(options.schema, errors as never)
     }
   }
 

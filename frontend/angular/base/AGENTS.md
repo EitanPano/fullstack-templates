@@ -115,10 +115,10 @@ directory stay relative.
 | `pages/<m>/<page>/<component>/`                             | shared, models                                                                                         |
 | `pages/<m>/*.routes.ts`                                     | `core/guards`, its own pages                                                                           |
 <!-- @server-start -->
-| `pages/<m>/*.form.ts`                                       | `shared/validators`, models, the generated zod schemas                                                 |
+| `pages/<m>/*.form.ts`                                       | `shared/validators`, `shared/utils/validation`, models, the generated zod schemas                      |
 <!-- @server-end -->
 <!-- @noserver-start -->
-| `pages/<m>/*.form.ts`                                       | `shared/validators`, models                                                                            |
+| `pages/<m>/*.form.ts`                                       | `shared/validators`, `shared/utils/validation`, models                                                 |
 <!-- @noserver-end -->
 | `store/`                                                    | services, models, `core/providers`, `core/config`                                                      |
 <!-- @server-start -->
@@ -422,8 +422,8 @@ anything else under it, and never branch on it outside the auth store and interc
 
 **The form recipe, by example.** `pages/auth/auth.form.ts` is the pattern: one function per form
 (`loginForm()`, `signupForm()` with a `match('password', 'confirm')` confirm control,
-`otpForm()`), each a `NonNullableFormBuilder` group validated by `zodValidator` over the generated
-request schema (`zCredentials`, `zOtpVerificationBody.pick({ code: true })`), so no limit is copied. The
+`otpForm()`), each a `NonNullableFormBuilder` group validated by `schemaValidator` over the generated
+request schema (`zCredentials`, `pick(zOtpVerificationBody, ['code'])`), so no limit is copied. The
 page calls the function in a field initializer, submits only a valid form, awaits a store method
 that returns whether it worked, and on `validation_failed` calls `applyFieldErrors`.
 
@@ -484,6 +484,7 @@ basics;`), then setup, themes, basics; the rules of those six global partials si
 <!-- @noserver-start -->
   light, dark and system. The product places it once, in its header (The shell).
 <!-- @noserver-end -->
+- **External libraries.** An external library is imported only by its facade: zod by `shared/utils/validation.ts` (`text`, `number`, `object`, `field`, `pick`, `either`, `check`, `validate` and the `Schema` types); call no method on a schema anywhere else, the generated `zod.gen` schemas and specs included. Lint refuses the import elsewhere. The framework, rxjs, Transloco (`core/i18n/`) and NgRx Signals (`store/`) are the architecture and need no facade.
 - **Copy.** Every user-visible string in a template goes through the `t` pipe
   (`{{ 'notFound.title' | t }}`) with its key in `core/i18n/translations/en.json`, nested by area,
   `{{param}}` for values, and the same key in `he.json` when the `i18n` flag is on. Code asks
@@ -542,24 +543,24 @@ grouped display, anything else unchanged) and `shared/utils/time.ts` (pure: `par
 
 <!-- @server-start -->
 **The form recipe.** A page module's `<module>.form.ts` builds the typed `FormGroup` with
-`{ validators: zodValidator(zCredentials) }` over the generated zod request schema
+`{ validators: schemaValidator(zCredentials) }` over the generated zod request schema
 (`services/generated/zod.gen`), so a rule is written once, in the server's contract: a limit is
 never copied into the template (there is no `password.ts`; the generated schema validates a
-password). `zodValidator` writes each issue onto the control its path names
-(`errors.zod = { messageKey, params }`, copy `errors.required|minlength|maxlength|min|max|email|
+password). `schemaValidator` (`shared/validators/schema.validator.ts`) writes each issue onto the control its path names
+(`errors.schema = { messageKey, params }`, copy `errors.required|minlength|maxlength|min|max|email|
 pattern|invalid`), clears it when the value is fixed, and returns an issue that matches no control
-as a group error on the form (`form.errors.zod`; no template page toasts it). A server validation failure reaches the same fields through
+as a group error on the form (`form.errors.schema`; no template page toasts it). A server validation failure reaches the same fields through
 `applyFieldErrors` (see Errors). `shared/validators/match.ts` (a confirm field) is the one other
 validator; a field the contract names is never re-validated by hand, even when the control needs
-a looser shape (`user.form.ts` widens the generated phone rule to accept `''`, meaning "remove the
+a looser shape (`user.form.ts` widens the generated phone rule with `either(field(...), literal(''))` to accept `''`, meaning "remove the
 number", and keeps the rule itself). The page composes
 <!-- @server-end -->
 <!-- @noserver-start -->
-**The form recipe.** A page module's `<module>.form.ts` builds the typed `FormGroup`; `zodValidator`
-writes each issue of a zod schema onto the control its path names
-(`errors.zod = { messageKey, params }`, copy `errors.required|minlength|maxlength|min|max|email|
+**The form recipe.** A page module's `<module>.form.ts` builds the typed `FormGroup`; `schemaValidator`
+writes each issue of a schema onto the control its path names
+(`errors.schema = { messageKey, params }`, copy `errors.required|minlength|maxlength|min|max|email|
 pattern|invalid`), clears it when the value is fixed, and returns an issue that matches no control
-as a group error on the form (`form.errors.zod`; no template page toasts it).
+as a group error on the form (`form.errors.schema`; no template page toasts it).
 `shared/validators/match.ts` (a confirm field) is the one other validator. The page composes
 <!-- @noserver-end -->
 `<form [formGroup]="form" (ngSubmit)="submit()">`, one `<app-form-field [label]="'auth.email' | t">`

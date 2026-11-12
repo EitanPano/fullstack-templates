@@ -33,7 +33,12 @@ const ALL = [
   'testing',
 ]
 const except = (...types) => ALL.filter((type) => !types.includes(type))
-const SHARED_BEYOND_VALIDATORS = ['components/**', 'composables/**', 'directives/**', 'utils/**']
+const SHARED_BEYOND_VALIDATORS = [
+  'components/**',
+  'composables/**',
+  'directives/**',
+  'utils/!(validation).ts',
+]
 
 const GENERATED_MESSAGE =
   "read the contract's types through models/<noun>/; only services/ and core/interceptors/http.provider.ts import the generated runtime, and store/, core/ and models/ may import its types"
@@ -136,13 +141,13 @@ const policies = [
     from: { element: { type: 'page', fileInternalPath: '*.form.ts' } },
     disallow: { to: { element: { type: except('page', 'shared', 'models', 'testing') } } },
     message:
-      'a *.form.ts imports shared/validators, models/ and the generated zod schemas only: keep the form schema pure',
+      'a *.form.ts imports shared/validators, shared/utils/validation, models/ and the generated zod schemas only: keep the form schema pure',
   },
   {
     from: { element: { type: 'page', fileInternalPath: '*.form.ts' } },
     disallow: { to: { element: { type: 'shared', fileInternalPath: SHARED_BEYOND_VALIDATORS } } },
     message:
-      'a *.form.ts imports shared/validators, models/ and the generated zod schemas only: keep the form schema pure',
+      'a *.form.ts imports shared/validators, shared/utils/validation, models/ and the generated zod schemas only: keep the form schema pure',
   },
   {
     from: { element: { type: 'page' } },
@@ -298,7 +303,42 @@ const GENERATED_GROUP = {
   message: RUNTIME_MESSAGE,
 }
 const STYLE_GROUP = { group: ['**/*.css', '**/*.scss'], message: STYLE_MESSAGE }
-const restrictImports = (...patterns) => ({ 'no-restricted-imports': ['error', { patterns }] })
+// An external library is imported by its facade only; each facade file lifts its own entry
+// (restrictImportsAllowing). Generated code keeps its imports (src/services/generated is ignored);
+// the framework and its official ecosystem (vue, vue-router, pinia, vue-i18n) are exempt.
+const LIBRARIES = {
+  validation: {
+    group: ['zod', 'zod/*'],
+    message:
+      'zod is imported only by shared/utils/validation.ts: use its functions (text, object, validate, ...)',
+  },
+  primitives: {
+    group: ['reka-ui', 'reka-ui/*'],
+    message:
+      'reka-ui is imported only inside shared/components/: wrap the primitive in a kit component',
+  },
+  icons: {
+    group: ['lucide-vue-next', 'lucide-vue-next/*'],
+    message:
+      'lucide-vue-next is imported only by shared/components/icons.ts: add the icon there under the app’s name',
+  },
+  pwa: {
+    group: ['workbox-window', 'workbox-window/*', 'virtual:pwa-register', 'virtual:pwa-register/*'],
+    message:
+      'the service worker library is imported only by store/app-update.store.ts: add a method there',
+  },
+}
+const restrictImportsRaw = (...patterns) => ({
+  'no-restricted-imports': ['error', { patterns }],
+})
+const restrictImportsAllowing = (allowed, ...patterns) =>
+  restrictImportsRaw(
+    ...Object.entries(LIBRARIES)
+      .filter(([name]) => !allowed.includes(name))
+      .map(([, pattern]) => pattern),
+    ...patterns,
+  )
+const restrictImports = (...patterns) => restrictImportsAllowing([], ...patterns)
 
 export default defineConfig([
   globalIgnores([
@@ -422,6 +462,27 @@ export default defineConfig([
     rules: { 'vue/no-restricted-html-elements': 'off' },
   },
   {
+    // The kit wraps the headless primitives: the one place reka-ui is imported.
+    files: ['src/shared/components/**'],
+    ignores: ['**/*.spec.ts'],
+    rules: restrictImportsAllowing(['primitives'], GENERATED_GROUP, STYLE_GROUP),
+  },
+  {
+    // The icon set is wrapped once, in the kit.
+    files: ['src/shared/components/icons.ts'],
+    rules: restrictImportsAllowing(['primitives', 'icons'], GENERATED_GROUP, STYLE_GROUP),
+  },
+  {
+    // The one file that names the validation library.
+    files: ['src/shared/utils/validation.ts'],
+    rules: restrictImportsAllowing(['validation'], GENERATED_GROUP, STYLE_GROUP),
+  },
+  {
+    // The one file that registers the service worker.
+    files: ['src/store/app-update.store.ts'],
+    rules: restrictImportsAllowing(['pwa'], GENERATED_GROUP, STYLE_GROUP),
+  },
+  {
     // The entry imports the stylesheets, and nothing else.
     files: ['src/main.ts'],
     rules: restrictImports(GENERATED_GROUP),
@@ -482,6 +543,11 @@ export default defineConfig([
     // A spec and the test helpers drive the code from outside: they stub and call fetch.
     files: ['src/**/*.spec.ts', 'src/testing/**'],
     rules: { ...restrictImports(), ...restrictSyntax(ENV) },
+  },
+  {
+    // A kit spec may import the primitive its component wraps, to stand in for the host.
+    files: ['src/shared/components/**/*.spec.ts'],
+    rules: { ...restrictImportsAllowing(['primitives']), ...restrictSyntax(ENV) },
   },
   {
     files: ['vite.config.ts', 'vitest.config.mts', 'playwright.config.ts'],

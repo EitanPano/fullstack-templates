@@ -1,4 +1,4 @@
-import { XIcon } from 'lucide-react'
+import { XIcon } from '@/shared/components/icons'
 import { Dialog as SheetPrimitive } from 'radix-ui'
 import type { ComponentProps } from 'react'
 

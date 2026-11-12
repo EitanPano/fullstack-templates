@@ -1,9 +1,7 @@
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router'
 
 import { SIGN_UP_COPY } from '@/pages/auth/auth.copy'
-import { signUpSchema, type SignUpInput } from '@/pages/auth/auth.form'
+import { signUpSchema } from '@/pages/auth/auth.form'
 import { withCopy } from '@/services/with-copy'
 import { isApiError } from '@/shared/utils/is-api-error'
 import { useSignupMutation } from '@/services/auth.api'
@@ -13,13 +11,14 @@ import { Form } from '@/shared/components/form/form'
 import { PasswordField } from '@/shared/components/form/password-field'
 import { reportFailure } from '@/shared/components/form/report-failure/report-failure'
 import { TextField } from '@/shared/components/form/text-field'
+import { useSchemaForm } from '@/shared/components/form/use-schema-form'
 import { safeNextPath } from '@/shared/utils/next-path'
 
 // A taken email comes back as a conflict that this form puts on the email field, so only outcomes
 // without a field (the rate limit, an outage) are toasts. The confirmation never leaves the form.
 export function SignUpForm({ next }: { next?: string }) {
-  const form = useForm<SignUpInput, unknown, SignUpInput>({
-    resolver: zodResolver(signUpSchema),
+  const form = useSchemaForm({
+    schema: signUpSchema,
     defaultValues: { email: '', password: '', confirm: '' },
   })
   const [signup, { isLoading }] = useSignupMutation()

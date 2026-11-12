@@ -1,6 +1,6 @@
 import type { FieldPath, FieldValues, UseFormSetError } from 'react-hook-form'
-import { toast } from 'sonner'
 
+import { showErrorToast } from '@/shared/components/toaster/toaster'
 import { isApiError } from '@/shared/utils/is-api-error'
 
 // What a form does with a failed mutation: an error that belongs to fields lands on them (our
@@ -38,11 +38,9 @@ export function reportFailure<T extends FieldValues>(
   if (shownCount > 0) {
     // Some paths landed on fields; the rest have nowhere to show, so they share one toast.
     const text = unknown.join('\n')
-    if (description === undefined) toast.error(text)
-    else toast.error(text, { description })
+    showErrorToast(text, description)
     return
   }
   const message = apiError?.message ?? 'Something went wrong. Try again.'
-  if (description === undefined) toast.error(message)
-  else toast.error(message, { description })
+  showErrorToast(message, description)
 }

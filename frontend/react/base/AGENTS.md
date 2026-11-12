@@ -3,7 +3,7 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
 
 **`src/`**
 
-- `main.tsx`: the entry. Imports `shared/utils/zod-messages` first (zod is configured before any
+- `main.tsx`: the entry. Imports `shared/utils/validation` first (the validation library is configured before any
   schema is built), then the font, `styles/themes/brand.css` and `styles/styles.scss`; creates the
   one store, dispatches `themeRestored`, builds the router from `createRoutes(store)` and renders
   it inside `AppProviders`. Nothing else.
@@ -89,7 +89,7 @@ a wrong role).
   `useDebouncedValue`; no template file calls them, they are for the product's shell and its first
   search box. Hooks
   over the store stay in `store/hooks.ts`; `src/hooks/` is an unknown file.
-  `utils/`: `cn`, `date`, `storage` (`localStorage` that never throws), `zod-messages`.
+  `utils/`: `cn`, `date`, `storage` (`localStorage` that never throws), `validation`.
 
 <!-- @server:auth-start -->
 
@@ -159,6 +159,16 @@ page never imports another page; `shared/` never imports `core/`, `store/` or `s
 | `shared/` (with `shared/hooks/`)                         | shared, models                                                                     |
 | `models/`                                                | models; the generated types and zod schemas, `import type` only                    |
 | `testing/`                                               | anything; nothing outside `*.test.ts(x)` imports it (tests are boundaries-ignored) |
+
+- **Libraries.** An external library is imported only by its facade: `zod` and
+  `@hookform/resolvers` by `shared/utils/validation.ts` (named functions: `text`, `object`,
+  `check`, `validate`, `formResolver`; no method is called on a schema elsewhere), `lucide-react`
+  by `shared/components/icons.ts`, `sonner` by `shared/components/toaster/toaster.tsx`
+  (`showErrorToast`, `showWarningToast`, `showSuccessToast`; the store may import it),
+  `react-hook-form` by `shared/components/form/` (pages use `useSchemaForm`), `radix-ui` by
+  `shared/components/`, `clsx` by `shared/utils/cn.ts`, `date-fns` and `@date-fns/tz` by
+  `shared/utils/date.ts`. Lint refuses the rest. React, React Router, Redux Toolkit and React
+  Redux are the architecture and are imported freely.
 
 Also lint-enforced:
 
@@ -363,9 +373,9 @@ and the three `shared/hooks/`. Not used, on purpose: `useTransition`, `useDeferr
   ```tsx
   try {
     await rename({ id, title }).unwrap()
-    toast.success('Post renamed')
+    showSuccessToast('Post renamed')
   } catch (error) {
-    toast.error(isApiError(error) ? error.message : 'Something went wrong.')
+    showErrorToast(isApiError(error) ? error.message : 'Something went wrong.')
   }
   ```
 
@@ -382,12 +392,12 @@ and the three `shared/hooks/`. Not used, on purpose: `useTransition`, `useDeferr
 
 ### Forms
 
-React Hook Form with `zodResolver` and the mutation hook; `SignInForm` is the pattern.
+React Hook Form (behind `useSchemaForm`) and the mutation hook; `SignInForm` is the pattern.
 
 - The schema is in `<noun>.form.ts` and extends the generated request schema
-  (`zPostApiAuthLoginBody.extend({ … })`); limits are never copied. A field whose message is ours
+  (`extend(zPostApiAuthLoginBody, { … })`); limits are never copied. A field whose message is ours
   sets it itself, whatever the generated schema carries (the servers' schemas differ).
-- `useForm({ resolver: zodResolver(schema), defaultValues })`: **every field needs a default
+- `useSchemaForm({ schema, defaultValues })`: **every field needs a default
   value**, because a form's fields are the keys of its values (`reportFailure` reads them).
 - `<Form form={form} onSubmit={onSubmit}>` provides the context; the field bindings take a `name`
   and a `label` and show the error with `aria-invalid` and `aria-describedby`; the submit row is
@@ -572,8 +582,8 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
 - Unit tests run with `bun run test` (Vitest, jsdom, React Testing Library): co-located
   `src/**/*.test.ts(x)`. `tests/unit/` holds the tooling checks:
   `eslint-boundaries` (import rules), `folders` (the `models/` file names, a component of several files in a folder, one `components` folder), `styles-tree` (the stylesheet owner, import-last, layer and `app-`
-  prefix scans, no `style` attribute, with seeded temporary trees), `density` (compiled sizes), `main-imports` (zod configured first), `zod-config` (no
-  `new Function` under the CSP), `playwright-config` (blank `E2E_BASE_URL`), `screen-routes`
+  prefix scans, no `style` attribute, with seeded temporary trees), `density` (compiled sizes), `main-imports` (the validation facade first); `validation.test.ts` pins no
+  `new Function` under the CSP, `playwright-config` (blank `E2E_BASE_URL`), `screen-routes`
   (`capturedRoutes`), and with a database `e2e-database-url`. Co-located checks of the glue include
   `src/store/index.test.ts` and `src/core/config/api-client.test.ts`. <!-- @server -->
   `src/store/index.test.ts`. <!-- @noserver -->
@@ -581,7 +591,7 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
 - The API is the one boundary: `stubApi` stubs the global `fetch` by `METHOD /path`, so a test goes
   through the real generated client, `call`, the copy tables and the cache. A route is tested with
   `renderRoutes` (a memory router over `createRoutes`, a fresh store); with auth, `renderInRouter`
-  renders one component under the store and a router. Mock `sonner` to assert a toast. No test
+  renders one component under the store and a router. Mock `shared/components/toaster/toaster` to assert a toast. No test
   starts the server. Drive `revalidate()` through a button, not from the test body.
 <!-- @server-end -->
 - E2E tests (`tests/e2e/`, Playwright with `@axe-core/playwright`): `playwright.config.ts` starts <!-- @server -->

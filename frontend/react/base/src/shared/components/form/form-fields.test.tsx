@@ -1,9 +1,7 @@
-import { zodResolver } from '@hookform/resolvers/zod'
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useForm } from 'react-hook-form'
 import { describe, expect, it, vi } from 'vitest'
-import { z } from 'zod'
 
 import { Button } from '@/shared/components/button/button'
 import { CheckboxField } from '@/shared/components/form/checkbox-field'
@@ -14,26 +12,37 @@ import { PasswordField } from '@/shared/components/form/password-field'
 import { SelectField } from '@/shared/components/form/select-field'
 import { TextField } from '@/shared/components/form/text-field'
 import { TextareaField } from '@/shared/components/form/textarea-field'
+import {
+  email,
+  formResolver,
+  literal,
+  number,
+  object,
+  pipe,
+  text,
+  type Input,
+  type Output,
+} from '@/shared/utils/validation'
 
-const schema = z.object({
-  email: z.string().pipe(z.email()),
-  note: z.string().min(3),
-  seats: z.number().int().gte(1),
-  plan: z.string().min(1, 'Pick a plan'),
-  terms: z.literal(true, { error: 'Accept the terms' }),
-  password: z.string().min(8),
+const schema = object({
+  email: pipe(text(), email()),
+  note: text({ min: 3 }),
+  seats: number({ whole: true, min: 1 }),
+  plan: text({ min: 1, message: 'Pick a plan' }),
+  terms: literal(true, 'Accept the terms'),
+  password: text({ min: 8 }),
 })
-type Values = z.input<typeof schema>
+type Values = Input<typeof schema>
 
 function Harness({
   onValid = vi.fn(),
   setup,
 }: {
-  onValid?: (values: z.output<typeof schema>) => void
-  setup?: (form: ReturnType<typeof useForm<Values, unknown, z.output<typeof schema>>>) => void
+  onValid?: (values: Output<typeof schema>) => void
+  setup?: (form: ReturnType<typeof useForm<Values, unknown, Output<typeof schema>>>) => void
 }) {
-  const form = useForm<Values, unknown, z.output<typeof schema>>({
-    resolver: zodResolver(schema),
+  const form = useForm<Values, unknown, Output<typeof schema>>({
+    resolver: formResolver(schema),
     defaultValues: { email: '', note: '', plan: '', password: '' },
   })
   setup?.(form)
@@ -93,7 +102,7 @@ describe('form field bindings', () => {
   it('keeps the error link when the caller passes its own aria-describedby', async () => {
     function Custom() {
       const form = useForm({
-        resolver: zodResolver(z.object({ email: z.string().min(1), note: z.string() })),
+        resolver: formResolver(object({ email: text({ min: 1 }), note: text() })),
         defaultValues: { email: '', note: 'x' },
       })
       return (
@@ -216,7 +225,7 @@ describe('form field bindings', () => {
 
   // @server-start
   it('focuses the select trigger when a server error lands on it', () => {
-    let target: ReturnType<typeof useForm<Values, unknown, z.output<typeof schema>>> | undefined
+    let target: ReturnType<typeof useForm<Values, unknown, Output<typeof schema>>> | undefined
     render(
       <Harness
         setup={(form) => {

@@ -3,8 +3,8 @@ import { TestBed } from '@angular/core/testing'
 import { loginForm, otpForm, signupForm } from './auth.form'
 
 function messageKeyOf(control: { errors: Record<string, unknown> | null } | null): unknown {
-  const zod = control?.errors?.['zod'] as { messageKey?: string } | undefined
-  return zod?.messageKey
+  const schema = control?.errors?.['schema'] as { messageKey?: string } | undefined
+  return schema?.messageKey
 }
 
 // A malformed e-mail is not asserted: the bun-express contract has no e-mail pattern (the python
@@ -21,7 +21,7 @@ describe('auth.form', () => {
       const form = TestBed.runInInjectionContext(loginForm)
       form.setValue({ email: 'ada@example.com', password: 'short' })
       expect(form.valid).toBe(false)
-      expect(form.controls.password.errors?.['zod']).toEqual({
+      expect(form.controls.password.errors?.['schema']).toEqual({
         messageKey: 'errors.minlength',
         params: { min: 8 },
       })

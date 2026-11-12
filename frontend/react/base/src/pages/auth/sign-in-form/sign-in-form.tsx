@@ -1,9 +1,7 @@
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router'
 
 import { SIGN_IN_COPY } from '@/pages/auth/auth.copy'
-import { signInSchema, type SignInInput } from '@/pages/auth/auth.form'
+import { signInSchema } from '@/pages/auth/auth.form'
 import { withCopy } from '@/services/with-copy'
 import { isApiError } from '@/shared/utils/is-api-error'
 import { useLoginMutation } from '@/services/auth.api'
@@ -13,14 +11,15 @@ import { Form } from '@/shared/components/form/form'
 import { PasswordField } from '@/shared/components/form/password-field'
 import { reportFailure } from '@/shared/components/form/report-failure/report-failure'
 import { TextField } from '@/shared/components/form/text-field'
+import { useSchemaForm } from '@/shared/components/form/use-schema-form'
 import { safeNextPath } from '@/shared/utils/next-path'
 
 // The form recipe: the mutation's failure lands on a field or in a toast (the outcome: refused,
 // rate limited, unreachable), worded in this form's copy. A success navigates, so there is no
 // success toast.
 export function SignInForm({ next }: { next?: string }) {
-  const form = useForm<SignInInput, unknown, SignInInput>({
-    resolver: zodResolver(signInSchema),
+  const form = useSchemaForm({
+    schema: signInSchema,
     defaultValues: { email: '', password: '' },
   })
   const [login, { isLoading }] = useLoginMutation()

@@ -26,6 +26,18 @@ The owner's folder rules on the tree: `models/` holds one folder per entity and 
 | `models/user.ts` `ROLES` | `models/user/constant.ts` |
 | `models/user.ts` `isUser`, `initials`; `models/user.test.ts` | `shared/utils/is-user.ts`, `shared/utils/initials.ts` with their tests; `initials` takes `{ email: string }` |
 
+### Every external library behind one facade
+
+`zod` and `@hookform/resolvers` are imported by `shared/utils/validation.ts` only (named functions, no method called on a schema elsewhere; the generated `zod.gen` schemas included); `lucide-react` by `shared/components/icons.ts`; `sonner` by `shared/components/toaster/toaster.tsx` (`showErrorToast`, `showWarningToast`, `showSuccessToast`); `react-hook-form` by `shared/components/form/` (pages build a form with `useSchemaForm`); `radix-ui`, `clsx`, `date-fns` and `@date-fns/tz` keep their facades. `eslint.config.mjs` refuses each library outside its facade; the store may import the toast facade.
+
+| Before | Now |
+| --- | --- |
+| `shared/utils/zod-messages.ts` | merged into `shared/utils/validation.ts` (message map, `jitless`); `main.tsx` imports it first |
+| `tests/unit/zod-config.test.ts` | the `jitless` case in `shared/utils/validation.test.ts`, which now watches `new Function` instead of reading the config |
+| `import { z } from 'zod'`, `zodResolver`, `useForm` in a page | `object`, `text`, `extend`, `check`, `formResolver`, `useSchemaForm` |
+| `import { toast } from 'sonner'` | `showErrorToast(message, description?)`, `showWarningToast`, `showSuccessToast`; tests mock `shared/components/toaster/toaster` |
+| `LucideIcon` | `IconComponent` from `shared/components/icons` |
+
 ### Sign-up is `signup`, not `register`
 
 The servers' endpoint is `POST /api/auth/signup`. The committed client follows (`postApiAuthRegister` → `postApiAuthSignup`, with its zod and type names); the public-path list in `core/config/api-client.ts`, the RTK Query endpoint `register` → `signup` and its hook `useRegisterMutation` → `useSignupMutation`, the `'POST /api/auth/register'` test stubs and the e2e helper `registerThroughUi` → `signupThroughUi` follow. The `/sign-up` URL, `signUpSchema` and `sign-up-form` keep their names; the copy is unchanged.

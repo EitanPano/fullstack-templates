@@ -1,6 +1,6 @@
 'use client'
 
-import { EyeIcon, EyeOffIcon } from 'lucide-react'
+import { EyeIcon, EyeOffIcon } from '@/shared/components/icons'
 import { useState, type ComponentProps } from 'react'
 import { useFormContext } from 'react-hook-form'
 

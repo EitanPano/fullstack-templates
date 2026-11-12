@@ -1,5 +1,5 @@
-// First, so zod is configured (jitless, our messages) before any schema is built.
-import '@/shared/utils/zod-messages'
+// First, so the validation library is configured (jitless, our messages) before any schema is built.
+import '@/shared/utils/validation'
 import '@fontsource-variable/inter'
 import '@/styles/themes/brand.css'
 import '@/styles/styles.scss'

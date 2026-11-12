@@ -3,9 +3,9 @@ import '@/styles/themes/brand.css'
 import '@/styles/styles.scss'
 
 import type { Metadata } from 'next'
-import { ThemeProvider } from 'next-themes'
 import type { ReactNode } from 'react'
 
+import { ThemeProvider } from '@/shared/components/theme/theme'
 import { Toaster } from '@/shared/components/toaster/toaster'
 import { TooltipProvider } from '@/shared/components/tooltip/tooltip'
 
@@ -19,11 +19,11 @@ export const metadata: Metadata = {
 // the one file that loads the global style tree.
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    // next-themes sets `data-theme` on <html> before paint, so the attribute differs from the
+    // The theme provider sets `data-theme` on <html> before paint, so the attribute differs from the
     // server markup by design.
     <html lang="en" data-density="__THEME_DENSITY__" suppressHydrationWarning>
       <body>
-        <ThemeProvider attribute="data-theme" defaultTheme="__THEME_DEFAULT__" enableSystem>
+        <ThemeProvider defaultTheme="__THEME_DEFAULT__">
           <TooltipProvider>{children}</TooltipProvider>
           <Toaster />
         </ThemeProvider>

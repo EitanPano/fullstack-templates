@@ -10,8 +10,8 @@ import { stubApi } from '@/testing/stub-api'
 
 // The toast library is a boundary; the API is a stubbed fetch behind the generated client, so the
 // test goes through the real mutation, `call` and copy table and asserts what the person sees.
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
-const { toast } = await import('sonner')
+vi.mock('@/shared/components/toaster/toaster', () => ({ showErrorToast: vi.fn() }))
+const { showErrorToast } = await import('@/shared/components/toaster/toaster')
 
 async function fill(email: string, password: string) {
   if (email) await userEvent.type(screen.getByLabelText('Email'), email)
@@ -41,7 +41,7 @@ describe('SignInForm', () => {
     const request = fetchMock.mock.calls[0]?.[0] as Request
     expect(await request.json()).toEqual({ email: 'a@b.co', password: 'correct horse' })
     expect(hasSessionHint()).toBe(true)
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(showErrorToast).not.toHaveBeenCalled()
   })
 
   it('goes home when no page was asked for, and ignores an unsafe next', async () => {
@@ -66,7 +66,7 @@ describe('SignInForm', () => {
     expect(screen.getByText('Enter a valid email address')).toHaveAttribute('role', 'alert')
     expect(screen.getByLabelText('Password')).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByText('Use at least 8 characters')).toBeInTheDocument()
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(showErrorToast).not.toHaveBeenCalled()
   })
 
   it('reports a wrong password with our copy in a toast, never the server text', async () => {
@@ -76,9 +76,9 @@ describe('SignInForm', () => {
     await fill('a@b.co', 'correct horse')
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Email or password is wrong.')
+      expect(showErrorToast).toHaveBeenCalledWith('Email or password is wrong.', undefined)
     })
-    expect(JSON.stringify(vi.mocked(toast.error).mock.calls)).not.toContain('server text')
+    expect(JSON.stringify(vi.mocked(showErrorToast).mock.calls)).not.toContain('server text')
     expect(screen.getByLabelText('Email')).not.toHaveAttribute('aria-invalid')
     expect(screen.getByTestId('where')).toHaveTextContent('/sign-in')
     expect(hasSessionHint()).toBe(false)
@@ -91,8 +91,9 @@ describe('SignInForm', () => {
     await fill('a@b.co', 'correct horse')
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith(
+      expect(showErrorToast).toHaveBeenCalledWith(
         'Too many sign-in attempts. Wait a few minutes and try again.',
+        undefined,
       )
     })
   })
@@ -104,8 +105,9 @@ describe('SignInForm', () => {
     await fill('a@b.co', 'correct horse')
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith(
+      expect(showErrorToast).toHaveBeenCalledWith(
         "Can't reach the server. Check your connection and try again.",
+        undefined,
       )
     })
   })
