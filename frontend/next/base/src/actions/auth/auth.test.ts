@@ -15,7 +15,7 @@ vi.mock('next/headers', () => ({
     }),
 }))
 
-const { signIn, signOut, signUp } = await import('@/actions/auth')
+const { signIn, signOut, signUp } = await import('@/actions/auth/auth')
 
 const tokens = {
   accessToken: 'access-1',

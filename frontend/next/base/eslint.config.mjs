@@ -133,32 +133,35 @@ const STYLE = [
 ]
 // A stylesheet import is the owner's sibling `./<stem>.scss`; only app/layout.tsx, and
 // app/global-error.tsx which replaces it, load the global tree from src/styles/.
-const STYLESHEETS = {
-  'no-restricted-imports': [
-    'error',
-    {
-      patterns: [
-        {
-          group: ['@/styles/**', '**/styles/**'],
-          message: 'only src/app/layout.tsx and src/app/global-error.tsx load the global style tree',
-        },
-        {
-          // The styles tree has its own pattern (and message) above; it is not reported twice.
-          group: [
-            '@/**/*.scss',
-            '@/**/*.css',
-            '../**/*.scss',
-            '../**/*.css',
-            '**/*.css',
-            '!@/styles/**',
-            '!**/styles/**',
-          ],
-          message: "import the component's own sibling sheet, './<stem>.scss'",
-        },
-      ],
-    },
-  ],
+const STYLESHEETS = [
+  {
+    group: ['@/styles/**', '**/styles/**'],
+    message: 'only src/app/layout.tsx and src/app/global-error.tsx load the global style tree',
+  },
+  {
+    // The styles tree has its own pattern (and message) above; it is not reported twice.
+    group: [
+      '@/**/*.scss',
+      '@/**/*.css',
+      '../**/*.scss',
+      '../**/*.css',
+      '**/*.css',
+      '!@/styles/**',
+      '!**/styles/**',
+    ],
+    message: "import the component's own sibling sheet, './<stem>.scss'",
+  },
+]
+// The validation library is named in one file, so a library switch rewrites that file (and the
+// plugin behind services/generated/zod.gen.ts, which lint ignores).
+const VALIDATION_LIBRARY = {
+  group: ['zod', 'zod/**', '@hookform/resolvers', '@hookform/resolvers/**'],
+  message:
+    "build and run a schema through '@/shared/utils/validation', the one file that imports zod",
 }
+const restrictImports = (...patterns) => ({
+  'no-restricted-imports': ['error', { patterns }],
+})
 const restrictSyntax = (...selectors) => ({
   'no-restricted-syntax': ['error', ...selectors.flat()],
 })
@@ -245,7 +248,7 @@ export default defineConfig([
       'local/client-server-import': 'error',
       'local/route-components': 'error',
       ...restrictSyntax(RAW_CONTROLS, NETWORK, STYLE),
-      ...STYLESHEETS,
+      ...restrictImports(...STYLESHEETS, VALIDATION_LIBRARY),
     },
   },
   {
@@ -266,7 +269,11 @@ export default defineConfig([
     // The two files that load the global style tree: the root layout and global-error.tsx, which
     // renders its own document when the layout fails.
     files: ['src/app/layout.tsx', 'src/app/global-error.tsx'],
-    rules: { 'no-restricted-imports': 'off' },
+    rules: restrictImports(VALIDATION_LIBRARY),
+  },
+  {
+    files: ['src/shared/utils/validation.ts'],
+    rules: restrictImports(...STYLESHEETS),
   },
   {
     files: [

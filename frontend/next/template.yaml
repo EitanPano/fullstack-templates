@@ -54,11 +54,7 @@ onlyWhen:
     - src/shared/components/auth-card
     - src/models/user
     - src/models/auth
-    - src/actions/auth.ts
-    - src/actions/auth.test.ts
-    - src/actions/auth.form.ts
-    - src/actions/auth.form.test.ts
-    - src/actions/auth.copy.ts
+    - src/actions/auth
     - src/services/auth.ts
     - src/services/auth.test.ts
     - src/services/user.ts

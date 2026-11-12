@@ -11,6 +11,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 //   1. models/ holds one folder per entity, and in it only interface.ts, type.ts, enum.ts, constant.ts.
 //   2. A component of two or more files (checkbox.tsx, checkbox.scss, ...) is a folder named for it.
 //   3. There is one components folder: layout/ for the chrome, so src/components/ does not exist.
+//   4. actions/ holds one folder per noun, and every file in it is named for the noun.
 const REAL_SRC = fileURLToPath(new URL('../../src', import.meta.url))
 
 const posix = (path: string) => path.split(sep).join('/')
@@ -68,6 +69,17 @@ function stemProblems(root: string): string[] {
 // Rule 3.
 const strayComponents = (root: string) => (existsSync(join(root, 'components')) ? ['components'] : [])
 
+// Rule 4: auth/auth.ts, auth/auth.form.ts, auth/auth.copy.ts and their tests.
+const ACTION_FILE = /^actions\/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\/\1(?:\.[a-z]+)*\.ts$/
+const ACTION_RULE =
+  'actions/ holds <noun>/<noun>.ts, <noun>.form.ts, <noun>.copy.ts and their tests'
+function actionProblems(root: string): string[] {
+  return files(root, 'actions')
+    .filter((name) => !ACTION_FILE.test(name))
+    .sort()
+    .map((name) => `${name}: ${ACTION_RULE}`)
+}
+
 describe('the folder rules', () => {
   it('scans the real tree', () => {
     expect(files(REAL_SRC, 'models').length).toBeGreaterThan(0)
@@ -84,6 +96,10 @@ describe('the folder rules', () => {
 
   it('has no src/components/ (the chrome is in layout/)', () => {
     expect(strayComponents(REAL_SRC)).toEqual([])
+  })
+
+  it('keeps one folder per noun in actions/', () => {
+    expect(actionProblems(REAL_SRC)).toEqual([])
   })
 })
 
@@ -115,7 +131,12 @@ describe('the scan itself', () => {
       'shared/components/form/input.tsx': 'export {}\n',
       'app/(site)/post/_components/post-card/post-card.tsx': 'export {}\n',
       'app/(site)/post/_components/post-card/post-card.scss': '\n',
+      'actions/post/post.ts': 'export {}\n',
+      'actions/post/post.form.ts': 'export {}\n',
+      'actions/post/post.form.test.ts': 'export {}\n',
+      'actions/order-line/order-line.copy.ts': 'export {}\n',
     })
+    expect(actionProblems(root)).toEqual([])
     expect(modelProblems(root)).toEqual([])
     expect(stemProblems(root)).toEqual([])
     expect(strayComponents(root)).toEqual([])
@@ -154,6 +175,20 @@ describe('the scan itself', () => {
       'app/(site)/post/_components/post-card.scss: post-card.scss, post-card.tsx share a stem, put them in post-card/',
       'layout/app-menu.scss: app-menu.scss, app-menu.tsx share a stem, put them in app-menu/',
       'shared/components/badge.test.tsx: badge.test.tsx, badge.tsx share a stem, put them in badge/',
+    ])
+  })
+
+  it('refuses an action file outside its noun folder, or named for another noun', () => {
+    const root = seed({
+      'actions/auth.ts': 'export {}\n',
+      'actions/auth.form.ts': 'export {}\n',
+      'actions/auth/sign-in.ts': 'export {}\n',
+      'actions/auth/auth.ts': 'export {}\n',
+    })
+    expect(actionProblems(root)).toEqual([
+      `actions/auth.form.ts: ${ACTION_RULE}`,
+      `actions/auth.ts: ${ACTION_RULE}`,
+      `actions/auth/sign-in.ts: ${ACTION_RULE}`,
     ])
   })
 

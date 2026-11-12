@@ -27,7 +27,7 @@ const FILES = [
   'src/app/(site)/post/comment/page.tsx',
   'src/app/(site)/post/comment/reply/page.tsx',
   'src/layout/app-badge/app-badge.tsx',
-  'src/actions/post.ts',
+  'src/actions/post/post.ts',
   'src/services/post.ts',
   'src/services/client.ts',
   'src/services/generated/index.ts',
@@ -103,7 +103,7 @@ const violations: Violation[] = [
   ],
   [
     'actions → app',
-    'src/actions/x.ts',
+    'src/actions/x/x.ts',
     "import '@/app/nav'",
     BOUNDARY,
     'only app/ is allowed to import app/',
@@ -124,14 +124,14 @@ const violations: Violation[] = [
   ],
   [
     'actions → layout',
-    'src/actions/x.ts',
+    'src/actions/x/x.ts',
     "import '@/layout/app-badge/app-badge'",
     BOUNDARY,
     'actions/ imports services/, core/, shared/ and models/ only',
   ],
   [
     'actions → store',
-    'src/actions/x.ts',
+    'src/actions/x/x.ts',
     "import '@/store/theme'",
     BOUNDARY,
     'actions/ imports services/, core/, shared/ and models/ only',
@@ -146,7 +146,7 @@ const violations: Violation[] = [
   [
     'services → actions',
     'src/services/x.ts',
-    "import '@/actions/post'",
+    "import '@/actions/post/post'",
     BOUNDARY,
     'services/ imports services/, core/ and models/ only',
   ],
@@ -174,7 +174,7 @@ const violations: Violation[] = [
   [
     'store → actions',
     'src/store/x.ts',
-    "import '@/actions/post'",
+    "import '@/actions/post/post'",
     BOUNDARY,
     'store/ imports core/, shared/ and models/ only',
   ],
@@ -195,7 +195,7 @@ const violations: Violation[] = [
   [
     'core → actions',
     'src/core/x.ts',
-    "import '@/actions/post'",
+    "import '@/actions/post/post'",
     BOUNDARY,
     'core/ imports services/, shared/, models/ and core/ only',
   ],
@@ -309,7 +309,7 @@ const violations: Violation[] = [
   // The generated client's functions are imported by services/ alone.
   [
     'actions → generated client (value)',
-    'src/actions/x.ts',
+    'src/actions/x/x.ts',
     "import { postApiAuthLogin } from '@/services/generated'",
     BOUNDARY,
     'call the API through services/<entity>.ts',
@@ -523,17 +523,46 @@ const violations: Violation[] = [
     STYLESHEET,
     "import the component's own sibling sheet",
   ],
+  // zod is named in shared/utils/validation.ts only.
+  [
+    'zod in a form schema',
+    'src/actions/x/x.form.ts',
+    "import { z } from 'zod'\nexport const x = z.string()",
+    STYLESHEET,
+    "build and run a schema through '@/shared/utils/validation'",
+  ],
+  [
+    'the zod resolver in a client form',
+    'src/layout/x.tsx',
+    "'use client'\nimport { zodResolver } from '@hookform/resolvers/zod'\nexport const x = zodResolver",
+    STYLESHEET,
+    "build and run a schema through '@/shared/utils/validation'",
+  ],
+  [
+    'zod in a test',
+    'src/actions/x/x.test.ts',
+    "import { z } from 'zod'\nexport const x = z.string()",
+    STYLESHEET,
+    "build and run a schema through '@/shared/utils/validation'",
+  ],
+  [
+    'zod in the root layout',
+    'src/app/layout.tsx',
+    "import { z } from 'zod'\nexport const x = z.string()",
+    STYLESHEET,
+    "build and run a schema through '@/shared/utils/validation'",
+  ],
   // revalidatePath and a bare fetch( belong to services/.
   [
     'revalidatePath outside services',
-    'src/actions/x.ts',
+    'src/actions/x/x.ts',
     "import { revalidatePath } from 'next/cache'\nrevalidatePath('/')",
     SYNTAX,
     'revalidatePath is reserved to services/',
   ],
   [
     'bare fetch outside services',
-    'src/actions/x.ts',
+    'src/actions/x/x.ts',
     "await fetch('/api/post')",
     SYNTAX,
     'call the API through services/',
@@ -565,30 +594,30 @@ const violations: Violation[] = [
 const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   ['app → layout', 'src/app/x.tsx', "import '@/layout/app-badge/app-badge'", BOUNDARY],
   ['app → services', 'src/app/x.tsx', "import '@/services/post'", BOUNDARY],
-  ['app → actions', 'src/app/x.tsx', "import '@/actions/post'", BOUNDARY],
+  ['app → actions', 'src/app/x.tsx', "import '@/actions/post/post'", BOUNDARY],
   ['app → store', 'src/app/x.tsx', "import '@/store/theme'", BOUNDARY],
   ['app → core', 'src/app/x.tsx', "import '@/core/auth/session'", BOUNDARY],
   ['app → shared', 'src/app/x.tsx', "import '@/shared/components/button/button'", BOUNDARY],
   ['app → models', 'src/app/x.tsx', "import '@/models/post/type'", BOUNDARY],
   ['layout → services', 'src/layout/x.tsx', "import '@/services/post'", BOUNDARY],
-  ['layout → actions', 'src/layout/x.tsx', "import '@/actions/post'", BOUNDARY],
+  ['layout → actions', 'src/layout/x.tsx', "import '@/actions/post/post'", BOUNDARY],
   ['layout → store', 'src/layout/x.tsx', "import '@/store/theme'", BOUNDARY],
   ['layout → core', 'src/layout/x.tsx', "import '@/core/auth/session'", BOUNDARY],
   ['layout → shared', 'src/layout/x.tsx', "import '@/shared/components/button/button'", BOUNDARY],
   ['layout → models', 'src/layout/x.tsx', "import '@/models/post/type'", BOUNDARY],
-  ['actions → services', 'src/actions/x.ts', "import '@/services/post'", BOUNDARY],
-  ['actions → core', 'src/actions/x.ts', "import '@/core/auth/session'", BOUNDARY],
-  ['actions → shared', 'src/actions/x.ts', "import '@/shared/utils/cn'", BOUNDARY],
-  ['actions → models', 'src/actions/x.ts', "import '@/models/post/type'", BOUNDARY],
+  ['actions → services', 'src/actions/x/x.ts', "import '@/services/post'", BOUNDARY],
+  ['actions → core', 'src/actions/x/x.ts', "import '@/core/auth/session'", BOUNDARY],
+  ['actions → shared', 'src/actions/x/x.ts', "import '@/shared/utils/cn'", BOUNDARY],
+  ['actions → models', 'src/actions/x/x.ts', "import '@/models/post/type'", BOUNDARY],
   [
     'actions → generated zod schemas (value)',
-    'src/actions/x.ts',
+    'src/actions/x/x.ts',
     "import { z } from '@/services/generated/zod.gen'",
     BOUNDARY,
   ],
   [
     'actions → generated (import type)',
-    'src/actions/x.ts',
+    'src/actions/x/x.ts',
     "import type {} from '@/services/generated/types.gen'",
     BOUNDARY,
   ],
@@ -638,7 +667,7 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   [
     "'use client' → action",
     'src/layout/x.tsx',
-    "'use client'\nimport '@/actions/post'",
+    "'use client'\nimport '@/actions/post/post'",
     CLIENT,
   ],
   [
@@ -650,7 +679,7 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   [
     "'use client' re-exporting an action",
     'src/layout/x.tsx',
-    "'use client'\nexport { renamePost } from '@/actions/post'",
+    "'use client'\nexport { renamePost } from '@/actions/post/post'",
     CLIENT,
   ],
   [
@@ -766,6 +795,18 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     'src/core/config/env.ts',
     'export const v = process.env.API_URL',
     'no-restricted-properties',
+  ],
+  [
+    'zod in shared/utils/validation.ts',
+    'src/shared/utils/validation.ts',
+    "import { z } from 'zod'\nexport const x = z.string()",
+    STYLESHEET,
+  ],
+  [
+    'the validation functions in a form schema',
+    'src/actions/x/x.form.ts',
+    "import { text } from '@/shared/utils/validation'\nexport const x = text()",
+    STYLESHEET,
   ],
 ]
 

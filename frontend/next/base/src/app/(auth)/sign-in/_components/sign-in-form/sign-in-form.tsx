@@ -1,19 +1,19 @@
 'use client'
 
-import { zodResolver } from '@hookform/resolvers/zod'
 import { useHookFormAction } from '@next-safe-action/adapter-react-hook-form/hooks'
 import Link from 'next/link'
 import { useEffect } from 'react'
 import { toast } from 'sonner'
 
-import { signIn } from '@/actions/auth'
-import { signInSchema } from '@/actions/auth.form'
+import { signIn } from '@/actions/auth/auth'
+import { signInSchema } from '@/actions/auth/auth.form'
 import { Button } from '@/shared/components/button/button'
 import { hasField, ignoreNavigation, unplacedMessage } from '@/shared/components/form/action-form/action-form'
 import { Form } from '@/shared/components/form/form'
 import { PasswordField } from '@/shared/components/form/password-field'
 import { TextField } from '@/shared/components/form/text-field'
 import { FormActions } from '@/shared/components/form/form-actions/form-actions'
+import { formResolver } from '@/shared/utils/validation'
 
 // The form recipe: the action's result lands in the form (field errors on their fields, through
 // the adapter) or in a toast (the outcome: refused, rate limited, unreachable). A success
@@ -21,7 +21,7 @@ import { FormActions } from '@/shared/components/form/form-actions/form-actions'
 export function SignInForm({ next }: { next?: string }) {
   const { form, handleSubmitWithAction, action } = useHookFormAction(
     signIn,
-    zodResolver(signInSchema),
+    formResolver(signInSchema),
     {
       formProps: { defaultValues: { email: '', password: '', next } },
       actionProps: {

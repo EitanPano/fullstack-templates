@@ -1,9 +1,9 @@
-import { z } from 'zod'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { call, DEFAULT_COPY } from '@/services/call'
 import { ActionError } from '@/core/actions/action-error'
 import { action } from '@/core/actions/safe-action'
+import { object, text } from '@/shared/utils/validation'
 
 // `call` turns the generated client's result into data or an ActionError carrying copy we wrote.
 // The results below have the shape of the generated client's: { data, error, response }.
@@ -127,7 +127,7 @@ describe('call', () => {
 })
 
 describe('call with an input schema', () => {
-  const schema = z.object({ email: z.string(), password: z.string() })
+  const schema = object({ email: text(), password: text() })
   const input = { email: 'a@b.co', password: 'pw' }
 
   it('turns a 400 with details into errors on those fields, with our copy', async () => {

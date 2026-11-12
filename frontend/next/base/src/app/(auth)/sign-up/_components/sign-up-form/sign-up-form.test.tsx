@@ -4,10 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SignUpForm } from './sign-up-form'
 
-vi.mock('@/actions/auth', () => ({ signIn: vi.fn(), signUp: vi.fn() }))
+vi.mock('@/actions/auth/auth', () => ({ signIn: vi.fn(), signUp: vi.fn() }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
-const { signUp } = await import('@/actions/auth')
+const { signUp } = await import('@/actions/auth/auth')
 const { toast } = await import('sonner')
 
 async function fill(email: string, password: string, confirm: string) {

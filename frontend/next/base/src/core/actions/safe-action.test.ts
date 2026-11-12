@@ -1,8 +1,8 @@
-import { z } from 'zod'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { ActionError } from '@/core/actions/action-error'
 import { action, GENERIC_ERROR, handleServerError } from '@/core/actions/safe-action'
+import { object, text } from '@/shared/utils/validation'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -28,7 +28,7 @@ describe('handleServerError', () => {
 describe('action', () => {
   it('validates the input with the schema and runs the handler', async () => {
     const run = action
-      .inputSchema(z.object({ name: z.string().min(2) }))
+      .inputSchema(object({ name: text({ min: 2 }) }))
       .action(({ parsedInput }) => Promise.resolve({ echoed: parsedInput.name }))
 
     await expect(run({ name: 'ok' })).resolves.toEqual({ data: { echoed: 'ok' } })
