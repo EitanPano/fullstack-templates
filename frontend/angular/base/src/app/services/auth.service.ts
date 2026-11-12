@@ -24,31 +24,31 @@ import {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   async login(body: Credentials): Promise<AuthSession> {
-    const { data } = await postApiAuthLogin({ body, throwOnError: true })
+    const { data } = await postApiAuthLogin({ body })
     return data
   }
 
   async signup(body: Credentials): Promise<AuthSession> {
-    const { data } = await postApiAuthSignup({ body, throwOnError: true })
+    const { data } = await postApiAuthSignup({ body })
     return data
   }
 
   // The refresh token travels in its cookie; the body stays empty.
   async refresh(): Promise<AuthSession> {
-    const { data } = await postApiAuthRefresh({ body: {}, throwOnError: true })
+    const { data } = await postApiAuthRefresh({ body: {} })
     return data
   }
 
   async logout(): Promise<void> {
-    await postApiAuthLogout({ body: {}, throwOnError: true })
+    await postApiAuthLogout({ body: {} })
   }
 
   async requestOtp(body: OtpRequestBody): Promise<void> {
-    await postApiAuthOtp({ body, throwOnError: true })
+    await postApiAuthOtp({ body })
   }
 
   async verifyOtp(body: OtpVerificationBody): Promise<OtpVerified> {
-    const { data } = await postApiAuthOtpVerification({ body, throwOnError: true })
+    const { data } = await postApiAuthOtpVerification({ body })
     return data
   }
 }

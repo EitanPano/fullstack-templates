@@ -32,7 +32,7 @@ import {
   rotateSession,
   type IssuedSession,
 } from '../../services/session'
-import { AppError } from '../../services/utils/error'
+import { AppError, authenticationRequired } from '../../services/utils/error'
 import { parseDuration, toIso } from '../../services/utils/time'
 import * as user from '../user/controller'
 import {
@@ -159,7 +159,7 @@ export async function verifyOtp(_req: Request, res: Response): Promise<void> {
   const caller = res.locals.caller
   if (purpose === 'verify') {
     // Both checks come before the code is consumed, so a wrong caller cannot burn the code.
-    if (caller === undefined) throw new AppError('unauthenticated', 'authentication required')
+    if (caller === undefined) throw authenticationRequired()
     await assertOwnTarget(caller, target)
     const userId = await consumeOtp({ purpose, target, code })
     if (userId === null || userId !== caller.id) {
@@ -194,7 +194,7 @@ export async function requestOtp(_req: Request, res: Response): Promise<void> {
   const { target, purpose } = readInput(res, otpRequest).body
   const caller = res.locals.caller
   if (purpose === 'verify') {
-    if (caller === undefined) throw new AppError('unauthenticated', 'authentication required')
+    if (caller === undefined) throw authenticationRequired()
     await assertOwnTarget(caller, target)
     await deliver(target, purpose, await issueOtp({ purpose, target, userId: caller.id }))
     res.status(202).json({})

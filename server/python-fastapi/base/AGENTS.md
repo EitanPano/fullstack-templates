@@ -798,7 +798,9 @@ keys prefixed, always with a TTL; `incr` sets the TTL on the first increment onl
 ## Errors
 
 Controllers and services raise `AppError(code, message, details)` from `services/utils/error.py`;
-only `middleware/error_handler.py` builds an error response.
+only `middleware/error_handler.py` builds an error response. Raise
+`authentication_required()` for a request with no valid access token: its 401 alone carries
+`WWW-Authenticate: Bearer`, so a client refreshes on that header.
 
 | Code | Status | Use for |
 | --- | --- | --- |

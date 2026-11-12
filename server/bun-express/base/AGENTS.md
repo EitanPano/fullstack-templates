@@ -624,7 +624,9 @@ helpers; keys prefixed, always with a TTL; `incr` sets the TTL on the first incr
 ## Errors
 
 Controllers and services throw `AppError(code, message, details?)` from
-`services/utils/error.ts`; only `middleware/error-handler.ts` builds an error response.
+`services/utils/error.ts`; only `middleware/error-handler.ts` builds an error response. Throw
+`authenticationRequired()` for a request with no valid access token: its 401 alone carries
+`WWW-Authenticate: Bearer`, so a client refreshes on that header.
 
 | Code | Status | Use for |
 | --- | --- | --- |

@@ -1,4 +1,4 @@
-import type { ApiErrorCode } from './type'
+import type { ApiErrorCode, Outcome } from './type'
 
 // Every code the copy table (`errors.<code>` in en.json) has a message for. Typed as a record over
 // `ApiErrorCode`, so a code added to the contract fails the build here until it is listed; a spec
@@ -20,3 +20,6 @@ const CODES: Record<ApiErrorCode, true> = {
 }
 
 export const ERROR_CODES = Object.keys(CODES) as ApiErrorCode[]
+
+// The outcome of a call that was not sent or was replaced by a newer one.
+export const DROPPED: Outcome<never> = { ok: false, error: null }

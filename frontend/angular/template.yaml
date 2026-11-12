@@ -2,7 +2,7 @@ schemaVersion: 1
 id: angular
 kind: frontend
 name: Angular 22 SPA
-version: 4.0.0
+version: 4.1.0
 summary: "Angular 22 single-page app on standalone components and signals, @ngrx/signals stores, co-located SCSS on a global token tree and Hey API's Angular client, with Transloco and the service worker behind flags"
 runtime: { language: typescript, platform: node, minVersion: "24" }
 tools:
@@ -95,6 +95,8 @@ onlyWhen:
       - src/app/services/generated
       - src/app/core/config/error-copy.spec.ts
       - src/app/core/config/error-copy.ts
+      - src/app/core/providers/form-submit.spec.ts
+      - src/app/core/providers/form-submit.ts
       - src/app/shared/validators/server-errors.spec.ts
       - src/app/shared/validators/server-errors.ts
       - src/app/store/with-request-status.spec.ts
@@ -126,6 +128,8 @@ onlyWhen:
     - src/app/shared/utils/next-path.ts
     - src/app/store/auth.store.spec.ts
     - src/app/store/auth.store.ts
+    - src/app/store/session.store.spec.ts
+    - src/app/store/session.store.ts
     - src/app/store/user.store.spec.ts
     - src/app/store/user.store.ts
     - tests/e2e/auth-support.ts

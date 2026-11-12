@@ -16,7 +16,7 @@ from app.middleware.context import caller_of, set_caller
 from app.models.auth.type import Caller
 from app.services.security.cookies import read_access_token
 from app.services.security.jwt import verify_access
-from app.services.utils.error import AppError
+from app.services.utils.error import authentication_required
 
 
 async def authenticate(request: Request) -> None:
@@ -34,12 +34,12 @@ async def require_auth(request: Request) -> None:
     """`authenticate`, then 401 when there is no caller."""
     await authenticate(request)
     if caller_of(request.scope) is None:
-        raise AppError("unauthenticated", "authentication required")
+        raise authentication_required()
 
 
 def require_caller(connection: HTTPConnection) -> Caller:
     """The caller a gate resolved. Narrows the type without a dead branch in the handler."""
     caller = caller_of(connection.scope)
     if caller is None:
-        raise AppError("unauthenticated", "authentication required")
+        raise authentication_required()
     return caller

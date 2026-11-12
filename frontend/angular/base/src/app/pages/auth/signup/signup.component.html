@@ -1,7 +1,4 @@
-<app-auth-card
-  [heading]="'auth.signup.title' | t"
-  [description]="'auth.signup.description' | t"
->
+<app-auth-card [heading]="'auth.signup.title' | t" [description]="'auth.signup.description' | t">
   <form class="signup__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
     <app-form-field [label]="'auth.email' | t">
       <app-input
@@ -18,7 +15,7 @@
     <app-form-field [label]="'auth.confirm' | t">
       <app-input formControlName="confirm" type="password" autocomplete="new-password" />
     </app-form-field>
-    <app-form-actions submitKey="auth.signup.submit" [pending]="store.loading()" />
+    <app-form-actions submitKey="auth.signup.submit" [pending]="submission.pending()" />
   </form>
   <p footer class="signup__alt">
     {{ 'auth.signup.hasAccount' | t }}

@@ -33,7 +33,8 @@ language-neutral core.
 - Contract: OpenAPI 3.1 produced from the same schemas that validate requests (zod,
   pydantic, FluentValidation with Swashbuckle, Bean Validation with springdoc, Laravel
   form requests with Scramble). Singular resource paths under `/api/`, JSON only, one
-  error envelope, a request id on every response.
+  error envelope, a request id on every response. Only a 401 for a request with no valid access
+  token carries `WWW-Authenticate: Bearer`; every other 401 (credentials, refresh token, code) none.
 - Rate-limit subject: `by_ip` keys an IPv6 address by its /64 network and an IPv4 address by
   itself; an IPv4-mapped IPv6 address is its IPv4. One /64 is one subscriber, and keying the
   full address lets it rotate past any per-IP limit

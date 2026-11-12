@@ -283,6 +283,8 @@ class TestLogin:
 
         assert unknown.status_code == 401
         assert wrong.status_code == 401
+        assert "www-authenticate" not in unknown.headers
+        assert "www-authenticate" not in wrong.headers
         assert error_of(unknown).code == error_of(wrong).code
         assert error_of(unknown).message == error_of(wrong).message
 
@@ -420,7 +422,10 @@ class TestRefresh:
         assert error_of(res).code == "validation_failed"
 
     async def test_answers_401_for_a_garbage_token(self, client: httpx.AsyncClient) -> None:
-        assert (await refresh_with(client, "not-a-jwt")).status_code == 401
+        res = await refresh_with(client, "not-a-jwt")
+
+        assert res.status_code == 401
+        assert "www-authenticate" not in res.headers
 
     async def test_answers_401_for_an_access_token(self, client: httpx.AsyncClient) -> None:
         session, _ = await signed_in(client, "ada@example.com")
@@ -531,7 +536,10 @@ class TestLogout:
         assert (await refresh_with(client, refresh_cookie(other))).status_code == 200
 
     async def test_answers_401_when_unauthenticated(self, client: httpx.AsyncClient) -> None:
-        assert (await client.post("/api/auth/logout")).status_code == 401
+        out = await client.post("/api/auth/logout")
+
+        assert out.status_code == 401
+        assert out.headers["www-authenticate"] == "Bearer"
 
     async def test_answers_400_when_all_is_not_a_boolean(self, client: httpx.AsyncClient) -> None:
         session, _ = await signed_in(client, "ada@example.com")

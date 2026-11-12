@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { ReactiveFormsModule } from '@angular/forms'
 import { Router } from '@angular/router'
 
+import { injectFormSubmit } from '@app/core/providers/form-submit'
 import { NotificationService } from '@app/core/providers/notification.service'
 import { PROFILE_PATH } from '@app/models/user/constant'
 import { AuthCardComponent } from '@app/shared/components/auth-card/auth-card.component'
@@ -10,7 +11,6 @@ import { FormActionsComponent } from '@app/shared/components/form/form-actions/f
 import { FormFieldComponent } from '@app/shared/components/form/form-field/form-field.component'
 import { InputComponent } from '@app/shared/components/form/input/input.component'
 import { TranslatePipe } from '@app/shared/pipes/translate.pipe'
-import { applyFieldErrors } from '@app/shared/validators/server-errors'
 import { AuthStore } from '@app/store/auth.store'
 
 import { otpForm } from '../auth.form'
@@ -39,27 +39,21 @@ export class VerifyOtpComponent {
 
   protected readonly sent = signal(false)
   protected readonly form = otpForm()
+  protected readonly submission = injectFormSubmit(this.form)
 
   protected async sendCode(): Promise<void> {
-    if (this.store.loading()) return
-    if (await this.store.requestOtp()) {
+    if (this.store.loading('requestOtp')) return
+    if ((await this.store.requestOtp()).ok) {
       this.sent.set(true)
       this.notifications.showSuccess('auth.otp.sent')
     }
   }
 
   protected async submit(): Promise<void> {
-    if (this.form.invalid || this.store.loading()) return
-    if (await this.store.verifyOtp(this.form.getRawValue().code)) {
-      this.notifications.showSuccess('auth.otp.verified')
-      await this.router.navigateByUrl(PROFILE_PATH)
-      return
-    }
-    const error = this.store.error()
-    if (error?.code !== 'validation_failed') return
-    const unmapped = applyFieldErrors(this.form, error)
-    if (unmapped.length > 0 || !error.fieldErrors) {
-      this.notifications.showError('errors.validation_failed')
-    }
+    const code = this.form.getRawValue().code
+    const outcome = await this.submission.run(() => this.store.verifyOtp(code))
+    if (!outcome.ok) return
+    this.notifications.showSuccess('auth.otp.verified')
+    await this.router.navigateByUrl(PROFILE_PATH)
   }
 }

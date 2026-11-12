@@ -4,6 +4,7 @@ import { Router, provideRouter } from '@angular/router'
 
 import { provideTestTranslator } from '@app/core/i18n/translator.testing'
 import { NotificationService } from '@app/core/providers/notification.service'
+import type { Outcome } from '@app/models/api/type'
 import { ApiError } from '@app/services/api-error'
 import { AuthStore } from '@app/store/auth.store'
 
@@ -16,8 +17,7 @@ function type(input: HTMLInputElement | null, value: string) {
 }
 
 describe('LoginComponent', () => {
-  const login = vi.fn<(credentials: unknown) => Promise<boolean>>()
-  const error = signal<ApiError | null>(null)
+  const login = vi.fn<(credentials: unknown) => Promise<Outcome<unknown>>>()
   const showError = vi.fn<(key: string) => number>(() => 1)
   const loading = signal(false)
 
@@ -26,7 +26,7 @@ describe('LoginComponent', () => {
       providers: [
         provideRouter([]),
         provideTestTranslator(),
-        { provide: AuthStore, useValue: { login, error, loading } },
+        { provide: AuthStore, useValue: { login, loading } },
         { provide: NotificationService, useValue: { showError } },
       ],
     })
@@ -49,7 +49,6 @@ describe('LoginComponent', () => {
   beforeEach(() => {
     login.mockReset()
     showError.mockClear()
-    error.set(null)
     loading.set(false)
   })
 
@@ -81,7 +80,7 @@ describe('LoginComponent', () => {
   })
 
   it('submits the credentials and goes to next after success', async () => {
-    login.mockResolvedValue(true)
+    login.mockResolvedValue({ ok: true, value: undefined })
     const { navigate, submit, fill } = await render('/profile?tab=2')
     fill('ada@example.com', 'longenough1')
     await submit()
@@ -90,7 +89,7 @@ describe('LoginComponent', () => {
   })
 
   it('goes home when next is not a path on this site', async () => {
-    login.mockResolvedValue(true)
+    login.mockResolvedValue({ ok: true, value: undefined })
     const { navigate, submit, fill } = await render('https://evil.example')
     fill('ada@example.com', 'longenough1')
     await submit()
@@ -98,8 +97,10 @@ describe('LoginComponent', () => {
   })
 
   it('stays on the page after a failure, and does not toast again (the store did)', async () => {
-    login.mockResolvedValue(false)
-    error.set(new ApiError({ status: 401, code: 'unauthenticated' }))
+    login.mockResolvedValue({
+      ok: false,
+      error: new ApiError({ status: 401, code: 'unauthenticated' }),
+    })
     const { navigate, submit, fill } = await render()
     fill('ada@example.com', 'longenough1')
     await submit()
@@ -108,10 +109,14 @@ describe('LoginComponent', () => {
   })
 
   it('puts a server field error on its field and toasts nothing', async () => {
-    login.mockResolvedValue(false)
-    error.set(
-      new ApiError({ status: 400, code: 'validation_failed', fieldErrors: { email: ['invalid'] } }),
-    )
+    login.mockResolvedValue({
+      ok: false,
+      error: new ApiError({
+        status: 400,
+        code: 'validation_failed',
+        fieldErrors: { email: ['invalid'] },
+      }),
+    })
     const { element, submit, fill } = await render()
     fill('ada@example.com', 'longenough1')
     await submit()
@@ -122,10 +127,14 @@ describe('LoginComponent', () => {
   })
 
   it('toasts once for a field error that no field shows', async () => {
-    login.mockResolvedValue(false)
-    error.set(
-      new ApiError({ status: 400, code: 'validation_failed', fieldErrors: { other: ['invalid'] } }),
-    )
+    login.mockResolvedValue({
+      ok: false,
+      error: new ApiError({
+        status: 400,
+        code: 'validation_failed',
+        fieldErrors: { other: ['invalid'] },
+      }),
+    })
     const { submit, fill } = await render()
     fill('ada@example.com', 'longenough1')
     await submit()

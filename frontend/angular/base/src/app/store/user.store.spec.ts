@@ -50,17 +50,17 @@ describe('UserStore', () => {
     service.me.mockResolvedValue(USER)
     const store = TestBed.inject(UserStore)
     const pending = store.load()
-    expect(store.loading()).toBe(true)
-    await pending
+    expect(store.loading('load')).toBe(true)
+    expect((await pending).ok).toBe(true)
     expect(store.profile()).toEqual(USER)
-    expect(store.loaded()).toBe(true)
+    expect(store.loaded('load')).toBe(true)
   })
 
   it('records a failed load and toasts its copy once', async () => {
     service.me.mockRejectedValue(new ApiError({ status: 0, code: 'network' }))
     const store = TestBed.inject(UserStore)
     await store.load()
-    expect(store.failed()).toBe(true)
+    expect(store.failed('load')).toBe(true)
     expect(showError).toHaveBeenCalledTimes(1)
     expect(showError).toHaveBeenCalledWith('errors.network')
   })
@@ -69,7 +69,7 @@ describe('UserStore', () => {
     const saved = { ...USER, phone: '+14155550132' }
     service.update.mockResolvedValue(saved)
     const store = TestBed.inject(UserStore)
-    expect(await store.update({ phone: '+14155550132' })).toBe(true)
+    expect((await store.update({ phone: '+14155550132' })).ok).toBe(true)
     expect(service.update).toHaveBeenCalledWith({ phone: '+14155550132' })
     expect(store.profile()).toEqual(saved)
   })
@@ -77,15 +77,15 @@ describe('UserStore', () => {
   it('leaves a validation failure for the page without a toast', async () => {
     service.update.mockRejectedValue(new ApiError({ status: 400, code: 'validation_failed' }))
     const store = TestBed.inject(UserStore)
-    expect(await store.update({ phone: 'x' })).toBe(false)
-    expect(store.error()?.code).toBe('validation_failed')
+    expect((await store.update({ phone: 'x' })).ok).toBe(false)
+    expect(store.error('update')?.code).toBe('validation_failed')
     expect(showError).not.toHaveBeenCalled()
   })
 
   it('does not send a change while offline', async () => {
     online.set(false)
     const store = TestBed.inject(UserStore)
-    expect(await store.update({ phone: null })).toBe(false)
+    expect(await store.update({ phone: null })).toEqual({ ok: false, error: null })
     expect(service.update).not.toHaveBeenCalled()
     expect(showError).toHaveBeenCalledWith('errors.offline')
   })
@@ -100,7 +100,7 @@ describe('UserStore', () => {
       signedIn.set(false)
       TestBed.tick()
       expect(store.profile()).toBeNull()
-      expect(store.loaded()).toBe(false)
+      expect(store.loaded('load')).toBe(false)
     })
 
     it('drops the previous profile when a load starts and when it fails', async () => {
@@ -110,17 +110,30 @@ describe('UserStore', () => {
       service.me.mockRejectedValueOnce(new ApiError({ status: 0, code: 'network' }))
       await store.load()
       expect(store.profile()).toBeNull()
-      expect(store.failed()).toBe(true)
+      expect(store.failed('load')).toBe(true)
     })
 
-    it('ignores an answer that arrives after sign-out', async () => {
+    it('drops an answer that arrives after sign-out', async () => {
       let answer: (user: PublicUser) => void = () => undefined
       service.me.mockReturnValue(new Promise<PublicUser>((resolve) => (answer = resolve)))
       const store = TestBed.inject(UserStore)
       const pending = store.load()
       signedIn.set(false)
+      TestBed.tick()
       answer(USER)
-      await pending
+      expect(await pending).toEqual({ ok: false, error: null })
+      expect(store.profile()).toBeNull()
+    })
+
+    it('drops a save that arrives after sign-out', async () => {
+      let answer: (user: PublicUser) => void = () => undefined
+      service.update.mockReturnValue(new Promise<PublicUser>((resolve) => (answer = resolve)))
+      const store = TestBed.inject(UserStore)
+      const pending = store.update({ phone: null })
+      signedIn.set(false)
+      TestBed.tick()
+      answer(USER)
+      expect(await pending).toEqual({ ok: false, error: null })
       expect(store.profile()).toBeNull()
     })
   })
