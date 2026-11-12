@@ -2,217 +2,158 @@ import { computed, inject } from '@angular/core'
 import { Router } from '@angular/router'
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals'
 
-import { STORAGE_KEYS } from '@app/core/config/constants'
 import { LoggerService } from '@app/core/providers/logger.service'
-import { NetworkService } from '@app/core/providers/network.service'
-import { NotificationService } from '@app/core/providers/notification.service'
-import { StorageService } from '@app/core/providers/storage.service'
-import { errorMessageKey } from '@app/core/config/error-copy'
-import type { ApiErrorCode } from '@app/models/api/type'
-import { ApiError, isApiError } from '@app/services/api-error'
-import type { Credentials, PublicUser } from '@app/models/user/type'
+import { DROPPED } from '@app/models/api/constant'
+import type { Outcome } from '@app/models/api/type'
+import type { AuthSession, Credentials, OtpVerified, PublicUser } from '@app/models/user/type'
+import { isApiError } from '@app/services/api-error'
 import { AuthService } from '@app/services/auth.service'
 import { UserService } from '@app/services/user.service'
 
-import { setError, setLoaded, setLoading, withRequestStatus } from './with-request-status'
+import { SessionStore } from './session.store'
+import { withRequestStatus } from './with-request-status'
 
 interface AuthState {
-  user: PublicUser | null
-  // True while the start-up probe of /api/user/me runs: a refused refresh then must not send a
-  // visitor on a public page to login (the guards protect the guarded routes).
-  restoring: boolean
+  // The account the server returned; `user` shows it only while the session is active, so a
+  // session that ends (a refused refresh) forgets it with no code of its own.
+  _account: PublicUser | null
 }
 
-type Overrides = Partial<Record<ApiErrorCode, string>>
-
-// A refresh the server refused for good: the cookie is expired, revoked, reused or missing.
-const REFUSED = new Set([400, 401, 403])
-const SESSION_HINT = '1'
-
-// Who is signed in. The session is two HttpOnly cookies; the page only ever holds the account the
-// server returned and a flag in local storage (the session hint: "this browser signed in", never a
-// token) that spares a visitor the refresh attempt a 401 would cost. A method behind a form returns
-// whether it worked and leaves a failure in `error()`; it has already toasted every code but
-// `validation_failed`, which the page puts on its fields.
+// Who is signed in. The session itself (the hint, the refresh) is SessionStore. A method behind a
+// form resolves to an `Outcome` and leaves `validation_failed` to the page; every other failure
+// is toasted once by the call.
 export const AuthStore = signalStore(
   { providedIn: 'root' },
-  withState<AuthState>({ user: null, restoring: false }),
-  withRequestStatus(),
-  withComputed(({ user }) => ({
-    isLoggedIn: computed(() => user() !== null),
-    roles: computed<readonly string[]>(() => {
-      const current = user()
-      return current ? [current.role] : []
-    }),
-  })),
+  withState<AuthState>({ _account: null }),
+  withRequestStatus({
+    store: 'AuthStore',
+    calls: ['restore', 'login', 'signup', 'logout', 'requestOtp', 'verifyOtp'],
+  }),
+  withComputed(({ _account, loading }, session = inject(SessionStore)) => {
+    const user = computed(() => (session.active() ? _account() : null))
+    return {
+      user,
+      isLoggedIn: computed(() => user() !== null),
+      roles: computed<readonly string[]>(() => {
+        const current = user()
+        return current ? [current.role] : []
+      }),
+      // True while the start-up probe of /api/user/me runs: a refused refresh then must not send
+      // a visitor on a public page to login (the guards protect the guarded routes).
+      restoring: computed(() => loading('restore')),
+    }
+  }),
   withMethods(
     (
       store,
       auth = inject(AuthService),
       users = inject(UserService),
-      storage = inject(StorageService),
-      network = inject(NetworkService),
-      notifications = inject(NotificationService),
+      session = inject(SessionStore),
       logger = inject(LoggerService),
       router = inject(Router),
     ) => {
-      // Concurrent 401s share one refresh: the server rotates the refresh token, so a second
-      // refresh with the old cookie would be a replay.
-      let refreshing: Promise<boolean> | null = null
-
-      const hasSessionHint = (): boolean => storage.get(STORAGE_KEYS.session) === SESSION_HINT
-      const clearHint = (): void => {
-        storage.remove(STORAGE_KEYS.session)
-      }
-
-      // The offline rule: a mutation does not send while the browser reports no connection.
-      const offline = (): boolean => {
-        if (network.online()) return false
-        notifications.showError('errors.offline')
-        return true
-      }
-
-      // Records the failure and toasts its copy once. `overrides` names a better message for a code
-      // in one call (a 401 from login means wrong credentials, not an expired session).
-      const fail = (cause: unknown, context: string, overrides: Overrides = {}): void => {
-        if (!isApiError(cause)) logger.error(`AuthStore.${context} failed`, cause)
-        const error = isApiError(cause) ? cause : new ApiError({ status: 0, code: 'unknown' })
-        patchState(store, setError(error))
-        if (error.code === 'validation_failed') return
-        notifications.showError(overrides[error.code] ?? errorMessageKey(error.code))
-      }
-
-      const enter = async (
-        context: string,
-        call: () => Promise<{ user: PublicUser }>,
-        overrides: Overrides,
-      ): Promise<boolean> => {
-        if (offline()) return false
-        patchState(store, setLoading())
-        try {
-          const { user } = await call()
-          storage.set(STORAGE_KEYS.session, SESSION_HINT)
-          patchState(store, { user }, setLoaded())
-          return true
-        } catch (cause) {
-          fail(cause, context, overrides)
-          return false
-        }
+      const signIn = ({ user }: AuthSession): void => {
+        session.start()
+        patchState(store, { _account: user })
       }
 
       return {
-        hasSessionHint,
-
         // Reads the account the cookies belong to, once, at start-up. Without the hint nothing is
-        // called. Failing closed: any failure leaves the visitor signed out. It never forgets the
-        // hint itself: a 401 from /me has already tried one refresh (the auth interceptor), and
-        // only a refused refresh clears it; a refresh lost to an outage says nothing about the
-        // cookies.
+        // called. Failing closed: any failure leaves the visitor signed out, with no toast. It
+        // never ends the session itself: a 401 from /me has already tried one refresh (the auth
+        // interceptor), and only a refused refresh ends it. A 401 is the expected answer for a
+        // session that is gone, so it is not logged; the call logs a bug, this logs an outage.
         async restoreSession(): Promise<void> {
-          if (!hasSessionHint()) return
-          patchState(store, setLoading(), { restoring: true })
-          try {
-            patchState(store, { user: await users.me() }, setLoaded())
-          } catch (cause) {
-            // A 401 that reaches here was refused by the refresh, which has logged nothing and
-            // cleared the hint, or lost to an outage, which has logged it.
-            if (!(isApiError(cause) && cause.code === 'unauthenticated')) {
-              logger.error('AuthStore.restoreSession failed', cause)
-            }
-            patchState(store, { user: null }, setLoaded())
-          } finally {
-            patchState(store, { restoring: false })
-          }
+          if (!session.active()) return
+          await store._call(
+            'restore',
+            () =>
+              users.me().catch((cause: unknown) => {
+                if (isApiError(cause) && cause.code !== 'unauthenticated') {
+                  logger.error('AuthStore.restore failed', cause)
+                }
+                throw cause
+              }),
+            {
+              silent: true,
+              onSuccess: (account) => {
+                patchState(store, { _account: account })
+              },
+            },
+          )
         },
 
-        login(credentials: Credentials): Promise<boolean> {
-          return enter('login', () => auth.login(credentials), {
-            unauthenticated: 'auth.login.invalid',
+        login(credentials: Credentials): Promise<Outcome<AuthSession>> {
+          return store._call('login', () => auth.login(credentials), {
+            mutation: true,
+            form: true,
+            overrides: { unauthenticated: 'auth.login.invalid' },
+            onSuccess: signIn,
           })
         },
 
-        signup(credentials: Credentials): Promise<boolean> {
-          return enter('signup', () => auth.signup(credentials), {
-            conflict: 'auth.signup.conflict',
+        signup(credentials: Credentials): Promise<Outcome<AuthSession>> {
+          return store._call('signup', () => auth.signup(credentials), {
+            mutation: true,
+            form: true,
+            overrides: { conflict: 'auth.signup.conflict' },
+            onSuccess: signIn,
           })
         },
 
-        // Signs out on the server, then here. A 401 means the session is already gone, so that
-        // still signs out; any other failure keeps the account on screen with its error toast.
-        async logout(): Promise<boolean> {
-          if (offline()) return false
-          patchState(store, setLoading())
-          try {
-            await auth.logout()
-          } catch (cause) {
-            if (!(isApiError(cause) && cause.code === 'unauthenticated')) {
-              fail(cause, 'logout')
-              return false
-            }
-          }
-          clearHint()
-          patchState(store, { user: null }, setLoaded())
-          await router.navigateByUrl('/')
-          return true
-        },
-
-        // One shared in-flight refresh. true: the cookies were renewed. A 400, 401 or 403 means the
-        // session is over: forget the hint and the account. A network error or a 5xx says nothing
-        // about the cookies: false, and the hint stays.
-        refresh(): Promise<boolean> {
-          refreshing ??= (async () => {
-            try {
-              await auth.refresh()
-              return true
-            } catch (cause) {
-              if (isApiError(cause) && REFUSED.has(cause.status)) {
-                clearHint()
-                patchState(store, { user: null })
-              } else {
-                logger.error('AuthStore.refresh failed', cause)
-              }
-              return false
-            }
-          })().finally(() => {
-            refreshing = null
-          })
-          return refreshing
+        // Signs out on the server, then here, and goes home. A 401 means the session is already
+        // gone, so that still signs out; any other failure keeps the account on screen.
+        async logout(): Promise<Outcome<void>> {
+          const result = await store._call(
+            'logout',
+            () =>
+              auth.logout().catch((cause: unknown) => {
+                if (isApiError(cause) && cause.code === 'unauthenticated') return
+                throw cause
+              }),
+            {
+              mutation: true,
+              onSuccess: () => {
+                session.end()
+                patchState(store, { _account: null })
+              },
+            },
+          )
+          if (result.ok) await router.navigateByUrl('/')
+          return result
         },
 
         // Asks the server to mail a code to the signed-in account's address.
-        async requestOtp(): Promise<boolean> {
+        requestOtp(): Promise<Outcome<void>> {
           const user = store.user()
-          if (!user || offline()) return false
-          patchState(store, setLoading())
-          try {
-            await auth.requestOtp({
-              target: { type: 'email', value: user.email },
-              purpose: 'verify',
-            })
-            patchState(store, setLoaded())
-            return true
-          } catch (cause) {
-            fail(cause, 'requestOtp')
-            return false
-          }
+          if (!user) return Promise.resolve(DROPPED)
+          return store._call(
+            'requestOtp',
+            () =>
+              auth.requestOtp({ target: { type: 'email', value: user.email }, purpose: 'verify' }),
+            { mutation: true },
+          )
         },
 
-        async verifyOtp(code: string): Promise<boolean> {
+        verifyOtp(code: string): Promise<Outcome<OtpVerified>> {
           const user = store.user()
-          if (!user || offline()) return false
-          patchState(store, setLoading())
-          try {
-            const verified = await auth.verifyOtp({
-              target: { type: 'email', value: user.email },
-              purpose: 'verify',
-              code,
-            })
-            patchState(store, { user: verified.user }, setLoaded())
-            return true
-          } catch (cause) {
-            fail(cause, 'verifyOtp')
-            return false
-          }
+          if (!user) return Promise.resolve(DROPPED)
+          return store._call(
+            'verifyOtp',
+            () =>
+              auth.verifyOtp({
+                target: { type: 'email', value: user.email },
+                purpose: 'verify',
+                code,
+              }),
+            {
+              mutation: true,
+              form: true,
+              onSuccess: (verified) => {
+                patchState(store, { _account: verified.user })
+              },
+            },
+          )
         },
       }
     },

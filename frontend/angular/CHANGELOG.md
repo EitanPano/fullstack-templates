@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.1.0 — 2026-11-12
+
+One way for a store to call the API, one way for a form to submit, and a refresh decided by the server's answer instead of a list of URLs. No file moves; a project generated from 4.0 keeps its stores. Needs a server that sends the 401 challenge: bun-express 3.1.0 or python-fastapi 2.1.0.
+
+### Changed
+
+- `store/with-request-status.ts`: `withRequestStatus({ store, calls })` keeps a status per named call (`loading('save')`, `loaded`, `failed`, `error`) and adds `_call`, which runs a service call and resolves to an `Outcome` (`models/api/type.ts`; `DROPPED` and `ApiFailure` beside it). It logs, toasts once (`overrides`, `form`, `silent`), refuses a `mutation` offline, and lets the latest call of a name win, so a stale answer, or one in flight at `_resetCalls()`, is dropped. `setLoading`, `setLoaded` and `setError` are gone, and every store's own `fail` and offline helpers with them.
+- `AuthStore`, `UserStore`: on `_call`; methods resolve to an `Outcome` instead of a boolean, and `AuthStore.restoring()` is `loading('restore')`. Sign-in, a code request and a verification no longer share one `loading()`.
+- `store/session.store.ts` (new, with auth): the session hint, read once at start as `active()`, and the one shared refresh (`'renewed' | 'refused' | 'failed'`), moved out of `AuthStore`. `AuthStore.user()` shows the account only while the session is active, so a refused refresh hides it without code of its own.
+- `core/interceptors/auth.interceptor.ts`: refreshes on a 401 that carries `WWW-Authenticate: Bearer` (the server's access-token gate) and never on the refresh itself. `EXEMPT_PATHS` is gone; a gated OTP call now refreshes like any other.
+- `core/providers/form-submit.ts` (new): `injectFormSubmit(form)` sends nothing for an invalid or pending form, exposes `pending()`, and puts `validation_failed` on the fields with one toast for unmapped paths. Login, signup, verify-otp and profile use it in place of their copied blocks.
+- `openapi-ts.config.ts`: the Angular client plugin sets `throwOnError: true`, so the facades no longer repeat it per call; `generated/` regenerated.
+- `AGENTS.md`: the store step, the account-data rule, the form recipe, the session hint and the 401 rule describe the above.
+
 ## 4.0.0 — 2026-11-12
 
 The folder rules of the owner: `models/` holds only entity files, there is one `components` folder, the form controls live together, and a component of several files is a folder named for it. Markup, class names, selectors, copy, routes and behaviour do not change. A project generated from 3.x keeps its tree; there is no migration tool.

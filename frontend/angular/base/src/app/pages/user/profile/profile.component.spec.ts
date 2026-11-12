@@ -4,6 +4,7 @@ import { provideRouter } from '@angular/router'
 
 import { provideTestTranslator } from '@app/core/i18n/translator.testing'
 import { NotificationService } from '@app/core/providers/notification.service'
+import type { Outcome } from '@app/models/api/type'
 import { ApiError } from '@app/services/api-error'
 import type { PublicUser } from '@app/models/user/type'
 import { NOW } from '@app/shared/pipes/relative-time.pipe'
@@ -29,8 +30,10 @@ describe('ProfileComponent', () => {
   const status = signal<'idle' | 'loading' | 'loaded' | 'error'>('loading')
   const error = signal<ApiError | null>(null)
   const load = vi.fn<() => Promise<void>>(() => Promise.resolve())
-  const update = vi.fn<(body: unknown) => Promise<boolean>>()
-  const logout = vi.fn<() => Promise<boolean>>(() => Promise.resolve(true))
+  const update = vi.fn<(body: unknown) => Promise<Outcome<unknown>>>()
+  const logout = vi.fn<() => Promise<Outcome<unknown>>>(() =>
+    Promise.resolve({ ok: true as const, value: undefined }),
+  )
   const showSuccess = vi.fn<(key: string) => number>(() => 1)
   const showError = vi.fn<(key: string) => number>(() => 1)
 
@@ -44,7 +47,7 @@ describe('ProfileComponent', () => {
           provide: UserStore,
           useValue: {
             profile,
-            error,
+            error: () => error(),
             load,
             update,
             loading: () => status() === 'loading',
@@ -150,7 +153,7 @@ describe('ProfileComponent', () => {
     })
 
     it('saves a new number and toasts success', async () => {
-      update.mockResolvedValue(true)
+      update.mockResolvedValue({ ok: true, value: undefined })
       const { enter } = await renderLoaded()
       await enter('+14155550199')
       expect(update).toHaveBeenCalledWith({ phone: '+14155550199' })
@@ -158,7 +161,7 @@ describe('ProfileComponent', () => {
     })
 
     it('sends null to remove the number', async () => {
-      update.mockResolvedValue(true)
+      update.mockResolvedValue({ ok: true, value: undefined })
       const { enter } = await renderLoaded()
       await enter('')
       expect(update).toHaveBeenCalledWith({ phone: null })
@@ -172,14 +175,14 @@ describe('ProfileComponent', () => {
     })
 
     it('puts a server field error on the phone field', async () => {
-      update.mockResolvedValue(false)
-      error.set(
-        new ApiError({
+      update.mockResolvedValue({
+        ok: false,
+        error: new ApiError({
           status: 400,
           code: 'validation_failed',
           fieldErrors: { phone: ['invalid'] },
         }),
-      )
+      })
       const { enter, element } = await renderLoaded()
       await enter('+14155550199')
       expect(element.querySelector('.form-field__error')?.textContent.trim()).toBe(

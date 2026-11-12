@@ -8,12 +8,12 @@ import { getApiUserMe, patchApiUserMe } from './generated/sdk.gen'
 @Injectable({ providedIn: 'root' })
 export class UserService {
   async me(): Promise<PublicUser> {
-    const { data } = await getApiUserMe({ throwOnError: true })
+    const { data } = await getApiUserMe()
     return data
   }
 
   async update(body: UpdateMeBody): Promise<PublicUser> {
-    const { data } = await patchApiUserMe({ body, throwOnError: true })
+    const { data } = await patchApiUserMe({ body })
     return data
   }
 }

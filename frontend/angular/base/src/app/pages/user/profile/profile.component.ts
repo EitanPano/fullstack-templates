@@ -8,6 +8,7 @@ import {
 } from '@angular/core'
 import { ReactiveFormsModule } from '@angular/forms'
 
+import { injectFormSubmit } from '@app/core/providers/form-submit'
 import { NotificationService } from '@app/core/providers/notification.service'
 import { errorMessageKey } from '@app/core/config/error-copy'
 import { ROLE_LABEL_KEYS } from '@app/models/user/constant'
@@ -21,7 +22,6 @@ import { PageHeaderComponent } from '@app/shared/components/page-header/page-hea
 import { SkeletonComponent } from '@app/shared/components/skeleton/skeleton.component'
 import { RelativeTimePipe } from '@app/shared/pipes/relative-time.pipe'
 import { TranslatePipe } from '@app/shared/pipes/translate.pipe'
-import { applyFieldErrors } from '@app/shared/validators/server-errors'
 import { AuthStore } from '@app/store/auth.store'
 import { UserStore } from '@app/store/user.store'
 
@@ -55,12 +55,13 @@ export class ProfileComponent {
   private readonly notifications = inject(NotificationService)
 
   protected readonly form = profileForm()
+  protected readonly submission = injectFormSubmit(this.form)
   protected readonly roleKey = computed(() => {
     const role = this.store.profile()?.role
     return role ? ROLE_LABEL_KEYS[role] : ''
   })
   protected readonly errorKey = computed(() =>
-    errorMessageKey(this.store.error()?.code ?? 'unknown'),
+    errorMessageKey(this.store.error('load')?.code ?? 'unknown'),
   )
 
   constructor() {
@@ -84,18 +85,11 @@ export class ProfileComponent {
   }
 
   protected async save(): Promise<void> {
-    if (this.form.invalid || this.store.loading()) return
     const phone = this.form.getRawValue().phone
-    if (await this.store.update({ phone: phone === '' ? null : phone })) {
-      this.notifications.showSuccess('profile.saved')
-      return
-    }
-    const error = this.store.error()
-    if (error?.code !== 'validation_failed') return
-    const unmapped = applyFieldErrors(this.form, error)
-    if (unmapped.length > 0 || !error.fieldErrors) {
-      this.notifications.showError('errors.validation_failed')
-    }
+    const outcome = await this.submission.run(() =>
+      this.store.update({ phone: phone === '' ? null : phone }),
+    )
+    if (outcome.ok) this.notifications.showSuccess('profile.saved')
   }
 
   protected signOut(): void {
