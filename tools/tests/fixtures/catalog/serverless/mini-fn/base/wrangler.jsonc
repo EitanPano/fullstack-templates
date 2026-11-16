@@ -2,5 +2,5 @@
   // Cloudflare configuration of __PROJECT_NAME__
   "name": "__PROJECT_NAME__",
   "d1_databases": [{ "binding": "DB" }], // @auth
-  "vars": { "ISLANDS": "yes" } // @islands
+  "assets": { "directory": "__FRONTEND_PATH__/__FRONTEND_OUT__" } // @frontend
 }

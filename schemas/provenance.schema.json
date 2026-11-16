@@ -30,6 +30,7 @@
     "deploy": { "enum": ["single", "split"] },
     "packages": {
       "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]*(/[a-z][a-z0-9-]*)?$" },
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
@@ -40,16 +41,6 @@
           "flags": { "type": "object", "additionalProperties": { "type": "boolean" } },
           "capabilities": { "type": "object", "additionalProperties": { "type": "string" } },
           "commands": { "type": "object", "additionalProperties": { "type": "string" } },
-          "lanes": {
-            "type": "object",
-            "description": "Fullstack packages only: the paths each role writes, relative to the package; a directory ends in a slash.",
-            "additionalProperties": false,
-            "properties": {
-              "backend": { "$ref": "#/$defs/lane" },
-              "frontend": { "$ref": "#/$defs/lane" },
-              "qa": { "$ref": "#/$defs/lane" }
-            }
-          },
           "http": {
             "type": "object",
             "additionalProperties": false,
@@ -86,8 +77,5 @@
         }
       }
     }
-  },
-  "$defs": {
-    "lane": { "type": "array", "items": { "type": "string", "minLength": 1 } }
   }
 }

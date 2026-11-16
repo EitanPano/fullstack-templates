@@ -1,5 +1,6 @@
 import type { BrandInput } from './brand'
 import type { Catalog, DeployMode, LoadedTemplate } from './catalog'
+import { isApiKind } from './package-dir'
 import type { RequestInput } from './plan'
 
 export interface GenerationCase {
@@ -24,10 +25,11 @@ export interface GenerationCase {
   brand: BrandInput | null
 }
 
+// The stack's API package, a server or a serverless one.
 function serverDirOf(catalog: Catalog, stack: string | undefined): string | null {
   const packages = stack === undefined ? [] : (catalog.stacks.get(stack)?.manifest.packages ?? [])
-  const entry = packages.find(
-    (candidate) => catalog.templates.get(candidate.template)?.manifest.kind === 'server',
+  const entry = packages.find((candidate) =>
+    isApiKind(catalog.templates.get(candidate.template)?.manifest.kind ?? ''),
   )
   return entry?.dir ?? null
 }
@@ -50,7 +52,7 @@ export function listCases(catalog: Catalog): GenerationCase[] {
         name: entry.name,
         stack: entry.stack ?? null,
         packageDir: entry.stack ? stackDir(catalog, entry.stack, template) : null,
-        serverDir: template.manifest.kind === 'server' ? null : serverDirOf(catalog, entry.stack),
+        serverDir: isApiKind(template.manifest.kind) ? null : serverDirOf(catalog, entry.stack),
         serverFlags: entry.server?.flags ?? {},
         serverCapabilities: entry.server?.capabilities ?? {},
         flags: entry.flags ?? {},

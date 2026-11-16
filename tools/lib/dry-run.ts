@@ -11,7 +11,8 @@ import {
 } from './markers'
 import { GENERATED_PLACEHOLDERS, isTextFile } from './placeholders'
 import { UNPROCESSED_HINT, findUnprocessed } from './unprocessed'
-import { SERVER_SELECTION, SINGLE_SELECTION, selectionsFor } from './plan'
+import { isApiKind } from './package-dir'
+import { FRONTEND_SELECTION, SERVER_SELECTION, SINGLE_SELECTION, selectionsFor } from './plan'
 
 // Every choice of providers: for each declared kind, none or one listed provider.
 function capabilityCombinations(template: LoadedTemplate): Record<string, string>[] {
@@ -81,13 +82,14 @@ export function dryRunMarkers(
 ): string[] {
   // The reserved selections vary like flags: the plan may or may not hold a server, and with one
   // it may deploy as a single image.
-  // A server has no server to look at, and a fullstack package never shares a plan with one.
+  // An API package has no server to look at; a serverless one may see the plan's frontend.
   const kind = template.manifest.kind
-  const factNames = kind === 'server' || kind === 'fullstack' ? [] : serverNames
+  const factNames = isApiKind(kind) ? [] : serverNames
   const flagNames = [
     ...Object.keys(template.manifest.flags ?? {}),
     SERVER_SELECTION,
     SINGLE_SELECTION,
+    ...(kind === 'serverless' ? [FRONTEND_SELECTION] : []),
     ...factNames.map((name) => SERVER_PREFIX + name),
   ]
   const contents = new Map<string, string>()
@@ -122,8 +124,18 @@ export function dryRunMarkers(
       if (!hasServer && Object.values(facts).some(Boolean)) continue
       delete switches[SERVER_SELECTION]
       delete switches[SINGLE_SELECTION]
+      const frontend = kind === 'serverless' ? switches[FRONTEND_SELECTION] === true : undefined
+      delete switches[FRONTEND_SELECTION]
       for (const name of factNames) delete switches[SERVER_PREFIX + name]
-      const selections = selectionsFor(template, switches, hasServer, single, capabilities, facts)
+      const selections = selectionsFor(
+        template,
+        switches,
+        hasServer,
+        single,
+        capabilities,
+        facts,
+        frontend,
+      )
 
       for (const file of files) {
         const where = relative(template.dir, file)

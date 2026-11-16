@@ -214,35 +214,35 @@ The checklist is what `validate` and the cases prove.
       same for every other case that sets `withApp`. A case with a database needs Postgres on host
       port 5432: run those one at a time (see "The e2e database").
 
-### Adding a fullstack template
+A frontend that ships no image says `docker: false`: no `compose.yaml` (one that exists is
+refused), no `withApp` case, `--deploy` refused. It joins a plan alone or beside a `serverless`
+package, never beside a `server`.
 
-A `fullstack` template (ADR 0014) is one package that holds the pages, the server code and the
-schemas they share, shipped to a platform instead of a Docker image. It lives in
-`fullstack/<id>/` (default directory `app`) and a stack holds it alone.
+### Adding a serverless template
 
-- **No Compose.** `compose.yaml` is refused beside its manifest, the generator writes no
-  `docker-compose.yml`, and the plan has no deploy mode: `--deploy` fails. It never shares a plan
-  with a `server` or a `frontend`; the plan and the stack check both refuse the mix.
-- **What the manifest may not have.** `static`, `contract`, `capabilities` and `onlyWhen` are each
-  refused. Its data engine is part of the base, so it declares `migrate`, `testDb` and `e2eDb`
-  itself in `commands`.
-- **`lanes`** is required: `backend` and `frontend` (and optionally `qa`), each a non-empty list of
-  paths of the package, every one in `base/`. A path may sit in several lanes. Provenance records
-  them as `packages.<dir>.lanes`, a directory with a trailing `/`, in manifest order, even for a
-  path a flag removed from this generation.
-- **The agents file** carries the headings of both halves: `Adding a module`, `Adding the data
-  layer`, `Adding a feature`, `Styling`, `Errors`, `Tests`, `Deployment`.
-- **Brand.** It gets the brand placeholders and needs a `brand` case, as a frontend does.
-- **Markers.** `.jsonc` takes `//` markers. `.astro` takes `//` markers in its frontmatter and
-  `<!-- -->` markers in its markup, in one pass; block markers of either syntax work. Placeholders
-  are processed in both file types. The `cloudflare` gitignore section is `gitignore: [node, cloudflare]`.
-- **A path under two flags.** Two flags may list the same path in `onlyPaths`, or one a directory
-  and the other a file inside it: the path exists only while every flag that lists it is on.
-  (Flags against an `onlyWhen` path still overlap-fail.)
-- **Cases.** A case runs the install (in post-generate), `check`, `testDb` when declared, and with
-  `--e2e` `testE2e`, starting no service and needing no Docker; `--with-services` and `--with-app`
-  skip nothing and fail nothing. `withApp` is refused in its cases file. A case with `flags` and no
-  `stack` generates with `--template`; one with `stack` through the one-package stack.
+A `serverless` template (ADR 0014) is an API that runs as a provider's functions: no process, no
+image. It lives in `serverless/<provider>/`, and its project directory has the same two segments
+(`serverless/cloudflare`): a stack `dir`, a `--dir` value and a provenance key are one segment or
+exactly two, nothing deeper. A second provider is a sibling, and a folder that already holds
+`serverless/other/` is left alone.
+
+- **It is the plan's server.** A frontend's `server` selection, `server:<flag>`, `onlyWhen`,
+  `__SERVER_*__` placeholders and `contract: { consumes: "<server>/..." }` resolve to it. A plan
+  has at most one `server` or `serverless` package. It may declare `contract: { produces }`,
+  `http`, `start`, `migrate`, `testDb` and `e2eDb`; the data engine is part of the base.
+- **What it may not have.** `compose.yaml`, `static`, `capabilities`, `onlyWhen`, `docker`, a brand
+  case, `withApp`. Its agents file keeps the server's five headings. The plan has no deploy mode and
+  writes no `docker-compose.yml`; `--deploy` fails, and `single` is false.
+- **The frontend.** With a frontend in the plan it gets `__FRONTEND_PATH__` (the relative path to the
+  frontend's dir, `../../frontend`) and `__FRONTEND_OUT__` (the frontend's `static.out`), and the
+  `frontend` selection (`@frontend` / `@nofrontend`; a flag may not be named `frontend`). Without
+  one the placeholders are undefined, so a kept line that uses one fails the run, naming the file.
+  A frontend reaches the server as `../__SERVER_DIR__`, which works for a two-segment value.
+- **Cases.** Alone: install, `check`, `testDb` when declared; no service, no Docker. A frontend case
+  in its stack runs the frontend's `check` and, with `--e2e`, `testE2e` (its config starts the API
+  from the placeholders); the runner starts no service and runs no `migrate`.
+- **Markers.** `.jsonc` takes `//`; `.astro` takes `//` in its frontmatter and `<!-- -->` in its
+  markup. Two flags may list one path in `onlyPaths`: it exists while both are on.
 
 ## Adding a provider
 

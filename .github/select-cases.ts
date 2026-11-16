@@ -5,7 +5,7 @@ const all: string[] = JSON.parse(process.env.ALL ?? '[]')
 const changed = (process.env.CHANGED ?? '').split('\n').filter(Boolean)
 
 const wide = changed.some((p) => /^(tools|shared|stacks|schemas)\//.test(p) || p === 'index.yaml')
-const TEMPLATE_PATH = /^(frontend|fullstack|server)\/[^/]+/
+const TEMPLATE_PATH = /^(frontend|server|serverless)\/[^/]+/
 const touched = new Set(
   changed.map((p) => p.match(TEMPLATE_PATH)?.[0]).filter((t) => t !== undefined),
 )

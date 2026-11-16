@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "__PROJECT_NAME__-app",
+      "name": "__PROJECT_NAME__-site",
       "dependencies": {
         "jose": "^6",
       },

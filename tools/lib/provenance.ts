@@ -1,6 +1,6 @@
-import { existsSync, statSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
-import type { CommandName, DeployMode, LaneName, LoadedTemplate } from './catalog'
+import type { CommandName, DeployMode } from './catalog'
 import { commandOutput } from './commands'
 import type { Brand } from './brand'
 import type { GenerationPlan } from './plan'
@@ -29,24 +29,10 @@ export interface Provenance {
       capabilities: Record<string, string>
       commands: Partial<Record<CommandName, string>>
       http?: { port: number; health: string; ready?: string }
-      // A fullstack package only: the paths each role writes, relative to the package.
-      lanes?: Partial<Record<LaneName, string[]>>
     }
   >
   providers: Record<string, string>
   answers: { projectName: string; brand?: Brand }
-}
-
-// A lane is where a role may write, not what exists: a path a flag removed is still listed, and
-// base/ tells a directory (trailing slash) from a file.
-function lanesOf(template: LoadedTemplate): Provenance['packages'][string]['lanes'] {
-  const { lanes } = template.manifest
-  if (lanes === undefined) return undefined
-  const slashed = (entry: string) =>
-    statSync(path.join(template.dir, 'base', entry)).isDirectory() ? `${entry}/` : entry
-  return Object.fromEntries(
-    Object.entries(lanes).map(([lane, entries]) => [lane, entries.map(slashed)]),
-  )
 }
 
 export function buildProvenance(
@@ -64,7 +50,6 @@ export function buildProvenance(
       capabilities: pkg.capabilities,
       commands: pkg.commands,
       ...(manifest.http === undefined ? {} : { http: manifest.http }),
-      ...(manifest.lanes === undefined ? {} : { lanes: lanesOf(pkg.template) }),
     }
   }
   return {

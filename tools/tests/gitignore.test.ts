@@ -34,7 +34,7 @@ describe('the cloudflare section', () => {
     .split(/\r?\n/)
     .filter((l) => l !== '')
 
-  test('ignores Wrangler state, the local variables except the example, Astro and the build', () => {
+  test('ignores Wrangler state, the local variables except the example, Astro, the build and the e2e state', () => {
     expect(lines).toEqual([
       '.wrangler/',
       '.dev.vars',
@@ -42,6 +42,8 @@ describe('the cloudflare section', () => {
       '!.dev.vars.example',
       '.astro/',
       'dist/',
+      'dist-functions/',
+      '.e2e-state/',
     ])
   })
   test('merges after node once, as gitignore: [node, cloudflare] selects', () => {

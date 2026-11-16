@@ -1,6 +1,0 @@
-schemaVersion: 1
-id: mini-app
-summary: Mini fullstack app
-packages:
-  - template: fullstack/mini-app
-    dir: app

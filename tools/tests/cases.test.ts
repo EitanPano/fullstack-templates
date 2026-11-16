@@ -11,6 +11,13 @@ import { FIXTURE, copyFixture, tempDir } from './helpers'
 describe('cases', () => {
   test('lists every case with a stable id', () => {
     expect(listCases(loadCatalog(FIXTURE)).map((c) => c.id)).toEqual([
+      'frontend/mini-site/alone',
+      'frontend/mini-site/auth-off',
+      'frontend/mini-site/brand',
+      'frontend/mini-site/default',
+      'frontend/mini-site/islands',
+      'frontend/mini-site/islands-auth-off',
+      'frontend/mini-site/server-auth-off',
       'frontend/mini-spa/alone',
       'frontend/mini-spa/brand',
       'frontend/mini-spa/default',
@@ -19,17 +26,14 @@ describe('cases', () => {
       'frontend/mini-ui/brand',
       'frontend/mini-ui/default',
       'frontend/mini-ui/fake',
-      'fullstack/mini-app/auth-off',
-      'fullstack/mini-app/brand',
-      'fullstack/mini-app/default',
-      'fullstack/mini-app/islands',
-      'fullstack/mini-app/islands-auth-off',
       'server/mini-py/auth-off',
       'server/mini-py/default',
       'server/mini/auth-off',
       'server/mini/auth-off-fake',
       'server/mini/default',
       'server/mini/fake',
+      'serverless/mini-fn/auth-off',
+      'serverless/mini-fn/default',
     ])
   })
   test('builds a stack request with package-qualified flags and a template request with shorthands', () => {

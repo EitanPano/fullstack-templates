@@ -1,6 +1,8 @@
 schemaVersion: 1
 cases:
   - name: default
+    stack: mini-site-fn
+  - name: alone
   - name: islands
     flags:
       islands: true
@@ -11,8 +13,13 @@ cases:
     flags:
       islands: true
       auth: false
+  - name: server-auth-off
+    stack: mini-site-fn
+    server:
+      flags:
+        auth: false
   - name: brand
-    stack: mini-app
+    stack: mini-site-fn
     brand:
       primary: '#ea580c'
       radius: sm

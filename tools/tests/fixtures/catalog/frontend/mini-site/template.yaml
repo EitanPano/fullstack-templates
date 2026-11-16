@@ -1,9 +1,10 @@
 schemaVersion: 1
-id: mini-app
-kind: fullstack
-name: Mini app
+id: mini-site
+kind: frontend
+name: Mini site
 version: 1.0.0
-summary: A minimal fullstack fixture
+summary: A minimal frontend fixture that ships no image
+docker: false
 runtime:
   language: typescript
   platform: bun
@@ -26,13 +27,15 @@ dependencies:
 commands:
   install: bun ./ok.ts
   check: bun ./ok.ts
-  testDb: bun ./ok.ts testDb
-  migrate: bun ./ok.ts migrate
-  e2eDb: bun ./ok.ts e2eDb
+  contract: bun ./ok.ts contract
   testE2e: bun ./ok.ts testE2e
+contract:
+  consumes: '<server>/openapi.json'
 http:
-  port: 3000
-  health: /api/health
+  port: 4321
+  health: /
+static:
+  out: dist
 flags:
   islands:
     summary: Interactive islands
@@ -42,10 +45,10 @@ flags:
     summary: Accounts
     default: true
     onlyPaths: [src/auth.ts, src/islands/login-form.ts, src/both.ts]
-lanes:
-  backend: [functions, package.json, wrangler.jsonc, src/auth.ts]
-  frontend: [src, package.json, src/islands]
-  qa: [tests]
+onlyWhen:
+  server: [src/client.ts]
+  server:auth: [src/session.ts]
 gitignore: [node]
 agents: AGENTS.md
-postGenerate: [install]
+defaultStack: mini-site-fn
+postGenerate: [install, contract]

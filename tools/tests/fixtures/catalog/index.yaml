@@ -20,11 +20,16 @@ templates:
     path: frontend/mini-spa
     version: 1.0.0
     summary: A minimal static frontend fixture
-  - id: mini-app
-    kind: fullstack
-    path: fullstack/mini-app
+  - id: mini-site
+    kind: frontend
+    path: frontend/mini-site
     version: 1.0.0
-    summary: A minimal fullstack fixture
+    summary: A minimal frontend fixture that ships no image
+  - id: mini-fn
+    kind: serverless
+    path: serverless/mini-fn
+    version: 1.0.0
+    summary: A minimal serverless fixture
 stacks:
   - id: mini
     path: stacks/mini
@@ -32,6 +37,6 @@ stacks:
   - id: mini-spa
     path: stacks/mini-spa
     summary: Mini server and static UI
-  - id: mini-app
-    path: stacks/mini-app
-    summary: Mini fullstack app
+  - id: mini-site-fn
+    path: stacks/mini-site-fn
+    summary: Mini site and functions

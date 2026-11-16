@@ -1,8 +1,8 @@
 import {
   CAPABILITY_KINDS,
-  DEFAULT_DIR_BY_KIND,
   DEPLOY_MODES,
   SERVER_PREFIX,
+  defaultDir,
   serverSelectionNames,
   type Catalog,
   type CapabilitySpec,
@@ -23,6 +23,7 @@ import {
 } from './brand'
 import { isKind } from './capability-kinds'
 import { migrateServiceName } from './compose'
+import { DIR_PATTERN, isApiKind, memberProblems } from './package-dir'
 import { toProjectName } from './placeholders'
 import { ThemeError } from './theme'
 
@@ -84,7 +85,8 @@ export interface GenerationPlan {
   providers: LoadedProvider[]
   catalogVersion: string | undefined
   skipPostGenerate: boolean
-  // Null unless the plan has both a server and a frontend: a lone package has no mode to choose.
+  // Null unless the plan has both a server and a frontend: a lone package has no mode to choose,
+  // and a serverless API has none at all.
   deploy: DeployMode | null
   // The resolved brand inputs and the placeholders built from them; null without a frontend.
   brand: PlanBrand | null
@@ -98,8 +100,6 @@ export interface PlanBrand {
   // Notes for the log: what the theme builder changed from the inputs.
   notes: string[]
 }
-
-export const DIR_PATTERN = /^[a-z][a-z0-9-]*$/
 
 export class PlanError extends Error {
   constructor(message: string) {
@@ -134,7 +134,7 @@ function resolveMembers(
   }
   const template = catalog.templates.get(input.template as string)
   if (!template) throw new PlanError(`unknown template: ${input.template}`)
-  const dir = input.dir ?? DEFAULT_DIR_BY_KIND[template.manifest.kind]
+  const dir = input.dir ?? defaultDir(template.manifest)
   if (!DIR_PATTERN.test(dir)) throw new PlanError(`invalid package dir: ${dir}`)
   return { members: [{ dir, template }], stackId: null }
 }
@@ -144,25 +144,6 @@ function orderForContract(members: Member[]): Member[] {
   const consumes = (m: Member) =>
     m.template.manifest.contract !== undefined && 'consumes' in m.template.manifest.contract
   return [...members.filter((m) => !consumes(m)), ...members.filter(consumes)]
-}
-
-// A fullstack package is the whole application: pages and server code in one package, shipped to a
-// platform with no Docker image, so it has no deploy mode and no neighbours (ADR 0014 K1, K5).
-function checkFullstack(members: Member[], deploy: string | undefined): Member | undefined {
-  const fullstack = members.find((m) => m.template.manifest.kind === 'fullstack')
-  if (fullstack === undefined) return undefined
-  const other = members.find((m) => m !== fullstack)
-  if (other !== undefined) {
-    throw new PlanError(
-      `${fullstack.template.path} cannot share a plan with ${other.template.path}: a fullstack package is the whole application; plan it alone`,
-    )
-  }
-  if (deploy !== undefined) {
-    throw new PlanError(
-      `${fullstack.template.path} has no deploy mode (it ships no Docker image), so deploy ${deploy} cannot apply; remove --deploy`,
-    )
-  }
-  return fullstack
 }
 
 function parsePair(entry: string, what: string): [string, string] {
@@ -223,11 +204,13 @@ function routeShorthandCapabilities(
   return routed
 }
 
-// "server" and "single" are reserved: a manifest cannot declare a flag of either name. A marker
+// "server", "single" and "frontend" are reserved: a manifest cannot declare a flag of any of them. A marker
 // asks whether the plan has a server package (a lone frontend must not depend on one) and whether
 // the plan deploys as one image, which only a plan with a server can.
 export const SERVER_SELECTION = 'server'
 export const SINGLE_SELECTION = 'single'
+// Only a serverless package has it: the plan holds a frontend, so its files may point at it.
+export const FRONTEND_SELECTION = 'frontend'
 
 // Shared by the plan and the marker dry-run so the two cannot drift: every flag, the reserved
 // server and single, then per declared kind `<kind>` (a provider is selected) and `<kind>:<provider>` for
@@ -240,6 +223,7 @@ export function selectionsFor(
   single: boolean,
   capabilities: Record<string, string>,
   serverFacts: Readonly<Record<string, boolean>> = {},
+  hasFrontend?: boolean,
 ): Record<string, boolean> {
   const selections: Record<string, boolean> = {
     ...flags,
@@ -247,6 +231,7 @@ export function selectionsFor(
     [SINGLE_SELECTION]: hasServer && single,
   }
   for (const [name, on] of Object.entries(serverFacts)) selections[SERVER_PREFIX + name] = on
+  if (hasFrontend !== undefined) selections[FRONTEND_SELECTION] = hasFrontend
   for (const [kind, spec] of Object.entries(template.manifest.capabilities ?? {})) {
     selections[kind] = capabilities[kind] !== undefined
     for (const provider of spec.providers) {
@@ -271,6 +256,11 @@ function resolveDeploy(
     throw new PlanError(`unknown deploy mode "${requested}": expected ${DEPLOY_MODES.join(' or ')}`)
   }
   const servable = frontend?.template.manifest.static !== undefined
+  if (requested !== undefined && frontend?.template.manifest.docker === false) {
+    throw new PlanError(
+      `${frontend.template.path} ships no image (docker: false), so deploy ${requested} cannot apply; remove --deploy`,
+    )
+  }
   if (requested === 'single') {
     if (server === undefined) {
       throw new PlanError('deploy single needs a server package in the plan, which has none')
@@ -391,17 +381,21 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
     }
   }
 
+  const [problem] = memberProblems(
+    members.map((m) => ({ dir: m.dir, path: m.template.path, manifest: m.template.manifest })),
+  )
+  if (problem !== undefined) throw new PlanError(problem)
+  // The plan's API: a server, or a serverless package that has no deploy mode (ADR 0014 K1).
+  const server = members.find((m) => isApiKind(m.template.manifest.kind))
+  const serverless = server?.template.manifest.kind === 'serverless'
+  const frontend = members.find((m) => m.template.manifest.kind === 'frontend')
   const requestedDeploy = input.deploy ?? input.answers?.deploy
-  const fullstack = checkFullstack(members, requestedDeploy)
-  const servers = members.filter((m) => m.template.manifest.kind === 'server')
-  if (servers.length > 1) {
+  if (serverless && requestedDeploy !== undefined) {
     throw new PlanError(
-      `a stack takes one server package, found ${servers.map((m) => m.dir).join(' and ')}`,
+      `${server.template.path} has no deploy mode (it ships no Docker image), so deploy ${requestedDeploy} cannot apply; remove --deploy`,
     )
   }
-  const server = servers[0]
-  const frontend = members.find((m) => m.template.manifest.kind === 'frontend')
-  const deploy = resolveDeploy(requestedDeploy, server, frontend)
+  const deploy = resolveDeploy(requestedDeploy, serverless ? undefined : server, frontend)
 
   const shorthand = routeShorthandFlags(members, input.flags)
   const shorthandCapabilities = routeShorthandCapabilities(members, input.capabilities)
@@ -443,6 +437,8 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
         server !== undefined,
         deploy === 'single',
         capabilities,
+        {},
+        member.template.manifest.kind === 'serverless' ? frontend !== undefined : undefined,
       ),
       serverDir: server?.dir ?? null,
       serverPort: server?.template.manifest.http?.port ?? null,
@@ -459,9 +455,8 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
   // A frontend sees the server's flags and capabilities, so these selections wait until every
   // package is planned: the order of the members decides nothing.
   const serverPlan = packages.find((pkg) => pkg.dir === server?.dir)
-  const fullstackPlan = packages.find((pkg) => pkg.dir === fullstack?.dir)
   for (const pkg of packages) {
-    if (pkg.template.manifest.kind === 'server' || pkg === fullstackPlan) continue
+    if (isApiKind(pkg.template.manifest.kind)) continue
     pkg.selections = selectionsFor(
       pkg.template,
       pkg.flags,
@@ -508,11 +503,11 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
   }
 
   const projectName = toProjectName(input.answers?.projectName ?? input.name)
-  // Only a plan with pages has a brand: a server-only plan must not fail on a display name
+  // Only a plan with a frontend has a brand: a server-only plan must not fail on a display name
   // derived from its project name.
-  const hasPages = frontend !== undefined || fullstack !== undefined
-  const brand = hasPages ? planBrand(input, projectName) : null
-  const ignoredBrand = hasPages ? [] : Object.keys(mergeBrand(input.answers?.brand, input.brand))
+  const brand = frontend === undefined ? null : planBrand(input, projectName)
+  const ignoredBrand =
+    frontend === undefined ? Object.keys(mergeBrand(input.answers?.brand, input.brand)) : []
   return {
     out: input.out,
     projectName,
