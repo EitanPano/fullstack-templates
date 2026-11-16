@@ -36,11 +36,13 @@ template finds the same shape.
 | `next` | frontend | 4.0.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
 | `react` | frontend | 6.0.0 | — | — | Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives styled by co-located SCSS on a global token tree |
 | `vue` | frontend | 4.0.0 | i18n, pwa | — | Vite and Vue 3 single-page app: Vue Router 5, Pinia 4 setup stores over a client generated from the server's contract, Reka UI primitives styled by co-located SCSS on a global token tree, vue-i18n and the service worker behind flags |
+| `astro-cloudflare-pages` | fullstack | 1.0.0 | — | — | One package on Cloudflare Pages: static Astro pages and Pages Functions on one origin, D1 through Drizzle, one error envelope, zod schemas shared by the pages and the functions |
 
 | Stack | Packages | Summary |
 | --- | --- | --- |
 | `angular-bun-express` | `server/bun-express`, `frontend/angular` | Angular 22 in front of Express 5 on Bun |
 | `angular-python-fastapi` | `server/python-fastapi`, `frontend/angular` | Angular 22 in front of FastAPI on Python 3.14 |
+| `astro-cloudflare-pages` | `fullstack/astro-cloudflare-pages` | Astro pages and Pages Functions in one package on Cloudflare Pages, D1 for data |
 | `next-bun-express` | `server/bun-express`, `frontend/next` | Next.js 16 in front of Express 5 on Bun |
 | `next-python-fastapi` | `server/python-fastapi`, `frontend/next` | Next.js 16 in front of FastAPI on Python 3.14 |
 | `react-bun-express` | `server/bun-express`, `frontend/react` | React 19 (Vite) in front of Express 5 on Bun |

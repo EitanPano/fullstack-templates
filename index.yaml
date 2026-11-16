@@ -30,6 +30,11 @@ templates:
     path: frontend/vue
     version: 4.0.0
     summary: "Vite and Vue 3 single-page app: Vue Router 5, Pinia 4 setup stores over a client generated from the server's contract, Reka UI primitives styled by co-located SCSS on a global token tree, vue-i18n and the service worker behind flags"
+  - id: astro-cloudflare-pages
+    kind: fullstack
+    path: fullstack/astro-cloudflare-pages
+    version: 1.0.0
+    summary: "One package on Cloudflare Pages: static Astro pages and Pages Functions on one origin, D1 through Drizzle, one error envelope, zod schemas shared by the pages and the functions"
 stacks:
   - id: angular-bun-express
     path: stacks/angular-bun-express
@@ -55,3 +60,6 @@ stacks:
   - id: vue-python-fastapi
     path: stacks/vue-python-fastapi
     summary: Vue 3 (Vite) in front of FastAPI on Python 3.14
+  - id: astro-cloudflare-pages
+    path: stacks/astro-cloudflare-pages
+    summary: Astro pages and Pages Functions in one package on Cloudflare Pages, D1 for data

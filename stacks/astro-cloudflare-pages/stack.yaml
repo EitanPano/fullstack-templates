@@ -1,0 +1,6 @@
+schemaVersion: 1
+id: astro-cloudflare-pages
+summary: Astro pages and Pages Functions in one package on Cloudflare Pages, D1 for data
+packages:
+  - template: fullstack/astro-cloudflare-pages
+    dir: app

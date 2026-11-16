@@ -1,0 +1,19 @@
+{
+  "extends": "../tsconfig.server.json",
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "types": ["@cloudflare/vitest-plugin/types", "node"],
+    "paths": {
+      "@shared/*": ["../shared/*"]
+    }
+  },
+  "include": [
+    "./**/*.ts",
+    "../functions",
+    "../server",
+    "../shared",
+    "../vitest.config.ts",
+    "../drizzle.config.ts",
+    "../worker-configuration.d.ts"
+  ]
+}

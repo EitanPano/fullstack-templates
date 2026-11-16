@@ -1,0 +1,9 @@
+dist
+.astro
+.wrangler
+.e2e-state
+dist-functions
+worker-configuration.d.ts
+bun.lock
+node_modules
+migrations/meta

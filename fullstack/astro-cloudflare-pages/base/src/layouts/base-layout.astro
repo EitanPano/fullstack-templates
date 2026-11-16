@@ -1,0 +1,30 @@
+---
+// base-layout.astro belongs: the document shell every page shares: head, skip link and the
+// page's one <main id="main">. Header, navigation and footer are product code.
+// It does not belong: page content or behaviour.
+import '../styles/themes/brand.css'
+
+type Props = {
+  title: string
+}
+
+const { title } = Astro.props
+---
+
+<!doctype html>
+<html lang="en" data-density="__THEME_DENSITY__">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <script is:inline src="/theme-init.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">
+      Skip to content
+    </a>
+    <main id="main">
+      <slot />
+    </main>
+  </body>
+</html>
