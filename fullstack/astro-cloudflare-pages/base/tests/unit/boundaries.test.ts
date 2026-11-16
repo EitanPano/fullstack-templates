@@ -12,6 +12,7 @@ const RULES = new Set([
   'import-x/no-restricted-paths',
   'no-restricted-imports',
   'no-restricted-properties',
+  'no-restricted-syntax',
 ])
 
 async function boundaryMessages(file: string, code: string): Promise<string[]> {
@@ -52,6 +53,26 @@ const refused: [string, string, string][] = [
   ['server/api/other/service.ts', ts('../module/controller'), 'data layer'],
   ['server/services/x.ts', 'void process.env.SECRET\n', 'server/config/env.ts'],
   ['functions/api/x.ts', 'void process.env.SECRET\n', 'server/config/env.ts'],
+  // Controls belong to the kit, zod to its facade and fetch to the api wrapper.
+  ['src/pages/x.astro', '---\n---\n<button type="button">Go</button>\n', 'kit'],
+  ['src/pages/x.astro', '---\n---\n<input name="a" />\n', 'kit'],
+  ['src/layouts/x.astro', '---\n---\n<select name="a"></select>\n', 'kit'],
+  ['src/pages/x.astro', '---\n---\n<textarea name="a"></textarea>\n', 'kit'],
+  ['src/services/x.ts', "void document.createElement('button')\n", 'kit'],
+  [
+    'src/pages/x.astro',
+    "---\n---\n<p />\n<script>\n  void document.createElement('input')\n</script>\n",
+    'kit',
+  ],
+  ['src/services/x.ts', ts('zod'), 'validation.ts'],
+  ['src/pages/x.astro', astro('zod'), 'validation.ts'],
+  ['src/services/x.ts', "void fetch('/api/health')\n", 'services/api.ts'],
+  ['src/components/ui/toast/x.ts', "void fetch('/api/health')\n", 'services/api.ts'],
+  [
+    'src/pages/x.astro',
+    "---\n---\n<p />\n<script>\n  void window.fetch('/api/health')\n</script>\n",
+    'services/api.ts',
+  ],
 ]
 
 const allowed: [string, string][] = [
@@ -80,6 +101,13 @@ const allowed: [string, string][] = [
   ['server/api/other/controller.ts', ts('../module/controller')],
   ['server/api/module/model.ts', ts('../../models/module/enum')],
   ['server/services/x.ts', 'void env.SECRET\n'],
+  ['src/components/ui/x/x.astro', '---\n---\n<button type="button">Go</button>\n'],
+  ['src/components/ui/x/x.astro', '---\n---\n<input name="a" />\n'],
+  ['src/components/ui/toast/x.ts', "void document.createElement('button')\n"],
+  ['src/pages/x.astro', '---\n---\n<a href="/">Home</a>\n<label for="a">A</label>\n'],
+  ['src/services/validation.ts', ts('zod')],
+  ['src/services/api.ts', "void fetch('/api/health')\n"],
+  ['src/services/x.ts', "void document.createElement('div')\n"],
 ]
 
 describe('import boundaries', () => {

@@ -1,6 +1,6 @@
 {
   "extends": "astro/tsconfigs/strict",
-  "include": [".astro/types.d.ts", "src", "shared"],
+  "include": [".astro/types.d.ts", "src", "shared", "tests/unit/page"],
   "exclude": ["dist", "functions", "server", "worker-configuration.d.ts", "node_modules"],
   "compilerOptions": {
     "paths": {

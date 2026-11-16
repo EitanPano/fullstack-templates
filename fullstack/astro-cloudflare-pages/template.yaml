@@ -22,6 +22,7 @@ commands:
   testDb: bun run test:db
   migrate: bun run migrate
   e2eDb: bun run e2e:db
+  testE2e: bun run test:e2e
 http: { port: 4321, health: /api/health }
 gitignore: [node, cloudflare]
 agents: AGENTS.md
@@ -30,7 +31,7 @@ postGenerate:
   - install
   - format
 # Which role writes which path (ADR 0014, K3). A path may sit in both implementer lanes. Later
-# tasks add the paths they create (tests/e2e, workers).
+# tasks add the paths they create (workers).
 lanes:
   backend:
     - functions
@@ -56,7 +57,9 @@ lanes:
   frontend:
     - src
     - public
+    - tests/e2e
     - astro.config.mjs
+    - playwright.config.ts
     - scripts
     - package.json
     - bun.lock

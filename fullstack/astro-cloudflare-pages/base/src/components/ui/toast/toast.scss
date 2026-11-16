@@ -1,0 +1,66 @@
+@use 'setup/functions';
+@use 'setup/breakpoints';
+
+// The region sits at the bottom of the viewport and never takes layout space itself.
+.toast-region {
+  position: fixed;
+  inset-block-end: functions.space(4);
+  inset-inline: functions.space(4);
+  z-index: functions.z(toast);
+  display: grid;
+  gap: functions.space(2);
+  justify-items: stretch;
+  pointer-events: none;
+
+  @include breakpoints.up(md) {
+    inset-inline-start: auto;
+    inline-size: 24rem;
+  }
+
+  &:empty {
+    display: none;
+  }
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: functions.space(3);
+  padding: functions.space(3);
+  border: 1px solid var(--border-strong);
+  border-inline-start-width: 4px;
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--card-foreground);
+  box-shadow: var(--shadow-2);
+  pointer-events: auto;
+  animation: toast-in 150ms ease-out;
+}
+
+.toast__message {
+  flex: 1;
+  padding-block: functions.space(2);
+}
+
+.toast--success {
+  border-inline-start-color: var(--success);
+}
+
+.toast--error {
+  border-inline-start-color: var(--destructive);
+}
+
+.toast--warning {
+  border-inline-start-color: var(--warning);
+}
+
+.toast--info {
+  border-inline-start-color: var(--info);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    translate: 0 1rem;
+  }
+}

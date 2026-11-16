@@ -9,7 +9,7 @@ import { existsSync } from 'node:fs'
 const port = process.env.PORT ?? '8788'
 
 if (!existsSync('dist/index.html')) {
-  const build = spawnSync('bunx astro build', { shell: true, stdio: 'inherit' })
+  const build = spawnSync('bun run build', { shell: true, stdio: 'inherit' })
   if (build.status !== 0) process.exit(build.status ?? 1)
 }
 

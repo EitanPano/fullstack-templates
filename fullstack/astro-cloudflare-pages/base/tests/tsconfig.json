@@ -15,5 +15,6 @@
     "../vitest.config.ts",
     "../drizzle.config.ts",
     "../worker-configuration.d.ts"
-  ]
+  ],
+  "exclude": ["./e2e", "./unit/page"]
 }

@@ -103,9 +103,33 @@ const toServer = {
   group: ['@server', '@server/*', '@functions', '@functions/*'],
   message: 'Browser and shared code must not import server code: what both need goes in shared/.',
 }
+const zodOnlyInFacade = {
+  group: ['zod', 'zod/*'],
+  message:
+    'zod is imported only by src/services/validation.ts: use its functions (parse, stringLimits).',
+}
 const toSrc = {
   group: ['@src', '@src/*'],
   message: 'Server and shared code must not import browser code: what both need goes in shared/.',
+}
+// A control is a kit component: a raw element outside src/components/ui fails lint, in a template
+// (a JSX-shaped element node) and in a script (createElement).
+const CONTROLS = 'button|input|select|textarea'
+const RAW_CONTROLS = [
+  {
+    selector: `JSXOpeningElement[name.name=/^(${CONTROLS})$/]`,
+    message:
+      'A control belongs to the kit: use src/components/ui (button, input, ...), not a raw element.',
+  },
+  {
+    selector: `CallExpression[callee.property.name='createElement'][arguments.0.value=/^(${CONTROLS})$/]`,
+    message: 'A control belongs to the kit: build it in src/components/ui, not with createElement.',
+  },
+]
+const FETCH = {
+  selector:
+    "CallExpression[callee.name='fetch'], CallExpression[callee.object.name=/^(globalThis|window)$/][callee.property.name='fetch']",
+  message: 'Call the API through src/services/api.ts (request, send), not fetch.',
 }
 // A module reaches another module's controller only, and only from its controller.
 const otherModule = '^\\.\\./[^./][^/]*/'
@@ -148,7 +172,22 @@ export default tseslint.config(
   },
   // Alias specifiers are matched by name, so they do not depend on which tsconfig resolves them.
   // One block per directory: a later block replaces an earlier one's options for the same rule.
-  { files: ['src/**'], rules: { 'no-restricted-imports': ['error', { patterns: [toServer] }] } },
+  {
+    files: ['src/**'],
+    rules: { 'no-restricted-imports': ['error', { patterns: [toServer, zodOnlyInFacade] }] },
+  },
+  {
+    files: ['src/services/validation.ts'],
+    rules: { 'no-restricted-imports': ['error', { patterns: [toServer] }] },
+  },
+  // The kit (src/components/ui) is the one place for a control; services/api.ts the one for fetch.
+  {
+    files: ['src/**/*.{astro,ts}'],
+    ignores: ['src/components/ui/**', 'src/services/api.ts'],
+    rules: { 'no-restricted-syntax': ['error', ...RAW_CONTROLS, FETCH] },
+  },
+  { files: ['src/components/ui/**'], rules: { 'no-restricted-syntax': ['error', FETCH] } },
+  { files: ['src/services/api.ts'], rules: { 'no-restricted-syntax': ['error', ...RAW_CONTROLS] } },
   {
     files: ['shared/**'],
     rules: { 'no-restricted-imports': ['error', { patterns: [toServer, toSrc] }] },

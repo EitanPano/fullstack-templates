@@ -1,0 +1,14 @@
+// The icon shown is the active choice; the other two are hidden.
+.theme-toggle {
+  display: inline-flex;
+
+  &__icon {
+    display: none;
+  }
+
+  &[data-choice='light'] &__icon--light,
+  &[data-choice='dark'] &__icon--dark,
+  &[data-choice='system'] &__icon--system {
+    display: block;
+  }
+}

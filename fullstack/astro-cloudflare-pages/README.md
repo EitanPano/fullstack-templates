@@ -7,9 +7,8 @@ needed. The shape is [ADR 0014](../../docs/adr/0014-astro-cloudflare-pages.md). 
 (`--template fullstack/astro-cloudflare-pages`) or as the one package of the
 `astro-cloudflare-pages` stack, in `app/`.
 
-This version (1.0.0) is the skeleton and its server half: the request flow, the reference
-`module`, health, the rate limiter and the gates. The page half, auth, jobs and islands arrive in
-later minors.
+This version (1.0.0) has no accounts (ADR 0014, T6): every endpoint is public. Jobs and islands
+arrive as flags in later minors.
 
 ## Layout
 
@@ -21,7 +20,11 @@ later minors.
 
 ## What a generated app is
 
-A skip link, one `main` and an index route of one `h1`. Behind `/api`: `GET /api/health`,
+A skip link, one `main` and an index route of one `h1` and one line of copy, on a token tree
+(OKLCH brand tokens, light and dark, density) with a small kit of Astro components
+(`src/components/ui`: button, field, input, card, alert, spinner, skeleton, toast, theme toggle),
+no UI framework and no script on a content page but the theme file. The build hashes every
+script and style into one `Content-Security-Policy` header without `'unsafe-inline'`. Behind `/api`: `GET /api/health`,
 `GET /api/health/ready` (pings D1), and the reference module (`/api/module`, `/api/module/{id}`)
 that `base/AGENTS.md › Adding a module` tells the reader to copy.
 
@@ -30,9 +33,10 @@ that `base/AGENTS.md › Adding a module` tells the reader to copy.
   controller call; `server/` uses only `Request`, `Response` and the bindings type.
 - **Data.** Drizzle on D1, SQL migrations in `migrations/`, rate-limit counters in a table hit by
   one upsert per check.
-- **Gates.** `bun run check`: `wrangler types --check`, `astro check`, `tsc` (server and tests),
-  ESLint (import zones), Prettier and every test. `bun run test:db` runs the `workerd` API project
-  alone.
+- **Gates.** `bun run check`: `wrangler types --check`, `astro check`, `tsc` (server, tests and
+  e2e), ESLint (import zones, controls only in the kit), Prettier and every test. `bun run test:db`
+  runs the `workerd` API project alone; `bun run test:e2e` builds and runs Playwright on `phone`
+  and `desktop` against the built site.
 - **Run it.** `bun run migrate`, then `bun run dev` (Astro on 4321, `/api` proxied to
   `wrangler pages dev`) or `bun run build` and `bun run start` (everything on 8788, on the e2e state
   folder rebuilt by `bun run e2e:db`).
