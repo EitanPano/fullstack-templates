@@ -28,6 +28,9 @@ template that declares `testDb`, `migrate` and `e2eDb` itself) and
   | Where the package sits | `app/` |
   | An Access gate when `auth` is off | No; the guide carries the recipe and the middleware slot |
 
+- On 2026-11-17, with the server half built, he ruled accounts out of the template: "skip
+  authentication in astro app". 1.0.0 has no `auth` flag (T6); the third ruling above then
+  covers rate-limit counters only.
 - The stack is also the target an existing Pages site migrates to: hand-written HTML, JavaScript
   Functions with their logic in a `_lib` folder, a D1 database migrated by hand, Git-connected
   builds. The template's guide carries that recipe; the migration itself is that site's own work.
@@ -115,8 +118,7 @@ response, the `WWW-Authenticate` rule, the `by_ip` /64 rule, `GET /api/health` a
 - ▲ Markers: `.jsonc` takes `//` markers. An `.astro` file takes `//` markers in its frontmatter
   and `<!-- -->` markers in its markup, in one pass.
 - ▲ A path may be listed under more than one flag's `onlyPaths`; it exists while every flag that
-  lists it is on. That is how a file that needs two flags is written (the island forms need
-  `islands` and `auth`).
+  lists it is on. That is how a file that needs two flags is written.
 - A `cloudflare` gitignore section in `shared/gitignore/`.
 - A generation stays a function of its recorded selection (ADR 0011, D4).
 
@@ -132,21 +134,21 @@ response, the `WWW-Authenticate` rule, the `by_ip` /64 rule, `GET /api/health` a
 ```
 app/
 ├── src/                 Astro, output: 'static', no adapter            lane: frontend
-│   ├── pages/           index · 404 · with auth: auth/login, auth/signup, forbidden, user
+│   ├── pages/           index · 404
 │   ├── layouts/         the base layout: head, skip link, one <main id="main">
 │   ├── components/      ui/ (the kit) · islands/ (with the islands flag)
-│   ├── services/        api.ts · validation.ts · with auth: auth.ts, user.ts
+│   ├── services/        api.ts · validation.ts
 │   └── styles/          setup/ · themes/ · basics/
 ├── public/              _routes.json · _headers · _redirects · theme-init.js   lane: frontend
 ├── functions/           file path = route                              lane: backend
 │   ├── _middleware.ts   request id · request log · error handler · response headers
-│   └── api/             health · module/ (the reference module) · with auth: _middleware.ts, auth/, user/
+│   └── api/             health · module/ (the reference module)
 ├── server/              never routed; imported by functions/ and workers/     lane: backend
 │   ├── api/<module>/    controller · service · model (the Drizzle table)
 │   ├── config/          env.ts · constants.ts
-│   ├── middleware/      validate · rate-limit · error-handler · with auth: auth, role
+│   ├── middleware/      handler · validate · rate-limit · error-handler
 │   ├── models/<name>/   interface · type · enum · constants
-│   ├── services/        logger · security/ · utils/ · with auth: session, communicate/
+│   ├── services/        logger · security/ · utils/
 │   └── infra/           bindings.ts · db.ts
 ├── shared/              schemas/ (zod, one file per module) · types/api.ts    lane: backend
 ├── workers/jobs/        with the jobs flag                             lane: backend
@@ -182,8 +184,8 @@ app/
 
 ### T3. Request flow
 
-`functions/_middleware.ts → functions/api/_middleware.ts (auth) → route file → gates → validate
-→ controller → service → Drizzle → D1`.
+`functions/_middleware.ts → route file → gates → validate → controller → service → Drizzle →
+D1`.
 
 - The root middleware gives every API response a request id, one log line (method, path without
   query, status, duration, request id), the error envelope for a thrown error, and the security
@@ -214,27 +216,22 @@ app/
   SQL into `migrations/`; `migrate` applies it to the local database.
 - D1 has no interactive transaction. A rule that must not race is one conditional statement
   (`UPDATE … WHERE … RETURNING`, an upsert) or one batch.
-- Sessions, refresh tokens, one-time codes and rate-limit counters are tables.
+- Rate-limit counters are a table, hit by one upsert per check.
 - The guide's baseline recipe records the migrations of a hand-migrated database as applied
   without running them (S8).
 
-### T6. Auth, behind the `auth` flag (on by default)
+### T6. No accounts in 1.0.0
 
-- One route file per endpoint of `server/bun-express` 3.1.0's auth and user modules:
-  `POST /api/auth/signup`, `login`, `refresh`, `logout`, `otp`, `otp/verification`;
-  `GET` and `PATCH /api/user/me`; `GET /api/user` and `GET /api/user/{id}` for an admin. The
-  tokens, the cookies, the status codes and the envelope codes are that template's.
-- Rotation is one conditional update; a replayed refresh token revokes its session; a one-time
-  code's attempt counter is one atomic statement.
-- ▲ **Password hash: scrypt from `node:crypto`, N = 2^14, r = 8, p = 5**, one of the parameter
-  sets OWASP lists as equivalent. OWASP's first set (N = 2^17) needs about 128 MiB, the whole
-  memory of an isolate; this one needs 16 MiB and measured about 200 ms locally (S3). The
-  parameters are stored in the hash, so a later change rehashes at sign-in. It does not fit the
-  free plan's 10 ms of CPU: the guide names the paid plan while passwords are on. Not proven on
-  a deployed project (no session holds an account); the first project's deploy is the proof.
-- With `auth` off the package has no account code and keeps D1, its migrations and the rate
-  limit. The guide shows where a product's own gate goes (the reference site sits behind
-  Cloudflare Access); the template ships none.
+- The owner's ruling of 2026-11-17. The template has no `auth` flag, no account, session or
+  one-time-code table, and no sign-in page. Every endpoint is public; D1, its migrations and
+  the rate limit are there.
+- The gate chain takes a product's own gate (T3). The guide shows where it goes; the reference
+  site sits behind Cloudflare Access. The template ships none.
+- Accounts are a later plan. What this record learned for it: the auth surface to port is
+  `server/bun-express`'s; rotation and attempt counters must each be one conditional statement
+  (T5); and S3's measurements, which point at scrypt with N = 2^14, r = 8, p = 5 (16 MiB,
+  about 200 ms locally) rather than OWASP's first set, which needs an isolate's whole memory.
+  None of it is proven on a deployed project.
 
 ### T7. Gates and tests
 
@@ -255,24 +252,23 @@ app/
 ### T8. Pages
 
 - Frontend invariants 2 to 8 and 10 hold: the shell (a skip link and one `main`), mobile first,
-  the brand inputs and tokens, copy tables for the envelope's codes, the session hint, the
-  boundary test, `shell.spec` and `screens.spec`.
+  the brand inputs and tokens, copy tables for the envelope's codes, the boundary test,
+  `shell.spec` and `screens.spec`. Invariant 7 (auth glue) has nothing to apply to (T6).
 - A page ships no script but the theme file unless it needs one. Behaviour is a `<script>` in
   the page, which Astro bundles; no UI framework is in the base.
 - ▲ **Content-Security-Policy with no `'unsafe-inline'`**: Astro's `security.csp` hashes every
   script and style of the build; a post-build script moves the policy from the pages' `<meta>`
   into `dist/_headers` and adds `default-src`, `frame-ancestors`, `base-uri` and `object-src`
   (S4). The theme script stays a file.
-- A static page cannot be gated on the server. A signed-in page is a shell that fetches; the
-  guide says no private content is ever written into a page at build time.
+- A static page cannot be gated on the server. The guide says no private content is ever
+  written into a page at build time: a page for a signed-in visitor is a shell that fetches.
 
 ### T9. Flags
 
 | Flag | Default | Adds |
 | --- | --- | --- |
-| `auth` | on | T6, the sign-in and sign-up pages, the client guard, the auth journeys |
-| `jobs` | off | `workers/jobs/`: a second Worker with its own `wrangler.jsonc` and one scheduled handler that imports `server/` |
-| `islands` | off | `@astrojs/react` and `src/components/islands/`; with `auth` also on, the auth forms are islands |
+| `jobs` | off | `workers/jobs/`: a second Worker with its own `wrangler.jsonc` and one scheduled handler that imports `server/` (the cleanup of expired rate-limit rows) |
+| `islands` | off | `@astrojs/react` and the `src/components/islands/` convention. ▲ It ships no island: the template has no example code (ADR 0010) and, without accounts, no form that needs one |
 
 ### T10. The guide
 
@@ -281,17 +277,17 @@ The second maps each trait of a hand-written Pages site to its place here: stamp
 layouts and content collections; `_redirects`, `_headers`, `404.html`, `robots.txt` and
 generated text files to `public/` or an Astro endpoint; `_lib` logic to `server/` with
 TypeScript adopted file by file; function routes outside `/api`; other bindings (Workers AI, a
-service binding, `ASSETS`); an Access-gated admin with `auth` off; the baseline of a
+service binding, `ASSETS`); an Access-gated admin; the baseline of a
 hand-migrated database; a preview environment on its own database as step one.
 
 ### H. The harness (plan 026, H1 to H3)
 
-- `verify` runs `testDb`, `migrate` and `e2eDb` without Docker when the project has no Compose
-  service `database`.
+- `verify` runs `testDb`, `migrate` and `e2eDb` without Docker when the project has a
+  `fullstack` package.
 - The write-lane hook adds the lanes provenance records to its constants, confined to the
   package and failing closed to the constants.
-- `wrangler` with `deploy`, `publish`, `login`, `secret`, `delete`, `rollback` or `--remote` is
-  refused for sub-agents and asked about in the main session; `.dev.vars` is a secret file.
+- A sub-agent's `wrangler` is an allowlist of local subcommands; the main session is asked
+  before a command that reaches the platform; `.dev.vars` and wrangler's login file are secret.
 - In a one-package project the implementers run in sequence, backend first.
 
 ## Spikes (2026-11-16, Windows 11, no account)
@@ -300,7 +296,7 @@ hand-migrated database; a preview environment on its own database as step one.
 | --- | --- | --- |
 | S1 one origin | pass | `wrangler pages dev dist` serves pages, the 404, `_headers`, `_redirects` and functions on one port; `build.format: 'file'`; the dev proxy targets `127.0.0.1` |
 | S2 tests in `workerd` | pass | `@cloudflare/vitest-plugin` (the renamed pool) on vitest 4.1; the functions are built once per run and tests call the built worker; isolation is per file |
-| S3 password hash | partial | scrypt N = 2^17 needs the whole isolate's memory; N = 2^14, p = 5 chosen (T6); production limits not testable here |
+| S3 password hash | partial | Not used in 1.0.0 (T6). scrypt N = 2^17 needs the whole isolate's memory; N = 2^14, p = 5 fits; production limits not testable here |
 | S4 CSP | pass | hashed `script-src` and `style-src`, no `'unsafe-inline'`, an island hydrates; delivered from `dist/_headers` |
 | S5 two type worlds | pass | two projects; TypeScript 6; zones plus a specifier ban for the alias; `@shared/*` only |
 | S6 env file | pass | `.env` alone reaches `context.env`; a `.dev.vars` hides it; `.env.<environment>` is not read |
@@ -342,6 +338,6 @@ vitest 4.1.12, `@cloudflare/vitest-plugin` 1.8.3, drizzle-orm 0.45.4, drizzle-ki
 
 ## Out of scope
 
-The reference site's migration. KV, R2 and Queue helpers; product integrations. Server-rendered
+The reference site's migration. Accounts (T6). KV, R2 and Queue helpers; product integrations. Server-rendered
 Astro and view transitions. A move to Workers with static assets. Adding or removing the
 `fullstack` package of an existing project by `scaffold` (flags on it are in scope).
