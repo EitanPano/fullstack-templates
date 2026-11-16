@@ -2,7 +2,13 @@ import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { SERVER_PREFIX, type LoadedOverlay, type LoadedTemplate } from './catalog'
 import { inGeneratedDir, listFiles } from './files'
-import { applyMarkers, commentSyntaxFor, findLeftoverMarker, MarkerError } from './markers'
+import {
+  applyMarkers,
+  commentSyntaxFor,
+  commentSyntaxesFor,
+  findLeftoverMarker,
+  MarkerError,
+} from './markers'
 import { GENERATED_PLACEHOLDERS, isTextFile } from './placeholders'
 import { UNPROCESSED_HINT, findUnprocessed } from './unprocessed'
 import { SERVER_SELECTION, SINGLE_SELECTION, selectionsFor } from './plan'
@@ -75,7 +81,9 @@ export function dryRunMarkers(
 ): string[] {
   // The reserved selections vary like flags: the plan may or may not hold a server, and with one
   // it may deploy as a single image.
-  const factNames = template.manifest.kind === 'server' ? [] : serverNames
+  // A server has no server to look at, and a fullstack package never shares a plan with one.
+  const kind = template.manifest.kind
+  const factNames = kind === 'server' || kind === 'fullstack' ? [] : serverNames
   const flagNames = [
     ...Object.keys(template.manifest.flags ?? {}),
     SERVER_SELECTION,
@@ -119,11 +127,11 @@ export function dryRunMarkers(
 
       for (const file of files) {
         const where = relative(template.dir, file)
-        const syntax = commentSyntaxFor(file)
-        if (syntax === undefined || inGeneratedDir(packagePath(template, overlays, file))) continue
+        const syntaxes = commentSyntaxesFor(file)
+        if (syntaxes.length === 0 || inGeneratedDir(packagePath(template, overlays, file))) continue
         try {
-          const output = applyMarkers(read(file), syntax, where, selections)
-          const leftover = findLeftoverMarker(output, syntax)
+          const output = applyMarkers(read(file), syntaxes, where, selections)
+          const leftover = findLeftoverMarker(output, syntaxes[0])
           if (leftover !== null) problems.add(`${where}: leftover marker ${leftover}`)
         } catch (error) {
           if (!(error instanceof MarkerError)) throw error

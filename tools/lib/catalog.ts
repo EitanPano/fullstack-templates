@@ -11,11 +11,13 @@ import type { BrandInput } from './brand'
 import { CAPABILITY_KINDS, isKind, type CapabilityKind } from './capability-kinds'
 import { readChecked, subdirectories } from './read-checked'
 
+export type LaneName = 'backend' | 'frontend' | 'qa'
+
 export type DeployMode = 'single' | 'split'
 
 export const DEPLOY_MODES: readonly DeployMode[] = ['single', 'split']
 
-export type TemplateKind = 'server' | 'frontend' | 'worker'
+export type TemplateKind = 'server' | 'frontend' | 'worker' | 'fullstack'
 
 export type CommandName =
   | 'install'
@@ -52,6 +54,7 @@ export const DEFAULT_DIR_BY_KIND: Record<TemplateKind, string> = {
   server: 'backend',
   frontend: 'frontend',
   worker: 'worker',
+  fullstack: 'app',
 }
 
 const KINDS = Object.keys(DEFAULT_DIR_BY_KIND) as TemplateKind[]
@@ -160,6 +163,8 @@ export interface TemplateManifest {
   dependencies?: { manifest: string; adapter: DependencyAdapter }
   contract?: { produces: string } | { consumes: string }
   http?: { port: number; health: string; ready?: string }
+  // Fullstack only: the paths of the package each role writes; a path may sit in several lanes.
+  lanes?: Partial<Record<LaneName, string[]>>
   gitignore?: string[]
   postGenerate?: CommandName[]
   dropAfterPostGenerate?: string[]
@@ -275,6 +280,17 @@ export const FRONTEND_AGENTS_HEADINGS = [
   'Deployment',
 ] as const
 
+// A fullstack package holds both halves, so its agents file carries both sets of headings.
+export const FULLSTACK_AGENTS_HEADINGS = [
+  'Adding a module',
+  'Adding the data layer',
+  'Adding a feature',
+  'Styling',
+  'Errors',
+  'Tests',
+  'Deployment',
+] as const
+
 // A fenced block may hold a shell comment that looks like a heading; only a fence of the same
 // character, at least as long, closes it (CommonMark).
 function missingHeadings(agentsFile: string, required: readonly string[]): string[] {
@@ -298,6 +314,60 @@ function missingHeadings(agentsFile: string, required: readonly string[]): strin
   return required.filter((heading) => !found.has(heading))
 }
 
+// The kind is one package with its own data layer and no deploy mode (ADR 0014 K3): what only a
+// server, a frontend or a stack could use is refused, naming the fix.
+function checkFullstackManifest(
+  templatePath: string,
+  manifest: TemplateManifest,
+  problems: string[],
+): void {
+  const refused: Array<[string, unknown, string]> = [
+    [
+      'contract',
+      manifest.contract,
+      'it has no generated client or OpenAPI document; shared/ is its contract',
+    ],
+    [
+      'capabilities',
+      manifest.capabilities,
+      'its data engine is part of the base; declare migrate, testDb and e2eDb as commands',
+    ],
+  ]
+  for (const [field, value, why] of refused) {
+    if (value !== undefined)
+      problems.push(`${templatePath}: ${field} is not for a fullstack template: ${why}`)
+  }
+  if (manifest.lanes === undefined) {
+    problems.push(
+      `${templatePath}: lanes is required for a fullstack template: say which paths the backend and the frontend role write`,
+    )
+  }
+}
+
+// A lane names paths of the generated package; each must exist in base/ so a typo cannot silently
+// leave a role without a lane.
+function checkLanes(
+  templatePath: string,
+  base: string,
+  manifest: TemplateManifest,
+  problems: string[],
+): void {
+  if (manifest.lanes === undefined) return
+  if (manifest.kind !== 'fullstack') {
+    problems.push(
+      `${templatePath}: lanes is only for fullstack templates, this one is a ${manifest.kind}`,
+    )
+    return
+  }
+  for (const [lane, paths] of Object.entries(manifest.lanes)) {
+    for (const entry of paths) {
+      if (!existsSync(path.join(base, entry))) {
+        problems.push(`${templatePath}: lanes.${lane} path "${entry}" does not exist in base/`)
+      }
+    }
+  }
+}
+
 function checkTemplateFiles(
   templatePath: string,
   dir: string,
@@ -306,8 +376,13 @@ function checkTemplateFiles(
 ): void {
   const base = path.join(dir, 'base')
   if (!existsSync(base)) problems.push(`${templatePath}: base/ is missing`)
-  if (!existsSync(path.join(dir, 'compose.yaml'))) {
-    problems.push(`${templatePath}: compose.yaml is missing`)
+  const fullstack = manifest.kind === 'fullstack'
+  const hasCompose = existsSync(path.join(dir, 'compose.yaml'))
+  if (!fullstack && !hasCompose) problems.push(`${templatePath}: compose.yaml is missing`)
+  if (fullstack && hasCompose) {
+    problems.push(
+      `${templatePath}: compose.yaml is not for a fullstack template, which ships no Docker image; delete it`,
+    )
   }
   if (!existsSync(path.join(base, manifest.agents))) {
     problems.push(`${templatePath}: agents file base/${manifest.agents} is missing`)
@@ -318,7 +393,9 @@ function checkTemplateFiles(
       ? SERVER_AGENTS_HEADINGS
       : manifest.kind === 'frontend'
         ? FRONTEND_AGENTS_HEADINGS
-        : undefined
+        : fullstack
+          ? FULLSTACK_AGENTS_HEADINGS
+          : undefined
   if (required !== undefined && existsSync(agentsFile)) {
     const missing = missingHeadings(agentsFile, required)
     if (missing.length > 0) {
@@ -333,6 +410,8 @@ function checkTemplateFiles(
       `${templatePath}: static is only for frontend templates, this one is a ${manifest.kind}`,
     )
   }
+  if (fullstack) checkFullstackManifest(templatePath, manifest, problems)
+  checkLanes(templatePath, base, manifest, problems)
   // A "." segment names the package itself or a path that a drop would resolve oddly; refusing it
   // here names the template before any generation runs.
   for (const entry of manifest.dropAfterPostGenerate ?? []) {
@@ -346,6 +425,11 @@ function checkTemplateFiles(
   for (const [name, value] of Object.entries(manifest.onlyWhen ?? {})) {
     if (manifest.kind === 'server') {
       problems.push(`${templatePath}: onlyWhen is not for a server template, which has no ${name}`)
+    }
+    if (fullstack) {
+      problems.push(
+        `${templatePath}: onlyWhen is not for a fullstack template, which has no other package to key on; gate its files with its own flags`,
+      )
     }
     const spec = onlyWhenSpec(value)
     for (const only of spec.onlyPaths ?? []) {
@@ -371,13 +455,14 @@ function checkTemplateFiles(
 
 // Every key's removals are independent: `server:*` is off whenever `server` is, so a name or path
 // shared by two keys, or by a key and a flag's onlyPaths, would be removed twice, or a directory
-// would swallow a file another entry names. Only the lone generation would fail, so refuse it here.
+// would swallow a file another entry names. Flags among themselves are exempt: the generator
+// tolerates a path an earlier flag already removed. Only the lone generation would fail, so refuse it here.
 function checkOnlyWhenOverlaps(
   templatePath: string,
   manifest: TemplateManifest,
   problems: string[],
 ): void {
-  const owners: Array<{ owner: string; paths: string[] }> = []
+  const owners: Array<{ owner: string; paths: string[]; flag: boolean }> = []
   const named = new Map<string, string>()
   const note = (kind: string, owner: string, names: readonly string[]) => {
     for (const name of names) {
@@ -393,16 +478,18 @@ function checkOnlyWhenOverlaps(
   for (const [key, value] of Object.entries(manifest.onlyWhen ?? {})) {
     const spec = onlyWhenSpec(value)
     const owner = `onlyWhen "${key}"`
-    owners.push({ owner, paths: spec.onlyPaths ?? [] })
+    owners.push({ owner, paths: spec.onlyPaths ?? [], flag: false })
     note('dependency', owner, spec.dependencies?.remove ?? [])
     note('script', owner, spec.scripts?.remove ?? [])
   }
   for (const [flag, spec] of Object.entries(manifest.flags ?? {})) {
-    owners.push({ owner: `flag "${flag}"`, paths: spec.onlyPaths ?? [] })
+    owners.push({ owner: `flag "${flag}"`, paths: spec.onlyPaths ?? [], flag: true })
   }
   const clean = (p: string) => p.replace(/\/+$/, '')
   for (const [i, a] of owners.entries()) {
     for (const b of owners.slice(i + 1)) {
+      // Two flags may list one path: it exists while every flag that lists it is on (ADR 0014 K5).
+      if (a.flag && b.flag) continue
       for (const pa of a.paths.map(clean)) {
         for (const pb of b.paths.map(clean)) {
           if (pa === pb || pa.startsWith(`${pb}/`) || pb.startsWith(`${pa}/`)) {
@@ -580,7 +667,8 @@ function checkCaseCoverage(template: LoadedTemplate, problems: string[]): void {
     problems.push(`${template.path}: tests/cases.yaml has no case named "default"`)
   }
   // The default-brand cases cannot catch a brand value that breaks a gate (v1.4.0 shipped three).
-  if (template.manifest.kind === 'frontend' && !cases.some((c) => c.brand !== undefined)) {
+  const takesBrand = template.manifest.kind === 'frontend' || template.manifest.kind === 'fullstack'
+  if (takesBrand && !cases.some((c) => c.brand !== undefined)) {
     problems.push(
       `${template.path}: no case sets a brand; add one with non-default brand values in tests/cases.yaml`,
     )
@@ -624,7 +712,7 @@ function checkServerSettings(
 ): void {
   if (testCase.server === undefined) return
   const where = `${template.path}: case "${testCase.name}"`
-  if (template.manifest.kind === 'server') {
+  if (template.manifest.kind === 'server' || template.manifest.kind === 'fullstack') {
     problems.push(`${where} has server settings, which only a frontend case takes`)
     return
   }
@@ -658,6 +746,26 @@ function checkServerSettings(
         `${where} sets server capability ${kind} to unlisted provider "${provider}" of ${server.path}`,
       )
     }
+  }
+}
+
+// A fullstack package is the whole application: beside a server or a frontend it would have two
+// owners for the same pages, so a stack holds exactly one and nothing else (ADR 0014 K1).
+function checkFullstackStack(
+  stack: LoadedStack,
+  templates: Map<string, LoadedTemplate>,
+  problems: string[],
+): void {
+  const { packages } = stack.manifest
+  const fullstack = packages.find(
+    (pkg) => templates.get(pkg.template)?.manifest.kind === 'fullstack',
+  )
+  if (fullstack === undefined) return
+  for (const pkg of packages) {
+    if (pkg === fullstack) continue
+    problems.push(
+      `${stack.path}: a fullstack package is the whole stack, but it also holds ${pkg.template}; give it a stack of its own`,
+    )
   }
 }
 
@@ -700,6 +808,11 @@ function checkCrossReferences(
           `${template.path}: case "${testCase.name}" has a brand, which only a frontend case takes`,
         )
       }
+      if (manifest.kind === 'fullstack' && testCase.withApp === true) {
+        problems.push(
+          `${template.path}: case "${testCase.name}" sets withApp, but a fullstack template has no app smoke: remove withApp`,
+        )
+      }
       checkServerSettings(template, testCase, stacks, templates, problems)
       for (const flag of Object.keys(testCase.flags ?? {})) {
         if (!declared.has(flag)) {
@@ -721,6 +834,7 @@ function checkCrossReferences(
     }
   }
   for (const stack of stacks.values()) {
+    checkFullstackStack(stack, templates, problems)
     const dirs = new Set<string>()
     for (const pkg of stack.manifest.packages) {
       if (!templates.has(pkg.template)) {

@@ -27,7 +27,7 @@
         "properties": {
           "template": {
             "type": "string",
-            "pattern": "^(server|frontend|worker)/[a-z][a-z0-9-]*$"
+            "pattern": "^(server|frontend|worker|fullstack)/[a-z][a-z0-9-]*$"
           },
           "dir": {
             "type": "string",

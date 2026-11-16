@@ -46,6 +46,7 @@ describe('loadCatalog', () => {
     expect([...catalog.templates.keys()].sort()).toEqual([
       'frontend/mini-spa',
       'frontend/mini-ui',
+      'fullstack/mini-app',
       'server/mini',
       'server/mini-py',
     ])

@@ -48,6 +48,27 @@ function projectName(id: string): string {
   return `fullstack-${slug}-${randomBytes(3).toString('hex')}`
 }
 
+// A fullstack package needs no service: its `testDb` brings up whatever it tests against itself
+// (ADR 0014 K6), so --with-services and --with-app skip nothing here and Docker is never run. The
+// install runs in post-generate; it runs here only when the template leaves it out of there.
+function runFullstack(
+  pkg: ReturnType<typeof resolveRequest>['packages'][number],
+  out: string,
+  options: Options,
+  run: Runner,
+): void {
+  const { commands } = pkg
+  const cwd = path.join(out, pkg.dir)
+  const installed = pkg.template.manifest.postGenerate?.includes('install') === true
+  if (commands.install !== undefined && !installed) run(commands.install, cwd)
+  run(commands.check, cwd)
+  if (commands.testDb) run(commands.testDb, cwd)
+  if (options.e2e && commands.testE2e) {
+    if (options.installBrowsers) run(browserInstallCommand(process.platform), cwd)
+    run(commands.testE2e, cwd)
+  }
+}
+
 function runPackages(
   plan: ReturnType<typeof resolveRequest>,
   out: string,
@@ -57,6 +78,10 @@ function runPackages(
   log: (message: string) => void,
 ): void {
   for (const pkg of plan.packages) {
+    if (pkg.template.manifest.kind === 'fullstack') {
+      runFullstack(pkg, out, options, run)
+      continue
+    }
     const { commands } = pkg
     const cwd = path.join(out, pkg.dir)
     if (commands.migrate) {
@@ -442,6 +467,10 @@ export async function runCase(
   const project = projectName(c.id)
   runWithServices(plan, out, options, project, run, log)
   if (!c.withApp) return
+  if (plan.packages.some((pkg) => pkg.template.manifest.kind === 'fullstack')) {
+    log('SKIP app smoke: a fullstack case has none')
+    return
+  }
   if (!options.withApp) {
     log('SKIP app smoke: needs --with-app')
     return

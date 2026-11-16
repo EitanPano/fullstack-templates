@@ -19,7 +19,7 @@ const DASH: CommentSyntax = ['--', '']
 
 const BY_EXTENSION: Readonly<Record<string, CommentSyntax>> = {
   ...Object.fromEntries(
-    '.ts .tsx .mts .cts .js .mjs .cjs .cs .java .php .go .rs .kt .swift .scss'
+    '.ts .tsx .mts .cts .js .mjs .cjs .cs .java .php .go .rs .kt .swift .scss .jsonc'
       .split(' ')
       .map((ext) => [ext, SLASH]),
   ),
@@ -32,6 +32,11 @@ const BY_EXTENSION: Readonly<Record<string, CommentSyntax>> = {
   '.sql': DASH,
 }
 
+// A file type with two comment syntaxes: Astro's frontmatter is code, its markup is HTML.
+const MULTI_BY_EXTENSION: Readonly<Record<string, readonly CommentSyntax[]>> = {
+  '.astro': [SLASH, HTML],
+}
+
 // Dotfiles have no extension in path.extname, so they are matched by name.
 const BY_BASENAME: Readonly<Record<string, CommentSyntax>> = Object.fromEntries(
   ['Dockerfile', '.gitignore', '.dockerignore', '.editorconfig', '.env.example'].map((name) => [
@@ -42,11 +47,26 @@ const BY_BASENAME: Readonly<Record<string, CommentSyntax>> = Object.fromEntries(
 
 // The one list of file types the generator processes; placeholders.ts derives its text types from
 // these, so a type with a comment syntax can never be skipped.
-export const COMMENT_EXTENSIONS: readonly string[] = Object.keys(BY_EXTENSION)
+export const COMMENT_EXTENSIONS: readonly string[] = [
+  ...Object.keys(BY_EXTENSION),
+  ...Object.keys(MULTI_BY_EXTENSION),
+]
 export const COMMENT_BASENAMES: readonly string[] = Object.keys(BY_BASENAME)
 
 export function commentSyntaxFor(filePath: string): CommentSyntax | undefined {
-  return BY_BASENAME[path.basename(filePath)] ?? BY_EXTENSION[path.extname(filePath)]
+  return (
+    BY_BASENAME[path.basename(filePath)] ??
+    BY_EXTENSION[path.extname(filePath)] ??
+    MULTI_BY_EXTENSION[path.extname(filePath)]?.[0]
+  )
+}
+
+// Every syntax a file takes; the first is the one a single-syntax caller uses.
+export function commentSyntaxesFor(filePath: string): readonly CommentSyntax[] {
+  const multi = MULTI_BY_EXTENSION[path.extname(filePath)]
+  if (multi !== undefined) return multi
+  const one = commentSyntaxFor(filePath)
+  return one === undefined ? [] : [one]
 }
 
 const NAME = '[a-z][a-z0-9-]*(?::[a-z0-9-]+)?'
@@ -70,13 +90,18 @@ type Block = { name: string; negated: boolean; where: string }
 
 export function applyMarkers(
   content: string,
-  [open, close]: CommentSyntax,
+  syntax: CommentSyntax | readonly CommentSyntax[],
   where: string,
   selections: Readonly<Record<string, boolean>>,
 ): string {
+  // A tuple is one syntax; a list is every syntax of the file, all read in the same pass.
+  const syntaxes = (typeof syntax[0] === 'string' ? [syntax] : syntax) as readonly CommentSyntax[]
   // Group 1 is the code before the marker (empty for a block marker on its own line).
-  const marker = new RegExp(
-    String.raw`^(.*\S[ \t]+|[ \t]*)${escapeRegExp(open)} @(${NAME})${escapeRegExp(close)}[ \t]*$`,
+  const markers = syntaxes.map(
+    ([open, close]) =>
+      new RegExp(
+        String.raw`^(.*\S[ \t]+|[ \t]*)${escapeRegExp(open)} @(${NAME})${escapeRegExp(close)}[ \t]*$`,
+      ),
   )
 
   // `@no<name>` negates `<name>`; a name that is itself selected wins, so `notify` stays a name.
@@ -95,7 +120,7 @@ export function applyMarkers(
   for (const [index, raw] of content.split('\n').entries()) {
     const line = raw.replace(/\r$/, '')
     const at = `${where}:${String(index + 1)}`
-    const found = marker.exec(line)
+    const found = markers.map((marker) => marker.exec(line)).find((match) => match !== null) ?? null
     const prefix = found?.[1] ?? ''
     const token = found?.[2] ?? ''
     const edge = prefix.trim() === '' ? /^(.+)-(start|end)$/.exec(token) : null

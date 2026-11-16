@@ -30,7 +30,7 @@ import {
   retryTransient,
 } from './files'
 import { mergeGitignore } from './gitignore'
-import { applyMarkers, commentSyntaxFor, findLeftoverMarker } from './markers'
+import { applyMarkers, commentSyntaxFor, commentSyntaxesFor, findLeftoverMarker } from './markers'
 import {
   GENERATED_PLACEHOLDERS,
   SERVER_PLACEHOLDERS,
@@ -134,6 +134,11 @@ function e2ePlaceholders(
   }
 }
 
+// A frontend and a fullstack package both hold pages, so both get the brand (ADR 0014 K5).
+export function takesBrand(pkg: PackagePlan): boolean {
+  return pkg.template.manifest.kind === 'frontend' || pkg.template.manifest.kind === 'fullstack'
+}
+
 export function packagePlaceholders(
   plan: GenerationPlan,
   pkg: PackagePlan,
@@ -157,8 +162,8 @@ export function packagePlaceholders(
     PACKAGE_DIR: pkg.dir,
     PORT: http === undefined ? '' : String(http.port),
     ...serverValues,
-    // Only a frontend takes the brand: no server file holds a theme.
-    ...(pkg.template.manifest.kind === 'frontend' ? (plan.brand?.placeholders ?? {}) : {}),
+    // Only a package with pages takes the brand: no server file holds a theme.
+    ...(takesBrand(pkg) ? (plan.brand?.placeholders ?? {}) : {}),
   }
 }
 
@@ -194,13 +199,33 @@ export function assertInside(root: string, target: string, what: string): void {
   }
 }
 
-function removeOnlyPath(pkg: PackagePlan, pkgStaging: string, only: string, owner: string): void {
+const trimSlash = (entry: string) => (entry.endsWith('/') ? entry.slice(0, -1) : entry)
+
+// Two flags may list one path, or one a directory and the other a file in it. A path exists while
+// every flag that lists it is on, so one already removed (itself, its ancestor, or its emptied
+// parent) is not an error; a path no earlier removal explains still is.
+function isExplainedByRemoval(only: string, removed: readonly string[]): boolean {
+  const clean = trimSlash(only)
+  return removed.some(
+    (done) => done === clean || clean.startsWith(`${done}/`) || done.startsWith(`${clean}/`),
+  )
+}
+
+function removeOnlyPath(
+  pkg: PackagePlan,
+  pkgStaging: string,
+  only: string,
+  owner: string,
+  removed: string[],
+): void {
   const target = path.join(pkgStaging, only)
   assertInside(pkgStaging, target, `${pkg.dir}: ${owner} onlyPath`)
   if (!existsSync(target)) {
+    if (isExplainedByRemoval(only, removed)) return
     throw new GenerateError(`${pkg.dir}: ${owner} lists onlyPaths ${only}, which is missing`)
   }
   removeTree(target)
+  removed.push(trimSlash(only))
   pruneEmptyParents(path.dirname(target), pkgStaging)
 }
 
@@ -208,15 +233,16 @@ function removeOnlyPath(pkg: PackagePlan, pkgStaging: string, only: string, owne
 // overlay copy, so a capability can add a file that exists only while the flag is on.
 function removeOnlyPaths(pkg: PackagePlan, pkgStaging: string): void {
   const specs = pkg.template.manifest.flags ?? {}
+  const removed: string[] = []
   for (const [name, on] of Object.entries(pkg.flags)) {
     if (on) continue
     for (const only of specs[name]?.onlyPaths ?? []) {
-      removeOnlyPath(pkg, pkgStaging, only, `flag ${name}`)
+      removeOnlyPath(pkg, pkgStaging, only, `flag ${name}`, removed)
     }
     for (const overlay of pkg.overlays) {
       for (const only of overlay.manifest.flags?.[name]?.onlyPaths ?? []) {
         const owner = `flag ${name} (capability ${overlay.kind}/${overlay.provider})`
-        removeOnlyPath(pkg, pkgStaging, only, owner)
+        removeOnlyPath(pkg, pkgStaging, only, owner, removed)
       }
     }
   }
@@ -228,17 +254,17 @@ function removeOnlyWhen(pkg: PackagePlan, pkgStaging: string): void {
   for (const [name, value] of Object.entries(pkg.template.manifest.onlyWhen ?? {})) {
     if (pkg.selections[name] === true) continue
     for (const only of onlyWhenSpec(value).onlyPaths ?? []) {
-      removeOnlyPath(pkg, pkgStaging, only, `onlyWhen ${name}`)
+      removeOnlyPath(pkg, pkgStaging, only, `onlyWhen ${name}`, [])
     }
   }
 }
 
 function applyMarkerPass(pkg: PackagePlan, staging: string, pkgStaging: string): void {
   for (const file of textFiles(pkgStaging)) {
-    const syntax = commentSyntaxFor(file)
-    if (syntax === undefined || inGeneratedDir(path.relative(pkgStaging, file))) continue
+    const syntaxes = commentSyntaxesFor(file)
+    if (syntaxes.length === 0 || inGeneratedDir(path.relative(pkgStaging, file))) continue
     rewrite(file, (content) =>
-      applyMarkers(content, syntax, toWhere(staging, file), pkg.selections),
+      applyMarkers(content, syntaxes, toWhere(staging, file), pkg.selections),
     )
   }
 }
@@ -496,6 +522,8 @@ function writeGitignore(catalog: Catalog, plan: GenerationPlan, staging: string)
 // A plan without a server package has nothing to deploy with Compose: a frontend alone ships its
 // Dockerfile (ADR 0011). A project that already has a Compose file still gets the package's service.
 function hasComposeTarget(plan: GenerationPlan): boolean {
+  // A fullstack package ships no image, so it never gets a Compose file (ADR 0014 K5).
+  if (plan.packages.some((pkg) => pkg.template.manifest.kind === 'fullstack')) return false
   return (
     plan.packages.some((pkg) => pkg.template.manifest.kind === 'server') ||
     existsSync(path.join(plan.out, 'docker-compose.yml'))

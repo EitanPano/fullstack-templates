@@ -38,3 +38,14 @@ describe('readme matrix', () => {
     expect(() => replaceMatrix('# x\n', 'new')).toThrow(ReadmeError)
   })
 })
+
+describe('readme matrix with a fullstack template', () => {
+  test('lists the kind after the frontends and a one-package stack as one package', () => {
+    const matrix = renderMatrix(loadCatalog(FIXTURE))
+    expect(matrix).toContain('| `mini-app` | fullstack | 1.0.0 | islands, auth | — |')
+    expect(matrix).toContain('| `mini-app` | `fullstack/mini-app` | Mini fullstack app |')
+    expect(matrix.indexOf('| `mini-spa` | frontend')).toBeLessThan(
+      matrix.indexOf('| `mini-app` | fullstack'),
+    )
+  })
+})

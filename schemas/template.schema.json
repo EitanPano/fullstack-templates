@@ -26,7 +26,7 @@
       "pattern": "^[a-z][a-z0-9-]*$"
     },
     "kind": {
-      "enum": ["server", "frontend", "worker"]
+      "enum": ["server", "frontend", "worker", "fullstack"]
     },
     "name": {
       "type": "string",
@@ -136,6 +136,35 @@
     },
     "agents": {
       "$ref": "#/$defs/relativePath"
+    },
+    "lanes": {
+      "type": "object",
+      "description": "Fullstack only: which paths of the package each role writes (the loader checks the kind and that every path exists in base/). A path may sit in more than one lane.",
+      "additionalProperties": false,
+      "required": ["backend", "frontend"],
+      "properties": {
+        "backend": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/relativePath"
+          }
+        },
+        "frontend": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/relativePath"
+          }
+        },
+        "qa": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/relativePath"
+          }
+        }
+      }
     },
     "flags": {
       "type": "object",

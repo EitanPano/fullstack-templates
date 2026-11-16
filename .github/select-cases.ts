@@ -5,8 +5,9 @@ const all: string[] = JSON.parse(process.env.ALL ?? '[]')
 const changed = (process.env.CHANGED ?? '').split('\n').filter(Boolean)
 
 const wide = changed.some((p) => /^(tools|shared|stacks|schemas)\//.test(p) || p === 'index.yaml')
+const TEMPLATE_PATH = /^(frontend|fullstack|server)\/[^/]+/
 const touched = new Set(
-  changed.map((p) => p.match(/^(frontend|server)\/[^/]+/)?.[0]).filter((t) => t !== undefined),
+  changed.map((p) => p.match(TEMPLATE_PATH)?.[0]).filter((t) => t !== undefined),
 )
 const selected = wide ? all : all.filter((c) => [...touched].some((t) => c.startsWith(`${t}/`)))
 

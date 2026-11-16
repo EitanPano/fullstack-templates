@@ -146,6 +146,25 @@ function orderForContract(members: Member[]): Member[] {
   return [...members.filter((m) => !consumes(m)), ...members.filter(consumes)]
 }
 
+// A fullstack package is the whole application: pages and server code in one package, shipped to a
+// platform with no Docker image, so it has no deploy mode and no neighbours (ADR 0014 K1, K5).
+function checkFullstack(members: Member[], deploy: string | undefined): Member | undefined {
+  const fullstack = members.find((m) => m.template.manifest.kind === 'fullstack')
+  if (fullstack === undefined) return undefined
+  const other = members.find((m) => m !== fullstack)
+  if (other !== undefined) {
+    throw new PlanError(
+      `${fullstack.template.path} cannot share a plan with ${other.template.path}: a fullstack package is the whole application; plan it alone`,
+    )
+  }
+  if (deploy !== undefined) {
+    throw new PlanError(
+      `${fullstack.template.path} has no deploy mode (it ships no Docker image), so deploy ${deploy} cannot apply; remove --deploy`,
+    )
+  }
+  return fullstack
+}
+
 function parsePair(entry: string, what: string): [string, string] {
   const at = entry.indexOf('=')
   if (at <= 0 || at === entry.length - 1)
@@ -372,6 +391,8 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
     }
   }
 
+  const requestedDeploy = input.deploy ?? input.answers?.deploy
+  const fullstack = checkFullstack(members, requestedDeploy)
   const servers = members.filter((m) => m.template.manifest.kind === 'server')
   if (servers.length > 1) {
     throw new PlanError(
@@ -380,7 +401,7 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
   }
   const server = servers[0]
   const frontend = members.find((m) => m.template.manifest.kind === 'frontend')
-  const deploy = resolveDeploy(input.deploy ?? input.answers?.deploy, server, frontend)
+  const deploy = resolveDeploy(requestedDeploy, server, frontend)
 
   const shorthand = routeShorthandFlags(members, input.flags)
   const shorthandCapabilities = routeShorthandCapabilities(members, input.capabilities)
@@ -438,8 +459,9 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
   // A frontend sees the server's flags and capabilities, so these selections wait until every
   // package is planned: the order of the members decides nothing.
   const serverPlan = packages.find((pkg) => pkg.dir === server?.dir)
+  const fullstackPlan = packages.find((pkg) => pkg.dir === fullstack?.dir)
   for (const pkg of packages) {
-    if (pkg.template.manifest.kind === 'server') continue
+    if (pkg.template.manifest.kind === 'server' || pkg === fullstackPlan) continue
     pkg.selections = selectionsFor(
       pkg.template,
       pkg.flags,
@@ -486,11 +508,11 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
   }
 
   const projectName = toProjectName(input.answers?.projectName ?? input.name)
-  // Only a plan with a frontend has a brand: a server-only plan must not fail on a display name
+  // Only a plan with pages has a brand: a server-only plan must not fail on a display name
   // derived from its project name.
-  const brand = frontend === undefined ? null : planBrand(input, projectName)
-  const ignoredBrand =
-    frontend === undefined ? Object.keys(mergeBrand(input.answers?.brand, input.brand)) : []
+  const hasPages = frontend !== undefined || fullstack !== undefined
+  const brand = hasPages ? planBrand(input, projectName) : null
+  const ignoredBrand = hasPages ? [] : Object.keys(mergeBrand(input.answers?.brand, input.brand))
   return {
     out: input.out,
     projectName,

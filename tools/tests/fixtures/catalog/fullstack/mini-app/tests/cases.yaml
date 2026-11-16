@@ -1,0 +1,20 @@
+schemaVersion: 1
+cases:
+  - name: default
+  - name: islands
+    flags:
+      islands: true
+  - name: auth-off
+    flags:
+      auth: false
+  - name: islands-auth-off
+    flags:
+      islands: true
+      auth: false
+  - name: brand
+    stack: mini-app
+    brand:
+      primary: '#ea580c'
+      radius: sm
+      theme: dark
+      density: compact

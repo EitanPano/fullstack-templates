@@ -1,0 +1,51 @@
+schemaVersion: 1
+id: mini-app
+kind: fullstack
+name: Mini app
+version: 1.0.0
+summary: A minimal fullstack fixture
+runtime:
+  language: typescript
+  platform: bun
+tools:
+  - name: bun
+    min: '1.4'
+placeholders:
+  - PROJECT_NAME
+  - PROJECT_DISPLAY_NAME
+  - THEME_LIGHT
+  - THEME_DARK
+  - THEME_RADIUS
+  - THEME_DEFAULT
+  - THEME_DENSITY
+  - THEME_FONT
+  - THEME_FONT_STACK
+dependencies:
+  manifest: package.json
+  adapter: npm
+commands:
+  install: bun ./ok.ts
+  check: bun ./ok.ts
+  testDb: bun ./ok.ts testDb
+  migrate: bun ./ok.ts migrate
+  e2eDb: bun ./ok.ts e2eDb
+  testE2e: bun ./ok.ts testE2e
+http:
+  port: 3000
+  health: /api/health
+flags:
+  islands:
+    summary: Interactive islands
+    default: false
+    onlyPaths: [src/islands, src/both.ts]
+  auth:
+    summary: Accounts
+    default: true
+    onlyPaths: [src/auth.ts, src/islands/login-form.ts, src/both.ts]
+lanes:
+  backend: [functions, package.json, wrangler.jsonc, src/auth.ts]
+  frontend: [src, package.json, src/islands]
+  qa: [tests]
+gitignore: [node]
+agents: AGENTS.md
+postGenerate: [install]
