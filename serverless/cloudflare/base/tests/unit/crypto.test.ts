@@ -23,7 +23,9 @@ describe('encrypt and decrypt', () => {
   it('refuses a tampered or truncated ciphertext, and a wrong key', async () => {
     const sealed = await encrypt('secret', KEY)
     const [iv = '', data = ''] = sealed.split('.')
-    await expect(decrypt(`${iv}.${data.slice(0, -2)}AA`, KEY)).rejects.toThrow('invalid ciphertext')
+    // The first character always changes: a fixed tail would equal the original one run in 256.
+    const tampered = `${data.startsWith('A') ? 'B' : 'A'}${data.slice(1)}`
+    await expect(decrypt(`${iv}.${tampered}`, KEY)).rejects.toThrow('invalid ciphertext')
     await expect(decrypt('only-one-part', KEY)).rejects.toThrow('invalid ciphertext')
     const other = btoa(String.fromCharCode(...new Uint8Array(32).fill(9)))
     await expect(decrypt(sealed, other)).rejects.toThrow('invalid ciphertext')
