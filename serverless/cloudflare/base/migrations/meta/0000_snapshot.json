@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4fc4dc2b-7a2f-4c78-a3f7-2fc215e0e234",
+  "id": "0ced3b93-47bd-4c50-be03-ba9107681cec",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "module": {
@@ -90,7 +90,15 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "rate_limit_expires_at_idx": {
+          "name": "rate_limit_expires_at_idx",
+          "columns": [
+            "expires_at"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},

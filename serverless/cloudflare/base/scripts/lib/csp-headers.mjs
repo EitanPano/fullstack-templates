@@ -1,11 +1,10 @@
-// csp-headers belongs: lifting the Content-Security-Policy a frontend's build wrote into each page's
-// <meta http-equiv> into ONE `Content-Security-Policy` line of dist/_headers. A meta cannot carry
-// frame-ancestors and governs only what follows it, so this merges the pages' policies, adds the
-// directives a build does not write and puts the line under `/*`. The hashes change every build,
-// so the line can never live in pages/_headers. A page without a meta is served under the same
-// header; a build with no meta at all gets no line.
+// csp-headers belongs: the Content-Security-Policy of a built site, in two halves that a browser
+// intersects. Each page keeps the <meta http-equiv> its build wrote (its own script and style
+// hashes, which change every build); this file checks that meta allows nothing but 'self' and
+// hashes for scripts and styles, and writes ONE fixed header line under `/*` in dist/_headers
+// for what a meta cannot carry (frame-ancestors) and for the rest. It never rewrites a page.
 // It does not belong: copying files (assemble.mjs) or any other header (pages/_headers).
-import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 // Cloudflare Pages' limits for a _headers file, checked 2026-11-17 at
@@ -14,17 +13,22 @@ import path from 'node:path'
 export const MAX_RULES = 100
 export const MAX_LINE = 2000
 
-// The directives this script sets; a build writes only script-src and style-src.
-const FIXED = [
-  ['default-src', ["'self'"]],
-  ['base-uri', ["'self'"]],
-  ['object-src', ["'none'"]],
-  ['frame-ancestors', ["'none'"]],
-  ['form-action', ["'self'"]],
-  ['connect-src', ["'self'"]],
-  ['img-src', ["'self'", 'data:']],
-  ['font-src', ["'self'"]],
-]
+// No hash, and no default-src, script-src or style-src: a browser enforces every policy it is
+// given, so a header default-src would block the hashed inline scripts the page's meta allows.
+// The meta governs scripts and styles; this line adds the rest.
+export const FIXED_POLICY = [
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "connect-src 'self'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "media-src 'self'",
+  "frame-src 'self'",
+  "worker-src 'self'",
+  "manifest-src 'self'",
+].join('; ')
 
 export class CspError extends Error {
   constructor(message) {
@@ -33,76 +37,106 @@ export class CspError extends Error {
   }
 }
 
-const META = /<meta\s+[^>]*http-equiv=["']content-security-policy["'][^>]*>/i
-const isHash = (source) => /^'sha(256|384|512)-[^']+'$/.test(source)
-
+// One pass, so an entity is never decoded twice (&amp;#39; stays &#39;).
 function decode(text) {
-  return text
-    .replaceAll('&#39;', "'")
-    .replaceAll('&quot;', '"')
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&amp;', '&')
+  return text.replace(/&(#x[0-9a-f]+|#[0-9]+|apos|quot|lt|gt|amp);/gi, (whole, body) => {
+    const name = body.toLowerCase()
+    if (name.startsWith('#')) {
+      const code = Number.parseInt(name.slice(name[1] === 'x' ? 2 : 1), name[1] === 'x' ? 16 : 10)
+      return code <= 0x10ffff ? String.fromCodePoint(code) : whole
+    }
+    return { apos: "'", quot: '"', lt: '<', gt: '>', amp: '&' }[name]
+  })
 }
 
-export function extractPolicy(html) {
-  const tag = META.exec(html)?.[0]
-  if (tag === undefined) return null
-  const content = /content=("([^"]*)"|'([^']*)')/i.exec(tag)
-  return content === null ? null : decode(content[2] ?? content[3] ?? '')
+// A <meta> tag, its attributes read as a browser does: a name, then optionally `=` and a
+// double-quoted, single-quoted or unquoted value. Only comments are stripped first; <noscript>,
+// <template> and where in head or body a tag sits are not parsed.
+const META_TAG = /<meta(?=[\s/>])((?:"[^"]*"|'[^']*'|[^>"'])*)>/gi
+const ATTRIBUTE = /([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g
+
+function attributes(source) {
+  return [...source.matchAll(ATTRIBUTE)].map((match) => ({
+    name: match[1].toLowerCase(),
+    value: match[2] ?? match[3] ?? match[4] ?? '',
+  }))
 }
 
-export function stripPolicy(html) {
-  return html.replace(META, '')
+// Every policy <meta> of a page, decoded. A policy meta whose `content` is missing or given twice
+// is an error (a page with a broken policy is not a page without one).
+export function extractPolicies(html, file = 'a page') {
+  const policies = []
+  for (const tag of html.replace(/<!--[\s\S]*?-->/g, '').matchAll(META_TAG)) {
+    const found = attributes(tag[1])
+    const equiv = found.find((attribute) => attribute.name === 'http-equiv')
+    if (equiv?.value.trim().toLowerCase() !== 'content-security-policy') continue
+    const contents = found.filter((attribute) => attribute.name === 'content')
+    if (contents.length !== 1) {
+      throw new CspError(
+        `${file}: a policy meta has ${contents.length === 0 ? 'no' : 'more than one'} content attribute`,
+      )
+    }
+    policies.push(decode(contents[0].value))
+  }
+  return policies
 }
 
+// Directive names and keywords are case-insensitive; a repeated directive counts once, the first.
 function parsePolicy(text) {
   const directives = new Map()
   for (const part of text.split(';')) {
     const [name, ...sources] = part.trim().split(/\s+/)
-    if (name) directives.set(name.toLowerCase(), sources)
+    if (name && !directives.has(name.toLowerCase())) directives.set(name.toLowerCase(), sources)
   }
   return directives
 }
 
-// Pages that differ only in hashes merge (the union is safe site-wide); anything else is refused.
-export function mergePolicies(policies) {
-  if (policies.length === 0) throw new CspError('no policy to merge')
-  const merged = new Map()
-  for (const [index, text] of policies.entries()) {
-    const parsed = parsePolicy(text)
-    if (index > 0 && [...parsed.keys()].sort().join() !== [...merged.keys()].sort().join()) {
-      throw new CspError('pages carry policies with different directives; they cannot be merged')
-    }
-    for (const [name, sources] of parsed) {
-      if (sources.includes("'unsafe-inline'") || sources.includes("'unsafe-eval'")) {
-        throw new CspError(`${name} allows 'unsafe-inline' or 'unsafe-eval'; hash it instead`)
-      }
-      if (!merged.has(name)) {
-        merged.set(name, [...sources])
-        continue
-      }
-      const current = merged.get(name)
-      const plain = (list) => list.filter((source) => !isHash(source)).join(' ')
-      if (plain(sources) !== plain(current)) {
-        throw new CspError(`pages carry different ${name} sources besides hashes; cannot merge`)
-      }
-      for (const source of sources) if (!current.includes(source)) current.push(source)
-    }
-  }
-  return merged
+const HASH = /^'sha(256|384|512)-[^']+'$/
+const allowed = (source) => {
+  const lower = source.toLowerCase()
+  return lower === "'self'" || lower === "'none'" || lower === "'strict-dynamic'" || HASH.test(lower)
 }
 
-export function buildPolicy(merged) {
-  const fixedNames = new Set(FIXED.map(([name]) => name))
-  for (const name of merged.keys()) {
-    if (fixedNames.has(name)) {
+// The directives that decide what a page may run or apply; `default-src` stands in for the
+// script and style directives a policy leaves out.
+const SCRIPT_STYLE = [
+  'script-src',
+  'script-src-elem',
+  'script-src-attr',
+  'style-src',
+  'style-src-elem',
+  'style-src-attr',
+]
+
+// A page's own policy may carry any directive, because a directive can only tighten the header's.
+// Its script and style sources may hold 'self', hashes and 'strict-dynamic' and nothing else:
+// no 'unsafe-inline', 'unsafe-eval', 'unsafe-hashes', nonce, host, scheme or `*`.
+export function checkPagePolicy(policy, file) {
+  const directives = parsePolicy(policy)
+  const names = SCRIPT_STYLE.filter((name) => directives.has(name))
+  if (!directives.has('script-src') || !directives.has('style-src')) {
+    if (directives.has('default-src')) names.push('default-src')
+  }
+  for (const name of names) {
+    const bad = (directives.get(name) ?? []).find((source) => !allowed(source))
+    if (bad !== undefined) {
       throw new CspError(
-        `the build wrote ${name}, which assemble sets itself; remove it from the frontend's policy configuration`,
+        `${file}: its policy's ${name} allows ${bad}; a page's scripts and styles may be 'self' or hashed, nothing wider`,
       )
     }
   }
-  return [...FIXED, ...merged].map(([name, sources]) => `${name} ${sources.join(' ')}`).join('; ')
+}
+
+// Only assemble writes the header: a build's own `_headers` must neither set the policy nor
+// detach it (`! Content-Security-Policy`, which would drop the line from a path).
+const SETS_OR_DETACHES = /^[ \t]*!?[ \t]*content-security-policy[ \t]*(:|$)/im
+
+export function checkHeadersSource(text, file) {
+  if (SETS_OR_DETACHES.test(text)) {
+    throw new CspError(
+      `${file} sets or detaches Content-Security-Policy: only assemble writes it (remove the line)`,
+    )
+  }
 }
 
 const isRule = (line) => line.trim() !== '' && !/^\s/.test(line) && !line.startsWith('#')
@@ -122,13 +156,9 @@ export function checkHeadersLimits(headers) {
   }
 }
 
-export function addPolicyToHeaders(headers, policy) {
-  if (/^\s*content-security-policy\s*:/im.test(headers)) {
-    throw new CspError(
-      "a _headers file already sets Content-Security-Policy: its hashes change every build, so only assemble writes it (remove the line from the frontend's public/_headers and pages/_headers)",
-    )
-  }
-  const header = `  Content-Security-Policy: ${policy}`
+export function addPolicyToHeaders(headers) {
+  checkHeadersSource(headers, 'the merged _headers')
+  const header = `  Content-Security-Policy: ${FIXED_POLICY}`
   const lines = headers === '' ? [] : headers.replace(/\n$/, '').split('\n')
   const at = lines.findIndex((line) => line.trim() === '/*' && isRule(line))
   if (at === -1) lines.push('/*', header)
@@ -143,29 +173,29 @@ export function addPolicyToHeaders(headers, policy) {
   return result
 }
 
-function htmlFiles(dir) {
-  return readdirSync(dir).flatMap((name) => {
-    const file = path.join(dir, name)
-    if (statSync(file).isDirectory()) return htmlFiles(file)
-    return name.endsWith('.html') ? [file] : []
+// Every .html under `dir`, as paths relative to it with `/`. A symbolic link is refused (the
+// walk reads each entry's own type, never follows one).
+function htmlFiles(dir, prefix = '') {
+  return readdirSync(path.join(dir, prefix), { withFileTypes: true }).flatMap((entry) => {
+    const relative = prefix === '' ? entry.name : `${prefix}/${entry.name}`
+    if (entry.isSymbolicLink()) throw new CspError(`${relative} is a symbolic link; a build output holds none`)
+    if (entry.isDirectory()) return htmlFiles(dir, relative)
+    return entry.name.toLowerCase().match(/\.html?$/) ? [relative] : []
   })
 }
 
-// Lifts the policies of every page under `dist` into dist/_headers. Nothing is written until every
-// check has passed, so a failed run leaves dist as it was.
-export function liftPolicy(dist) {
+// Checks the policy of every page under `dist`, then writes the fixed line into dist/_headers.
+// Pages are never modified. Nothing is written until every check has passed, so a failed run
+// leaves dist as it was. `without` lists the pages that have no policy meta.
+export function applyPolicy(dist) {
+  const without = []
   const files = htmlFiles(dist)
-  const policies = []
-  const pages = []
   for (const file of files) {
-    const html = readFileSync(file, 'utf8')
-    const policy = extractPolicy(html)
-    if (policy === null) continue
-    policies.push(policy)
-    pages.push([file, stripPolicy(html)])
+    const policies = extractPolicies(readFileSync(path.join(dist, file), 'utf8'), file)
+    if (policies.length === 0) without.push(file)
+    // Policies intersect in a browser, but a wider one is still a mistake: each is checked.
+    for (const policy of policies) checkPagePolicy(policy, file)
   }
-  if (policies.length === 0) return { pages: files.length, lifted: 0, policy: null }
-  const line = buildPolicy(mergePolicies(policies))
   const target = path.join(dist, '_headers')
   let current = ''
   try {
@@ -173,8 +203,6 @@ export function liftPolicy(dist) {
   } catch {
     // No _headers yet: the file is created.
   }
-  const headers = addPolicyToHeaders(current, line)
-  for (const [file, html] of pages) writeFileSync(file, html)
-  writeFileSync(target, headers)
-  return { pages: files.length, lifted: pages.length, policy: line }
+  writeFileSync(target, addPolicyToHeaders(current))
+  return { pages: files.length, withPolicy: files.length - without.length, without }
 }

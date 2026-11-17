@@ -6,12 +6,12 @@
 // (services/utils/client-address.ts).
 import { sql } from 'drizzle-orm'
 
+import { RATE_LIMIT_CLEANUP_SAMPLE } from '../config/constants'
 import { rateLimitTable } from '../infra/tables'
 import { sha256 } from '../services/security/crypto'
 import { clientAddress, rateLimitSubject } from '../services/utils/client-address'
 import { AppError } from '../services/utils/error'
 import { parseDuration } from '../services/utils/time'
-import { readJsonBody } from './body'
 import type { Context, Gate } from './handler'
 import { deleteExpiredRateLimits } from './rate-limit-cleanup'
 
@@ -27,6 +27,9 @@ export type RateLimitOptions = {
   window: string
   // The subject being limited; undefined skips the limit (validation rejects the request anyway).
   key: (ctx: Context) => string | undefined | Promise<string | undefined>
+  // Whether this request also deletes a batch of expired rows; one in RATE_LIMIT_CLEANUP_SAMPLE
+  // by default. A test passes a function that answers the same every time.
+  sample?: () => boolean
 }
 
 // Rounded up so a scale never lowers a limit; the epsilon keeps 10 * 1.1 (11.000000000000002) at 11.
@@ -37,7 +40,14 @@ export function scaledLimit(limit: number, scale: number): number {
   return Math.ceil(limit * scale - 1e-9)
 }
 
-export function rateLimit({ name, limit, scale, window, key }: RateLimitOptions): Gate {
+export function rateLimit({
+  name,
+  limit,
+  scale,
+  window,
+  key,
+  sample = () => Math.random() < 1 / RATE_LIMIT_CLEANUP_SAMPLE,
+}: RateLimitOptions): Gate {
   const windowMs = parseDuration(window)
   return async (ctx) => {
     const subject = await key(ctx)
@@ -61,14 +71,15 @@ export function rateLimit({ name, limit, scale, window, key }: RateLimitOptions)
       })
       .returning({ count: rateLimitTable.count, expiresAt: rateLimitTable.expiresAt })
     if (row === undefined) throw new Error('rate limit upsert returned no row')
-    // Deleted after the response: a bounded batch of rows that expired, no scheduler needed.
-    ctx.waitUntil(deleteStale(ctx, now))
     if (row.count > max) {
       const seconds = Math.max(1, Math.ceil((row.expiresAt - now) / 1000))
       throw new AppError('rate_limited', 'too many requests', undefined, {
         headers: { 'Retry-After': String(seconds) },
       })
     }
+    // After the response, for a sample of the requests that pass (never one answered 429, so a
+    // flood pays nothing extra): a bounded batch of rows that expired, no scheduler needed.
+    if (sample()) ctx.waitUntil(deleteStale(ctx, now))
   }
 }
 
@@ -83,35 +94,4 @@ async function deleteStale(ctx: Context, now: number): Promise<void> {
 // Only meaningful where Cloudflare sets CF-Connecting-IP; a local run shares one subject.
 export function byIp(ctx: Context): string {
   return rateLimitSubject(clientAddress(ctx.request))
-}
-
-// The limiter runs before validate, so the body is unparsed: read a clone, so validate can read the
-// original. A body that is missing, malformed or too large yields no subject (validate answers it).
-async function bodyValue(ctx: Context): Promise<unknown> {
-  try {
-    return await readJsonBody(ctx.request.clone())
-  } catch {
-    return undefined
-  }
-}
-
-export function byBodyString(field: string): (ctx: Context) => Promise<string | undefined> {
-  return async (ctx) => {
-    const body = await bodyValue(ctx)
-    if (typeof body !== 'object' || body === null) return undefined
-    const value = (body as Record<string, unknown>)[field]
-    return typeof value === 'string' ? value.trim().toLowerCase() : undefined
-  }
-}
-
-// Same contract as byBodyString for a nested value, e.g. byBodyPath('target', 'value').
-export function byBodyPath(...path: string[]): (ctx: Context) => Promise<string | undefined> {
-  return async (ctx) => {
-    let node = await bodyValue(ctx)
-    for (const key of path) {
-      if (typeof node !== 'object' || node === null) return undefined
-      node = (node as Record<string, unknown>)[key]
-    }
-    return typeof node === 'string' ? node.trim().toLowerCase() : undefined
-  }
 }

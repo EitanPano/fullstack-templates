@@ -34,8 +34,10 @@ Behind `/api`: `GET /api/health`, `GET /api/health/ready` (pings D1) and the ref
 - **Data.** Drizzle on D1, SQL migrations in `migrations/`, rate-limit counters in a table hit by one
   upsert per check.
 - **One origin.** `bun run assemble` builds `dist/` from a frontend's build output and `pages/`
-  (`_routes.json` sends only `/api/*` to the functions) and lifts the build's Content-Security-Policy
-  into `dist/_headers`; `bun run start` assembles, then serves `dist/` with `wrangler pages dev` on
+  (`_routes.json` sends only `/api/*` to the functions), checks that every page's own policy
+  `<meta>` allows only `'self'` and hashes for scripts and styles, and adds one fixed
+  Content-Security-Policy line to `dist/_headers` (what a meta cannot carry: `frame-ancestors` and
+  the rest; no hashes, so any number of pages fits); `bun run start` assembles, then serves `dist/` with `wrangler pages dev` on
   port 8788 and the e2e state folder. `bun run dev` serves the functions alone on the same port.
 - **Gates.** `bun run check`: `wrangler types --check`, `tsc`, ESLint (import zones proved by a
   boundary test), Prettier and every test. `bun run test:db` runs the `workerd` API project alone.

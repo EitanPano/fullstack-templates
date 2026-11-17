@@ -1,5 +1,5 @@
 // rate-limit-cleanup.ts belongs: deleting the rate-limit rows whose window has ended, in bounded
-// batches. The rate-limit gate calls one batch after a limited request (waitUntil); the scheduled
+// batches. The rate-limit gate calls one batch after a sample of requests (waitUntil); the scheduled
 // job of the `jobs` flag calls `purgeExpiredRateLimits`. It sits here because both entries may
 // import middleware/ and neither may import infra/ or services/.
 // It does not belong: counting (rate-limit.ts) or choosing the batch size (config/constants.ts).

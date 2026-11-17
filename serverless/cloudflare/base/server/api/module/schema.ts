@@ -103,7 +103,7 @@ export function registerModule(registry: OpenAPIRegistry) {
     request: { params: ModuleIdParams, body: jsonBody(UpdateModuleBody) },
     responses: {
       200: jsonResponse('The updated module', PublicModule),
-      ...errorResponses(400, 404, 413, 500),
+      ...errorResponses(400, 404, 413, 429, 500),
     },
   })
   registry.registerPath({
@@ -114,7 +114,7 @@ export function registerModule(registry: OpenAPIRegistry) {
     request: { params: ModuleIdParams },
     responses: {
       204: { description: 'Deleted' },
-      ...errorResponses(400, 404, 500),
+      ...errorResponses(400, 404, 429, 500),
     },
   })
 }

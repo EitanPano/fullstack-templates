@@ -62,11 +62,11 @@ nothing reads `process.env` (lint) and nothing keeps a connection at module leve
 | A gate (authorisation, a limit) | `server/middleware/<name>.ts`, chained in the route file                   | `(ctx) => void \| Response`; throws an `AppError` to refuse; never imports `api/`                                           |
 | A policy constant              | `server/config/constants.ts`                                               | durations, limits, batch sizes                                                                                              |
 | A limit on an entity's field   | `server/models/<name>/constants.ts`                                        | lengths and ranges of the data                                                                                              |
-| An environment variable        | `server/config/env.ts` + `.env.example`                                    | in the zod schema; a secret joins `SECRET_NAMES` (required in production, a fake default elsewhere)                         |
+| An environment variable        | `server/config/env.ts` + `.env.example`                                    | in the zod schema; a secret is optional until a feature needs it, has no default, and is invalid when set wrongly                         |
 | A platform binding             | `wrangler.jsonc` in every environment, then `bun run types`                | an accessor in `server/infra/bindings.ts`; see Migrating Pages Functions, step 5                                            |
 | A secret                       | the Pages dashboard per environment, `config/env.ts`, `.env.example`       | a person sets it; locally it is a line of `.env` (see Deployment)                                                           |
 | A redirect                     | the frontend's `public/_redirects`; `pages/_redirects` with no frontend    | `/old /new 301`; the two files merge in `assemble`                                                                           |
-| A static header                | the frontend's `public/_headers`, or `pages/_headers`                      | never the Content-Security-Policy; a Function's response takes its headers from `rootMiddleware` or its controller          |
+| A static header                | the frontend's `public/_headers`, or `pages/_headers`                      | never set or detach the Content-Security-Policy; a Function's response takes its headers from `rootMiddleware` or its controller          |
 | A function route outside `/api` | `functions/<path>.ts` + a line in `pages/_routes.json`                    | see Migrating Pages Functions, step 4                                                                                       |
 | A pure helper                  | `server/services/utils/<name>.ts`                                          | no I/O, no state                                                                                                            |
 | A shared capability with state | `server/services/<name>.ts`                                                | logging, security primitives; stateful means per request, never module level                                                |
@@ -104,13 +104,13 @@ export const onRequest = methodNotAllowed('GET', 'POST')
   id) and `waitUntil`.
 - **A gate** is `(ctx) => void | Response | Promise<...>`. It throws an `AppError` to refuse,
   returns a `Response` to answer in place of the controller (the rest of the chain is skipped), or
-  returns nothing to continue. A gate fills a slot it owns: `validate` sets `ctx.input`. A gate
-  that identifies the caller adds one `caller` field to `Context` and sets it.
+  returns nothing to continue. A gate fills a slot it owns: `validate` sets `ctx.input`.
 - **A controller** is `(ctx) => Response | Promise<Response>`. It reads the validated input with
   `readInput(ctx, <operation>Request)`, throws an `AppError` for a refusal, and answers with
   `json(body, status)` or `noContent()`.
 - Order: rate limit, then `validate`, then the controller. A 429 does not wait for parsing and a
-  controller never sees unparsed input.
+  controller never sees unparsed input. Every mutation (POST, PATCH, DELETE) carries its own
+  `rateLimit` gate.
 
 ## Import direction
 
@@ -164,7 +164,8 @@ as the only env file, so a developer's local env file cannot change the generate
 | `bun run start`       | `assemble`, then `wrangler pages dev dist` once on `.e2e-state`, port __PORT__; `RATE_LIMIT_SCALE` and `LOG_LEVEL` come from the shell    |
 | `bun run openapi`     | Writes `openapi.json` (the `contract` command)                                                                                            |
 
-An e2e run is `bun run e2e:db` then `bun run start` with `RATE_LIMIT_SCALE=100`; it answers
+The scripts find the package from their own location, so they agree wherever they are started. An
+e2e run is `bun run e2e:db` then `bun run start` with `RATE_LIMIT_SCALE=100`; it answers
 `/api/health` within a few seconds (allow 8 s or more on a loaded machine) once the frontend's build
 exists. Never leave it running: end the whole process tree (on Windows ending the `bun run` shell
 leaves wrangler and workerd alive; the scripts end their own tree on SIGINT and SIGTERM). The
@@ -195,7 +196,9 @@ or empty: build the frontend first".
    It must hold `index.html` at its root and one policy `<meta>` per page (an Astro build with
    `security.csp`), and carry its own `_headers` and `_redirects` through its `public/`, with the
    `/_astro/*` immutable cache rule in its own `_headers` (that rule is framework-specific, so
-   `pages/_headers` does not carry it) and no `Content-Security-Policy` line in any `_headers`.
+   `pages/_headers` does not carry it) and no `Content-Security-Policy` line, and no
+   `! Content-Security-Policy` detach line, in any `_headers`. `--out <dir>` builds somewhere other
+   than `dist/`; a relative path is relative to this package.
 <!-- @frontend-end -->
 <!-- @nofrontend-start -->
 1. The frontend's built output directory (none was in the plan, so only `--frontend <dir>` names
@@ -203,27 +206,32 @@ or empty: build the frontend first".
 <!-- @nofrontend-end -->
 2. `pages/`'s files are laid over it. `_headers` and `_redirects` are merged, the frontend's lines
    first; `_routes.json` replaces the frontend's.
-3. The Content-Security-Policy a build wrote into each page's `<meta http-equiv>` is lifted into one
-   `Content-Security-Policy` line under `/*` of `dist/_headers` (`default-src 'self'`,
-   `base-uri 'self'`, `object-src 'none'`, `frame-ancestors 'none'`, `form-action 'self'`,
-   `connect-src 'self'`, `img-src 'self' data:`, `font-src 'self'` and the build's hashed
-   `script-src` and `style-src`, the hashes of every page united), and the metas are removed. A page
-   with no meta (a file copied from the frontend's `public/`) is served under the same header; a
-   build with no meta gets no line.
+3. Two policies apply to every page, and a browser enforces both. The page's own `<meta
+   http-equiv="content-security-policy">` stays in the page, untouched: it carries that page's
+   script and style hashes (they change every build). `assemble` adds one fixed line under the
+   first `/*` rule of `dist/_headers` (creating the rule when there is none) with what a meta
+   cannot carry: `frame-ancestors 'none'`, `base-uri`, `object-src 'none'`, `form-action`,
+   `connect-src`, `img-src 'self' data:`, `font-src`, `media-src`, `frame-src`, `worker-src` and
+   `manifest-src`. The line has no hash and no `default-src`, `script-src` or `style-src`, so it
+   never blocks what the meta allows and no page accepts another page's hashes.
 
-`assemble` fails, naming the cause, when pages carry policies that differ in more than hashes, when
-a policy has `'unsafe-inline'` or `'unsafe-eval'`, when the build wrote one of the fixed directives
-itself, when a `_headers` file already sets a policy, and when the result is over the platform's
-limits for `_headers`: 100 rules and 2,000 characters per line. The hash list is one line, so a site
-whose pages carry many distinct inline scripts can overflow it: move a script to a shared module
-(emitted as a `'self'` file) instead of repeating it. It builds beside `dist/` and swaps, so a
-failed run leaves the previous `dist/`. Without a frontend in the plan `dist/` holds `pages/`'s
-files only.
+`assemble` fails, naming the cause and the file, when a page's meta allows anything in
+`script-src` or `style-src` (or `default-src` where those are absent) other than `'self'`, a hash
+or `'strict-dynamic'` (`'unsafe-inline'`, `'unsafe-eval'`, `'unsafe-hashes'`, a nonce, a host, a
+scheme, `*`; compared in lower case; other directives in the meta are allowed, they only tighten),
+when a `_headers` file of the frontend or of `pages/` sets or detaches `Content-Security-Policy`,
+when the frontend's output or `pages/` holds a symbolic link, and when the merged `_headers` is
+over the platform's limits: 100 rules and 2,000 characters per line (the fixed line is far below).
+A page with no policy meta (a file copied from the frontend's `public/`) is served as it is, under
+the fixed header only; `assemble` prints one warning to stderr with the count and up to ten paths
+("served without a script policy"), and succeeds. It builds beside `dist/` and swaps, so a failed
+run leaves the previous `dist/`. Without a frontend in the plan `dist/` holds `pages/`'s files
+only.
 
 `pages/_routes.json` sends only `/api/*` to the functions, so a static page invokes none and has no
 request id; `/api/*` always has one. An unknown `/api/x` answers the JSON `not_found` envelope; an
 unknown page answers the frontend's 404 page with status 404. Never put a Content-Security-Policy in
-`pages/_headers` (the hashes change every build).
+`pages/_headers`, and never detach it: `assemble` refuses both.
 
 ## Adding a module
 
@@ -258,7 +266,8 @@ to `<name>`, `Module` to `<Name>`. Drop the reference module (those paths, its l
   conflict, 429 rate limited.
 - Ids are made in the controller (`crypto.randomUUID()`), never by the database or the client.
 - A rate limit is a gate (`rateLimit({ name, limit, window, key })`) with its numbers in
-  `RATE_LIMITS`; `byIp` keys an IPv6 address by its /64 network.
+  `RATE_LIMITS`; `byIp` keys an IPv6 address by its /64 network. Every mutation carries one, with
+  its own name and counter (`createModulePerIp`, `updateModulePerIp`, `deleteModulePerIp`).
 
 ## Adding the data layer
 
@@ -281,8 +290,11 @@ layers' own tables are `server/infra/tables.ts`. `drizzle.config.ts` reads both.
   invocation on the free plan and 1,000 on the paid one, 2 MB per row (platform limits, checked
   2026-11-17 at developers.cloudflare.com/d1/platform/limits).
 - **Expiry.** A row that expires carries an `expiresAt` column. Reads ignore expired rows, and a
-  bounded batch of expired rows is deleted opportunistically after a request
-  (`waitUntil`, see `rate-limit-cleanup.ts`); the `jobs` flag adds a scheduled sweep for the rest.
+  bounded batch of expired rows is deleted opportunistically after one request in twenty that the
+  limiter lets through, never one answered 429 (`waitUntil`, see `rate-limit-cleanup.ts`; `rateLimit`
+  takes a `sample` function so a test is deterministic); the `jobs` flag adds a scheduled sweep for
+  the rest. The expiry column is indexed (`rate_limit_expires_at_idx`) so the delete does not read
+  the whole table: index the expiry column of any table you sweep.
 - **The test database.** Tests run on a D1 with the migrations applied. Storage is isolated per
   test file; `tests/api/setup.ts` empties every table before each test, so a new table needs nothing
   there. The e2e state is `.e2e-state`, rebuilt by `bun run e2e:db`; the development state is
@@ -316,9 +328,12 @@ nowhere else:
 - A ZodError that escapes is a 400. Anything else is logged with its stack and leaves as a bare
   `internal` envelope: no message, stack or query text reaches the client. A D1 failure the
   controller can name (a unique violation) is caught there and thrown as `conflict`.
-- Only a 401 for a request with no valid access token carries `WWW-Authenticate: Bearer`
-  (`authenticationRequired()`); every other 401 carries none.
-- Logging is `ctx.log` (one JSON line per call). Never put a header, a body or a secret in a field.
+- Every API response carries `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`
+  and `Cross-Origin-Resource-Policy: same-origin` (the root middleware): it is data, never a
+  document.
+- Logging is `ctx.log` (one JSON line per call). Never put a header, a body, a secret or a query
+  parameter in a field. A failed Drizzle query is logged with its query text (placeholders) and the
+  database's own message, never its parameters (`logger.ts`).
 - Health: `GET /api/health` (no store) and `GET /api/health/ready` (pings D1, 503 with the map).
 - Every endpoint's test covers its validation failure and its not-found path, asserting the
   envelope's `code` and `requestId`, not only the status.
@@ -327,7 +342,9 @@ nowhere else:
 
 `bun run test` runs two vitest projects. `unit` runs in Node (`tests/unit/`): pure code, the import
 boundaries, `wrangler.jsonc`, the contract, the `assemble` step on fixture output and `start` on a
-fixture build (it starts `wrangler pages dev` on port 8797 and ends it). `api` runs in workerd
+fixture build (it starts `wrangler pages dev` on a port the OS chooses, with its own output and state
+folders in a temp directory, so `check` never swaps this package's `dist/` under a running `dev` or
+`start`, and ends it). `api` runs in workerd
 (`tests/api/`, `bun run test:db`): a global setup builds the functions once
 (`wrangler pages functions build`), and every test sends a request to that built worker, through
 the real routing and the root middleware, against a D1 with the migrations applied. Bindings for the
@@ -395,9 +412,11 @@ stop, never retry another way. A person does the following. The template was pro
    data. Pages applies the top-level values to production only when `env.production` does not
    override them, and this file overrides them.
 3. **Secrets, per environment** (production and preview are separate lists, in the dashboard under
-   Settings, Variables and Secrets): `ENCRYPTION_KEY`, base64 of 32 random bytes, different in each.
-   That is every secret in `.env.example`; production refuses a missing one and the placeholder
-   values. `ENVIRONMENT` comes from `wrangler.jsonc`. `RATE_LIMIT_SCALE` and `LOG_LEVEL` are optional
+   Settings, Variables and Secrets): none until a feature needs one. `ENCRYPTION_KEY` (base64 of 32 random bytes,
+   `openssl rand -base64 32`, different in each environment) is optional and has no default: set it
+   when the first feature calls `encrypt`, which reads it through `requireEncryptionKey(ctx.env)`
+   (it throws the configuration error "ENCRYPTION_KEY is not set" when it is missing); a value that is
+   set must be valid in every environment. `ENVIRONMENT` comes from `wrangler.jsonc`. `RATE_LIMIT_SCALE` and `LOG_LEVEL` are optional
    plain variables.
 4. **Migrations.** A remote database is migrated by hand, after an export:
    `wrangler d1 export <database> --remote --output backup.sql`, then
@@ -405,8 +424,8 @@ stop, never retry another way. A person does the following. The template was pro
    `DB` entry is the fake development one; whether your wrangler also takes `--env preview` is not
    proven here: read what it prints before confirming). Apply to `preview` first, then
    `<project>-production`. Nothing in the template does it for a deploy.
-5. **Check the first deployment.** A page carries the `Content-Security-Policy` header and the
-   static headers (`curl -I` on a page); `/api/health` answers 200 with an `x-request-id`; a static
+5. **Check the first deployment.** A page carries its policy meta and the fixed
+   `Content-Security-Policy` header and the static headers (`curl -I` on a page); `/api/health` answers 200 with an `x-request-id`; a static
    page has none; an unknown page answers the 404 page with status 404; `/about` and `/about/` answer
    as intended (see the frontend's guide).
 6. **Platform limits that matter** (developers.cloudflare.com, checked 2026-11-17): a `_headers` file
@@ -500,8 +519,8 @@ prepares the files.
    calls `next()`, with `/admin/*` added to `pages/_routes.json`. The gate verifies the
    `Cf-Access-Jwt-Assertion` header's signature against the team's keys
    (`https://<team>.cloudflareaccess.com/cdn-cgi/access/certs`), its audience (the Access
-   application's AUD tag) and its expiry, and refuses with `authenticationRequired()`'s 401 or a
-   `forbidden`; the team domain and the AUD tag are plain variables in `config/env.ts`. Cover the
+   application's AUD tag) and its expiry, and refuses with an `unauthenticated` or `forbidden`
+   `AppError`; the team domain and the AUD tag are plain variables in `config/env.ts`. Cover the
    preview domain with the Access application too. Verifying a JWT needs a library (`jose`) or
    WebCrypto: a dependency is a plan decision. Test it with a locally signed token and the public key
    passed through the bindings.

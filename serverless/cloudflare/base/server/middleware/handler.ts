@@ -25,7 +25,7 @@ export type PlatformEvent = {
 }
 
 // What every gate and controller receives, one object per request. A gate fills a slot it owns
-// (validate sets `input`; the auth gates of the `auth` flag add `caller`); nothing else is mutable.
+// (validate sets `input`); nothing else is mutable.
 export type Context = {
   request: Request
   url: URL
@@ -49,16 +49,14 @@ export type Controller = (ctx: Context) => Response | Promise<Response>
 
 export type Handler = (event: PlatformEvent) => Promise<Response>
 
-function warnOnce(message: string): void {
-  createLogger({ level: 'warn' }).warn(message)
-}
+const API_POLICY = "default-src 'none'; frame-ancestors 'none'"
 
 // `export const onRequestGet = handle(rateLimit(...), validate(request), controller)`
 export function handle(...steps: [...gates: Gate[], controller: Controller]): Handler {
   const controller = steps.at(-1) as Controller
   const gates = steps.slice(0, -1) as Gate[]
   return async (event) => {
-    const config = getConfig(event.env, warnOnce)
+    const config = getConfig(event.env)
     const requestId =
       typeof event.data.requestId === 'string'
         ? event.data.requestId
@@ -106,7 +104,7 @@ export function noContent(): Response {
 
 function logLevel(bindings: Bindings): Config['LOG_LEVEL'] {
   try {
-    return getConfig(bindings, warnOnce).LOG_LEVEL
+    return getConfig(bindings).LOG_LEVEL
   } catch {
     // An invalid configuration still gets its error logged.
     return 'info'
@@ -133,6 +131,10 @@ export async function rootMiddleware(event: PlatformEvent): Promise<Response> {
   finished.headers.set('x-request-id', requestId)
   finished.headers.set('x-content-type-options', 'nosniff')
   finished.headers.set('referrer-policy', 'no-referrer')
+  // An API response is data, never a document: nothing may frame it, run it or embed it from
+  // another origin. (A page's policy is the meta its build wrote plus the line assemble adds.)
+  finished.headers.set('content-security-policy', API_POLICY)
+  finished.headers.set('cross-origin-resource-policy', 'same-origin')
   if (!finished.headers.has('cache-control')) finished.headers.set('cache-control', 'no-store')
 
   logRequest(log, event.request, finished, started)

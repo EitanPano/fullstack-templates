@@ -30,4 +30,19 @@ describe('encrypt and decrypt', () => {
     const other = btoa(String.fromCharCode(...new Uint8Array(32).fill(9)))
     await expect(decrypt(sealed, other)).rejects.toThrow('invalid ciphertext')
   })
+
+  it('binds the additional data: a ciphertext sealed for one row does not open for another', async () => {
+    const sealed = await encrypt('secret', KEY, 'user:1:totp')
+    expect(await decrypt(sealed, KEY, 'user:1:totp')).toBe('secret')
+    await expect(decrypt(sealed, KEY, 'user:2:totp')).rejects.toThrow('invalid ciphertext')
+    await expect(decrypt(sealed, KEY)).rejects.toThrow('invalid ciphertext')
+    await expect(decrypt(await encrypt('secret', KEY), KEY, 'user:1:totp')).rejects.toThrow(
+      'invalid ciphertext',
+    )
+  })
+
+  it('treats no additional data as an empty string', async () => {
+    expect(await decrypt(await encrypt('secret', KEY), KEY, '')).toBe('secret')
+    expect(await decrypt(await encrypt('secret', KEY, ''), KEY)).toBe('secret')
+  })
 })

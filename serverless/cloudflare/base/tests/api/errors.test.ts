@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { MAX_BODY_BYTES } from '../../server/config/constants'
 import { handle, json as jsonResponse } from '../../server/middleware/handler'
 import { readInput, validate } from '../../server/middleware/validate'
-import { AppError, authenticationRequired } from '../../server/services/utils/error'
+import { AppError } from '../../server/services/utils/error'
 import { json, send, through } from './helpers'
 
 const Greeting = z.object({ name: z.string().min(1) })
@@ -18,8 +18,10 @@ const probe = {
   missing: handle(() => {
     throw new AppError('not_found', 'thing 7 not found')
   }),
-  challenge: handle(() => {
-    throw authenticationRequired()
+  slowDown: handle(() => {
+    throw new AppError('rate_limited', 'too many requests', undefined, {
+      headers: { 'Retry-After': '7' },
+    })
   }),
   boom: handle(() => {
     throw new Error('connection string leaked here')
@@ -114,18 +116,19 @@ describe('the error handler', () => {
   })
 
   it('applies the headers of an AppError and keeps the envelope unchanged', async () => {
-    const res = await through(probe.challenge, '/probe')
-    expect(res.status).toBe(401)
-    expect(res.headers.get('www-authenticate')).toBe('Bearer')
+    const res = await through(probe.slowDown, '/probe')
+    expect(res.status).toBe(429)
+    expect(res.headers.get('retry-after')).toBe('7')
     expect(await json(res)).toEqual({
-      error: { code: 'unauthenticated', message: 'authentication required' },
+      error: { code: 'rate_limited', message: 'too many requests' },
       requestId: res.headers.get('x-request-id'),
     })
   })
 
-  it('sends no challenge with an AppError that carries no headers', async () => {
+  it('sends no extra header with an AppError that carries none', async () => {
     const res = await through(probe.missing, '/probe')
-    expect(res.headers.get('www-authenticate')).toBeNull()
+    expect(res.headers.get('retry-after')).toBeNull()
+    expect(res.headers.get('allow')).toBeNull()
   })
 
   it('hides an unexpected error behind a bare internal envelope and logs it with its stack', async () => {
@@ -150,12 +153,15 @@ describe('the error handler', () => {
 
   it('answers a bare 500 when the configuration is invalid, and names the variable in the log only', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const res = await through(probe.missing, '/probe', { bindings: { ENVIRONMENT: 'production' } })
+    const res = await through(probe.missing, '/probe', {
+      bindings: { ENVIRONMENT: 'production', ENCRYPTION_KEY: 'a-bad-key-value' },
+    })
     expect(res.status).toBe(500)
     const text = await res.text()
     expect(text).not.toContain('ENCRYPTION_KEY')
     expect(JSON.parse(text)).toMatchObject({ error: { code: 'internal' } })
     expect(String(error.mock.calls[0]?.[0])).toContain('ENCRYPTION_KEY')
+    expect(String(error.mock.calls[0]?.[0])).not.toContain('a-bad-key-value')
   })
 })
 

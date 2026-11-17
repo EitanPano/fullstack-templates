@@ -14,8 +14,9 @@ the first template of the `serverless` kind.
 - D1 through Drizzle: migrations in `migrations/`, `migrate` and `e2eDb` (a separate state folder), a
   rate-limit table hit by one upsert per check.
 - One origin: `pages/` (`_routes.json`, base `_headers`, `_redirects`), `assemble` (a frontend's build
-  output plus `pages/`, the build's Content-Security-Policy lifted into one `_headers` line, checked
-  against Pages' `_headers` limits), `start` and `dev`, which end their whole process tree.
+  output plus `pages/`; each page keeps its own policy meta, checked to allow only `'self'` and hashes for
+  scripts and styles, and one fixed Content-Security-Policy header line is added; a `_headers` that
+  sets or detaches the policy and a symbolic link are refused; Pages' `_headers` limits are checked), `start` and `dev`, which end their whole process tree.
 - Gates without Docker or an account: `wrangler types --check` (independent of a local env file),
   `tsc`, ESLint import zones proved by a boundary test, Prettier, and vitest in `workerd`.
 - The `jobs` flag (off by default): `workers/jobs/` with a scheduled cleanup of expired rate-limit

@@ -56,16 +56,6 @@ export class AppError extends Error {
   }
 }
 
-// The one 401 a session refresh can fix: the request carries no valid access token. Any other
-// 401 (wrong credentials, invalid refresh token, invalid code) is built without this challenge.
-export const BEARER_CHALLENGE = 'Bearer'
-
-export function authenticationRequired(): AppError {
-  return new AppError('unauthenticated', 'authentication required', undefined, {
-    headers: { 'WWW-Authenticate': BEARER_CHALLENGE },
-  })
-}
-
 // The envelope every non-2xx response carries (see `AGENTS.md › Errors`).
 export const ErrorBody = z
   .object({

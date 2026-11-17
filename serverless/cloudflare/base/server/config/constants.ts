@@ -8,9 +8,13 @@ export const MAX_BODY_BYTES = 1_048_576
 // raise every limit with RATE_LIMIT_SCALE; production keeps 1.
 export const RATE_LIMITS = {
   createModulePerIp: { limit: 30, window: '15m' },
+  updateModulePerIp: { limit: 30, window: '15m' },
+  deleteModulePerIp: { limit: 30, window: '15m' },
 } as const
 
-// Expired counter rows are deleted opportunistically, a bounded batch per limited request. The
-// `jobs` flag adds a scheduled run that deletes up to RATE_LIMIT_PURGE_MAX_BATCHES batches.
+// Expired counter rows are deleted opportunistically: one request in RATE_LIMIT_CLEANUP_SAMPLE
+// that the limiter lets through deletes a bounded batch. The `jobs` flag adds a scheduled run
+// that deletes up to RATE_LIMIT_PURGE_MAX_BATCHES batches.
+export const RATE_LIMIT_CLEANUP_SAMPLE = 20
 export const RATE_LIMIT_CLEANUP_BATCH = 50
 export const RATE_LIMIT_PURGE_MAX_BATCHES = 20

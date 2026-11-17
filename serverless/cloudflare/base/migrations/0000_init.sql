@@ -13,3 +13,5 @@ CREATE TABLE `rate_limit` (
 	`expires_at` integer NOT NULL,
 	`count` integer NOT NULL
 );
+--> statement-breakpoint
+CREATE INDEX `rate_limit_expires_at_idx` ON `rate_limit` (`expires_at`);

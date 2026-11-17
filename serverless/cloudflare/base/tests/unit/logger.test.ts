@@ -42,6 +42,45 @@ describe('logger', () => {
     expect(entry.error.stack).toContain('Error: kaboom')
   })
 
+  it('logs a failed query with its text and its cause, never its parameters or its raw message', () => {
+    const { lines, logger } = capture()
+    const failed = Object.assign(
+      new Error('Failed query: insert into t (a) values (?)\nparams: hunter22-value'),
+      {
+        name: 'DrizzleQueryError',
+        query: 'insert into t (a) values (?)',
+        params: ['hunter22-value'],
+        cause: new Error('UNIQUE constraint failed: t.a'),
+      },
+    )
+
+    logger.error('boom', {}, failed)
+
+    const text = lines[0]!.text
+    expect(text).not.toContain('hunter22-value')
+    expect(text).not.toContain('Failed query')
+    const entry = JSON.parse(text) as { error: Record<string, string> }
+    expect(entry.error).toMatchObject({
+      name: 'DrizzleQueryError',
+      message: 'UNIQUE constraint failed: t.a',
+      query: 'insert into t (a) values (?)',
+    })
+    expect(entry.error.stack).toContain('UNIQUE constraint failed: t.a')
+  })
+
+  it('logs a failed query without a cause as a plain failure', () => {
+    const { lines, logger } = capture()
+    const failed = Object.assign(new Error('Failed query: select ?\nparams: s3cret'), {
+      query: 'select ?',
+      params: ['s3cret'],
+    })
+
+    logger.error('boom', {}, failed)
+
+    expect(lines[0]!.text).not.toContain('s3cret')
+    expect(JSON.parse(lines[0]!.text)).toMatchObject({ error: { message: 'query failed' } })
+  })
+
   it('redacts a field whose key looks secret, at any depth, and keeps the key', () => {
     const { lines, logger } = capture()
     logger.info('x', {

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { moduleTable } from '../../server/api/module/model'
 import { handle, json as jsonResponse } from '../../server/middleware/handler'
 import { json, send, through } from './helpers'
 
@@ -54,6 +55,20 @@ describe('the response headers', () => {
     const res = await send('/api/nope')
     expect(res.headers.get('x-content-type-options')).toBe('nosniff')
     expect(res.headers.get('content-type')).toContain('application/json')
+  })
+
+  // An API response is data: nothing may frame it, run it or load a cross-origin page with it.
+  it.each([
+    ['a 200', '/api/health', {}, 200],
+    ['a 404 envelope', '/api/nope', {}, 404],
+    ['a 405', '/api/health', { method: 'DELETE' }, 405],
+  ])('tells a browser not to render or share %s', async (_label, path, sent, status) => {
+    const res = await send(path, sent)
+    expect(res.status).toBe(status)
+    expect(res.headers.get('content-security-policy')).toBe(
+      "default-src 'none'; frame-ancestors 'none'",
+    )
+    expect(res.headers.get('cross-origin-resource-policy')).toBe('same-origin')
   })
 
   it('keeps a cache-control the handler chose', async () => {
@@ -111,15 +126,29 @@ describe('the request log', () => {
       body: { password: 'body-secret-2' },
       headers: { authorization: 'Bearer header-secret-3', cookie: 'sid=cookie-secret-4' },
     })
-    const fail = handle(() => {
-      throw new Error('boom')
+    // A real database error: Drizzle's message repeats the statement's parameters.
+    const fail = handle(async (ctx) => {
+      const row = { name: 'param-secret-5', status: 'active' as const }
+      const now = new Date()
+      await ctx.db.insert(moduleTable).values({ id: 'dup', ...row, createdAt: now, updatedAt: now })
+      await ctx.db.insert(moduleTable).values({ id: 'dup', ...row, createdAt: now, updatedAt: now })
+      return jsonResponse({})
     })
-    await through(fail, '/api/thing?apiKey=qs-secret-1', {
+    const failed = await through(fail, '/api/thing?apiKey=qs-secret-1', {
       headers: { authorization: 'Bearer header-secret-3', cookie: 'sid=cookie-secret-4' },
     })
     const text = lines.join('\n')
+    expect(failed.status).toBe(500)
     expect(text).toContain('"message":"request"')
-    for (const secret of ['qs-secret-1', 'body-secret-2', 'header-secret-3', 'cookie-secret-4']) {
+    expect(text).toContain('UNIQUE constraint failed')
+    expect(text).toContain('insert into')
+    for (const secret of [
+      'qs-secret-1',
+      'body-secret-2',
+      'header-secret-3',
+      'cookie-secret-4',
+      'param-secret-5',
+    ]) {
       expect(text).not.toContain(secret)
     }
   })

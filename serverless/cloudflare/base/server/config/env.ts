@@ -1,20 +1,11 @@
 // env.ts belongs: the one place that reads the request's bindings as configuration. The zod schema
 // validates them, once per isolate (the result is cached on the bindings object), and a missing
 // or malformed value stops the request with a message naming it (never its value). A fresh clone
-// runs with no env file: every variable has a development default or is optional, except a secret
-// in production, which must be supplied; elsewhere it falls back to a plainly fake default and
-// the first parse warns once. A variable the product adds is declared here and in `.env.example`.
+// runs with no env file: every variable has a default or is optional. A secret has no default: it
+// is optional until a feature needs it, and a value that is set must be valid in every
+// environment. A variable the product adds is declared here and in `.env.example`.
 // It does not belong: policy constants (constants.ts) or the database binding (infra/bindings.ts).
-// It imports nothing from server/: the caller passes the function that logs the one warning.
 import { z } from 'zod'
-
-const SECRET_NAMES = ['ENCRYPTION_KEY'] as const
-type SecretName = (typeof SECRET_NAMES)[number]
-
-// 32 bytes, base64: plainly fake, so a copied default is recognised and refused in production.
-const DEVELOPMENT_DEFAULTS: Record<SecretName, string> = {
-  ENCRYPTION_KEY: btoa('dev-only-encryption-key-01234567'),
-}
 
 const blankIsUnset = (value: unknown) =>
   typeof value === 'string' && value.trim() === '' ? undefined : value
@@ -33,7 +24,9 @@ const encryptionKey = z.string().refine(
 const schema = z.object({
   // Required: Pages sets it per environment in wrangler.jsonc, so a missing one is a deploy fault.
   ENVIRONMENT: z.enum(['development', 'test', 'preview', 'production']),
-  ENCRYPTION_KEY: encryptionKey,
+  // Optional, no default: nothing in the template encrypts anything yet. The feature that first
+  // calls `encrypt` reads it through requireEncryptionKey and sets it in every environment.
+  ENCRYPTION_KEY: z.preprocess(blankIsUnset, encryptionKey.optional()),
   // Multiplies every limit in RATE_LIMITS (middleware/rate-limit.ts). An e2e run sets it so a
   // journey suite does not trip the limits; production keeps 1. At most 1000, so no value is a
   // bypass.
@@ -43,64 +36,33 @@ const schema = z.object({
 
 export type Config = z.output<typeof schema>
 
-// A copied example file or the development default must not reach production: the secret would
-// be public. Only the name is reported, never the value.
-function placeholderProblems(source: Record<string, unknown>): string[] {
-  const problems: string[] = []
-  for (const name of SECRET_NAMES) {
-    const value = source[name]
-    if (typeof value !== 'string' || value === '') continue
-    if (value.startsWith('change-me') || value === DEVELOPMENT_DEFAULTS[name]) {
-      problems.push(`${name}: is a placeholder, set a real secret`)
-    }
-  }
-  return problems
-}
-
-export function parseConfig(source: Record<string, unknown>): {
-  config: Config
-  defaulted: SecretName[]
-} {
-  const production = source.ENVIRONMENT === 'production'
-  const defaulted: SecretName[] = []
-  const withDefaults: Record<string, unknown> = { ...source }
-  if (!production) {
-    for (const name of SECRET_NAMES) {
-      const value = source[name]
-      if (value === undefined || (typeof value === 'string' && value === '')) {
-        withDefaults[name] = DEVELOPMENT_DEFAULTS[name]
-        defaulted.push(name)
-      }
-    }
-  } else {
-    const problems = placeholderProblems(source)
-    if (problems.length > 0) throw new Error(`invalid environment: ${problems.join('; ')}`)
-  }
-  const result = schema.safeParse(withDefaults)
+export function parseConfig(source: Record<string, unknown>): Config {
+  const result = schema.safeParse(source)
   if (!result.success) {
     const issues = result.error.issues
       .map((issue) => `${issue.path.map(String).join('.')}: ${issue.message}`)
       .join('; ')
     throw new Error(`invalid environment: ${issues}`)
   }
-  return { config: result.data, defaulted }
+  return result.data
 }
 
 // Per isolate, keyed on the bindings object the platform hands every request of that isolate.
 const parsed = new WeakMap<object, Config>()
 
-export function getConfig(
-  bindings: object,
-  warn: (message: string) => void = () => undefined,
-): Config {
+export function getConfig(bindings: object): Config {
   const cached = parsed.get(bindings)
   if (cached !== undefined) return cached
-  const { config, defaulted } = parseConfig(bindings as Record<string, unknown>)
+  const config = parseConfig(bindings as Record<string, unknown>)
   parsed.set(bindings, config)
-  if (defaulted.length > 0) {
-    warn(
-      `using the development default for ${defaulted.join(', ')}; set a real value before production`,
-    )
-  }
   return config
+}
+
+// The key for the feature that first encrypts something: it fails the request, naming the
+// variable, when the deployment has not set it.
+export function requireEncryptionKey(config: Config): string {
+  if (config.ENCRYPTION_KEY === undefined) {
+    throw new Error('invalid environment: ENCRYPTION_KEY is not set')
+  }
+  return config.ENCRYPTION_KEY
 }

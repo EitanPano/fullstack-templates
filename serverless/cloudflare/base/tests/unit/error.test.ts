@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import {
   AppError,
   ERROR_CODES,
-  authenticationRequired,
   toErrorBody,
 } from '../../server/services/utils/error'
 
@@ -32,15 +31,6 @@ describe('AppError', () => {
     })
     expect(error.details).toEqual([{ path: 'a', message: 'b' }])
     expect(error.headers).toEqual({ 'Retry-After': '3' })
-  })
-})
-
-describe('authenticationRequired', () => {
-  it('is the one 401 that carries the Bearer challenge', () => {
-    const error = authenticationRequired()
-    expect(error.status).toBe(401)
-    expect(error.headers).toEqual({ 'WWW-Authenticate': 'Bearer' })
-    expect(new AppError('unauthenticated', 'bad credentials').headers).toBeUndefined()
   })
 })
 
