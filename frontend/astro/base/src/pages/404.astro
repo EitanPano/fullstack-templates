@@ -1,0 +1,17 @@
+---
+// 404.astro belongs: the page Pages serves, with status 404, for a path no page or function owns.
+// It does not belong: the JSON 404 of an unknown /api path (functions/api/[[path]].ts).
+import Button from '../components/ui/button/button.astro'
+import BaseLayout from '../layouts/base-layout.astro'
+import './404.scss'
+---
+
+<BaseLayout title="Page not found">
+  <div class="page-container not-found">
+    <h1>Page not found</h1>
+    <p>The page you are looking for does not exist or has moved.</p>
+    <Button href="/" variant="secondary">
+      Back to the home page
+    </Button>
+  </div>
+</BaseLayout>

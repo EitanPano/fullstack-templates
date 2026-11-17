@@ -1,0 +1,8 @@
+schemaVersion: 1
+id: astro-cloudflare
+summary: Astro 7 static site on Cloudflare Pages Functions, one origin
+packages:
+  - template: serverless/cloudflare
+    dir: serverless/cloudflare
+  - template: frontend/astro
+    dir: frontend

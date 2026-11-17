@@ -34,6 +34,7 @@ template finds the same shape.
 | `python-fastapi` | server | 2.1.0 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
 | `cloudflare` | serverless | 1.0.0 | jobs | — | Pages Functions API on Cloudflare: D1 through Drizzle, zod schemas and the OpenAPI contract from them, one error envelope, tests in workerd; serves a frontend's build on one origin |
 | `angular` | frontend | 4.1.0 | i18n, pwa | — | Angular 22 single-page app on standalone components and signals, @ngrx/signals stores, co-located SCSS on a global token tree and Hey API's Angular client, with Transloco and the service worker behind flags |
+| `astro` | frontend | 1.0.0 | islands | — | Astro 7 static site: pages and an Astro kit on co-located SCSS over a global token tree, a hashed Content-Security-Policy with no unsafe-inline, a typed client generated from the server's contract, React islands behind a flag; ships no image |
 | `next` | frontend | 4.0.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
 | `react` | frontend | 6.0.0 | — | — | Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives styled by co-located SCSS on a global token tree |
 | `vue` | frontend | 4.0.0 | i18n, pwa | — | Vite and Vue 3 single-page app: Vue Router 5, Pinia 4 setup stores over a client generated from the server's contract, Reka UI primitives styled by co-located SCSS on a global token tree, vue-i18n and the service worker behind flags |
@@ -42,6 +43,7 @@ template finds the same shape.
 | --- | --- | --- |
 | `angular-bun-express` | `server/bun-express`, `frontend/angular` | Angular 22 in front of Express 5 on Bun |
 | `angular-python-fastapi` | `server/python-fastapi`, `frontend/angular` | Angular 22 in front of FastAPI on Python 3.14 |
+| `astro-cloudflare` | `serverless/cloudflare`, `frontend/astro` | Astro 7 static site on Cloudflare Pages Functions, one origin |
 | `next-bun-express` | `server/bun-express`, `frontend/next` | Next.js 16 in front of Express 5 on Bun |
 | `next-python-fastapi` | `server/python-fastapi`, `frontend/next` | Next.js 16 in front of FastAPI on Python 3.14 |
 | `react-bun-express` | `server/bun-express`, `frontend/react` | React 19 (Vite) in front of Express 5 on Bun |

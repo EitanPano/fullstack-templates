@@ -1,0 +1,67 @@
+schemaVersion: 1
+id: astro
+kind: frontend
+name: Astro static site
+version: 1.0.0
+summary: "Astro 7 static site: pages and an Astro kit on co-located SCSS over a global token tree, a hashed Content-Security-Policy with no unsafe-inline, a typed client generated from the server's contract, React islands behind a flag; ships no image"
+runtime: { language: typescript, platform: node, minVersion: "24" }
+tools:
+  - { name: bun, min: "1.4" }
+  - { name: node, min: "24" }
+placeholders: [PROJECT_NAME]
+dependencies: { manifest: package.json, adapter: npm }
+docker: false
+commands:
+  install: bun install
+  dev: bun run dev
+  check: bun run check
+  typecheck: bun run typecheck
+  lint: bun run lint
+  format: bun run format
+  test: bun run test
+  testE2e: bun run test:e2e
+  contract: bun run api:types
+contract: { consumes: "<server>/openapi.json" }
+http: { port: 4321, health: / }
+static: { out: dist }
+gitignore: [node, astro]
+agents: AGENTS.md
+defaultStack: astro-cloudflare
+flags:
+  islands:
+    summary: "React islands: @astrojs/react, react and react-dom, and the src/components/islands/ convention; the template ships no island"
+    default: false
+    dependencies:
+      remove:
+        - "@astrojs/react"
+        - "react"
+        - "react-dom"
+        - "@types/react"
+        - "@types/react-dom"
+# Everything that reaches the server exists while the plan has one (ADR 0011): the generated
+# client and its configuration, the wrapper over it, the envelope's models, copy lookup and form
+# helper, and the tests of each. Lines inside shared files carry // @server markers (an .astro
+# file takes // in its frontmatter and <!-- --> in its markup).
+onlyWhen:
+  server:
+    onlyPaths:
+      - openapi-ts.config.ts
+      - src/models/api
+      - src/models/error
+      - src/services/api-client.ts
+      - src/services/api.ts
+      - src/services/error-copy.ts
+      - src/services/forms.ts
+      - src/services/generated
+      - tests/unit/api.test.ts
+      - tests/unit/error-copy.test.ts
+      - tests/unit/forms.test.ts
+      - tests/unit/validation-first.test.ts
+    dependencies:
+      remove: ["@hey-api/openapi-ts"]
+    scripts:
+      remove: ["api:types"]
+postGenerate:
+  - install
+  - contract
+  - format

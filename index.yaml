@@ -35,6 +35,11 @@ templates:
     path: serverless/cloudflare
     version: 1.0.0
     summary: "Pages Functions API on Cloudflare: D1 through Drizzle, zod schemas and the OpenAPI contract from them, one error envelope, tests in workerd; serves a frontend's build on one origin"
+  - id: astro
+    kind: frontend
+    path: frontend/astro
+    version: 1.0.0
+    summary: "Astro 7 static site: pages and an Astro kit on co-located SCSS over a global token tree, a hashed Content-Security-Policy with no unsafe-inline, a typed client generated from the server's contract, React islands behind a flag; ships no image"
 stacks:
   - id: angular-bun-express
     path: stacks/angular-bun-express
@@ -60,3 +65,6 @@ stacks:
   - id: vue-python-fastapi
     path: stacks/vue-python-fastapi
     summary: Vue 3 (Vite) in front of FastAPI on Python 3.14
+  - id: astro-cloudflare
+    path: stacks/astro-cloudflare
+    summary: Astro 7 static site on Cloudflare Pages Functions, one origin

@@ -1,0 +1,5 @@
+# Static headers for a static host. Cloudflare Pages reads this file; other hosts use their own. The
+# Content-Security-Policy is not here: Astro writes it as a <meta> on every page (its hashes change
+# every build), and beside serverless/cloudflare its assemble step lifts it into one header.
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable
