@@ -60,6 +60,35 @@ The per-language equivalents (the table every new server template is written aga
 | Env | zod-parsed `env.ts` | a pydantic model over `os.environ` (`env.py`) | `IOptions` + validation | `@ConfigurationProperties` | `config/` + env |
 | Jobs / bus | croner, in-process bus | APScheduler 3, in-process bus | hosted services | `@Scheduled`, events | scheduler, events |
 
+**Serverless** ([ADR 0014](adr/0014-astro-cloudflare-pages.md))
+
+An API that runs as a provider's functions, in `serverless/<provider>/` with a project directory of
+the same two segments. It satisfies the Server contract above except for the rows below, and it
+keeps the layer map and import direction (lint zones), `api/<module>/schema` as the leaf, the
+OpenAPI 3.1 contract produced from the schemas, singular `/api/<entity>` paths, JSON only, the one
+error envelope, a request id on every response, `by_ip`, both health endpoints, one log line per
+request and the agents file's five server headings.
+
+| Server contract | In a serverless template |
+| --- | --- |
+| Two entry files, a listener | The platform routes: a route file is `gates → validate → controller`, and tests send a request through the routing |
+| One Docker image, `STATIC_DIR` | None: no image, no `compose.yaml` (refused), no deploy mode. `start` serves the frontend's build on the functions' origin when the plan has one that declares `static` |
+| Jobs and the in-process bus | No bus; a scheduled job is a second function unit behind a flag |
+| Config read once from environment variables | The same rule on the request's bindings, validated once per isolate; nothing reads `process.env` or keeps a module-level connection |
+| The engine as a catalog provider | The engine is the platform's and part of the base: no `capabilities`; the template declares `migrate`, `testDb` and `e2eDb` itself |
+
+- It is the plan's server for everything a frontend keys on: the `server` selection and
+  `server:<flag>` facts, the `SERVER_*` placeholders, `contract: { consumes: "<server>/..." }`. A plan
+  has at most one package of kind `server` or `serverless`.
+- Its own placeholders for a frontend in the plan: `__FRONTEND_PATH__` (the relative path to the
+  frontend's directory) and `__FRONTEND_OUT__` (its `static.out`), with the `frontend` selection
+  (`@frontend` / `@nofrontend`); a line that uses one with no frontend fails generation.
+- It may not declare `static`, `capabilities`, `onlyWhen`, `docker`, `withApp` or a brand case. It
+  declares `start` (a frontend's e2e runs `e2eDb && start` in its directory).
+- Command rows that differ: `start` serves the assembled site and the functions once on the
+  manifest's port; `testDb` is the API project in the runtime; `migrate` and `e2eDb` act on the
+  platform's local database and its separate e2e state, with no service to start.
+
 **Frontend**
 
 What every frontend satisfies, whatever its framework. These ten invariants are numbered so the
@@ -119,6 +148,9 @@ that enforces them, and where an addition goes. The rationale is in
 9. **Shipping.** `static: { out }` with `index.html` at that root and content-hashed files; a
    Dockerfile with the `dist` and `serve` targets; the nginx config and its security-header
    snippet; a `compose.yaml` fragment per deploy mode; `onlyWhen` for the server's selections. A
+   frontend with `docker: false` ships no image and has neither the Dockerfile nor the fragment:
+   `static: { out }` with HTML at that root, served by a static host or by the plan's `serverless`
+   package, and it joins a plan alone or beside a `serverless` package, never beside a `server`. A
    frontend template may gate files on the server's flags and capabilities with
    `onlyWhen: { "server:<name>": [paths] }`; every `server:*` selection is off when the frontend
    is generated alone ([capabilities](capabilities.md)).
@@ -177,7 +209,7 @@ template's `AGENTS.md` holds its layer map). The rationale is in
 
 **Deploy modes**
 
-How a project with a server and a frontend ships. Chosen at generation with `--deploy`, recorded
+How a project with a server and a frontend ships. A plan whose API is `serverless` has no deploy mode and no Compose file. Chosen at generation with `--deploy`, recorded
 in provenance (`deploy`), and moved later by a planned project change. Rationale and the rejected
 alternatives: ADR 0003 (M5-4 to M5-7).
 
@@ -236,9 +268,9 @@ language's own invocation. Only `check` is required.
 | `lint` | The lint gate alone, including the layer-boundary rules. |
 | `format` | Rewrite files to the project's formatting. |
 | `test` | Unit tests that need no infrastructure. |
-| `testDb` | Tests that need a database; added by a database capability overlay. |
+| `testDb` | Tests that need a database; added by a database capability overlay, or declared by a serverless template. |
 | `testE2e` | End-to-end tests with the accessibility scan; may start dev servers. |
-| `start` | Run the server once, with no file watcher; a frontend's e2e starts the API with it. |
+| `start` | Run the server once, with no file watcher; a frontend's e2e starts the API with it. A serverless template also serves the frontend's build. |
 | `contract` | Server: write the OpenAPI document. Frontend: regenerate the typed client from it; exists only with a server. |
-| `migrate` | Apply schema migrations; added by a database capability overlay. |
-| `e2eDb` | Prepare the e2e database (create if missing, migrate, truncate; refuses a name not ending in `_e2e`); added by a database capability overlay. |
+| `migrate` | Apply schema migrations; added by a database capability overlay, or declared by a serverless template. |
+| `e2eDb` | Prepare the e2e database (create if missing, migrate, truncate; refuses a name not ending in `_e2e`); added by a database capability overlay. A serverless template rebuilds its separate e2e state folder. |

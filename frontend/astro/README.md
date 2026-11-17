@@ -62,4 +62,6 @@ without a server, the package has no generated client, no `api:types` script and
 `start`, which assembles this build with the functions) with the rate limits scaled, and the base URL
 is that origin.
 
-The layer map of the generated package is in `base/AGENTS.md`.
+The layer map of the generated package, where each addition goes, the recipe for a content page and
+a content collection, and the recipe that migrates a hand-written static site into Astro (with and
+without the functions package) are in `base/AGENTS.md`.

@@ -14,8 +14,9 @@ This version (1.0.0) has no accounts (every endpoint is public) and no `auth` fl
 - `template.yaml`: the manifest (kind `serverless`, commands, the HTTP surface, the `jobs` flag,
   `contract: { produces: openapi.json }`).
 - `base/`: the files copied into the generated package, including `AGENTS.md` (the layer map, the
-  request flow, the import rules, the contract, `pages/` and `assemble`, the recipes), the committed
-  `openapi.json` and `bun.lock`.
+  request flow, the import rules, the contract, `pages/` and `assemble`, the recipes, the deployment
+  by a person and the migration of an existing Pages site), the committed `openapi.json` and
+  `bun.lock`.
 - `tests/cases.yaml`: the generated variants the catalog gates (`default`, `jobs`), each the template
   alone.
 

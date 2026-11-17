@@ -21,3 +21,7 @@ the first template of the `serverless` kind.
 - The `jobs` flag (off by default): `workers/jobs/` with a scheduled cleanup of expired rate-limit
   rows.
 - No accounts (ADR 0014): no `auth` flag.
+- `AGENTS.md`: the layer map, where each addition goes, the data-layer patterns for a database with
+  no interactive transaction, the deployment steps a person takes, and the recipe that migrates an
+  existing Pages site (a preview database first, the baseline of a hand-migrated database, `_lib`
+  logic into `server/`, routes outside `/api`, other bindings, an Access-gated admin).

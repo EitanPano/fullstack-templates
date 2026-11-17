@@ -43,7 +43,7 @@ template finds the same shape.
 | --- | --- | --- |
 | `angular-bun-express` | `server/bun-express`, `frontend/angular` | Angular 22 in front of Express 5 on Bun |
 | `angular-python-fastapi` | `server/python-fastapi`, `frontend/angular` | Angular 22 in front of FastAPI on Python 3.14 |
-| `astro-cloudflare` | `serverless/cloudflare`, `frontend/astro` | Astro 7 static site on Cloudflare Pages Functions, one origin |
+| `astro-cloudflare` | `serverless/cloudflare`, `frontend/astro` | Astro 7 in front of Cloudflare Pages Functions on D1 |
 | `next-bun-express` | `server/bun-express`, `frontend/next` | Next.js 16 in front of Express 5 on Bun |
 | `next-python-fastapi` | `server/python-fastapi`, `frontend/next` | Next.js 16 in front of FastAPI on Python 3.14 |
 | `react-bun-express` | `server/bun-express`, `frontend/react` | React 19 (Vite) in front of Express 5 on Bun |

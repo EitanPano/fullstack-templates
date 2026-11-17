@@ -50,6 +50,8 @@ What holds for the whole repository (versions, definition of done) is in the rep
 <!-- @server-end -->
 - `src/styles/`: the global token tree (see Styling). `src/nav.ts` is the one table of top-level
   routes; the e2e screen list reads it.
+- `src/content/` and `src/content.config.ts`: a family of articles as a content collection. The
+  template ships neither; Adding a content page says when to add them.
 - `public/`: files copied to the build as they are: `theme-init.js` (the no-flash theme script, a
   file, never inline), the favicon and a host's own files (`_headers`, `_redirects`).
 - `tests/unit/` (Vitest) and `tests/e2e/` (Playwright); `astro.config.mjs`, `tsconfig.json`,
@@ -57,6 +59,27 @@ What holds for the whole repository (versions, definition of done) is in the rep
 
 Behaviour is a `<script>` in a page or a component, which Astro bundles; there is no UI framework in
 the base. A content page ships no script but `theme-init.js`.
+
+## Where does X go
+
+| You are adding…                          | It goes in                                                                   | Shape                                                                                          |
+| ---------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| A page with behaviour                    | `src/pages/<name>.astro` + `<name>.scss`                                      | a `<script>` in the page; logic in `services/`; see Adding a feature                           |
+| A content page                           | `src/pages/<name>.astro` on `base-layout.astro`                               | no script; an entry in `src/nav.ts`; see Adding a content page                                 |
+| A family of articles                     | `src/content/<noun>/*.md`, `src/content.config.ts`, `src/pages/<noun>/[id].astro` | a content collection, singular noun; front matter validated by the collection's schema        |
+| A shell around every page (header, footer) | `src/layouts/<name>.astro` wrapping `base-layout.astro`, its parts in `src/components/<part>/` | product code, placed around the slot                                    |
+| A component                              | `src/components/<name>/<name>.astro` + `<name>.scss` (+ `.ts` for behaviour)  | beside `ui/`, never a second components folder                                                  |
+| A control (button, input, select)        | `src/components/ui/<name>/`                                                   | a raw element anywhere else fails lint                                                         |
+| A call to the API                        | `src/services/<entity>.ts`                                                    | built on `request` from `services/api.ts`; a page script imports it | <!-- @server -->
+| A library used by scripts                | `src/services/<name>.ts`                                                      | one facade file names the library (`validation.ts` names `zod`)                                |
+| A noun's types, copy table, constants    | `src/models/<noun>/{interface,type,enum,constant}.ts`                         | four file kinds only; copy for a visitor is a constant here                                    |
+| A top-level route in the nav             | `src/nav.ts`                                                                  | one entry; the screens spec reads it                                                           |
+| A static file, `robots.txt`, a download  | `public/`                                                                     | copied to the build as it is                                                                   |
+| A generated text file (`llms.txt`, a sitemap) | `src/pages/<name>.<ext>.ts`                                              | an Astro endpoint exporting `GET`, built to a file                                             |
+| A redirect or a header rule              | `public/_redirects`, `public/_headers`                                        | Cloudflare Pages syntax; never a Content-Security-Policy line                                  |
+| A build-time value                       | `src/env.ts`                                                                  | `PUBLIC_` values only; the one reader of `import.meta.env`                                     |
+| A global style or token                  | `src/styles/`                                                                 | see Styling                                                                                    |
+| A React island                           | `src/components/islands/<name>/<name>.tsx`                                    | see Islands | <!-- @islands -->
 
 ## Import rules
 
@@ -71,7 +94,7 @@ violation and one allowed case per rule; each message names the layer to use ins
   it. A call to the API is a function in `services/<entity>.ts` built on `request` from
   `services/api.ts`, and a page script imports that.
 <!-- @server-end -->
-- `zod` is imported only by `src/services/validation.ts` (and by generated code). A control
+- `zod` is imported only by `src/services/validation.ts` (and by generated code). The front-matter schema of a content collection uses Astro's own `astro/zod` in `src/content.config.ts`, which the rule does not match. A control
   (`button`, `input`, `select`, `textarea`) outside `src/components/ui/` fails lint, in markup and
   through `createElement`, so a new kind of control is a new kit folder. `fetch` is called nowhere in
   `src/`.
@@ -155,11 +178,58 @@ A page that only shows content ships no script but `theme-init.js`.
 
 1. `src/pages/<name>.astro` on `base-layout.astro`: one `h1`, the content inside
    `<div class="page-container">`. The file name is the path (`about.astro` is `/about`; the build
-   writes `about.html` and a host serves `/about` with no redirect).
+   writes `about.html` and a host serves `/about` with no redirect; a directory page
+   `src/pages/guide/index.astro` is `guide/index.html`, served at `/guide/`).
 2. `src/pages/<name>.scss` beside it, imported in the frontmatter, if the page needs rules.
-3. An entry in `src/nav.ts`; `tests/unit/nav.test.ts` checks the page exists and the screens spec
-   captures it in both themes and both viewports (axe, one `h1`, no overflow).
+3. An entry in `src/nav.ts`; `tests/unit/nav.test.ts` checks the page file exists and the screens spec
+   captures it in both themes and both viewports (axe, one `h1`, no overflow). A route outside the nav
+   (a generated page) goes in `EXTRA_ROUTES` of `tests/e2e/screen-routes.ts`.
 4. Content that changes without a deploy is an endpoint the page fetches, not a build-time read.
+5. `description` on `base-layout.astro` fills the meta description; set it on every content page.
+
+**A family of articles is a content collection.** When pages share a shape (title, date, body) and
+the list grows, write them as files, not as `.astro` pages:
+
+1. `src/content/<noun>/<slug>.md`, front matter first (`title`, `description`, `date`). Markdown
+   is rendered with Shiki's inline styles off (`markdown.syntaxHighlight: false` in
+   `astro.config.mjs`) because the policy refuses them; a code block is plain.
+2. `src/content.config.ts` declares the collection with the `glob` loader from `astro/loaders` and a
+   zod schema for the front matter, so a page that misses a field fails the build:
+
+   ```ts
+   import { defineCollection } from 'astro:content'
+   import { glob } from 'astro/loaders'
+   import { z } from 'astro/zod'
+
+   const article = defineCollection({
+     loader: glob({ pattern: '**/*.md', base: './src/content/article' }),
+     schema: z.object({ title: z.string(), description: z.string(), date: z.coerce.date() }),
+   })
+   export const collections = { article }
+   ```
+
+3. `src/pages/article/[id].astro` builds one page per entry: `getStaticPaths` over
+   `getCollection('article')` (`params: { id: entry.id }`, `props: { entry }`), `render(entry)` for
+   the body, `<Content />` inside `base-layout.astro`; the build writes `article/<id>.html`.
+   `src/pages/article/index.astro` lists them. Add the index to `src/nav.ts`; the entries to
+   `EXTRA_ROUTES` only if the screens spec should capture one.
+4. Sort and filter in the page's frontmatter; nothing here belongs in `services/` until a script
+   needs it.
+
+**Files that are not pages.**
+
+- `public/`: copied to the build untouched: `robots.txt`, a verification file, a download, an
+  old page kept as it was. A file here is never processed, so it holds no placeholder and no
+  policy meta (see Migrating a site into Astro, step 2).
+- A generated text file is an endpoint, `src/pages/llms.txt.ts`: `export const GET: APIRoute = () =>
+  new Response(text, { headers: { 'content-type': 'text/plain; charset=utf-8' } })`, the text built
+  from `getCollection` and `NAV`. It is written at build time to `dist/llms.txt`. A sitemap is the same
+  (`src/pages/sitemap.xml.ts`); absolute URLs need `site` set in `astro.config.mjs`. The template
+  does not ship `@astrojs/sitemap`: adding an integration is a dependency, so a plan decision.
+- Redirects and headers are Cloudflare Pages files in `public/` (`_redirects`: `/old /new 301`;
+  `_headers`: a path line, then indented `Name: value` lines). `public/_headers` holds the immutable
+  cache rule of `/_astro/*`; add rules under it, never a `Content-Security-Policy` line. Limits: 100
+  header rules, 2,000 static and 100 dynamic redirects.
 
 <!-- @islands-start -->
 
@@ -279,7 +349,10 @@ the build.
 <!-- @server-start -->
   Otherwise the one web server is the server package's own chain, run in its directory with
   `RATE_LIMIT_SCALE=100`: its `e2eDb`, then its `start`, which assembles this build with the
-  functions and serves both on one origin. The base URL is that origin.
+  functions and serves both on one origin. The base URL is that origin. On Windows a very long
+  project path (about 140 characters for the package) can make the functions' `e2eDb` fail with
+  `internal error; reference = ...`: wrangler's local database file passes 260 characters
+  (observed; use a shorter path).
 <!-- @server-end -->
   A test tagged `@phone` or `@desktop` belongs to one project; never a runtime `test.skip`.
   `shell.spec` (skip link, one `main`, overflow, 44 px targets, density, console, policy),
@@ -302,6 +375,13 @@ sent twice. Alone, the policy is the meta tag on each page (hashed `script-src` 
 `'unsafe-inline'`); a host that sends headers adds `default-src`, `frame-ancestors` and the rest
 itself.
 
+Alone on Cloudflare Pages (Git-connected): root directory this package's path
+(`__PACKAGE_DIR__`), build command `bun install --frozen-lockfile && bun run build`, output
+directory `dist`, and the environment variables `NODE_VERSION=24` and `BUN_VERSION` of 1.4 or later
+(the build image's default Node is older than `engines`; platform documentation, confirm on the first
+build). A person creates the project; an agent never deploys or logs in. Pages answers `/about` for
+`about.html` and redirects `/about/` to it.
+
 <!-- @server-start -->
 
 Beside `serverless/cloudflare` that package serves and deploys the site: its `assemble` step copies
@@ -310,5 +390,85 @@ policy into one `Content-Security-Policy` header with the directives a meta tag 
 `bun run build` here must finish before its `start` runs (`bun run test:e2e` does that). The
 deployment, the Pages project and its build command are in that package's `AGENTS.md › Deployment`.
 This package never reads a secret or an account.
+
+<!-- @server-end -->
+
+## Migrating a site into Astro
+
+For a hand-written static site of about a hundred HTML pages whose header and footer a script stamps
+into each file, with `_redirects`, `_headers`, `404.html`, `robots.txt`, a sitemap and generated text
+files (`llms.txt`). It works with the functions package beside it and without. Each step is one
+task; the site stays deployable after each, and `bun run check` and `bun run test:e2e` stay green.
+Never convert many pages in one task: one family at a time.
+
+1. **Pass-through first.** Copy the site into `public/`: pages, assets, `robots.txt`, the sitemap,
+   the generated text files, and merge its `_redirects` and `_headers` into `public/_redirects` and
+   `public/_headers` (keep the `/_astro/*` rule; no `Content-Security-Policy` line). Every URL keeps
+   working. The exceptions are `index.html` and `404.html`: they collide with the template's
+   `src/pages/index.astro` and `404.astro`, and `build.test.ts` and the e2e specs assert that those
+   two pages hold no script but `theme-init.js`, so port both as Astro pages in this task (the 404
+   keeps its `Page not found` heading, which `smoke.spec.ts` reads, or change that assertion here and
+   say so). URLs, with `build.format: 'file'` and the platform's pretty URLs: an Astro page
+   `about.astro` is `about.html`, served at `/about` (200), and `/about/` answers a 308 to `/about`;
+   a legacy `public/about/index.html` stays at `/about/` and `/about` redirects to it; a legacy
+   `public/about.html` is served at `/about` and the platform redirects `/about.html` to it
+   (documented behaviour, not proven here). Decide per family which form is canonical, make the
+   internal links match, and keep the other form working with a `_redirects` line.
+2. **The policy.** Before any migrated page meets it, inventory what a legacy page does that the
+   policy refuses: inline `<script>` bodies, inline event attributes, `<style>` blocks and `style=`
+   attributes, and hosts other than the page's own (analytics, fonts, embeds, images, a form posting
+   elsewhere). What a page in `public/` gets, from the code: it is never processed, so it has no
+   policy `<meta>`.
+<!-- @noserver-start -->
+   Hosted alone, such a page runs with no policy at all, as it did before; only the Astro pages carry
+   the hashed `<meta>`, and a host's `_headers` is the only place for more.
+<!-- @noserver-end -->
+<!-- @server-start -->
+   Beside `serverless/cloudflare` it is served under the one `Content-Security-Policy` header that
+   `assemble` writes for `/*`, the moment any Astro page exists: `script-src 'self'` plus the build's
+   hashes (an inline script of a legacy page is refused), `style-src` hashes only (its `<style>`
+   blocks and `style=` attributes are refused), and `img-src 'self' data:`, `font-src 'self'`,
+   `connect-src 'self'`, `form-action 'self'` (a third-party host is refused). Fix each in the legacy
+   file: move inline code to a file in `public/` (`'self'`), drop an inline style for a class. A
+   host that must stay needs `FIXED` in the functions package's `scripts/lib/csp-headers.mjs` (and its
+   unit test) changed, or a script host in `security.csp.scriptDirective.resources`: a deliberate
+   decision, never a quiet one.
+<!-- @server-end -->
+   Fix the inventory in the old files first or in the page's own migration, not later.
+3. **Page families, one at a time.** For a family (the legal pages, the articles, the product pages):
+   - the stamped header and footer become product code: `src/components/site-header/` and
+     `site-footer/` (a folder each with its `.scss`), placed by a `src/layouts/site-layout.astro`
+     that wraps `base-layout.astro`; the skip link stays first and the page keeps one `<main>`;
+   - an article family becomes a content collection (Adding a content page): the body moves to
+     `src/content/<noun>/<slug>.md`, the shared markup to `src/pages/<noun>/[id].astro`;
+   - each page's `<title>`, description and `h1` become the layout's props and the front matter;
+   - the old `public/` file is deleted in the same task (two files must not claim one URL), and a
+     `public/_redirects` line is added wherever a URL changed;
+   - the family's top-level routes join `src/nav.ts`; the rest `EXTRA_ROUTES`. The screens spec then
+     scans each in both themes (axe, one `h1`, no overflow): a legacy page that fails is fixed in
+     this task, not skipped.
+4. **Scripts.** A page's inline script becomes a `<script>` in its page or component (Astro bundles
+   it; a small one is inlined and hashed, a shared one becomes a `/_astro/*.js` file). Logic two pages
+   share goes to `src/services/<name>.ts` and is imported by both scripts; a library it needs sits
+   behind that one file. An inline handler attribute becomes `addEventListener` in the script; a
+   `style=` attribute becomes a class in the sibling `.scss`. Check the result in a build
+   (`bun run test:e2e`): the policy does not run in `astro dev`.
+5. **Generated files.** The script that wrote `llms.txt`, the sitemap and their relatives is
+   replaced by endpoints (`src/pages/llms.txt.ts`, `sitemap.xml.ts`) that read the content collection
+   and `NAV`; delete the generated copies from `public/` in the same task. `robots.txt` stays a file in
+   `public/` (an endpoint only when it must name an absolute sitemap URL from `site`). Keep the sitemap
+   a plain endpoint: `@astrojs/sitemap` is a new dependency, so a plan decision.
+6. **What not to migrate.** The stamping script and the build step that ran it (the layout does it);
+   the script that generated the sitemap and text files (endpoints do); a hand-written trailing-slash
+   or `.html` normaliser (the platform and `build.format` decide); per-page `<head>` boilerplate
+   (the layout owns it); inline theme code (`public/theme-init.js` is the file); and any legacy
+   stylesheet in bulk: port it into the token tree as the pages that use it move.
+   When the last legacy page is gone, `public/` holds only static files, redirects and headers.
+
+<!-- @server-start -->
+
+A site with the functions package also follows `serverless/cloudflare/AGENTS.md › Migrating Pages
+Functions` (preview database, baseline, `_lib`): the two guides share no step, and the pages can move
+before or after the functions.
 
 <!-- @server-end -->

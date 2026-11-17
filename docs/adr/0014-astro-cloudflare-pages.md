@@ -130,8 +130,10 @@ serverless/cloudflare/
   and imports no Pages type, so a move to Workers replaces `functions/` only.
 - **Contract:** `server/api/<module>/schema.ts` holds the zod request and response schemas;
   `contract` writes `openapi.json` from them, in Bun, outside the runtime.
-- **Config:** `server/config/env.ts` validates the bindings; it fails in production on a
-  missing secret and defaults elsewhere with a warning. `wrangler.jsonc` sets `ENVIRONMENT`
+- **Config:** `server/config/env.ts` validates the bindings. No secret is required and none has
+  a default: `ENCRYPTION_KEY` is optional until a feature uses it, and is validated whenever it
+  is set (the review found that a required key with a development default made the example env
+  file break every request and put previews on a published key). `wrangler.jsonc` sets `ENVIRONMENT`
   per environment, and `env.preview` names its own D1 database, so a preview build never
   touches production data. No secret is in the file. `.env.example` lists every variable; a
   local override goes in `.env`, which `wrangler pages dev` reads (S6). The template ships no
@@ -142,13 +144,20 @@ serverless/cloudflare/
 - **No accounts in 1.0.0.** Every endpoint is public. The gate chain takes a product's own
   gate; the guide shows where (the reference site sits behind Cloudflare Access). Accounts are
   a later plan; it inherits `server/bun-express`'s auth surface and S3's measurements.
-- **One origin (▲).** `assemble` copies the frontend's built output into `dist/`, adds
-  `pages/`'s files, and lifts the Content-Security-Policy that Astro wrote into each page's
-  `<meta>` into `dist/_headers`, with the directives a header can carry and a meta tag cannot
-  (`frame-ancestors`, plus `default-src`, `base-uri`, `object-src`). `start` assembles, then
-  runs `wrangler pages dev dist` on the e2e state folder. `_routes.json` sends only `/api/*`
-  to the functions, so a static page invokes none. With no frontend in the plan `start` serves
-  the functions alone.
+- **One origin (▲).** `assemble` copies the frontend's built output into `dist/` and adds
+  `pages/`'s files. `start` assembles, then runs `wrangler pages dev dist` on the e2e state
+  folder. `_routes.json` sends only `/api/*` to the functions, so a static page invokes none.
+  With no frontend in the plan `start` serves the functions alone.
+- **Two policies per page (▲).** Each page keeps the Content-Security-Policy `<meta>` its build
+  wrote, with its own script and style hashes. `assemble` adds one fixed header line in
+  `dist/_headers` with what a meta cannot carry (`frame-ancestors`) and the directives that
+  need no hash; a browser enforces both. It refuses a page whose meta allows anything but
+  `'self'` and hashes for scripts and styles, a `_headers` line that sets or detaches the
+  policy, and a symbolic link; a page with no meta (a hand-written page passed through
+  `public/` during a migration) is served as it is and listed in a warning. The first build
+  lifted every page's hashes into the header instead: the review showed that one 2,000-character
+  line holds about 30 hashes for a whole site and that every page then accepted every other
+  page's scripts.
 - **Deployment** is one Pages project whose root directory is `serverless/cloudflare`; its
   build command builds the frontend and runs `assemble`. No agent and no script of the
   template deploys, logs in or reaches a remote binding. Not proven on a deployed project: no
@@ -188,7 +197,7 @@ frontend/
   dev proxy. Alone: none of it, and no `contract` command (ADR 0011).
 - ▲ **Content-Security-Policy with no `'unsafe-inline'`**: Astro's `security.csp` hashes every
   script and style of the build into a `<meta>` on each page (S4). That is the whole policy
-  when the site is hosted alone; with `serverless/cloudflare` the header carries it (T1).
+  when the site is hosted alone; with `serverless/cloudflare` a header adds to it (T1).
 - E2E on `phone` and `desktop`: alone, against the template's own preview of the built site;
   in a stack, against the server's `e2eDb` and `start` chain, which serves the built site.
 - **Flag `islands`** (off): `@astrojs/react` and the `src/components/islands/` convention. ▲
@@ -221,7 +230,7 @@ hand-migrated database and a preview environment on its own database (`serverles
 | S1 one origin | pass | `wrangler pages dev <dir>` serves pages, the 404, `_headers`, `_redirects` and functions on one port; `build.format: 'file'`; the dev proxy targets `127.0.0.1` |
 | S2 tests in `workerd` | pass | `@cloudflare/vitest-plugin` (the renamed pool) on vitest 4.1; the functions are built once per run and tests call the built worker; isolation is per file |
 | S3 password hash | partial | Not used in 1.0.0. scrypt N = 2^17 needs the whole isolate's memory; N = 2^14, p = 5 fits; production limits not testable here |
-| S4 CSP | pass | hashed `script-src` and `style-src`, no `'unsafe-inline'`, an island hydrates; a post-build step moves it into `_headers` |
+| S4 CSP | pass | hashed `script-src` and `style-src`, no `'unsafe-inline'`, an island hydrates; a post-build step adds the header-only directives in `_headers` (T1) |
 | S5 two type worlds | pass | Kept as the frontend's DOM project and the functions' runtime project, now one per package; TypeScript 6 |
 | S6 env file | pass | `.env` alone reaches `context.env`; a `.dev.vars` hides it; `.env.<environment>` is not read |
 | S7 e2e data | pass | `--persist-to` on `migrations apply`, `execute` and `pages dev` share one layout; dev and e2e state never meet |

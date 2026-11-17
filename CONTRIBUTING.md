@@ -223,13 +223,15 @@ package, never beside a `server`.
 A `serverless` template (ADR 0014) is an API that runs as a provider's functions: no process, no
 image. It lives in `serverless/<provider>/`, and its project directory has the same two segments
 (`serverless/cloudflare`): a stack `dir`, a `--dir` value and a provenance key are one segment or
-exactly two, nothing deeper. A second provider is a sibling, and a folder that already holds
-`serverless/other/` is left alone.
+exactly two, nothing deeper (a frontend with `docker: false` may take two as well; a package that
+ships a Compose service takes one). A second provider is a sibling, and a folder that already
+holds `serverless/other/` is left alone.
 
 - **It is the plan's server.** A frontend's `server` selection, `server:<flag>`, `onlyWhen`,
   `__SERVER_*__` placeholders and `contract: { consumes: "<server>/..." }` resolve to it. A plan
   has at most one `server` or `serverless` package. It may declare `contract: { produces }`,
-  `http`, `start`, `migrate`, `testDb` and `e2eDb`; the data engine is part of the base.
+  `http`, `migrate`, `testDb` and `e2eDb`, and it must declare `start` (a frontend's e2e runs it);
+  the data engine is part of the base. `__SERVER_E2E_DATABASE_URL__` is always empty for it.
 - **What it may not have.** `compose.yaml`, `static`, `capabilities`, `onlyWhen`, `docker`, a brand
   case, `withApp`. Its agents file keeps the server's five headings. The plan has no deploy mode and
   writes no `docker-compose.yml`; `--deploy` fails, and `single` is false.
@@ -240,7 +242,16 @@ exactly two, nothing deeper. A second provider is a sibling, and a folder that a
   A frontend reaches the server as `../__SERVER_DIR__`, which works for a two-segment value.
 - **Cases.** Alone: install, `check`, `testDb` when declared; no service, no Docker. A frontend case
   in its stack runs the frontend's `check` and, with `--e2e`, `testE2e` (its config starts the API
-  from the placeholders); the runner starts no service and runs no `migrate`.
+  from the placeholders); the runner starts no service and runs no `migrate`, and it skips the
+  serverless package's own gates (log line `SKIP serverless/<id>: its own cases run its gates`):
+  run `serverless/<id>/default` and each flag's case for those. A frontend case sets the API's flags
+  with `server: { flags }`.
+- **Gitignore.** Its manifest lists `[node, cloudflare]`; `shared/gitignore/cloudflare.gitignore`
+  holds `.wrangler/`, the local variables file, `.astro/`, `dist/`, `dist-functions/` and
+  `.e2e-state/`.
+- **Where the gates run.** A raw `base/` carries placeholders and `@frontend` markers (`assemble.mjs`,
+  `wrangler.jsonc`), so its `check` does not pass in place: generate the case with `--keep` and work
+  in that project (`bun tools/test-generated.ts --case serverless/cloudflare/default --keep`).
 - **Markers.** `.jsonc` takes `//`; `.astro` takes `//` in its frontmatter and `<!-- -->` in its
   markup. Two flags may list one path in `onlyPaths`: it exists while both are on.
 
@@ -359,8 +370,9 @@ Markers are written in the file's own comment syntax (`//`, `--` in `.sql`, `#` 
   scripts: { remove: ["api:types"] } } }`. A selection only removes; the loader checks that each named
   path, dependency and script exists in `base/` and that no flag of the template removes the same
   name; the pyproject adapter refuses dependency and script removal.
-- `server` (the plan has a server package) and `single` (the plan deploys as one image, which
-  needs a server) are reserved selections; a manifest cannot declare a flag of either name.
+- `server` (the plan has a server package), `single` (the plan deploys as one image, which
+  needs a server) and `frontend` (a `serverless` package's selection: the plan has a frontend) are
+  reserved selections; a manifest cannot declare a flag of any of these names.
 - A name that no flag or capability declares fails validation, as does an unbalanced block
   or a marker left in generated output. `validate` dry-runs the marker pass for every flag
   combination; `test-generated` proves each declared case generates and passes its gates.
@@ -375,8 +387,13 @@ const sessions = null
 Placeholders are `__NAME__` tokens substituted in text files. A template declares its own
 in `placeholders` (usually `__PROJECT_NAME__`); the generator also provides
 `__PACKAGE_DIR__`, `__PORT__`, `__SERVER_DIR__`, `__SERVER_PORT__`, `__SERVER_DEV_COMMAND__` and
-`__FRONTEND_DIR__` (the frontend's directory, for a server's Compose fragment). A frontend's e2e
-config also gets `__SERVER_START_COMMAND__` (the server's `start` command),
+`__FRONTEND_DIR__` (the frontend's directory, for a server's Compose fragment). A `serverless`
+package beside a frontend also gets `__FRONTEND_PATH__` (the relative path to the frontend's
+directory, `../../frontend`) and `__FRONTEND_OUT__` (its `static.out`); with no frontend in the plan
+both are undefined, so a kept line that uses one fails the run naming the file (wrap it in
+`@frontend`). A frontend's e2e
+config also gets `__SERVER_START_COMMAND__` (the server's `start` command; from a nested
+`__SERVER_DIR__` write `../__SERVER_DIR__`),
 `__SERVER_E2E_DB_COMMAND__` (its `e2eDb` command; empty without a database) and
 `__SERVER_E2E_DATABASE_URL__` (the provider's `e2e` URL; empty without one). A frontend also gets
 the brand placeholders `__PROJECT_DISPLAY_NAME__`, `__THEME_LIGHT__`, `__THEME_DARK__`,
@@ -540,6 +557,85 @@ When a dependency moves or the base is regenerated:
    `frontend/vue/tests/cases.yaml`), `alone` (no `--with-app`), and `postgres` with
    `--with-services --with-app`.
 
+## Refreshing `serverless/cloudflare/base`
+
+When wrangler, the test plugin, Drizzle or another dependency moves:
+
+1. Verify every version on the registry (`npm view <pkg> time --json` and its peers; the latest
+   stable at least 14 days old, an exception recorded in the CHANGELOG). The set the template was
+   proven with is in [ADR 0014 › Spikes](docs/adr/0014-astro-cloudflare-pages.md). Pins that move
+   together:
+   - `wrangler` (exact) with `compatibility_date` in `wrangler.jsonc` and
+     `workers/jobs/wrangler.jsonc`: move the date only to one the new workerd supports, and keep
+     the two files equal (`tests/unit/jobs-config.test.ts`).
+   - `@cloudflare/vitest-plugin` (exact; it peers `vitest` `^4.1.0 || ^5.0.0`) with `vitest`
+     (exact). The plugin replaced `@cloudflare/vitest-pool-workers`: the old API
+     (`defineWorkersConfig`, `SELF`) does not come back.
+   - `drizzle-orm` and `drizzle-kit` (exact, together): after a bump, run `db:generate` in the kept
+     project and read the diff: it must propose nothing against the committed `migrations/meta/`
+     snapshot.
+   - `zod` 4 with `@asteasolutions/zod-to-openapi` (exact); ESLint 10 with `typescript-eslint` and
+     `eslint-plugin-import-x`; keep `eslint-import-resolver-typescript`, without which a boundary
+     violation is silently missed.
+   - **TypeScript is pinned to `~6.0.3`** (as is `frontend/astro`): `typescript-eslint` peers below
+     6.1, and `astro check` refuses TypeScript 7. Move both templates together and only when both
+     tools accept the new one.
+2. Run `bun install` and commit `bun.lock`; `bun tools/validate.ts --lockfiles` checks it with
+   `--frozen-lockfile`.
+3. Regenerate `worker-configuration.d.ts`: generate `serverless/cloudflare/default` with `--keep`,
+   run `bun run types` there and copy the file back to `base/`. A wrangler or `wrangler.jsonc` change
+   makes it stale, and `typecheck` (`wrangler types --check`) fails until it is. `types-vars.txt`
+   stays empty: it keeps a developer's local env file out of the generated `Env`.
+4. Regenerate the contract: run `bun run openapi` in the kept project and copy `openapi.json` back,
+   restoring `__PROJECT_NAME__` in `info.title`; `tests/unit/openapi.test.ts` fails on a stale
+   file. A contract change also moves `frontend/astro`'s committed `src/services/generated/`:
+   regenerate it (see its refresh section).
+5. Run `bun run check` in the kept project (the gates run in a generated project, never in
+   `base/`: it carries placeholders and `@frontend` markers).
+6. Cases, one at a time: `bun tools/test-generated.ts --case serverless/cloudflare/default`, then
+   `jobs`. Then the stack's frontend case (`frontend/astro/default --e2e`), which starts this
+   package's `e2e:db` and `start`.
+7. **Windows process teardown.** After each e2e or `start` run check that nothing is left:
+   `Get-Process wrangler, workerd -ErrorAction SilentlyContinue` is empty and nothing listens on
+   8788 or 8797 (`start.test.ts` uses 8797). Ending the `bun run` shell with `taskkill /T` leaves
+   wrangler running and workerd respawns on its port, so a stale server could answer the next run;
+   `scripts/lib/wrangler.mjs` ends the whole tree and its tests must keep proving it.
+8. Bump `version` in `template.yaml` and `index.yaml`, add a `CHANGELOG.md` entry, and run
+   `bun tools/validate.ts --readme`.
+
+## Refreshing `frontend/astro/base`
+
+When Astro or a dependency moves:
+
+1. Verify every version on the registry (the rules of the other refresh sections). Pins that move
+   together:
+   - `astro` (exact), `@astrojs/check` and, for the `islands` flag, `@astrojs/react`, `react` and
+     `react-dom` (exact). Read Astro's upgrade guide for `security.csp`
+     (`serverless/cloudflare`'s `assemble` reads the `<meta>` it writes: a change in its directives
+     or hashing is a change to that package too), `build.format`, the dev server's host and
+     `vite.server.proxy`.
+   - **TypeScript is pinned to `~6.0.3`**: `astro check` refuses 7 and `typescript-eslint` peers
+     below 6.1. ESLint 10 with `eslint-plugin-astro`, `typescript-eslint` and `eslint-plugin-import-x`
+     (keep the TypeScript import resolver).
+   - `@hey-api/openapi-ts` (exact; 0.x: a minor can change the generated output), `vitest`,
+     `@playwright/test` and `sass-embedded` (carets).
+2. Run `bun install` and commit `bun.lock`; `bun tools/validate.ts --lockfiles`.
+3. Regenerate `src/services/generated/`: generate `frontend/astro/default` with `--keep`, run
+   `bun run api:types` in the frontend there and copy the directory back; read the diff.
+4. Run `tests/unit/eslint-boundaries.test.ts` (one violation and one allowed case per rule through
+   the real config; a new block that overlaps a rule fails it, as flat config replaces a rule's
+   options per block), `build.test.ts` (a real `astro build`: the policy meta, no inline script) and
+   `kit.test.ts`.
+5. Run `bun run check` in the kept project: `typecheck` is `astro check` alone, then lint, Prettier
+   and Vitest. In `base/` it does not pass in place (markers and placeholders).
+6. Bump `version` in `template.yaml` and `index.yaml`, add a `CHANGELOG.md` entry, and run
+   `bun tools/validate.ts --readme`.
+7. Cases, one at a time, with the browser installed once (`--install-browsers`):
+   `bun tools/test-generated.ts --case frontend/astro/default --e2e`, then `alone`, `islands`,
+   `jobs` and `brand` (the five cases of `frontend/astro/tests/cases.yaml`). `alone` serves the build
+   with `astro preview` on 4321; the others run `serverless/cloudflare`'s chain on 8788: run the
+   Windows teardown check of the functions' refresh section after each.
+
 ## The e2e database
 
 A frontend's e2e suite never uses the development database. With a database provider (the
@@ -609,7 +705,12 @@ the lockfiles is still to be configured.
   fields for a server's flags, the `e2eDb` command, the provider's `e2e` URL); v1.4.1 adds the case
   field `brand`; v1.5.0 and v1.5.1 add none; v1.11.0 widens `onlyWhen` (a bare `server` key, an
   object form) without a bump.
-- This release is `v1.12.0`, a minor with six template majors: `frontend/next` 4.0.0 (the SPA layer
+- This release is `v1.14.0`, a minor: the new template kind `serverless` with
+  `serverless/cloudflare` 1.0.0, the new frontend `frontend/astro` 1.0.0 (`docker: false`) and the
+  stack `astro-cloudflare` ([ADR 0014](docs/adr/0014-astro-cloudflare-pages.md)); no existing
+  template changes; `schemaVersion` 1; a tool change (the kind, two-segment package directories,
+  `docker`, the `frontend` selection and the `FRONTEND_PATH` and `FRONTEND_OUT` placeholders, the
+  Cloudflare gitignore section). Earlier, `v1.12.0`, a minor with six template majors: `frontend/next` 4.0.0 (the SPA layer
   names and co-located SCSS; [ADR 0012](docs/adr/0012-next-spa-tree-colocated-scss.md)), and with
   it `frontend/react` 6.0.0, `frontend/vue` 4.0.0 and `frontend/angular` 4.0.0 on one set of folder
   rules, `server/bun-express` 3.0.0 and `server/python-fastapi` 2.0.0 with the sign-up endpoint
