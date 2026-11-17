@@ -1,0 +1,9 @@
+# Static headers for what the platform serves without a Function: the built pages and assets.
+# `bun run assemble` copies this file over the frontend's own `_headers` (its lines come first) and
+# adds the one Content-Security-Policy line of the build, which carries hashes and so can never
+# live here. A Function's response is never covered by this file: server/middleware/handler.ts
+# sets its headers. Limits: 100 rules, 2,000 characters per line.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY

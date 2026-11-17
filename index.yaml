@@ -30,6 +30,11 @@ templates:
     path: frontend/vue
     version: 4.0.0
     summary: "Vite and Vue 3 single-page app: Vue Router 5, Pinia 4 setup stores over a client generated from the server's contract, Reka UI primitives styled by co-located SCSS on a global token tree, vue-i18n and the service worker behind flags"
+  - id: cloudflare
+    kind: serverless
+    path: serverless/cloudflare
+    version: 1.0.0
+    summary: "Pages Functions API on Cloudflare: D1 through Drizzle, zod schemas and the OpenAPI contract from them, one error envelope, tests in workerd; serves a frontend's build on one origin"
 stacks:
   - id: angular-bun-express
     path: stacks/angular-bun-express

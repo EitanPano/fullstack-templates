@@ -1,0 +1,3 @@
+# Intentionally empty. `wrangler types` reads the names of local secrets from a developer env file
+# into the generated Env type; naming this file as the only env file (`--env-file`) keeps a local
+# file out, so `bun run typecheck` gives the same answer on every machine. Add nothing here.

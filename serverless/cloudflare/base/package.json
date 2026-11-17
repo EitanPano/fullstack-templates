@@ -1,0 +1,47 @@
+{
+  "name": "__PROJECT_NAME__",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "assemble": "node scripts/assemble.mjs",
+    "check": "bun run typecheck && bun run lint && bun run format:check && bun run test",
+    "db:generate": "drizzle-kit generate",
+    "dev": "node scripts/dev.mjs",
+    "e2e:db": "node scripts/e2e-db.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "migrate": "wrangler d1 migrations apply DB --local",
+    "openapi": "bun run scripts/openapi.ts",
+    "start": "node scripts/start.mjs",
+    "test": "vitest run",
+    "test:db": "vitest run --project api",
+    "typecheck": "wrangler types --check --env-file types-vars.txt && tsc -p tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit",
+    "types": "wrangler types --env-file types-vars.txt"
+  },
+  "dependencies": {
+    "@asteasolutions/zod-to-openapi": "9.1.0",
+    "drizzle-orm": "0.45.4",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.8.3",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.19.2",
+    "drizzle-kit": "0.31.11",
+    "eslint": "^10.15.0",
+    "eslint-import-resolver-typescript": "4.4.5",
+    "eslint-plugin-import-x": "^4.18.1",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.73.0",
+    "vitest": "4.1.12",
+    "wrangler": "4.163.0"
+  },
+  "packageManager": "bun@1.4.0",
+  "engines": {
+    "bun": ">=1.4.0",
+    "node": ">=24.0.0"
+  }
+}
