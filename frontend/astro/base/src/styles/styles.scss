@@ -1,0 +1,15 @@
+// The global CSS (the layout imports it after themes/brand.css): the tokens and tools, the themes,
+// and the basics. Every component carries a sibling stylesheet of its own, imported by its file.
+// The three global groups sit in cascade layers (declared first, in order) and the sibling
+// sheets stay unlayered; an unlayered rule beats a layered one at any specificity, so a component
+// wins over the global tree whatever order the bundler links the stylesheets in.
+@use 'setup/layers';
+@use 'setup/variables';
+@use 'setup/breakpoints';
+@use 'setup/functions';
+@use 'setup/mixins';
+@use 'setup/typography';
+@use 'themes';
+@use 'basics/helpers';
+@use 'basics/base';
+@use 'basics/layout';

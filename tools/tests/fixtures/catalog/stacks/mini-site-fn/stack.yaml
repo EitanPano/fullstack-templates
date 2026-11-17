@@ -1,0 +1,8 @@
+schemaVersion: 1
+id: mini-site-fn
+summary: Mini site and functions
+packages:
+  - template: serverless/mini-fn
+    dir: serverless/mini-fn
+  - template: frontend/mini-site
+    dir: frontend

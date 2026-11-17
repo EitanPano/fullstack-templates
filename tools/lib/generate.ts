@@ -30,7 +30,7 @@ import {
   retryTransient,
 } from './files'
 import { mergeGitignore } from './gitignore'
-import { applyMarkers, commentSyntaxFor, findLeftoverMarker } from './markers'
+import { applyMarkers, commentSyntaxFor, commentSyntaxesFor, findLeftoverMarker } from './markers'
 import {
   GENERATED_PLACEHOLDERS,
   SERVER_PLACEHOLDERS,
@@ -111,6 +111,15 @@ function e2ePlaceholders(
       `${server.dir}: the server declares no start command, which the frontend's e2e needs`,
     )
   }
+  // A serverless package owns its database: its own e2eDb command prepares it, and no provider
+  // supplies a URL.
+  if (server.template.manifest.kind === 'serverless') {
+    return {
+      SERVER_START_COMMAND: start,
+      SERVER_E2E_DB_COMMAND: server.commands.e2eDb ?? '',
+      SERVER_E2E_DATABASE_URL: '',
+    }
+  }
   const hasDatabase = plan.providers.some((provider) => provider.kind === 'database')
   if (!hasDatabase) {
     return { SERVER_START_COMMAND: start, SERVER_E2E_DB_COMMAND: '', SERVER_E2E_DATABASE_URL: '' }
@@ -134,6 +143,18 @@ function e2ePlaceholders(
   }
 }
 
+// The frontend's place as a serverless package sees it (ADR 0014 K4): the relative path from its
+// own dir to the frontend's, and the directory the frontend's build writes.
+function frontendValues(plan: GenerationPlan, pkg: PackagePlan): Record<string, string> {
+  if (pkg.template.manifest.kind !== 'serverless' || pkg.frontendDir === null) return {}
+  const frontend = plan.packages.find((candidate) => candidate.dir === pkg.frontendDir)
+  const out = frontend?.template.manifest.static?.out
+  return {
+    FRONTEND_PATH: path.posix.relative(pkg.dir, pkg.frontendDir),
+    ...(out === undefined ? {} : { FRONTEND_OUT: out }),
+  }
+}
+
 export function packagePlaceholders(
   plan: GenerationPlan,
   pkg: PackagePlan,
@@ -154,6 +175,7 @@ export function packagePlaceholders(
     // Absent without a frontend: a kept line that uses it fails in sweepPlaceholders, while the
     // lines marked @single are gone before this substitution runs.
     ...(pkg.frontendDir === null ? {} : { FRONTEND_DIR: pkg.frontendDir }),
+    ...frontendValues(plan, pkg),
     PACKAGE_DIR: pkg.dir,
     PORT: http === undefined ? '' : String(http.port),
     ...serverValues,
@@ -194,13 +216,33 @@ export function assertInside(root: string, target: string, what: string): void {
   }
 }
 
-function removeOnlyPath(pkg: PackagePlan, pkgStaging: string, only: string, owner: string): void {
+const trimSlash = (entry: string) => (entry.endsWith('/') ? entry.slice(0, -1) : entry)
+
+// Two flags may list one path, or one a directory and the other a file in it. A path exists while
+// every flag that lists it is on, so one already removed (itself, its ancestor, or its emptied
+// parent) is not an error; a path no earlier removal explains still is.
+function isExplainedByRemoval(only: string, removed: readonly string[]): boolean {
+  const clean = trimSlash(only)
+  return removed.some(
+    (done) => done === clean || clean.startsWith(`${done}/`) || done.startsWith(`${clean}/`),
+  )
+}
+
+function removeOnlyPath(
+  pkg: PackagePlan,
+  pkgStaging: string,
+  only: string,
+  owner: string,
+  removed: string[],
+): void {
   const target = path.join(pkgStaging, only)
   assertInside(pkgStaging, target, `${pkg.dir}: ${owner} onlyPath`)
   if (!existsSync(target)) {
+    if (isExplainedByRemoval(only, removed)) return
     throw new GenerateError(`${pkg.dir}: ${owner} lists onlyPaths ${only}, which is missing`)
   }
   removeTree(target)
+  removed.push(trimSlash(only))
   pruneEmptyParents(path.dirname(target), pkgStaging)
 }
 
@@ -208,15 +250,16 @@ function removeOnlyPath(pkg: PackagePlan, pkgStaging: string, only: string, owne
 // overlay copy, so a capability can add a file that exists only while the flag is on.
 function removeOnlyPaths(pkg: PackagePlan, pkgStaging: string): void {
   const specs = pkg.template.manifest.flags ?? {}
+  const removed: string[] = []
   for (const [name, on] of Object.entries(pkg.flags)) {
     if (on) continue
     for (const only of specs[name]?.onlyPaths ?? []) {
-      removeOnlyPath(pkg, pkgStaging, only, `flag ${name}`)
+      removeOnlyPath(pkg, pkgStaging, only, `flag ${name}`, removed)
     }
     for (const overlay of pkg.overlays) {
       for (const only of overlay.manifest.flags?.[name]?.onlyPaths ?? []) {
         const owner = `flag ${name} (capability ${overlay.kind}/${overlay.provider})`
-        removeOnlyPath(pkg, pkgStaging, only, owner)
+        removeOnlyPath(pkg, pkgStaging, only, owner, removed)
       }
     }
   }
@@ -228,17 +271,17 @@ function removeOnlyWhen(pkg: PackagePlan, pkgStaging: string): void {
   for (const [name, value] of Object.entries(pkg.template.manifest.onlyWhen ?? {})) {
     if (pkg.selections[name] === true) continue
     for (const only of onlyWhenSpec(value).onlyPaths ?? []) {
-      removeOnlyPath(pkg, pkgStaging, only, `onlyWhen ${name}`)
+      removeOnlyPath(pkg, pkgStaging, only, `onlyWhen ${name}`, [])
     }
   }
 }
 
 function applyMarkerPass(pkg: PackagePlan, staging: string, pkgStaging: string): void {
   for (const file of textFiles(pkgStaging)) {
-    const syntax = commentSyntaxFor(file)
-    if (syntax === undefined || inGeneratedDir(path.relative(pkgStaging, file))) continue
+    const syntaxes = commentSyntaxesFor(file)
+    if (syntaxes.length === 0 || inGeneratedDir(path.relative(pkgStaging, file))) continue
     rewrite(file, (content) =>
-      applyMarkers(content, syntax, toWhere(staging, file), pkg.selections),
+      applyMarkers(content, syntaxes, toWhere(staging, file), pkg.selections),
     )
   }
 }
@@ -496,6 +539,8 @@ function writeGitignore(catalog: Catalog, plan: GenerationPlan, staging: string)
 // A plan without a server package has nothing to deploy with Compose: a frontend alone ships its
 // Dockerfile (ADR 0011). A project that already has a Compose file still gets the package's service.
 function hasComposeTarget(plan: GenerationPlan): boolean {
+  // A serverless API ships no image, so its plan never gets a Compose file (ADR 0014 K1).
+  if (plan.packages.some((pkg) => pkg.template.manifest.kind === 'serverless')) return false
   return (
     plan.packages.some((pkg) => pkg.template.manifest.kind === 'server') ||
     existsSync(path.join(plan.out, 'docker-compose.yml'))
@@ -553,6 +598,9 @@ function sweepPlaceholders(plan: GenerationPlan, staging: string): void {
   const names = [...new Set(plan.packages.flatMap((p) => p.template.manifest.placeholders))]
   // The generator's own token has no default, so it must not survive a plan without a frontend.
   if (plan.packages.every((p) => p.frontendDir === null)) names.push('FRONTEND_DIR')
+  // Only a serverless package is given these two, and only beside a frontend (ADR 0014 K4): one
+  // that survives anywhere names its file.
+  names.push('FRONTEND_PATH', 'FRONTEND_OUT')
   // Nor may the SERVER_* tokens survive a plan without a server: a kept file that uses one names
   // itself here instead of shipping an address nobody serves (ADR 0011).
   if (plan.packages.every((p) => p.serverDir === null)) names.push(...SERVER_PLACEHOLDERS)
@@ -705,6 +753,8 @@ export class Mover {
 
 function moveIntoPlace(plan: GenerationPlan, staging: string, mover: Mover, log: Log): void {
   for (const pkg of plan.packages) {
+    // A nested dir (serverless/<provider>) may sit beside a sibling that is not ours to touch.
+    ensureParents(mover, plan.out, pkg.dir)
     mover.move(path.join(staging, pkg.dir), path.join(plan.out, pkg.dir))
   }
   mover.ensureDir(path.join(plan.out, path.dirname(PROVENANCE_PATH)))
@@ -743,14 +793,13 @@ function ensureParents(mover: Mover, root: string, file: string): void {
 // A frontend generated alone is built without a server (ADR 0011). Into a folder that already
 // records a server package it leaves the project half wired, so the rerun says so.
 function warnLoneFrontendBesideServer(plan: GenerationPlan, log: (line: string) => void): void {
-  if (plan.packages.some((p) => p.serverDir !== null || p.template.manifest.kind === 'server'))
-    return
+  if (plan.packages.some((p) => p.serverDir !== null)) return
   if (!plan.packages.some((p) => p.template.manifest.kind === 'frontend')) return
   const earlier = path.join(plan.out, PROVENANCE_PATH)
   if (!existsSync(earlier)) return
   const previous = parse(readFileSync(earlier, 'utf8')) as Partial<Provenance> | null
-  const recorded = Object.values(previous?.packages ?? {}).some((p) =>
-    p.template.startsWith('server/'),
+  const recorded = Object.values(previous?.packages ?? {}).some(
+    (p) => p.template.startsWith('server/') || p.template.startsWith('serverless/'),
   )
   if (recorded) {
     log(

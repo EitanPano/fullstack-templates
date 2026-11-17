@@ -1,0 +1,10 @@
+:root {
+__THEME_LIGHT__
+  --radius: __THEME_RADIUS__;
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+__THEME_DARK__
+  color-scheme: dark;
+}

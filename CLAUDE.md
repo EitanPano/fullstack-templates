@@ -9,9 +9,9 @@ of code live here, with different gates:
 
 - `tools/` is the generator (TypeScript on Bun): `validate.ts`, `generate.ts`, `test-generated.ts`
   and `lib/`. It has its own `package.json`, tests and `check`.
-- `server/<id>/base/` and `frontend/<id>/base/` are the template payloads: complete packages in
-  their own language (Bun + Express 5, Python 3.14 + FastAPI, Next.js 16, Vite + React 19) with
-  markers and placeholders inside. The tools copy and rewrite them; they never run them in place.
+- `server/<id>/base/`, `serverless/<id>/base/` and `frontend/<id>/base/` are the template payloads:
+  complete packages in their own language (Bun + Express 5, Python 3.14 + FastAPI, Cloudflare Pages
+  Functions, Next.js 16, Vite + React 19, Astro 7) with markers and placeholders inside. The tools copy and rewrite them; they never run them in place.
 
 Everything else is manifests (`index.yaml`, `template.yaml`, `stack.yaml`, `tests/cases.yaml`,
 `provider.yaml`, `capability.yaml`) validated against `schemas/*.json`, plus docs. The design is
@@ -42,7 +42,8 @@ counts as a breaking change here:
   (`single` or `split`) is written only when the plan has a server and a frontend.
 - The fixed command vocabulary and the `AGENTS.md` headings ("Adding a module", "Adding the data
   layer", "Errors", "Tests" for a server; "Adding a feature", "Styling", "Errors", "Tests" for a
-  frontend; "Deployment" for both), which the harness's skills cite by name.
+  frontend; "Deployment" for both; a `serverless` package has the server's five), which the
+  harness's skills cite by name.
 - `index.yaml` `schemaVersion`: the harness refuses a newer one, so bumping it is a catalog major.
 
 To test a catalog change against the harness before tagging, point its bootstrap at this
@@ -153,7 +154,9 @@ catalog with `skipPostGenerate`. The `*-cli.test.ts` files spawn the entry scrip
   `--` in `.sql`, `<!-- -->`; chosen by extension or file name in `markers.ts`). `name` is a flag
   (`auth`) or a capability: `@database` is true for any provider, `@database:postgres` for that
   one. Two selections are reserved and cannot be flag names: `server` (the plan has a server) and
-  `single` (the plan deploys as one image; never true without a server). Every extension
+  `single` (the plan deploys as one image; never true without a server). A `serverless` package also
+  has `frontend` (the plan has a frontend), reserved too, and a `serverless` package counts as the
+  plan's `server` for a frontend's selections. Every extension
   `markers.ts` gives a comment syntax is a text file by construction (`placeholders.ts` derives its
   list from it), and a unit test pins that. A file of any other type is copied untouched: if it
   looks like text (no NUL byte in its first KiB) and holds a marker comment or a declared
@@ -163,7 +166,9 @@ catalog with `skipPostGenerate`. The `*-cli.test.ts` files spawn the entry scrip
 - **Placeholders** are `__NAME__` tokens in text files. Templates declare their own
   (`__PROJECT_NAME__`); the generator adds `__PACKAGE_DIR__`, `__PORT__`, `__SERVER_DIR__`,
   `__SERVER_PORT__`, `__SERVER_DEV_COMMAND__`, and `__FRONTEND_DIR__` (the frontend's directory,
-  for the server's Compose fragment). A declared token left in output fails the run.
+  for the server's Compose fragment); a `serverless` package beside a frontend also gets
+  `__FRONTEND_PATH__` and `__FRONTEND_OUT__`, undefined when the plan has no frontend. A declared
+  token left in output fails the run.
 - **Two dependency adapters.** `npm` (bun-express, next): a flag's `dependencies.remove` and a
   capability's `dependencies` and `scripts` edit `package.json`; a script name the base already
   has is refused. `pyproject` (python-fastapi): the loader refuses those fields. A dependency or
@@ -214,6 +219,10 @@ fragment carry the mode in `@single`/`@nosingle` lines, and the frontend's fragm
 service in `single` (`target: dist`, `scale: 0`) that the server reads as `additional_contexts: {
 spa: "service:<dir>" }`, which needs **Docker Compose 2.35.0 or later**. `docker compose down` needs
 `--profile app`.
+
+A `serverless` API (`serverless/cloudflare`, ADR 0014) has no deploy mode and no Compose file, and a
+frontend with `docker: false` (`frontend/astro`) joins a plan alone or beside it, never beside a
+`server`; `docs/conventions.md › Serverless` is its contract.
 
 The two server templates are kept behaviourally parallel on purpose: same endpoints, error codes,
 flags, cases and overlay shape. ADR 0002 has the table of intentional deviations; check it before

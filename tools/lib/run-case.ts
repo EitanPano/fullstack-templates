@@ -48,6 +48,22 @@ function projectName(id: string): string {
   return `fullstack-${slug}-${randomBytes(3).toString('hex')}`
 }
 
+// A serverless package needs no service: its `testDb` brings up whatever it tests against itself
+// (ADR 0014 K4), so --with-services and --with-app skip nothing here and Docker is never run. The
+// install runs in post-generate; it runs here only when the template leaves it out of there.
+function runServerless(
+  pkg: ReturnType<typeof resolveRequest>['packages'][number],
+  out: string,
+  run: Runner,
+): void {
+  const { commands } = pkg
+  const cwd = path.join(out, pkg.dir)
+  const installed = pkg.template.manifest.postGenerate?.includes('install') === true
+  if (commands.install !== undefined && !installed) run(commands.install, cwd)
+  run(commands.check, cwd)
+  if (commands.testDb) run(commands.testDb, cwd)
+}
+
 function runPackages(
   plan: ReturnType<typeof resolveRequest>,
   out: string,
@@ -55,8 +71,15 @@ function runPackages(
   services: boolean,
   run: Runner,
   log: (message: string) => void,
+  caseTemplate: string,
 ): void {
   for (const pkg of plan.packages) {
+    if (pkg.template.manifest.kind === 'serverless') {
+      // Beside a frontend case it is the frontend's e2e that starts it; its own gates are its own cases.
+      if (pkg.template.path === caseTemplate) runServerless(pkg, out, run)
+      else log(`SKIP ${pkg.dir}: its own cases run its gates`)
+      continue
+    }
     const { commands } = pkg
     const cwd = path.join(out, pkg.dir)
     if (commands.migrate) {
@@ -440,8 +463,12 @@ export async function runCase(
   const plan = resolveRequest(catalog, requestFor(c, out))
   generate(catalog, plan, { log: () => undefined })
   const project = projectName(c.id)
-  runWithServices(plan, out, options, project, run, log)
+  runWithServices(plan, out, options, project, run, log, c.template.path)
   if (!c.withApp) return
+  if (plan.packages.some((pkg) => pkg.template.manifest.kind === 'serverless')) {
+    log('SKIP app smoke: a serverless plan has none')
+    return
+  }
   if (!options.withApp) {
     log('SKIP app smoke: needs --with-app')
     return
@@ -456,17 +483,18 @@ function runWithServices(
   project: string,
   run: Runner,
   log: (message: string) => void,
+  caseTemplate: string,
 ): void {
   const services = [...new Set(plan.providers.map((p) => p.manifest.service))]
   if (services.length === 0 || !options.withServices) {
-    runPackages(plan, out, options, false, run, log)
+    runPackages(plan, out, options, false, run, log, caseTemplate)
     return
   }
 
   let failure: unknown = null
   try {
     run(`docker compose -p ${project} up -d --wait ${services.join(' ')}`, out)
-    runPackages(plan, out, options, true, run, log)
+    runPackages(plan, out, options, true, run, log, caseTemplate)
   } catch (error) {
     failure = error
   }

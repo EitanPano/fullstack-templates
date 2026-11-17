@@ -1,0 +1,42 @@
+schemaVersion: 1
+id: cloudflare
+kind: serverless
+name: Cloudflare Pages Functions
+version: 1.0.0
+summary: "Pages Functions API on Cloudflare: D1 through Drizzle, zod schemas and the OpenAPI contract from them, one error envelope, tests in workerd; serves a frontend's build on one origin"
+runtime: { language: typescript, platform: cloudflare-pages, minVersion: '24' }
+tools:
+  - { name: bun, min: '1.4' }
+  - { name: node, min: '24' }
+placeholders: [PROJECT_NAME]
+flags:
+  jobs:
+    summary: A second Worker with one scheduled job, the cleanup of expired rate-limit rows
+    default: false
+    onlyPaths:
+      - workers/jobs
+      - tests/api/jobs.test.ts
+      - tests/unit/boundaries-jobs.test.ts
+      - tests/unit/jobs-config.test.ts
+dependencies: { manifest: package.json, adapter: npm }
+commands:
+  install: bun install
+  dev: bun run dev
+  start: bun run start
+  check: bun run check
+  typecheck: bun run typecheck
+  lint: bun run lint
+  format: bun run format
+  test: bun run test
+  testDb: bun run test:db
+  migrate: bun run migrate
+  e2eDb: bun run e2e:db
+  contract: bun run openapi
+contract: { produces: openapi.json }
+http: { port: 8788, health: /api/health, ready: /api/health/ready }
+gitignore: [node, cloudflare]
+agents: AGENTS.md
+postGenerate:
+  - install
+  - contract
+  - format

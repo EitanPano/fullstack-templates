@@ -1,0 +1,39 @@
+schemaVersion: 1
+id: mini-fn
+kind: serverless
+name: Mini functions
+version: 1.0.0
+summary: A minimal serverless fixture
+runtime:
+  language: typescript
+  platform: bun
+tools:
+  - name: bun
+    min: '1.4'
+placeholders:
+  - PROJECT_NAME
+dependencies:
+  manifest: package.json
+  adapter: npm
+commands:
+  install: bun ./ok.ts
+  dev: bun ./ok.ts dev
+  check: bun ./ok.ts
+  start: bun ./ok.ts start
+  testDb: bun ./ok.ts testDb
+  migrate: bun ./ok.ts migrate
+  e2eDb: bun ./ok.ts e2eDb
+  contract: bun ./ok.ts contract
+contract:
+  produces: openapi.json
+http:
+  port: 8788
+  health: /api/health
+flags:
+  auth:
+    summary: Accounts
+    default: true
+    onlyPaths: [src/auth.ts]
+gitignore: [node, cloudflare]
+agents: AGENTS.md
+postGenerate: [install, contract]

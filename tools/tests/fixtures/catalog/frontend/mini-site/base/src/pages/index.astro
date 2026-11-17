@@ -1,0 +1,14 @@
+---
+const title = 'Home'
+const signedIn = true // @auth
+const signedOut = true // @noauth
+// @islands-start
+const hasIslands = true
+// @islands-end
+---
+<h1>{title} __PROJECT_DISPLAY_NAME__</h1>
+<p>Always</p> <!-- @auth -->
+<p>No account</p> <!-- @noauth -->
+<!-- @islands-start -->
+<p>Islands</p>
+<!-- @islands-end -->

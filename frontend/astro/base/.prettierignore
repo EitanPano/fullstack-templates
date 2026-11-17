@@ -1,0 +1,9 @@
+dist/
+.astro/
+node_modules/
+playwright-report/
+test-results/
+coverage/
+bun.lock
+src/services/generated/
+src/styles/themes/brand.css
