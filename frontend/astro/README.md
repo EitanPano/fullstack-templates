@@ -2,7 +2,7 @@
 
 An Astro 7 static site: pages and an Astro component kit on co-located SCSS over a global token tree,
 a Content-Security-Policy with no `'unsafe-inline'` (Astro hashes every script and style of the build
-into a `<meta>` on each page), a client, SDK and zod schemas generated from the server's OpenAPI
+into a `<meta>` on each page, with `default-src 'self'` beside the hashes: a whole policy when hosted alone), a client, SDK and zod schemas generated from the server's OpenAPI
 contract (Hey API's fetch client), Vitest and Playwright with axe. It ships no image (`docker:
 false`, [ADR 0014](../../docs/adr/0014-astro-cloudflare-pages.md) K3): the build output is static
 HTML for any static host, or for the `serverless/cloudflare` package of the `astro-cloudflare` stack,

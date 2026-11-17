@@ -286,13 +286,21 @@ wins over the global tree whatever the bundler's order (`tests/unit/styles.test.
   see Import rules). **Fonts** are the brand's `font` input: the system stack, or Inter from
   `@fontsource-variable/inter`, self-hosted by the build; no third-party font host, because the
   policy's `font-src` is `'self'`.
-- **The policy.** `security: { csp: true }` hashes every script and style of the build into a
+- **The policy.** `security.csp` hashes every script and style of the build into a
   `<meta http-equiv="content-security-policy">` on each page: `script-src` and `style-src`, with
-  `'self'` and hashes, never `'unsafe-inline'`. A script goes in a `<script>` Astro bundles, never
-  `is:inline` with a body (it is not hashed). The policy does not run in `astro dev`: test it on the
-  build (`bun run test:e2e`). zod is told not to probe `new Function` (`services/validation.ts`),
-  which the policy would report. Do not write `default-src`, `frame-ancestors` or the like into
-  `security.csp`: beside `serverless/cloudflare` its assemble step sets them in the header.
+  `'self'` and hashes, never `'unsafe-inline'`; its `directives` (`astro.config.mjs`) add
+  `default-src 'self'`, `img-src 'self' data:`, `font-src 'self'`, `connect-src 'self'`,
+  `object-src 'none'`, `base-uri 'self'` and `form-action 'self'`, so the meta is a whole policy for
+  a site hosted alone. A script goes in a `<script>` Astro bundles, never `is:inline` with a body
+  (it is not hashed). The policy does not run in `astro dev`: test it on the build
+  (`bun run test:e2e`). zod is told not to probe `new Function` (`services/validation.ts`), which
+  the policy would report. Do not write `frame-ancestors`, `sandbox` or a report directive into
+  `security.csp`: a browser ignores them in a meta (and logs it). Beside `serverless/cloudflare`
+  its assemble step adds them in one header, which a browser applies together with the meta. Add a
+  host (an analytics script, an image CDN) to `security.csp` (`scriptDirective.resources`, an
+  `img-src` entry in `directives`): the assemble step accepts only `'self'`, hashes and
+  `'strict-dynamic'` in `script-src` and `style-src`, so a script host is a deliberate change to
+  that check.
 
 ## Errors
 
@@ -331,7 +339,7 @@ server's `message`.
 `// @vitest-environment jsdom` comment): the layout, every kit component once through Astro's container (`kit.test.ts`), `nav.ts`,
 the theme logic and script, the styles tree, the import boundaries, the Playwright config and a real
 `astro build` into a throwaway folder (`build.test.ts`: the index page references no script but
-`theme-init.js`, every page carries the hashed policy). A page itself is covered by the e2e suite.
+`theme-init.js`, every page carries the hashed policy with its directives). A page itself is covered by the e2e suite.
 <!-- @server-start -->
 
 The data layer is tested against a stubbed `fetch` (`api.test.ts`, `forms.test.ts`,
@@ -372,8 +380,8 @@ files (`_headers`, `_redirects`, `robots.txt`) pass through `public/`; Cloudflar
 `_headers` and `_redirects`. The `_headers` file here holds only the immutable cache rule for
 `/_astro/*`, because Pages merges the rules of every file that matches and a header set twice is
 sent twice. Alone, the policy is the meta tag on each page (hashed `script-src` and `style-src`, no
-`'unsafe-inline'`); a host that sends headers adds `default-src`, `frame-ancestors` and the rest
-itself.
+`'unsafe-inline'`, and `default-src 'self'` with the other fetch directives); a host that sends headers
+adds `frame-ancestors`, which a meta cannot carry.
 
 Alone on Cloudflare Pages (Git-connected): root directory this package's path
 (`__PACKAGE_DIR__`), build command `bun install --frozen-lockfile && bun run build`, output
@@ -385,8 +393,10 @@ build). A person creates the project; an agent never deploys or logs in. Pages a
 <!-- @server-start -->
 
 Beside `serverless/cloudflare` that package serves and deploys the site: its `assemble` step copies
-this build into its own `dist/`, merges the `_headers` and `_redirects` files and lifts the pages'
-policy into one `Content-Security-Policy` header with the directives a meta tag cannot carry.
+this build into its own `dist/`, merges the `_headers` and `_redirects` files, checks that each
+page's policy meta allows only `'self'` and hashes for scripts and styles, and adds one fixed
+`Content-Security-Policy` header with the directives a meta tag cannot carry. The pages keep their
+meta, and a browser applies both.
 `bun run build` here must finish before its `start` runs (`bun run test:e2e` does that). The
 deployment, the Pages project and its build command are in that package's `AGENTS.md › Deployment`.
 This package never reads a secret or an account.
@@ -421,18 +431,20 @@ Never convert many pages in one task: one family at a time.
    policy `<meta>`.
 <!-- @noserver-start -->
    Hosted alone, such a page runs with no policy at all, as it did before; only the Astro pages carry
-   the hashed `<meta>`, and a host's `_headers` is the only place for more.
+   the `<meta>`, and a host's `_headers` is the only place for more.
 <!-- @noserver-end -->
 <!-- @server-start -->
-   Beside `serverless/cloudflare` it is served under the one `Content-Security-Policy` header that
-   `assemble` writes for `/*`, the moment any Astro page exists: `script-src 'self'` plus the build's
-   hashes (an inline script of a legacy page is refused), `style-src` hashes only (its `<style>`
-   blocks and `style=` attributes are refused), and `img-src 'self' data:`, `font-src 'self'`,
-   `connect-src 'self'`, `form-action 'self'` (a third-party host is refused). Fix each in the legacy
-   file: move inline code to a file in `public/` (`'self'`), drop an inline style for a class. A
-   host that must stay needs `FIXED` in the functions package's `scripts/lib/csp-headers.mjs` (and its
-   unit test) changed, or a script host in `security.csp.scriptDirective.resources`: a deliberate
-   decision, never a quiet one.
+   Beside `serverless/cloudflare` it is served under the one fixed `Content-Security-Policy` header
+   that `assemble` writes for `/*` (`img-src 'self' data:`, `font-src 'self'`, `connect-src 'self'`,
+   `form-action 'self'`, `frame-ancestors 'none'` and the like: a third-party host there is refused,
+   and the page cannot be framed). It has no script or style policy, because it has no meta: its
+   inline scripts and styles still run, and `assemble` warns on stderr with the count and paths of
+   the pages without one ("served without a script policy"). Fix each page as you migrate it:
+   move inline code to a file in `public/` (`'self'`), drop an inline style for a class, and the
+   page, once it is an Astro page, carries the hashed meta. A host that must stay is a deliberate
+   decision, never a quiet one: a script host in `security.csp.scriptDirective.resources` is refused
+   by the functions package's check, and an image or font host is a change to `FIXED_POLICY` in its
+   `scripts/lib/csp-headers.mjs` (and its unit test).
 <!-- @server-end -->
    Fix the inventory in the old files first or in the page's own migration, not later.
 3. **Page families, one at a time.** For a family (the legal pages, the articles, the product pages):

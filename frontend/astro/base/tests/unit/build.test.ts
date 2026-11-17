@@ -50,13 +50,26 @@ describe('the built pages', () => {
     expect(scripts.every((script) => (script[2] ?? '').trim() === '')).toBe(true)
   })
 
-  it.each(PAGES)('%s carries a hashed policy with no unsafe-inline', (page) => {
+  it.each(PAGES)('%s carries a whole policy, hashed, with no unsafe-inline', (page) => {
     const meta = /<meta[^>]*http-equiv="content-security-policy"[^>]*content="([^"]*)"/i.exec(
       read(page),
     )
     const policy = meta?.[1] ?? ''
-    expect(policy).toMatch(/script-src 'self'/)
+    expect(policy).toMatch(/script-src 'self' 'sha256-/)
     expect(policy).toMatch(/style-src 'self'/)
+    for (const directive of [
+      "default-src 'self'",
+      "img-src 'self' data:",
+      "font-src 'self'",
+      "connect-src 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ]) {
+      expect(policy).toContain(directive)
+    }
+    // A meta cannot carry frame-ancestors; a browser would log it as ignored.
+    expect(policy).not.toContain('frame-ancestors')
     expect(policy).not.toMatch(/unsafe-inline|unsafe-eval/)
   })
 

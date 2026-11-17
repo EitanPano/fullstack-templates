@@ -3,13 +3,27 @@ import react from '@astrojs/react' // @islands
 
 // `format: 'file'` writes /about as about.html: Cloudflare Pages answers a directory-style page
 // (about/index.html) with a 308 to its trailing slash. `security.csp` hashes every script and style
-// of the build into a <meta> policy on each page, so the policy needs no 'unsafe-inline'. Sass
-// reaches `setup/` through the load path. The server binds 127.0.0.1 (not localhost, which may
+// of the build into a <meta> policy on each page, so the policy needs no 'unsafe-inline'; the
+// directives below make that meta a whole policy for a site hosted alone (a meta cannot carry
+// frame-ancestors, sandbox or reporting: beside the functions, assemble adds a header with the
+// rest). Sass reaches `setup/` through the load path. The server binds 127.0.0.1 (not localhost, which may
 // resolve to ::1 first), the address the e2e run and the API proxy use.
 export default defineConfig({
   output: 'static',
   build: { format: 'file' },
-  security: { csp: true },
+  security: {
+    csp: {
+      directives: [
+        "default-src 'self'",
+        "img-src 'self' data:",
+        "font-src 'self'",
+        "connect-src 'self'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+      ],
+    },
+  },
   integrations: [react()], // @islands
   // Shiki writes inline styles the policy would refuse; a template ships no Markdown.
   markdown: { syntaxHighlight: false },

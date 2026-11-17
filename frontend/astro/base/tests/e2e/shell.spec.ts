@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type APIRequestContext } from '@playwright/test'
 
 import { NOT_FOUND } from './screen-routes'
 import {
@@ -149,7 +149,8 @@ test('no page logs a console error or warning', async ({ page }) => {
 })
 
 // The no-flash theme script is a file because the deployed pages carry `script-src 'self'`; the
-// built site is served with the real policy from dist/_headers, so a violation here is real.
+// built site is served with its real policy (the page's meta, and beside the functions the fixed
+// header too), so a violation here is real.
 test('the theme script is served as JavaScript and no page raises a CSP violation', async ({
   page,
   request,
@@ -167,33 +168,52 @@ test('the theme script is served as JavaScript and no page raises a CSP violatio
   }
 })
 
+// The policy a page's own <meta> holds: its hashed scripts and styles, and the directives of the
+// build's configuration (astro.config.mjs).
+async function metaPolicy(request: APIRequestContext, path: string): Promise<string> {
+  const html = await (await request.get(path)).text()
+  return /http-equiv="content-security-policy"[^>]*content="([^"]*)"/i.exec(html)?.[1] ?? ''
+}
+
 // @server-start
-// Beside the functions the policy is one header on every response (the build's meta is lifted
-// into it), with the directives a meta cannot carry; a page carries no meta any more.
-test('every page is served with the policy header and the static security headers', async ({
+// Beside the functions a page keeps the policy meta its build wrote (its own hashes) and every
+// response also carries one fixed header with what a meta cannot carry (frame-ancestors) and the
+// rest; a browser applies both. The header has no script or style source, so it never blocks the
+// meta's hashes.
+test('every page keeps its hashed policy meta and is served with the fixed policy header', async ({
   request,
 }) => {
   for (const path of ['/', NOT_FOUND]) {
     const response = await request.get(path)
     const headers = response.headers()
-    const policy = headers['content-security-policy'] ?? ''
+    const header = headers['content-security-policy'] ?? ''
 
-    expect(policy, path).toContain("default-src 'self'")
-    expect(policy, path).toContain("frame-ancestors 'none'")
-    expect(policy, path).not.toContain('unsafe-inline')
+    expect(header, path).toContain("frame-ancestors 'none'")
+    expect(header, path).toContain("base-uri 'self'")
+    expect(header, path).toContain("object-src 'none'")
+    expect(header, path).toContain("form-action 'self'")
+    expect(header, path).not.toMatch(/default-src|script-src|style-src/)
+    expect(header, path).not.toContain('unsafe-inline')
     expect(headers['x-content-type-options'], path).toBe('nosniff')
-    expect(await response.text(), path).not.toMatch(/http-equiv="content-security-policy"/i)
+
+    const policy = await metaPolicy(request, path)
+    expect(policy, path).toMatch(/script-src 'self' 'sha256-/)
+    expect(policy, path).toMatch(/style-src 'self'/)
+    expect(policy, path).not.toContain('unsafe-inline')
   }
 })
 // @server-end
 // @noserver-start
-// Hosted alone, the policy is the meta Astro writes on every page: hashed scripts and styles and
-// no 'unsafe-inline'. A host that can send headers adds the rest (AGENTS.md › Deployment).
-test('every page carries the hashed policy as a meta tag', async ({ request }) => {
+// Hosted alone, the policy is the meta Astro writes on every page: a whole policy with hashed
+// scripts and styles and no 'unsafe-inline'. A host that can send headers adds frame-ancestors
+// (AGENTS.md › Deployment).
+test('every page carries a whole hashed policy as a meta tag', async ({ request }) => {
   for (const path of ['/', NOT_FOUND]) {
-    const html = await (await request.get(path)).text()
-    const policy = /http-equiv="content-security-policy"[^>]*content="([^"]*)"/i.exec(html)?.[1]
-    expect(policy, path).toContain("script-src 'self'")
+    const policy = await metaPolicy(request, path)
+    expect(policy, path).toContain("default-src 'self'")
+    expect(policy, path).toContain("script-src 'self' 'sha256-")
+    expect(policy, path).toContain("style-src 'self'")
+    expect(policy, path).toContain("object-src 'none'")
     expect(policy, path).not.toContain('unsafe-inline')
   }
 })

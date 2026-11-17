@@ -1,6 +1,7 @@
 // validation.ts belongs: the one file that names zod. A page parses and reads limits through these
-// functions, so a library switch rewrites this file. Schemas come from shared/schemas.
-// It does not belong: a schema (shared/schemas) or a form's DOM handling (services/forms.ts).
+// functions, so a library switch rewrites this file. Schemas come from the generated client's
+// zod.gen (services/generated).
+// It does not belong: a schema (the generated zod.gen) or a form's DOM handling (services/forms.ts).
 import { z } from 'zod'
 
 // No `new Function` probe: zod 4 tries one to decide whether to compile its parsers, and under the
@@ -26,7 +27,7 @@ export function parse<S extends Schema>(schema: S, value: unknown): ParseResult<
   }
 }
 
-// The native constraints (minlength, maxlength) of a text field, read off the shared schema.
+// The native constraints (minlength, maxlength) of a text field, read off its schema.
 export function stringLimits(schema: Schema): { minLength?: number; maxLength?: number } {
   const target = schema instanceof z.ZodOptional ? schema.unwrap() : schema
   if (!(target instanceof z.ZodString)) throw new Error('stringLimits needs a string schema')

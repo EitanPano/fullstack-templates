@@ -201,6 +201,10 @@ export type DeleteApiModuleByIdErrors = {
    */
   404: ErrorBody
   /**
+   * Rate limited
+   */
+  429: ErrorBody
+  /**
    * Unexpected error
    */
   500: ErrorBody
@@ -275,6 +279,10 @@ export type PatchApiModuleByIdErrors = {
    * Payload too large
    */
   413: ErrorBody
+  /**
+   * Rate limited
+   */
+  429: ErrorBody
   /**
    * Unexpected error
    */

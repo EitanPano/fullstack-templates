@@ -12,8 +12,19 @@ function sources(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name)
     if (entry.isDirectory()) return entry.name === 'generated' ? [] : sources(path)
-    return /\.tsx?$/.test(entry.name) ? [path] : []
+    return /\.(tsx?|astro)$/.test(entry.name) ? [path] : []
   })
+}
+
+// The code of a source file: the file itself, or for an .astro file its frontmatter and each of its
+// <script> blocks, which are separate modules (the first import of each is what counts).
+function codeBlocks(path: string, text: string): string[] {
+  if (!path.endsWith('.astro')) return [text]
+  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1]
+  const scripts = [...text.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map(
+    (match) => match[1] ?? '',
+  )
+  return [...(frontmatter === undefined ? [] : [frontmatter]), ...scripts]
 }
 
 // True when the text has a run-time import statement of the generated zod schemas. Each statement
@@ -44,16 +55,44 @@ describe('importsSchemasAtRunTime', () => {
   })
 })
 
+describe('codeBlocks', () => {
+  const frontmatter = "---\nimport { zThing } from '../services/generated/zod.gen'\n---\n<h1>t</h1>\n"
+
+  it('takes the frontmatter and every script of an .astro file as its own module', () => {
+    const text = `${frontmatter}<script>\nimport './a'\n</script>\n<script is:inline>\nvoid 0\n</script>\n`
+
+    expect(codeBlocks('x.astro', text).map((block) => block.trim())).toEqual([
+      "import { zThing } from '../services/generated/zod.gen'",
+      "import './a'",
+      'void 0',
+    ])
+  })
+
+  it('finds a schema import in a frontmatter and in a script block', () => {
+    const inScript = `<h1>t</h1>\n<script>\nimport { zThing } from '../services/generated/zod.gen'\n</script>\n`
+
+    expect(codeBlocks('x.astro', frontmatter).some(importsSchemasAtRunTime)).toBe(true)
+    expect(codeBlocks('x.astro', inScript).some(importsSchemasAtRunTime)).toBe(true)
+    expect(codeBlocks('x.astro', '<h1>t</h1>\n').some(importsSchemasAtRunTime)).toBe(false)
+  })
+
+  it('takes a .ts file whole', () => {
+    expect(codeBlocks('x.ts', 'a')).toEqual(['a'])
+  })
+})
+
 describe('modules that build schemas', () => {
-  // Empty until a service or a script imports the generated schemas, which is why the detector
-  // above has tests of its own.
-  const builders = sources('src').filter((path) =>
-    importsSchemasAtRunTime(readFileSync(path, 'utf8')),
+  // Empty until a service, a page or a script imports the generated schemas, which is why the
+  // detector above has tests of its own. Each .astro frontmatter and <script> is its own module.
+  const builders = sources('src').flatMap((path) =>
+    codeBlocks(path, readFileSync(path, 'utf8'))
+      .filter((block) => importsSchemasAtRunTime(block))
+      .map((block) => ({ path, block })),
   )
 
   it('imports the validation facade first in each module that imports the generated schemas', () => {
-    for (const path of builders) {
-      const first = /^import .*$/m.exec(readFileSync(path, 'utf8'))?.[0]
+    for (const { path, block } of builders) {
+      const first = /^import .*$/m.exec(block)?.[0]
 
       expect(first, path).toMatch(FACADE)
     }

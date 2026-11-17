@@ -2,7 +2,7 @@
 // input.astro belongs: the one place for <input>. Inside a field it takes the field's `id` and
 // points aria-describedby at the field's error region (and its hint when `hint` is set). Other
 // attributes (name, autocomplete, inputmode, required, minlength, maxlength) land on the input;
-// a form mirrors the shared schema's limits with `stringLimits` from services/validation.ts.
+// a form mirrors its schema's limits with `stringLimits` from services/validation.ts.
 // It does not belong: the label and error (field.astro) or a select or textarea (a sibling here).
 import type { HTMLAttributes } from 'astro/types'
 
