@@ -1,0 +1,2 @@
+# Redirects, one per line: `/old /new 301`. Limits: 2,000 static and 100 dynamic redirects, each
+# line at most 1,000 characters. An empty file is valid.

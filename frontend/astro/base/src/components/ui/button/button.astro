@@ -1,0 +1,66 @@
+---
+// button.astro belongs: the one place for <button>. With `href` it renders a link that looks the
+// same, so navigation and actions share one control. An `icon` button has no text and needs an
+// aria-label (attributes fall through to the element).
+// It does not belong: a page's own button styling or behaviour (a script in the page).
+import type { HTMLAttributes } from 'astro/types'
+
+import Spinner from '../spinner/spinner.astro'
+import './button.scss'
+
+type Props = Omit<HTMLAttributes<'button'>, 'type' | 'disabled'> & {
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
+  size?: 'sm' | 'md' | 'icon'
+  type?: 'button' | 'submit' | 'reset'
+  disabled?: boolean
+  loading?: boolean
+  href?: string
+}
+
+const {
+  variant = 'primary',
+  size = 'md',
+  type = 'button',
+  disabled = false,
+  loading = false,
+  href,
+  class: className,
+  ...attrs
+} = Astro.props
+
+if (size === 'icon' && !attrs['aria-label'] && !attrs['aria-labelledby']) {
+  throw new Error('Button: size="icon" needs an aria-label.')
+}
+
+const classes = [
+  'button',
+  `button--${variant}`,
+  { [`button--${size}`]: size !== 'md', 'is-loading': loading },
+  className,
+]
+const inactive = disabled || loading
+---
+
+{href !== undefined ? (
+  <a
+    {...attrs}
+    href={href}
+    class:list={classes}
+    aria-disabled={inactive ? 'true' : undefined}
+    tabindex={inactive ? -1 : undefined}
+  >
+    {loading && <Spinner decorative />}
+    <slot />
+  </a>
+) : (
+  <button
+    {...attrs}
+    type={type}
+    class:list={classes}
+    disabled={inactive}
+    aria-busy={loading ? 'true' : undefined}
+  >
+    {loading && <Spinner decorative />}
+    <slot />
+  </button>
+)}

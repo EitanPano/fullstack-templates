@@ -1,0 +1,15 @@
+---
+// card.astro belongs: a surface that groups related content: the card token, a border, a radius.
+// It does not belong: page layout (the page's own sheet) or a heading (the content brings it).
+import type { HTMLAttributes } from 'astro/types'
+
+import './card.scss'
+
+type Props = HTMLAttributes<'div'> & { as?: 'div' | 'section' | 'article' }
+
+const { as: Tag = 'div', class: className, ...attrs } = Astro.props
+---
+
+<Tag {...attrs} class:list={['card', className]}>
+  <slot />
+</Tag>

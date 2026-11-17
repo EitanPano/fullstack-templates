@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'bun:test'
-import { MarkerError, applyMarkers, commentSyntaxFor, findLeftoverMarker } from '../lib/markers'
+import {
+  MarkerError,
+  applyMarkers,
+  commentSyntaxFor,
+  commentSyntaxesFor,
+  findLeftoverMarker,
+} from '../lib/markers'
+import { isTextFile } from '../lib/placeholders'
 
 const ts = ['//', ''] as const
 const on = { auth: true }
@@ -125,5 +132,60 @@ describe('commentSyntaxFor', () => {
     expect(commentSyntaxFor('a/.env.example')).toEqual(['#', ''])
     expect(commentSyntaxFor('a/README.md')).toEqual(['<!--', ' -->'])
     expect(commentSyntaxFor('a/logo.png')).toBeUndefined()
+  })
+})
+
+describe('.jsonc and .astro (ADR 0014 K5)', () => {
+  const slash = ['//', ''] as const
+  const html = ['<!--', ' -->'] as const
+
+  test('a .jsonc file takes // markers', () => {
+    expect(commentSyntaxFor('wrangler.jsonc')).toEqual(slash)
+    const src = '{\n  "a": 1, // @auth\n  // @auth-start\n  "b": 2,\n  // @auth-end\n  "c": 3\n}\n'
+    expect(applyMarkers(src, slash, 'wrangler.jsonc', on)).toBe(
+      '{\n  "a": 1,\n  "b": 2,\n  "c": 3\n}\n',
+    )
+    expect(applyMarkers(src, slash, 'wrangler.jsonc', off)).toBe('{\n  "c": 3\n}\n')
+  })
+  test('an .astro file takes both syntaxes', () => {
+    expect(commentSyntaxesFor('a/page.astro')).toEqual([slash, html])
+    expect(commentSyntaxesFor('a/b.ts')).toEqual([slash])
+    expect(commentSyntaxFor('a/page.astro')).toEqual(slash)
+  })
+  test('both syntaxes work as lines and as blocks in one pass', () => {
+    const src = [
+      '---',
+      'const a = 1 // @auth',
+      '// @auth-start',
+      'const b = 2',
+      '// @auth-end',
+      '---',
+      '<p>a</p> <!-- @auth -->',
+      '<!-- @noauth-start -->',
+      '<p>b</p>',
+      '<!-- @noauth-end -->',
+      '',
+    ].join('\n')
+    const both = [slash, html] as const
+    expect(applyMarkers(src, both, 'p.astro', on)).toBe(
+      '---\nconst a = 1\nconst b = 2\n---\n<p>a</p>\n',
+    )
+    expect(applyMarkers(src, both, 'p.astro', off)).toBe('---\n---\n<p>b</p>\n')
+  })
+  test('a block opened in one syntax and closed in the other is unbalanced', () => {
+    const src = '// @auth-start\nx\n<!-- @auth-end -->\n'
+    expect(() => applyMarkers(src, [slash, html], 'p.astro', on)).not.toThrow()
+    expect(() => applyMarkers('// @auth-start\nx\n', [slash, html], 'p.astro', on)).toThrow(
+      MarkerError,
+    )
+  })
+  test('the leftover sweep knows both syntaxes', () => {
+    expect(findLeftoverMarker('<p>a</p> <!-- @x -->', commentSyntaxFor('p.astro'))).toBe('<!-- @x')
+    expect(findLeftoverMarker('const a = 1 // @x', commentSyntaxFor('p.astro'))).toBe('// @x')
+    expect(findLeftoverMarker('"a": 1 // @x', commentSyntaxFor('w.jsonc'))).toBe('// @x')
+  })
+  test('placeholders are processed in both file types', () => {
+    expect(isTextFile('src/pages/index.astro')).toBe(true)
+    expect(isTextFile('wrangler.jsonc')).toBe(true)
   })
 })

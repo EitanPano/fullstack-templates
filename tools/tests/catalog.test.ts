@@ -44,10 +44,12 @@ describe('loadCatalog', () => {
   test('loads templates and stacks keyed by path and id', () => {
     const catalog = loadCatalog(FIXTURE)
     expect([...catalog.templates.keys()].sort()).toEqual([
+      'frontend/mini-site',
       'frontend/mini-spa',
       'frontend/mini-ui',
       'server/mini',
       'server/mini-py',
+      'serverless/mini-fn',
     ])
     expect(catalog.templates.get('server/mini')?.manifest.flags?.auth?.default).toBe(true)
     expect(catalog.stacks.get('mini')?.manifest.packages.map((p) => p.dir)).toEqual([

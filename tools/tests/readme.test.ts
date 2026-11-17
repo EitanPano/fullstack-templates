@@ -38,3 +38,19 @@ describe('readme matrix', () => {
     expect(() => replaceMatrix('# x\n', 'new')).toThrow(ReadmeError)
   })
 })
+
+describe('readme matrix with a serverless template', () => {
+  test('lists the kind after the servers and a nested dir stack by its templates', () => {
+    const matrix = renderMatrix(loadCatalog(FIXTURE))
+    expect(matrix).toContain('| `mini-fn` | serverless | 1.0.0 | auth | — |')
+    expect(matrix).toContain(
+      '| `mini-site-fn` | `serverless/mini-fn`, `frontend/mini-site` | Mini site and functions |',
+    )
+    expect(matrix.indexOf('| `mini-py` | server')).toBeLessThan(
+      matrix.indexOf('| `mini-fn` | serverless'),
+    )
+    expect(matrix.indexOf('| `mini-fn` | serverless')).toBeLessThan(
+      matrix.indexOf('| `mini-site` | frontend'),
+    )
+  })
+})

@@ -1,0 +1,42 @@
+// Pages configuration. Pages environments do not inherit bindings, so `preview` and `production`
+// each restate their vars and their own D1 database. The ids below are fake: a deployer replaces
+// them with the ids `wrangler d1 create` prints. No secret belongs in this file.
+{
+  "name": "__PROJECT_NAME__",
+  "pages_build_output_dir": "dist",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": { "ENVIRONMENT": "development" },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "__PROJECT_NAME__-dev",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "env": {
+    "preview": {
+      "vars": { "ENVIRONMENT": "preview" },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "__PROJECT_NAME__-preview",
+          "database_id": "00000000-0000-0000-0000-000000000001",
+          "migrations_dir": "migrations",
+        },
+      ],
+    },
+    "production": {
+      "vars": { "ENVIRONMENT": "production" },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "__PROJECT_NAME__-production",
+          "database_id": "00000000-0000-0000-0000-000000000002",
+          "migrations_dir": "migrations",
+        },
+      ],
+    },
+  },
+}

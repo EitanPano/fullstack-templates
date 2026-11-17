@@ -1,0 +1,42 @@
+@use '../setup/breakpoints';
+@use '../setup/functions';
+@use '../setup/variables';
+
+@layer basics {
+  // The body is a column at least the viewport high and `main` takes the rest, so a full-bleed
+  // screen fills the viewport and anything a product adds below it sits at the bottom.
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  // `main` has no width and no padding: `.page-container` owns them, so a full-bleed screen leaves
+  // it out. It is a column too, so a workspace can fill it.
+  main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+  }
+
+  .page-container {
+    inline-size: 100%;
+    max-inline-size: variables.$container-max;
+    margin-inline: auto;
+    padding-block: functions.space(6);
+    padding-inline: functions.space(4);
+
+    @include breakpoints.up(md) {
+      padding-inline: functions.space(8);
+    }
+
+    // Compact density tightens the vertical padding.
+    [data-density='compact'] & {
+      padding-block: functions.space(4);
+    }
+
+    // Content flows with a gap between neighbours; a page that lays itself out resets it.
+    > :where(* + *) {
+      margin-block-start: functions.space(3);
+    }
+  }
+}

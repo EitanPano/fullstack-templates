@@ -30,6 +30,7 @@
     "deploy": { "enum": ["single", "split"] },
     "packages": {
       "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]*(/[a-z][a-z0-9-]*)?$" },
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,

@@ -1,0 +1,17 @@
+---
+// alert.astro belongs: a message inline in the page, in one of four tones. An error or a warning
+// is announced assertively (role="alert"), the rest politely (role="status").
+// It does not belong: a transient message (the toast) or error wording (services/error-copy.ts).
+import type { HTMLAttributes } from 'astro/types'
+
+import './alert.scss'
+
+type Props = HTMLAttributes<'div'> & { tone?: 'info' | 'success' | 'warning' | 'error' }
+
+const { tone = 'info', class: className, ...attrs } = Astro.props
+const role = tone === 'error' || tone === 'warning' ? 'alert' : 'status'
+---
+
+<div {...attrs} role={role} class:list={['alert', `alert--${tone}`, className]}>
+  <slot />
+</div>

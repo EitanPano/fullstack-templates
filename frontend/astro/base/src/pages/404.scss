@@ -1,0 +1,14 @@
+@use 'setup/functions';
+
+.not-found {
+  display: grid;
+  gap: functions.space(4);
+  justify-items: start;
+  align-content: start;
+  max-inline-size: 40rem;
+}
+
+// The grid's gap spaces the content, so the flow margin of .page-container does not add to it.
+.not-found > * {
+  margin-block-start: 0;
+}

@@ -1,0 +1,8 @@
+schemaVersion: 1
+id: astro-cloudflare
+summary: Astro 7 in front of Cloudflare Pages Functions on D1
+packages:
+  - template: serverless/cloudflare
+    dir: serverless/cloudflare
+  - template: frontend/astro
+    dir: frontend

@@ -1,0 +1,37 @@
+---
+// base-layout.astro belongs: the document shell every page shares: head, the skip link (first in
+// the tab order) and the page's one <main id="main">, which fills the rest of a viewport-high
+// column. The global styles load here. Header, navigation, footer, the theme toggle and the toast
+// region are product code: a product adds them around <slot />.
+// It does not belong: page content or behaviour.
+import '@fontsource-variable/inter'
+
+import { UI_COPY } from '../models/ui/constant'
+import '../styles/themes/brand.css'
+import '../styles/styles.scss'
+
+type Props = {
+  title: string
+  description?: string
+}
+
+const { title, description } = Astro.props
+---
+
+<!doctype html>
+<html lang="en" data-density="__THEME_DENSITY__">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script is:inline src="/theme-init.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">{UI_COPY.skipToContent}</a>
+    <main id="main" tabindex="-1">
+      <slot />
+    </main>
+  </body>
+</html>

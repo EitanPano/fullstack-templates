@@ -67,6 +67,9 @@ export const GENERATED_PLACEHOLDERS: readonly string[] = [
   'PORT',
   ...SERVER_PLACEHOLDERS,
   'FRONTEND_DIR',
+  // A serverless package's view of the frontend (ADR 0014 K4).
+  'FRONTEND_PATH',
+  'FRONTEND_OUT',
   // The brand of a frontend package (lib/brand.ts builds the values).
   'PROJECT_DISPLAY_NAME',
   'THEME_LIGHT',
