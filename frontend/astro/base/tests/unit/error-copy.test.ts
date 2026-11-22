@@ -17,7 +17,7 @@ describe('the copy table', () => {
     expect(Object.keys(ERROR_COPY).sort()).toEqual([...contract, ...CLIENT_CODES].sort())
   })
 
-  it('has a message for method_not_allowed, which the functions add to the envelope', () => {
+  it('has a message for method_not_allowed, which the API adds to the envelope', () => {
     expect(ERROR_COPY.method_not_allowed).toBeTruthy()
   })
 

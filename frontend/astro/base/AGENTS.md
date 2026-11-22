@@ -107,7 +107,7 @@ violation and one allowed case per rule; each message names the layer to use ins
 ## Commands
 
 `bun run check` is every gate and needs no Docker or account: `astro check` (types, `.astro` files
-included), ESLint, Prettier and Vitest. `bun run dev` serves on port 4321 with reload. `bun run
+included), ESLint, Prettier and Vitest. `bun run dev` serves on port __PORT__ with reload. `bun run
 build` writes `dist/`. `bun run test:e2e` builds, then runs Playwright (install its browser once
 with `bunx playwright install chromium`).
 <!-- @server-start -->
@@ -115,6 +115,7 @@ with `bunx playwright install chromium`).
 `bun run dev` proxies `/api` to the API package's dev server (`vite.server.proxy` in
 `astro.config.mjs`). `bun run api:types` (the `contract` command) regenerates
 `src/services/generated/` from the server's `openapi.json`; commit the result and read the diff.
+Beside several frontends it sends `__PACKAGE_DIR__.localhost` as `Host`, the host the API maps to this frontend. <!-- @frontends -->
 
 <!-- @server-end -->
 
@@ -325,7 +326,7 @@ server's `message`.
 - The code maps through the copy table `src/models/error/constant.ts` (`errorMessage(code)` in
   `services/error-copy.ts`). The table is typed over the contract's codes, so a code added to the
   contract fails the build until it has copy, and `tests/unit/error-copy.test.ts` checks the table
-  against the generated schema of the error body (the functions add `method_not_allowed`).
+  against the generated schema of the error body (the Worker adds `method_not_allowed`).
 - A field the envelope names shows `FIELD_ERROR_COPY` (`applyFieldErrors`); the paths that name no
   field get one `error` toast of `errorMessage('validation_failed')`.
 - The toast fires from the handler after the await, never from code that runs on load. Every route
@@ -352,22 +353,22 @@ the build.
   (`Desktop Chrome`) projects, `retries: 0`, `reuseExistingServer: false`. With `E2E_BASE_URL` set
   (a blank value counts as unset) nothing is started.
 <!-- @noserver-start -->
-  Otherwise the web server is `astro preview` on port 4321 serving the built site.
+  Otherwise the web server is `astro preview` on port __PORT__ serving the built site.
 <!-- @noserver-end -->
 <!-- @server-start -->
   Otherwise the one web server is the server package's own chain, run in its directory with
   `RATE_LIMIT_SCALE=100`: its `e2eDb`, then its `start`, which assembles this build with the
-  functions and serves both on one origin. The base URL is that origin. On Windows a very long
-  project path (about 140 characters for the package) can make the functions' `e2eDb` fail with
-  `internal error; reference = ...`: wrangler's local database file passes 260 characters
-  (observed; use a shorter path).
+  Worker and serves both on one origin, the base URL. On Windows a path of about 140 characters
+  can make `e2eDb` fail with `internal error; reference = ...` (wrangler's database file passes 260):
+  use a shorter one.
+  Beside several frontends: `start --only __PACKAGE_DIR__`, base URL `http://__PACKAGE_DIR__.localhost:__SERVER_PORT__`, and `test` from `support.ts` sends `request` to 127.0.0.1 with the host header. <!-- @frontends -->
 <!-- @server-end -->
   A test tagged `@phone` or `@desktop` belongs to one project; never a runtime `test.skip`.
   `shell.spec` (skip link, one `main`, overflow, 44 px targets, density, console, policy),
   `screens.spec` (every nav route and the 404 page, both themes, axe WCAG A and AA, no horizontal
   scroll, one `h1`, no policy violation, screenshots in `test-results/screens/`) and `smoke.spec`
-  (the index page, the 404 page and its status; with a server also the API through `fetch` from the
-  page: health with a request id, a static page with none, the JSON 404, the reference module's
+  (the index page, the 404 page and its status; with a server also the API from the page: health
+  with a request id, a static page with none, the JSON 404, the reference module's
   create and list). Helpers: `tests/e2e/support.ts`. A journey names its data uniquely per run and
   removes it through the API.
 - Tests first: write the failing test, see it red, then the code; each behaviour has a happy path
@@ -386,8 +387,7 @@ adds `frame-ancestors`, which a meta cannot carry.
 Alone on Cloudflare Pages (Git-connected): root directory this package's path
 (`__PACKAGE_DIR__`), build command `bun install --frozen-lockfile && bun run build`, output
 directory `dist`, and the environment variables `NODE_VERSION=24` and `BUN_VERSION` of 1.4 or later
-(the build image's default Node is older than `engines`; platform documentation, confirm on the first
-build). A person creates the project; an agent never deploys or logs in. Pages answers `/about` for
+(the build image's default Node is older than `engines`; confirm on the first build). A person creates the project; an agent never deploys or logs in. Pages answers `/about` for
 `about.html` and redirects `/about/` to it.
 
 <!-- @server-start -->
@@ -398,7 +398,7 @@ page's policy meta allows only `'self'` and hashes for scripts and styles, and a
 `Content-Security-Policy` header with the directives a meta tag cannot carry. The pages keep their
 meta, and a browser applies both.
 `bun run build` here must finish before its `start` runs (`bun run test:e2e` does that). The
-deployment, the Pages project and its build command are in that package's `AGENTS.md › Deployment`.
+deployment, the Worker and its build command are in that package's `AGENTS.md › Deployment`.
 This package never reads a secret or an account.
 
 <!-- @server-end -->
@@ -407,18 +407,16 @@ This package never reads a secret or an account.
 
 For a hand-written static site of about a hundred HTML pages whose header and footer a script stamps
 into each file, with `_redirects`, `_headers`, `404.html`, `robots.txt`, a sitemap and generated text
-files (`llms.txt`). It works with the functions package beside it and without. Each step is one
+files (`llms.txt`). It works with the serverless package beside it and without. Each step is one
 task; the site stays deployable after each, and `bun run check` and `bun run test:e2e` stay green.
 Never convert many pages in one task: one family at a time.
 
 1. **Pass-through first.** Copy the site into `public/`: pages, assets, `robots.txt`, the sitemap,
    the generated text files, and merge its `_redirects` and `_headers` into `public/_redirects` and
-   `public/_headers` (keep the `/_astro/*` rule; no `Content-Security-Policy` line). Every URL keeps
-   working. The exceptions are `index.html` and `404.html`: they collide with the template's
+   `public/_headers` (keep the `/_astro/*` rule; no `Content-Security-Policy` line). Every URL keeps working except `index.html` and `404.html`, which collide with the template's
    `src/pages/index.astro` and `404.astro`, and `build.test.ts` and the e2e specs assert that those
    two pages hold no script but `theme-init.js`, so port both as Astro pages in this task (the 404
-   keeps its `Page not found` heading, which `smoke.spec.ts` reads, or change that assertion here and
-   say so). URLs, with `build.format: 'file'` and the platform's pretty URLs: an Astro page
+   keeps its `Page not found` heading, which `smoke.spec.ts` reads). URLs, with `build.format: 'file'` and the platform's pretty URLs: an Astro page
    `about.astro` is `about.html`, served at `/about` (200), and `/about/` answers a 308 to `/about`;
    a legacy `public/about/index.html` stays at `/about/` and `/about` redirects to it; a legacy
    `public/about.html` is served at `/about` and the platform redirects `/about.html` to it
@@ -435,18 +433,17 @@ Never convert many pages in one task: one family at a time.
 <!-- @noserver-end -->
 <!-- @server-start -->
    Beside `serverless/cloudflare` it is served under the one fixed `Content-Security-Policy` header
-   that `assemble` writes for `/*` (`img-src 'self' data:`, `font-src 'self'`, `connect-src 'self'`,
-   `form-action 'self'`, `frame-ancestors 'none'` and the like: a third-party host there is refused,
-   and the page cannot be framed). It has no script or style policy, because it has no meta: its
+   that `assemble` writes for `/*` (`frame-ancestors 'none'`, `img-src 'self' data:` and the like: a
+   third-party host there is refused, and the page cannot be framed). It has no script or style policy, because it has no meta: its
    inline scripts and styles still run, and `assemble` warns on stderr with the count and paths of
    the pages without one ("served without a script policy"). Fix each page as you migrate it:
    move inline code to a file in `public/` (`'self'`), drop an inline style for a class, and the
    page, once it is an Astro page, carries the hashed meta. A host that must stay is a deliberate
    decision, never a quiet one: a script host in `security.csp.scriptDirective.resources` is refused
-   by the functions package's check, and an image or font host is a change to `FIXED_POLICY` in its
+   by the serverless package's check, and an image or font host is a change to `FIXED_POLICY` in its
    `scripts/lib/csp-headers.mjs` (and its unit test).
 <!-- @server-end -->
-   Fix the inventory in the old files first or in the page's own migration, not later.
+   Fix the inventory first or in the page's own migration.
 3. **Page families, one at a time.** For a family (the legal pages, the articles, the product pages):
    - the stamped header and footer become product code: `src/components/site-header/` and
      `site-footer/` (a folder each with its `.scss`), placed by a `src/layouts/site-layout.astro`
@@ -479,8 +476,7 @@ Never convert many pages in one task: one family at a time.
 
 <!-- @server-start -->
 
-A site with the functions package also follows `serverless/cloudflare/AGENTS.md › Migrating Pages
-Functions` (preview database, baseline, `_lib`): the two guides share no step, and the pages can move
-before or after the functions.
+A site with the serverless package also follows `serverless/cloudflare/AGENTS.md › Migrating Pages
+Functions`; the guides share no step, so the pages can move before or after.
 
 <!-- @server-end -->

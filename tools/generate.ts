@@ -3,10 +3,11 @@ import path from 'node:path'
 import { CatalogError, loadCatalog } from './lib/catalog'
 import { CATALOG_ROOT, CliError, fail, parseArgs } from './lib/cli'
 import { generate, GenerateError } from './lib/generate'
-import { PlanError, resolveRequest, type Answers } from './lib/plan'
+import { PlanError, parseFrontendArg, resolveRequest, type Answers } from './lib/plan'
 
 const USAGE =
   'usage: bun tools/generate.ts (--stack <id> | --template <kind/id> [--dir <name>]) --out <dir> --name <name> ' +
+  '[--frontend <dir>=<template>] ' +
   '[--flag k=v] [--capability k=v] [--deploy single|split] [--answers <json-file>] ' +
   '[--display-name <text>] [--brand-primary <hex>] [--brand-neutral <hex>] [--radius sm|md|lg] ' +
   '[--font system|inter] [--theme system|light|dark] [--density comfortable|compact] ' +
@@ -45,7 +46,7 @@ function run(argv: string[]): void {
       'theme',
       'density',
     ],
-    repeatable: ['flag', 'capability'],
+    repeatable: ['flag', 'capability', 'frontend'],
     booleans: ['skip-post-generate', 'keep-staging'],
   })
   const {
@@ -61,7 +62,9 @@ function run(argv: string[]): void {
   } = args.values
   if (!out) throw new CliError('--out is required')
   if (name === undefined) throw new CliError('--name is required')
-  if (!stack && !template) throw new CliError('one of --stack or --template is required')
+  if (!stack && !template && args.lists.frontend?.length === 0) {
+    throw new CliError('one of --stack, --template or --frontend is required')
+  }
 
   const loaded = loadCatalog(catalog ? path.resolve(catalog) : CATALOG_ROOT)
   const plan = resolveRequest(loaded, {
@@ -70,6 +73,7 @@ function run(argv: string[]): void {
     stack,
     template,
     dir,
+    frontends: (args.lists.frontend as string[]).map(parseFrontendArg),
     flags: args.lists.flag as string[],
     capabilities: args.lists.capability as string[],
     answers: answers ? readAnswers(answers) : undefined,

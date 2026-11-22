@@ -1,7 +1,9 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from '@playwright/test' // @nofrontends
+import { expect } from '@playwright/test' // @frontends
 
 import { NOT_FOUND } from './screen-routes'
-import { expectNoAxeViolations } from './support'
+import { expectNoAxeViolations } from './support' // @nofrontends
+import { expectNoAxeViolations, test } from './support' // @frontends
 
 test('the index route is one h1 inside main and passes the axe scan', async ({ page }) => {
   await page.goto('/')

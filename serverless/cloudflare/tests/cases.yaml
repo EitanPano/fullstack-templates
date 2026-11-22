@@ -2,6 +2,6 @@ schemaVersion: 1
 cases:
   # The template generated alone: install, check and the workerd API project.
   - name: default
-  # The jobs flag on: the second Worker with its scheduled cleanup, its config and its tests.
+  # The jobs flag on: the cron trigger and the scheduled cleanup in the one Worker, and its tests.
   - name: jobs
     flags: { jobs: true }

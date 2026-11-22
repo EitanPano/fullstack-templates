@@ -2,13 +2,14 @@
 // intersects. Each page keeps the <meta http-equiv> its build wrote (its own script and style
 // hashes, which change every build); this file checks that meta allows nothing but 'self' and
 // hashes for scripts and styles, and writes ONE fixed header line under `/*` in dist/_headers
-// for what a meta cannot carry (frame-ancestors) and for the rest. It never rewrites a page.
-// It does not belong: copying files (assemble.mjs) or any other header (pages/_headers).
+// (under `/<dir>/*` for each of several frontends) for what a meta cannot carry
+// (frame-ancestors) and for the rest. It never rewrites a page.
+// It does not belong: copying files (assemble.mjs) or any other header (static/_headers).
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
-// Cloudflare Pages' limits for a _headers file, checked 2026-11-17 at
-// developers.cloudflare.com/pages/configuration/headers: up to 100 header rules, and each line of
+// The static assets' limits for a _headers file, checked 2026-11-22 at
+// developers.cloudflare.com/workers/static-assets/headers: up to 100 header rules, and each line of
 // the file (spaces, name and value) has a 2,000 character limit.
 export const MAX_RULES = 100
 export const MAX_LINE = 2000
@@ -147,26 +148,30 @@ export function checkHeadersLimits(headers) {
   const long = lines.find((line) => line.length > MAX_LINE)
   if (long !== undefined) {
     throw new CspError(
-      `a _headers line is ${String(long.length)} characters (it starts "${long.trim().slice(0, 40)}"); Pages allows ${String(MAX_LINE)} per line`,
+      `a _headers line is ${String(long.length)} characters (it starts "${long.trim().slice(0, 40)}"); the platform allows ${String(MAX_LINE)} per line`,
     )
   }
   const rules = lines.filter(isRule).length
   if (rules > MAX_RULES) {
-    throw new CspError(`_headers holds ${String(rules)} rules; Pages allows ${String(MAX_RULES)}`)
+    throw new CspError(`_headers holds ${String(rules)} rules; the platform allows ${String(MAX_RULES)}`)
   }
 }
 
-export function addPolicyToHeaders(headers) {
+// The fixed line goes under the first of each of `rules` in the file (`/*`, or one `/<dir>/*` per
+// frontend of several); a rule the file lacks is created.
+export function addPolicyToHeaders(headers, rules = ['/*']) {
   checkHeadersSource(headers, 'the merged _headers')
   const header = `  Content-Security-Policy: ${FIXED_POLICY}`
   const lines = headers === '' ? [] : headers.replace(/\n$/, '').split('\n')
-  const at = lines.findIndex((line) => line.trim() === '/*' && isRule(line))
-  if (at === -1) lines.push('/*', header)
-  else {
-    let end = at + 1
-    while (end < lines.length && !isRule(lines[end])) end++
-    while (end > at + 1 && lines[end - 1].trim() === '') end--
-    lines.splice(end, 0, header)
+  for (const rule of rules) {
+    const at = lines.findIndex((line) => line.trim() === rule && isRule(line))
+    if (at === -1) lines.push(rule, header)
+    else {
+      let end = at + 1
+      while (end < lines.length && !isRule(lines[end])) end++
+      while (end > at + 1 && lines[end - 1].trim() === '') end--
+      lines.splice(end, 0, header)
+    }
   }
   const result = `${lines.join('\n')}\n`
   checkHeadersLimits(result)
@@ -184,18 +189,25 @@ function htmlFiles(dir, prefix = '') {
   })
 }
 
-// Checks the policy of every page under `dist`, then writes the fixed line into dist/_headers.
-// Pages are never modified. Nothing is written until every check has passed, so a failed run
-// leaves dist as it was. `without` lists the pages that have no policy meta.
-export function applyPolicy(dist) {
+// Checks the policy of every page under `dir`; nothing is written. `without` lists the pages that
+// have no policy meta.
+export function checkPages(dir) {
   const without = []
-  const files = htmlFiles(dist)
+  const files = htmlFiles(dir)
   for (const file of files) {
-    const policies = extractPolicies(readFileSync(path.join(dist, file), 'utf8'), file)
+    const policies = extractPolicies(readFileSync(path.join(dir, file), 'utf8'), file)
     if (policies.length === 0) without.push(file)
     // Policies intersect in a browser, but a wider one is still a mistake: each is checked.
     for (const policy of policies) checkPagePolicy(policy, file)
   }
+  return { pages: files.length, withPolicy: files.length - without.length, without }
+}
+
+// Checks the policy of every page under `dist`, then writes the fixed line into dist/_headers.
+// Pages are never modified. Nothing is written until every check has passed, so a failed run
+// leaves dist as it was.
+export function applyPolicy(dist) {
+  const checked = checkPages(dist)
   const target = path.join(dist, '_headers')
   let current = ''
   try {
@@ -204,5 +216,5 @@ export function applyPolicy(dist) {
     // No _headers yet: the file is created.
   }
   writeFileSync(target, addPolicyToHeaders(current))
-  return { pages: files.length, withPolicy: files.length - without.length, without }
+  return checked
 }

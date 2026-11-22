@@ -195,7 +195,7 @@
       },
       "propertyNames": {
         "not": {
-          "enum": ["server", "single", "frontend", "database", "cache", "messaging"]
+          "enum": ["server", "single", "frontend", "frontends", "database", "cache", "messaging"]
         }
       }
     },

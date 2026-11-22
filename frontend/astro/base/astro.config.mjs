@@ -5,7 +5,7 @@ import react from '@astrojs/react' // @islands
 // (about/index.html) with a 308 to its trailing slash. `security.csp` hashes every script and style
 // of the build into a <meta> policy on each page, so the policy needs no 'unsafe-inline'; the
 // directives below make that meta a whole policy for a site hosted alone (a meta cannot carry
-// frame-ancestors, sandbox or reporting: beside the functions, assemble adds a header with the
+// frame-ancestors, sandbox or reporting: beside the API, assemble adds a header with the
 // rest). Sass reaches `setup/` through the load path. The server binds 127.0.0.1 (not localhost, which may
 // resolve to ::1 first), the address the e2e run and the API proxy use.
 export default defineConfig({
@@ -30,6 +30,20 @@ export default defineConfig({
   server: { port: __PORT__, host: '127.0.0.1' },
   vite: {
     css: { preprocessorOptions: { scss: { loadPaths: ['src/styles'] } } },
+    // @nofrontends-start
     server: { proxy: { '/api': { target: 'http://127.0.0.1:__SERVER_PORT__' } } }, // @server
+    // @nofrontends-end
+    // @frontends-start
+    // Beside several frontends the API maps a request's host to a frontend and answers /api/admin
+    // on the admin frontend's host only: the proxy names this frontend's own local host.
+    server: {
+      proxy: {
+        '/api': {
+          target: 'http://127.0.0.1:__SERVER_PORT__',
+          headers: { host: '__PACKAGE_DIR__.localhost:__SERVER_PORT__' },
+        },
+      },
+    },
+    // @frontends-end
   },
 })

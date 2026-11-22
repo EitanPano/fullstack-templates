@@ -1,6 +1,6 @@
 ---
-// 404.astro belongs: the page Pages serves, with status 404, for a path no page or function owns.
-// It does not belong: the JSON 404 of an unknown /api path (functions/api/[[path]].ts).
+// 404.astro belongs: the page the host serves, with status 404, for a path no page or API route owns.
+// It does not belong: the JSON 404 of an unknown /api path, which the API answers.
 import Button from '../components/ui/button/button.astro'
 import BaseLayout from '../layouts/base-layout.astro'
 import './404.scss'

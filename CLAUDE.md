@@ -10,8 +10,8 @@ of code live here, with different gates:
 - `tools/` is the generator (TypeScript on Bun): `validate.ts`, `generate.ts`, `test-generated.ts`
   and `lib/`. It has its own `package.json`, tests and `check`.
 - `server/<id>/base/`, `serverless/<id>/base/` and `frontend/<id>/base/` are the template payloads:
-  complete packages in their own language (Bun + Express 5, Python 3.14 + FastAPI, Cloudflare Pages
-  Functions, Next.js 16, Vite + React 19, Astro 7) with markers and placeholders inside. The tools copy and rewrite them; they never run them in place.
+  complete packages in their own language (Bun + Express 5, Python 3.14 + FastAPI, one Cloudflare
+  Worker, Next.js 16, Vite + React 19, Astro 7) with markers and placeholders inside. The tools copy and rewrite them; they never run them in place.
 
 Everything else is manifests (`index.yaml`, `template.yaml`, `stack.yaml`, `tests/cases.yaml`,
 `provider.yaml`, `capability.yaml`) validated against `schemas/*.json`, plus docs. The design is
@@ -36,7 +36,7 @@ counts as a breaking change here:
 - `index.yaml` and the chosen `template.yaml` files: the only catalog files the bootstrap skill
   reads, to list stacks and ask about flags and capabilities.
 - The `generate.ts` command line (`--stack`, `--name`, `--flag`, `--capability`, `--deploy`,
-  `--answers`, `--catalog`, `--catalog-version`).
+  `--answers`, `--catalog`, `--catalog-version`, `--frontend <dir>=<template>`, repeatable).
 - `.fullstack/catalog.yaml` (schema `schemas/provenance.schema.json`): the harness's agents take
   every command and port from it and never read the catalog again. Its top-level `deploy`
   (`single` or `split`) is written only when the plan has a server and a frontend.
@@ -79,6 +79,8 @@ bun tools/generate.ts --stack next-bun-express --out ../my-app --name my-app \
   [--flag auth=false] [--capability database=postgres] [--deploy single|split] \
   [--skip-post-generate] [--keep-staging]
 bun tools/generate.ts --template server/python-fastapi --out ../api --name api   # one package
+bun tools/generate.ts --stack astro-cloudflare --out ../x --name x \
+  --frontend site=frontend/astro --frontend admin=frontend/astro   # several frontends (serverless API only)
 bun tools/test-generated.ts --list                                    # case ids: <kind>/<id>/<case>
 bun tools/test-generated.ts --case server/bun-express/default          # generate, run its check
 bun tools/test-generated.ts --case server/bun-express/postgres --with-services   # Docker: migrate, check, testDb
@@ -156,7 +158,8 @@ catalog with `skipPostGenerate`. The `*-cli.test.ts` files spawn the entry scrip
   one. Two selections are reserved and cannot be flag names: `server` (the plan has a server) and
   `single` (the plan deploys as one image; never true without a server). A `serverless` package also
   has `frontend` (the plan has a frontend), reserved too, and a `serverless` package counts as the
-  plan's `server` for a frontend's selections. Every extension
+  plan's `server` for a frontend's selections. `frontends` (the plan holds more than one frontend) is
+  reserved for `serverless` and `frontend` packages. Every extension
   `markers.ts` gives a comment syntax is a text file by construction (`placeholders.ts` derives its
   list from it), and a unit test pins that. A file of any other type is copied untouched: if it
   looks like text (no NUL byte in its first KiB) and holds a marker comment or a declared
@@ -167,8 +170,10 @@ catalog with `skipPostGenerate`. The `*-cli.test.ts` files spawn the entry scrip
   (`__PROJECT_NAME__`); the generator adds `__PACKAGE_DIR__`, `__PORT__`, `__SERVER_DIR__`,
   `__SERVER_PORT__`, `__SERVER_DEV_COMMAND__`, and `__FRONTEND_DIR__` (the frontend's directory,
   for the server's Compose fragment); a `serverless` package beside a frontend also gets
-  `__FRONTEND_PATH__` and `__FRONTEND_OUT__`, undefined when the plan has no frontend. A declared
-  token left in output fails the run.
+  `__FRONTEND_PATH__` and `__FRONTEND_OUT__` (the first frontend's, undefined when the plan has
+  no frontend), `__FRONTENDS__` (JSON list of `{dir,path,out,port}`, `[]` then) and
+  `__FRONTEND_HOSTS__` (the local host map, empty then). Each package's `__PORT__` is unique in the plan. A declared token left in output
+  fails the run.
 - **Two dependency adapters.** `npm` (bun-express, next): a flag's `dependencies.remove` and a
   capability's `dependencies` and `scripts` edit `package.json`; a script name the base already
   has is refused. `pyproject` (python-fastapi): the loader refuses those fields. A dependency or
@@ -220,9 +225,9 @@ service in `single` (`target: dist`, `scale: 0`) that the server reads as `addit
 spa: "service:<dir>" }`, which needs **Docker Compose 2.35.0 or later**. `docker compose down` needs
 `--profile app`.
 
-A `serverless` API (`serverless/cloudflare`, ADR 0014) has no deploy mode and no Compose file, and a
-frontend with `docker: false` (`frontend/astro`) joins a plan alone or beside it, never beside a
-`server`; `docs/conventions.md › Serverless` is its contract.
+A `serverless` API (`serverless/cloudflare`, ADRs 0014 and 0016) has no deploy mode and no Compose
+file, and a frontend with `docker: false` (`frontend/astro`) joins a plan alone or beside it, never
+beside a `server`; beside a `serverless` API a plan may hold several frontends (ADR 0015); `docs/conventions.md › Serverless` is its contract.
 
 The two server templates are kept behaviourally parallel on purpose: same endpoints, error codes,
 flags, cases and overlay shape. ADR 0002 has the table of intentional deviations; check it before

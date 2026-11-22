@@ -20,6 +20,12 @@ language-neutral core.
   `models/<name>/` (entity types), `middleware/`, `services/` (stateful shared
   capabilities; `security/`, `communicate/`, pure `utils/`), `infra/` (live connections
   as resources, `jobs/`, `subscribers/`, `scripts/`).
+- Admin namespace ([ADR 0015](adr/0015-several-frontends-by-directory.md) A1): every admin
+  endpoint is under `/api/admin/` and lives in `api/admin/<module>/`, a module like any other
+  (`/api/admin/<entity>`, the entity singular). The namespace's `routes` mounts at `/api/admin`
+  and applies the one gate first, the same in every environment: the role gate with accounts,
+  a refusal of every request (403) without, until the product writes its own. No admin module
+  ships.
 - Request flow: `config routes → module routes → gates → controller handler → service →
   db seam → infra store`. The gates are what the framework runs before a handler (middleware
   in Express, dependencies in FastAPI): authentication, roles, rate limits. Validation comes
@@ -71,25 +77,42 @@ request and the agents file's five server headings.
 
 | Server contract | In a serverless template |
 | --- | --- |
-| Two entry files, a listener | The platform routes: a route file is `gates → validate → controller`, and tests send a request through the routing |
-| One Docker image, `STATIC_DIR` | None: no image, no `compose.yaml` (refused), no deploy mode. `start` serves the frontend's build on the functions' origin when the plan has one that declares `static` |
-| Jobs and the in-process bus | No bus; a scheduled job is a second function unit behind a flag |
+| Two entry files, a listener | One entry that only mounts each module's `routes` (a route file is `gates → validate → controller`); tests send a request through the entry |
+| One Docker image, `STATIC_DIR` | None: no image, no `compose.yaml` (refused), no deploy mode. `start` serves the frontends' builds on the Worker's origin when the plan has frontends that declare `static` |
+| Jobs and the in-process bus | No bus; a scheduled job is a `scheduled` handler of the same Worker behind a flag |
 | Config read once from environment variables | The same rule on the request's bindings, validated once per isolate; nothing reads `process.env` or keeps a module-level connection |
 | The engine as a catalog provider | The engine is the platform's and part of the base: no `capabilities`; the template declares `migrate`, `testDb` and `e2eDb` itself |
 
 - It is the plan's server for everything a frontend keys on: the `server` selection and
   `server:<flag>` facts, the `SERVER_*` placeholders, `contract: { consumes: "<server>/..." }`. A plan
   has at most one package of kind `server` or `serverless`.
-- Its own placeholders for a frontend in the plan: `__FRONTEND_PATH__` (the relative path to the
-  frontend's directory) and `__FRONTEND_OUT__` (its `static.out`), with the `frontend` selection
-  (`@frontend` / `@nofrontend`); a line that uses one with no frontend fails generation.
+- One Worker with static assets, routed by Hono ([ADR 0016](adr/0016-one-worker-with-static-assets.md)):
+  one deployable that serves the API and every frontend's build, its modules able to move to a
+  Worker each later (controllers async, plain data across a module boundary).
+- Its own placeholders for the frontends in the plan: `__FRONTEND_PATH__` and `__FRONTEND_OUT__`
+  (the first frontend's directory path and `static.out`), `__FRONTENDS__` (a JSON list of
+  `{dir,path,out,port}`, `[]` with no frontend) and `__FRONTEND_HOSTS__` (the local host map, empty
+  then), with the `frontend` and `frontends` selections (`@frontend` / `@nofrontend`,
+  `@frontends`); a line that uses `__FRONTEND_PATH__` or `__FRONTEND_OUT__` with no frontend fails
+  generation.
 - It may not declare `static`, `capabilities`, `onlyWhen`, `docker`, `withApp` or a brand case. It
   declares `start` (a frontend's e2e runs `e2eDb && start` in its directory).
-- Command rows that differ: `start` serves the assembled site and the functions once on the
+- Command rows that differ: `start` serves the assembled sites and the API once on the
   manifest's port; `testDb` is the API project in the runtime; `migrate` and `e2eDb` act on the
   platform's local database and its separate e2e state, with no service to start.
 
 **Frontend**
+
+A plan may hold several frontends beside a `serverless` API, each in its own directory
+([ADR 0015](adr/0015-several-frontends-by-directory.md)). The generator accepts any valid
+directory; the harness holds a new project's frontends to these four types:
+
+| Directory | What it is | Search | Sign-in |
+| --- | --- | --- | --- |
+| `site` | Public pages: marketing, content, documentation | Indexed | None |
+| `platform` | A public-first product with optional sign-in | Indexed | Optional |
+| `app`, or `app-<tool>` when there are several | The signed-in customer product | noindex | Required |
+| `admin` | The back-office for staff; calls `/api/admin/*` | noindex | Required, elevated |
 
 What every frontend satisfies, whatever its framework. These ten invariants are numbered so the
 harness can cite them. Folders, state, forms, the design system and the import graph are the

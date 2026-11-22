@@ -1,13 +1,15 @@
 """The mount table: one line per API module, in mount order.
 
-This is the only module that imports a module's routes.py, and only server.py and tests import this
-one (both are checked by import-linter). Adding a module is its package, a line here, its component
-names in openapi.py, then running `uv run poe contract`: FastAPI derives the OpenAPI paths from the
-mounted routers, so there is no registration list.
+This is the only module that imports a module's routes.py (`api/admin/routes.py` imports the admin
+modules' own), and only server.py and tests import this one (both are checked by import-linter).
+Adding a module is its package, a line here, its component names in openapi.py, then running
+`uv run poe contract`: FastAPI derives the OpenAPI paths from the mounted routers, so there is no
+registration list. An admin module is an entry in `api/admin/routes.py` instead.
 """
 
 from fastapi import FastAPI
 
+from app.api.admin.routes import admin_router
 from app.api.auth.routes import router as auth_router  # @auth
 from app.api.health.routes import router as health_router
 from app.api.module.routes import router as module_router
@@ -19,3 +21,4 @@ def register_routes(app: FastAPI) -> None:
     app.include_router(auth_router, prefix="/api/auth")  # @auth
     app.include_router(user_router, prefix="/api/user")  # @auth
     app.include_router(module_router, prefix="/api/module")
+    app.include_router(admin_router(), prefix="/api/admin")

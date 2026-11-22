@@ -12,6 +12,9 @@ segments; a template that declares `testDb`, `migrate` and `e2eDb` itself),
 [ADR 0003](0003-spa-and-deploy-modes.md) (a kind with no deploy mode and no Compose file; a
 frontend that ships no image) and [ADR 0006](0006-per-framework-frontends-and-angular.md)
 (invariant 9 for a frontend with `docker: false`).
+Its first ruling and T1 are replaced by [ADR 0016](0016-one-worker-with-static-assets.md) (one
+Worker with static assets); K4's `FRONTEND_PATH` is extended by
+[ADR 0015](0015-several-frontends-by-directory.md).
 
 ## Context
 

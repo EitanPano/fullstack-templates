@@ -42,7 +42,6 @@ describe('the cloudflare section', () => {
       '!.dev.vars.example',
       '.astro/',
       'dist/',
-      'dist-functions/',
       '.e2e-state/',
     ])
   })

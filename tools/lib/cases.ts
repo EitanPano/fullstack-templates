@@ -1,7 +1,7 @@
 import type { BrandInput } from './brand'
 import type { Catalog, DeployMode, LoadedTemplate } from './catalog'
 import { isApiKind } from './package-dir'
-import type { RequestInput } from './plan'
+import { parseFrontendArg, type RequestInput } from './plan'
 
 export interface GenerationCase {
   id: string
@@ -17,6 +17,13 @@ export interface GenerationCase {
   serverCapabilities: Record<string, string>
   flags: Record<string, boolean>
   capabilities: Record<string, string>
+  // The <dir>=<template> pairs replacing the stack's frontend (generate --frontend); empty keeps it.
+  frontends: string[]
+  // Flags and capabilities of further packages of the plan, by directory.
+  packages: Record<
+    string,
+    { flags?: Record<string, boolean>; capabilities?: Record<string, string> }
+  >
   // Runs the Compose smoke (build, boot, probe) when test-generated gets --with-app.
   withApp: boolean
   // The deploy mode the case asks for; null leaves the plan's default.
@@ -32,6 +39,10 @@ function serverDirOf(catalog: Catalog, stack: string | undefined): string | null
     isApiKind(catalog.templates.get(candidate.template)?.manifest.kind ?? ''),
   )
   return entry?.dir ?? null
+}
+
+function listedDirs(frontends: string[] | undefined): string[] {
+  return (frontends ?? []).map((entry) => parseFrontendArg(entry).dir)
 }
 
 function stackDir(catalog: Catalog, stack: string, template: LoadedTemplate): string {
@@ -51,12 +62,16 @@ export function listCases(catalog: Catalog): GenerationCase[] {
         template,
         name: entry.name,
         stack: entry.stack ?? null,
-        packageDir: entry.stack ? stackDir(catalog, entry.stack, template) : null,
+        packageDir: entry.stack
+          ? (listedDirs(entry.frontends)[0] ?? stackDir(catalog, entry.stack, template))
+          : null,
         serverDir: isApiKind(template.manifest.kind) ? null : serverDirOf(catalog, entry.stack),
         serverFlags: entry.server?.flags ?? {},
         serverCapabilities: entry.server?.capabilities ?? {},
         flags: entry.flags ?? {},
         capabilities: entry.capabilities ?? {},
+        frontends: entry.frontends ?? [],
+        packages: entry.packages ?? {},
         withApp: entry.withApp === true,
         deploy: entry.deploy ?? null,
         brand: entry.brand ?? null,
@@ -85,11 +100,13 @@ export function requestFor(c: GenerationCase, out: string): RequestInput {
   return {
     ...base,
     stack: c.stack,
+    ...(c.frontends.length === 0 ? {} : { frontends: c.frontends.map(parseFrontendArg) }),
     flags: [],
     capabilities: [],
     answers: {
       ...(c.brand === null ? {} : { brand: c.brand }),
       packages: {
+        ...c.packages,
         [c.packageDir]: { flags: c.flags, capabilities: c.capabilities },
         // Only a case that sets the server adds its entry, so other answers stay as they were.
         ...(c.serverDir !== null &&

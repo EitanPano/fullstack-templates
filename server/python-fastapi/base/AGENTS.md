@@ -97,6 +97,7 @@ src/app/
   config/             env.py · constants.py · cors.py · routes.py
   api/<name>/         routes · controller · schema; service only when the module has data
                       (model.py: reserved, for an engine that defines storage in code)
+  api/admin/          the admin namespace: routes.py (gate, mounts) · <name>/ modules
 <!-- @auth-start -->
                       (health, auth, user, module: the commented reference)
   models/<name>/      interface · type · enums · constants (auth, session, user, module)
@@ -617,6 +618,14 @@ command.
   401 unauthenticated, 403 forbidden,
 <!-- @auth-end -->
   404 missing, 409 conflict.
+- Admin endpoints live in `api/admin/<name>/`, a module like any other, at `/api/admin/<name>`
+  (`admin` is a namespace, not an entity); add its router to `MODULES` in `api/admin/routes.py`.
+<!-- @auth-start -->
+  That file runs `require_role(UserRole.admin)` first, so a route cannot ship without the gate.
+<!-- @auth-end -->
+<!-- @noauth-start -->
+  That file's gate refuses every request (403) until the product replaces it with its own.
+<!-- @noauth-end -->
 
 `api/module/` is the worked example.
 

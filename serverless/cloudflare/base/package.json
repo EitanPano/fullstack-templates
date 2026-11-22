@@ -17,12 +17,13 @@
     "start": "node scripts/start.mjs",
     "test": "vitest run",
     "test:db": "vitest run --project api",
-    "typecheck": "wrangler types --check --env-file types-vars.txt && tsc -p tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit",
-    "types": "wrangler types --env-file types-vars.txt"
+    "typecheck": "wrangler types --check --strict-vars=false --env-file types-vars.txt && tsc -p tsconfig.json --noEmit && tsc -p tests/tsconfig.json --noEmit",
+    "types": "wrangler types --strict-vars=false --env-file types-vars.txt"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "9.1.0",
     "drizzle-orm": "0.45.4",
+    "hono": "4.13.20",
     "zod": "4.6.7"
   },
   "devDependencies": {

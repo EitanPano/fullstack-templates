@@ -54,6 +54,13 @@ export interface RequestInput {
   deploy?: string
   // The brand options; each overrides the same key of answers.brand.
   brand?: BrandInput
+  // The --frontend pairs, in the order given (ADR 0015 F1).
+  frontends?: FrontendRequest[]
+}
+
+export interface FrontendRequest {
+  dir: string
+  template: string
 }
 
 export interface PackagePlan {
@@ -69,8 +76,9 @@ export interface PackagePlan {
   selections: Record<string, boolean>
   serverDir: string | null
   serverPort: number | null
-  // The frontend package's directory, null when the plan has none (__FRONTEND_DIR__).
-  frontendDir: string | null
+  // The dev port of this package: its template's http.port, or the lowest free port above it when
+  // an earlier package of the plan holds that one (ADR 0015 F2). Null without http.
+  port: number | null
   // The server package's dev command, null when the plan has no server (or it declares none).
   serverDevCommand: string | null
   contractSkipped: boolean
@@ -81,6 +89,8 @@ export interface GenerationPlan {
   projectName: string
   stackId: string | null
   packages: PackagePlan[]
+  // The frontend packages, in plan order; the first is the one __FRONTEND_DIR__ names.
+  frontends: PackagePlan[]
   // Providers selected by any package, unique, ordered by kind then id.
   providers: LoadedProvider[]
   catalogVersion: string | undefined
@@ -113,12 +123,75 @@ interface Member {
   template: LoadedTemplate
 }
 
+// One --frontend value: <dir>=<template>.
+export function parseFrontendArg(entry: string): FrontendRequest {
+  const at = entry.indexOf('=')
+  if (at <= 0 || at === entry.length - 1) {
+    throw new PlanError(`--frontend must read <dir>=<template>: ${entry}`)
+  }
+  return { dir: entry.slice(0, at), template: entry.slice(at + 1) }
+}
+
+// The requested frontends as members: each dir well formed and used once, each template a
+// frontend of the catalog.
+function frontendMembers(catalog: Catalog, requested: FrontendRequest[]): Member[] {
+  const seen = new Set<string>()
+  return requested.map(({ dir, template: path }) => {
+    if (!DIR_PATTERN.test(dir)) throw new PlanError(`invalid package dir: ${dir}`)
+    if (seen.has(dir)) throw new PlanError(`frontend dir "${dir}" is listed twice`)
+    seen.add(dir)
+    const template = catalog.templates.get(path)
+    if (!template) throw new PlanError(`unknown template: ${path}`)
+    if (template.manifest.kind !== 'frontend') {
+      throw new PlanError(`${path} is not a frontend template, it is a ${template.manifest.kind}`)
+    }
+    return { dir, template }
+  })
+}
+
+// The listed frontends take the place of the stack's frontend member; the other members keep
+// their places.
+function replaceStackFrontends(stackId: string, members: Member[], listed: Member[]): Member[] {
+  const isFrontend = (m: Member) => m.template.manifest.kind === 'frontend'
+  const own = [...new Set(members.filter(isFrontend).map((m) => m.template.path))]
+  if (own.length === 0) {
+    throw new PlanError(`stack ${stackId} has no frontend member, so --frontend cannot apply`)
+  }
+  for (const item of listed) {
+    if (!own.includes(item.template.path)) {
+      throw new PlanError(
+        `stack ${stackId} uses ${own.join(', ')} for its frontend, but --frontend ${item.dir} lists ${item.template.path}`,
+      )
+    }
+  }
+  const result: Member[] = []
+  let placed = false
+  for (const member of members) {
+    if (!isFrontend(member)) result.push(member)
+    else if (!placed) {
+      result.push(...listed)
+      placed = true
+    }
+  }
+  return result
+}
+
 function resolveMembers(
   catalog: Catalog,
   input: RequestInput,
 ): { members: Member[]; stackId: string | null } {
-  if ((input.stack === undefined) === (input.template === undefined)) {
-    throw new PlanError('give exactly one of a stack and a template')
+  const listed = frontendMembers(catalog, input.frontends ?? [])
+  if (listed.length > 0 && input.template !== undefined) {
+    throw new PlanError('--frontend replaces --template for a frontend; give one of them')
+  }
+  // Several frontends with no stack are refused later, with the other rules on the member set.
+  const lone = input.stack === undefined && input.template === undefined && listed.length > 0
+  if (!lone && (input.stack === undefined) === (input.template === undefined)) {
+    throw new PlanError('give exactly one of a stack, a template and a lone --frontend')
+  }
+  if (lone) {
+    if (input.dir !== undefined) throw new PlanError('--dir only applies with --template')
+    return { members: listed, stackId: null }
   }
   if (input.stack !== undefined) {
     if (input.dir !== undefined) throw new PlanError('--dir only applies with --template')
@@ -130,13 +203,32 @@ function resolveMembers(
         throw new PlanError(`stack ${input.stack} uses unknown template ${entry.template}`)
       return { dir: entry.dir, template }
     })
-    return { members, stackId: input.stack }
+    return {
+      members: listed.length === 0 ? members : replaceStackFrontends(input.stack, members, listed),
+      stackId: input.stack,
+    }
   }
   const template = catalog.templates.get(input.template as string)
   if (!template) throw new PlanError(`unknown template: ${input.template}`)
   const dir = input.dir ?? defaultDir(template.manifest)
   if (!DIR_PATTERN.test(dir)) throw new PlanError(`invalid package dir: ${dir}`)
   return { members: [{ dir, template }], stackId: null }
+}
+
+// A package keeps its template's port unless an earlier package of the plan holds it; then it takes
+// the lowest free port above (ADR 0015 F2). Keyed by dir; a package without http has none.
+function assignPorts(members: Member[]): Map<string, number> {
+  const taken = new Set<number>()
+  const ports = new Map<string, number>()
+  for (const member of members) {
+    const wanted = member.template.manifest.http?.port
+    if (wanted === undefined) continue
+    let port = wanted
+    while (taken.has(port)) port++
+    taken.add(port)
+    ports.set(member.dir, port)
+  }
+  return ports
 }
 
 // Producers first so a consumer's contract step finds the server's contract file.
@@ -211,6 +303,8 @@ export const SERVER_SELECTION = 'server'
 export const SINGLE_SELECTION = 'single'
 // Only a serverless package has it: the plan holds a frontend, so its files may point at it.
 export const FRONTEND_SELECTION = 'frontend'
+// Likewise: the plan holds more than one frontend (ADR 0015 F2). A frontend package has it too.
+export const FRONTENDS_SELECTION = 'frontends'
 
 // Shared by the plan and the marker dry-run so the two cannot drift: every flag, the reserved
 // server and single, then per declared kind `<kind>` (a provider is selected) and `<kind>:<provider>` for
@@ -224,6 +318,7 @@ export function selectionsFor(
   capabilities: Record<string, string>,
   serverFacts: Readonly<Record<string, boolean>> = {},
   hasFrontend?: boolean,
+  severalFrontends = false,
 ): Record<string, boolean> {
   const selections: Record<string, boolean> = {
     ...flags,
@@ -231,7 +326,13 @@ export function selectionsFor(
     [SINGLE_SELECTION]: hasServer && single,
   }
   for (const [name, on] of Object.entries(serverFacts)) selections[SERVER_PREFIX + name] = on
-  if (hasFrontend !== undefined) selections[FRONTEND_SELECTION] = hasFrontend
+  if (hasFrontend !== undefined) {
+    selections[FRONTEND_SELECTION] = hasFrontend
+    selections[FRONTENDS_SELECTION] = hasFrontend && severalFrontends
+  } else if (template.manifest.kind === 'frontend') {
+    // A frontend package asks the same question of its plan: is there a second frontend?
+    selections[FRONTENDS_SELECTION] = severalFrontends
+  }
   for (const [kind, spec] of Object.entries(template.manifest.capabilities ?? {})) {
     selections[kind] = capabilities[kind] !== undefined
     for (const provider of spec.providers) {
@@ -388,7 +489,16 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
   // The plan's API: a server, or a serverless package that has no deploy mode (ADR 0014 K1).
   const server = members.find((m) => isApiKind(m.template.manifest.kind))
   const serverless = server?.template.manifest.kind === 'serverless'
-  const frontend = members.find((m) => m.template.manifest.kind === 'frontend')
+  const frontendMembersOfPlan = members.filter((m) => m.template.manifest.kind === 'frontend')
+  const frontend = frontendMembersOfPlan[0]
+  // The API maps a request's host to a frontend by its directory, as one host label and one folder.
+  const nested = frontendMembersOfPlan.find((m) => m.dir.includes('/'))
+  if (frontendMembersOfPlan.length > 1 && nested !== undefined) {
+    throw new PlanError(
+      `with several frontends each directory is one name: ${nested.dir} holds a slash (it becomes a host name and a folder)`,
+    )
+  }
+  const ports = assignPorts(members)
   const requestedDeploy = input.deploy ?? input.answers?.deploy
   if (serverless && requestedDeploy !== undefined) {
     throw new PlanError(
@@ -439,10 +549,11 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
         capabilities,
         {},
         member.template.manifest.kind === 'serverless' ? frontend !== undefined : undefined,
+        frontendMembersOfPlan.length > 1,
       ),
       serverDir: server?.dir ?? null,
-      serverPort: server?.template.manifest.http?.port ?? null,
-      frontendDir: frontend?.dir ?? null,
+      serverPort: server === undefined ? null : (ports.get(server.dir) ?? null),
+      port: ports.get(member.dir) ?? null,
       serverDevCommand: null,
       contractSkipped,
     }
@@ -464,6 +575,8 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
       deploy === 'single',
       pkg.capabilities,
       serverFactsFor(catalog, serverPlan),
+      undefined,
+      frontendMembersOfPlan.length > 1,
     )
   }
 
@@ -513,6 +626,7 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
     projectName,
     stackId,
     packages,
+    frontends: packages.filter((pkg) => pkg.template.manifest.kind === 'frontend'),
     providers,
     catalogVersion: input.catalogVersion,
     skipPostGenerate: input.skipPostGenerate,

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.0 — 2026-11-22
+
+### Added
+
+- The admin namespace ([ADR 0015](../../docs/adr/0015-several-frontends-by-directory.md) A1): `api/admin/routes.py` builds the router `config/routes.py` mounts at `/api/admin`, and an admin module is `api/admin/<name>/` at `/api/admin/<name>`, its router added to `MODULES` in that file. One gate is a dependency of the whole namespace, the same in every environment: with `auth`, `require_role(UserRole.admin)` (401 without a session, 403 for another role); without `auth`, every request is refused with 403 until the product writes its own gate. A fallback route under the gate answers an unknown admin path with the JSON 404 only once the gate admits the caller (`/api/admin` included). No admin module ships, the fallback is out of the schema, and `openapi.json` is unchanged.
+- import-linter treats `api/admin/<name>/` as a module: the per-file contracts name `app.api.**.<file>` (admin modules included), `app.api.admin` stays one unit beside the entity modules in the independence contract (its modules reach an entity's controller and schema only; no entity module imports an admin one), and a second independence contract keeps the admin modules apart. `tests/test_admin.py` and `tests/test_boundaries.py` (which runs `lint-imports` on a copy with fixture modules) prove it.
+
 ## 2.1.0 — 2026-11-12
 
 ### Added

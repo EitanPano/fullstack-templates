@@ -1,12 +1,34 @@
-// Pages configuration. Pages environments do not inherit bindings, so `preview` and `production`
-// each restate their vars and their own D1 database. The ids below are fake: a deployer replaces
+// @nofrontends-start
+// One Worker: `main` is the code, `assets` the built site (what `bun run assemble` writes into
+// dist/). A path under /api runs the Worker first; every other path is answered by the platform
+// from the assets, and the Worker is never invoked for it. `preview` and `production` inherit
+// `main`, `assets` and `triggers`; `vars` and bindings are not inherited, so each restates its own
+// vars and its own D1 database. The ids below are fake: a deployer replaces them with the ids
+// `wrangler d1 create` prints. No secret belongs in this file.
+// @nofrontends-end
+// @frontends-start
+// One Worker: `main` is the code, `assets` the built sites (what `bun run assemble` writes into
+// dist/, one folder per frontend). Every request runs the Worker first: it maps the request's host
+// to a frontend (FRONTEND_HOSTS) and fetches the page from that frontend's folder. `preview` and
+// `production` inherit `main`, `assets` and `triggers`; `vars` and bindings are not inherited, so
+// each restates its own vars and its own D1 database. The ids below are fake: a deployer replaces
 // them with the ids `wrangler d1 create` prints. No secret belongs in this file.
+// @frontends-end
 {
   "name": "__PROJECT_NAME__",
-  "pages_build_output_dir": "dist",
+  "main": "server/index.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
-  "vars": { "ENVIRONMENT": "development" },
+  "assets": {
+    "directory": "dist",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*"], // @nofrontends
+    "run_worker_first": true, // @frontends
+  },
+  "triggers": { "crons": ["17 * * * *"] }, // @jobs
+  "vars": { "ENVIRONMENT": "development" }, // @nofrontends
+  "vars": { "ENVIRONMENT": "development", "FRONTEND_HOSTS": "__FRONTEND_HOSTS__" }, // @frontends
   "d1_databases": [
     {
       "binding": "DB",
@@ -17,7 +39,12 @@
   ],
   "env": {
     "preview": {
-      "vars": { "ENVIRONMENT": "preview" },
+      "vars": { "ENVIRONMENT": "preview" }, // @nofrontends
+      // @frontends-start
+      // FRONTEND_HOSTS is empty on purpose: the Worker refuses every request until a deployer sets
+      // the real hosts here, `host=dir` pairs (a preview address is one host, so one frontend).
+      "vars": { "ENVIRONMENT": "preview", "FRONTEND_HOSTS": "" },
+      // @frontends-end
       "d1_databases": [
         {
           "binding": "DB",
@@ -28,7 +55,12 @@
       ],
     },
     "production": {
-      "vars": { "ENVIRONMENT": "production" },
+      "vars": { "ENVIRONMENT": "production" }, // @nofrontends
+      // @frontends-start
+      // FRONTEND_HOSTS is empty on purpose: the Worker refuses every request until a deployer sets
+      // the real hosts here, `host=dir` pairs, each frontend at least once.
+      "vars": { "ENVIRONMENT": "production", "FRONTEND_HOSTS": "" },
+      // @frontends-end
       "d1_databases": [
         {
           "binding": "DB",

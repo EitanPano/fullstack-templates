@@ -52,6 +52,7 @@ api/<name>/         routes · controller · schema; service only when the module
                     (health, auth, user, module: the commented reference) <!-- @auth -->
                     (health, module: the commented reference) <!-- @noauth -->
                     (model.ts: reserved, for an engine that defines storage in code)
+api/admin/          the admin namespace: routes.ts (gate, mounts) · <name>/ modules
 models/<name>/      interface.ts · type.ts · enum.ts · constants.ts
 <!-- @auth-start -->
 middleware/         auth · role · validate · rate-limit · error-handler · not-found ·
@@ -457,6 +458,14 @@ identifiers, comments and constants: `module` to `<name>`, `Module` to `<Name>`,
   401 unauthenticated, 403 forbidden,
 <!-- @auth-end -->
   404 missing, 409 conflict.
+- Admin endpoints live in `api/admin/<name>/`, a module like any other, at `/api/admin/<name>`
+  (`admin` is a namespace, not an entity); mount its router in `api/admin/routes.ts`.
+<!-- @auth-start -->
+  That file runs `requireRole('admin')` first, so a route cannot ship without the gate.
+<!-- @auth-end -->
+<!-- @noauth-start -->
+  That file's gate refuses every request (403) until the product replaces it with its own.
+<!-- @noauth-end -->
 
 `api/module/` is the worked example.
 
