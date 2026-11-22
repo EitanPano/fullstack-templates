@@ -1,4 +1,5 @@
-import { expect, test, type APIRequestContext } from '@playwright/test'
+import { expect, test, type APIRequestContext } from '@playwright/test' // @nofrontends
+import { expect, type APIRequestContext } from '@playwright/test' // @frontends
 
 import { NOT_FOUND } from './screen-routes'
 import {
@@ -7,6 +8,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   expectTouchTargets,
+  test, // @frontends
   watchCspViolations,
 } from './support'
 
@@ -149,7 +151,7 @@ test('no page logs a console error or warning', async ({ page }) => {
 })
 
 // The no-flash theme script is a file because the deployed pages carry `script-src 'self'`; the
-// built site is served with its real policy (the page's meta, and beside the functions the fixed
+// built site is served with its real policy (the page's meta, and beside the API the fixed
 // header too), so a violation here is real.
 test('the theme script is served as JavaScript and no page raises a CSP violation', async ({
   page,
@@ -176,7 +178,7 @@ async function metaPolicy(request: APIRequestContext, path: string): Promise<str
 }
 
 // @server-start
-// Beside the functions a page keeps the policy meta its build wrote (its own hashes) and every
+// Beside the API a page keeps the policy meta its build wrote (its own hashes) and every
 // response also carries one fixed header with what a meta cannot carry (frame-ancestors) and the
 // rest; a browser applies both. The header has no script or style source, so it never blocks the
 // meta's hashes.

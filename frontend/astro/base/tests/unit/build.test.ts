@@ -83,11 +83,11 @@ describe('the built pages', () => {
 })
 
 // @server-start
-// The names `server/` and `functions/` of the API package export that no file of this package also
+// The names the API package's `server/` exports that no file of this package also
 // declares. None may appear in a built file: the browser half reaches the API through /api only.
 describe('the server package stays out of the build', () => {
   const server = path.resolve('..', '__SERVER_DIR__')
-  const own = [...files(path.join(server, 'server')), ...files(path.join(server, 'functions'))]
+  const own = files(path.join(server, 'server'))
     .filter((file) => /\.(ts|js)$/.test(file))
     .flatMap((file) =>
       [
