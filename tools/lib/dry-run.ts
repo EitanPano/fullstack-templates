@@ -12,7 +12,13 @@ import {
 import { GENERATED_PLACEHOLDERS, isTextFile } from './placeholders'
 import { UNPROCESSED_HINT, findUnprocessed } from './unprocessed'
 import { isApiKind } from './package-dir'
-import { FRONTEND_SELECTION, SERVER_SELECTION, SINGLE_SELECTION, selectionsFor } from './plan'
+import {
+  FRONTENDS_SELECTION,
+  FRONTEND_SELECTION,
+  SERVER_SELECTION,
+  SINGLE_SELECTION,
+  selectionsFor,
+} from './plan'
 
 // Every choice of providers: for each declared kind, none or one listed provider.
 function capabilityCombinations(template: LoadedTemplate): Record<string, string>[] {
@@ -89,7 +95,8 @@ export function dryRunMarkers(
     ...Object.keys(template.manifest.flags ?? {}),
     SERVER_SELECTION,
     SINGLE_SELECTION,
-    ...(kind === 'serverless' ? [FRONTEND_SELECTION] : []),
+    ...(kind === 'serverless' ? [FRONTEND_SELECTION, FRONTENDS_SELECTION] : []),
+    ...(kind === 'frontend' ? [FRONTENDS_SELECTION] : []),
     ...factNames.map((name) => SERVER_PREFIX + name),
   ]
   const contents = new Map<string, string>()
@@ -125,7 +132,13 @@ export function dryRunMarkers(
       delete switches[SERVER_SELECTION]
       delete switches[SINGLE_SELECTION]
       const frontend = kind === 'serverless' ? switches[FRONTEND_SELECTION] === true : undefined
+      const several =
+        (kind === 'serverless' || kind === 'frontend') && switches[FRONTENDS_SELECTION] === true
+      // Several frontends cannot be on in a plan with none, nor beside no API package.
+      if (several && kind === 'serverless' && frontend !== true) continue
+      if (several && kind === 'frontend' && !hasServer) continue
       delete switches[FRONTEND_SELECTION]
+      delete switches[FRONTENDS_SELECTION]
       for (const name of factNames) delete switches[SERVER_PREFIX + name]
       const selections = selectionsFor(
         template,
@@ -135,6 +148,7 @@ export function dryRunMarkers(
         capabilities,
         facts,
         frontend,
+        several,
       )
 
       for (const file of files) {

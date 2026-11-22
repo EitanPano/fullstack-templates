@@ -294,7 +294,11 @@ describe('resolveRequest: derived migrate service and the server dev command', (
   test('refuses a derived name that is a package dir', () => {
     const root = withMigrate()
     const stack = path.join(root, 'stacks/mini/stack.yaml')
-    appendFileSync(stack, '  - template: frontend/mini-ui\n    dir: backend-migrate\n')
+    // The stack's own frontend takes the derived name: a second frontend beside a server is refused.
+    writeFileSync(
+      stack,
+      readFileSync(stack, 'utf8').replace('dir: frontend', 'dir: backend-migrate'),
+    )
     const request = { ...base, stack: 'mini', capabilities: ['database=fake'] }
     expect(() => resolveRequest(loadCatalog(root), request)).toThrow(PlanError)
     expect(() => resolveRequest(loadCatalog(root), request)).toThrow(/backend-migrate/)
@@ -344,7 +348,7 @@ describe('resolveRequest: deploy mode', () => {
     const plan = resolveRequest(catalog, spa)
     expect(plan.deploy).toBe('single')
     expect(single(plan)).toEqual([true, true])
-    expect(plan.packages.map((pkg) => pkg.frontendDir)).toEqual(['frontend', 'frontend'])
+    expect(plan.frontends.map((pkg) => pkg.dir)).toEqual(['frontend'])
   })
   test('defaults to split when the frontend has no static', () => {
     const plan = resolveRequest(catalog, { ...base, stack: 'mini' })
@@ -422,6 +426,7 @@ describe('cross-package selections', () => {
     expect(plan.packages[1]?.selections).toEqual({
       server: true,
       single: false,
+      frontends: false,
       'server:auth': true,
       'server:database': false,
     })
@@ -456,6 +461,7 @@ describe('cross-package selections', () => {
     expect(plan.packages[0]?.selections).toEqual({
       server: false,
       single: false,
+      frontends: false,
       'server:auth': false,
       'server:database': false,
     })
@@ -466,6 +472,7 @@ describe('cross-package selections', () => {
     expect(selectionsFor(template, {}, true, false, {}, { auth: true, database: false })).toEqual({
       server: true,
       single: false,
+      frontends: false,
       'server:auth': true,
       'server:database': false,
     })

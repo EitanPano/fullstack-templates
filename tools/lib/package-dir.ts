@@ -44,6 +44,17 @@ export function memberProblems(members: readonly DirMember[]): string[] {
       }
     }
   }
+  // Port assignment, answers and provenance are keyed by dir, so a shared dir would merge two packages.
+  const byDir = new Map<string, DirMember>()
+  for (const member of members) {
+    const first = byDir.get(member.dir)
+    if (first === undefined) byDir.set(member.dir, member)
+    else {
+      problems.push(
+        `package dir "${member.dir}" is used by both ${first.path} and ${member.path}; choose another dir`,
+      )
+    }
+  }
   const apis = members.filter((m) => isApiKind(m.manifest.kind))
   if (apis.length > 1) {
     problems.push(
@@ -57,6 +68,19 @@ export function memberProblems(members: readonly DirMember[]): string[] {
         `${member.path} ships no image (docker: false) and cannot join ${server.path}; both deploy modes need an image`,
       )
     }
+  }
+  // Several frontends are told apart by host in the one API package that serves them.
+  const frontends = members.filter((m) => m.manifest.kind === 'frontend')
+  if (frontends.length > 1 && apis.length === 0) {
+    problems.push(
+      `several frontends (${frontends.map((m) => m.dir).join(', ')}) need an API package to serve them`,
+    )
+  }
+  // The single deploy mode serves one build and no Compose case has run two (ADR 0015 F1).
+  if (server !== undefined && frontends.length > 1) {
+    problems.push(
+      `several frontends (${frontends.map((m) => m.dir).join(', ')}) cannot join ${server.path}: the single deploy mode serves one build, and several frontends need a serverless API`,
+    )
   }
   return problems
 }
