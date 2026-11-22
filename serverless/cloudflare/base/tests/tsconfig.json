@@ -6,9 +6,7 @@
   },
   "include": [
     "./**/*.ts",
-    "../functions",
     "../server",
-    "../workers",
     "../scripts",
     "../vitest.config.ts",
     "../drizzle.config.ts",

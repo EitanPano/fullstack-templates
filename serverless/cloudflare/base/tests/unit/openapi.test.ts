@@ -1,12 +1,13 @@
 // The contract: openapi.json is produced from the zod schemas that validate requests, and the
 // committed file must match them (run `bun run openapi` when it does not).
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 
 import { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi'
 import { describe, expect, it } from 'vitest'
 
 import { buildOpenApiDocument, registrations } from '../../server/openapi'
+import { app } from '../../server/server'
 
 const root = path.resolve(import.meta.dirname, '../..')
 
@@ -59,22 +60,33 @@ describe('openapi.json', () => {
     }
   })
 
-  // Pages routes by file path: a documented route with no route file is a contract that lies.
-  it('has a route file that handles every documented operation', () => {
+  // A documented operation with no route mounted is a contract that lies.
+  it('mounts a route for every documented operation', () => {
+    const mounted = new Set(app.routes.map((route) => `${route.method} ${route.path}`))
     for (const register of registrations) {
       const registry = new OpenAPIRegistry()
       register(registry)
       for (const definition of registry.definitions) {
         if (definition.type !== 'route') continue
         const { method, path: route } = definition.route
-        const segments = route.replace(/^\//, '').replace(/\{(\w+)\}/g, '[$1]')
-        const file = [`functions/${segments}.ts`, `functions/${segments}/index.ts`].find((c) =>
-          existsSync(path.join(root, c)),
-        )
-        expect(file, `no route file for ${method} ${route}`).toBeDefined()
-        const handler = `onRequest${method[0]?.toUpperCase() ?? ''}${method.slice(1)}`
-        expect(readFileSync(path.join(root, file ?? ''), 'utf8')).toContain(`export const ${handler}`)
+        const honoPath = route.replace(/\{(\w+)\}/g, ':$1')
+        expect(
+          mounted.has(`${method.toUpperCase()} ${honoPath}`),
+          `no route for ${method} ${route}`,
+        ).toBe(true)
       }
+    }
+  })
+
+  it('mounts the router of every module that has one', () => {
+    const source = readFileSync(path.join(root, 'server/server.ts'), 'utf8')
+    const modules = readdirSync(path.join(root, 'server/api'), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .filter((name) => existsSync(path.join(root, 'server/api', name, 'routes.ts')))
+    expect(modules.length).toBeGreaterThan(0)
+    for (const name of modules) {
+      expect(source, `server.ts does not mount ${name}`).toContain(`app.route('/api/${name}'`)
     }
   })
 

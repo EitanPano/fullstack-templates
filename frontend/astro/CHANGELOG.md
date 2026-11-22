@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.1.0 — 2026-11-22
+
+The second (or only) frontend at any directory ([ADR 0015](../../docs/adr/0015-several-frontends-by-directory.md),
+[ADR 0016](../../docs/adr/0016-one-worker-with-static-assets.md) W3). With one frontend nothing
+changes except the lines below that name the port or the directory.
+
+- Nothing assumes `frontend/`, port 4321 or being the only frontend: the dev server and `astro
+  preview` listen on the package's own port (`__PORT__`, the next free one for a second frontend).
+- Beside several frontends, the dev proxy of `/api` sends this frontend's own local host
+  (`<dir>.localhost:<api port>`) as the `Host` header, so `/api/admin/*`, which the Worker answers on
+  the `admin` frontend's host alone, is reachable from `admin`'s dev server.
+- Beside several frontends, the e2e run starts the API's chain with `start --only <dir>`, waits on
+  `http://127.0.0.1:<api port>/api/health` and opens `http://<dir>.localhost:<api port>`; the
+  `request` fixture (`tests/e2e/support.ts`) goes to 127.0.0.1 with the page's host as the `Host`
+  header, because Node does not resolve `*.localhost` on Windows.
+- Tests: `astro-config.test.ts` (port and proxy), the Playwright config for both variants; cases
+  `two` (`site` and `admin`, islands on `admin`) and `one-at-site`.
+
 ## 1.0.0 — 2026-11-17
 
 First release ([ADR 0014](../../docs/adr/0014-astro-cloudflare-pages.md)): the Astro frontend of the `astro-cloudflare` stack, usable alone.

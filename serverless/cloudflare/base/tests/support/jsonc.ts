@@ -15,7 +15,12 @@ export type Config = Environment & {
   main?: string
   compatibility_date: string
   compatibility_flags: string[]
-  pages_build_output_dir?: string
+  assets?: {
+    directory?: string
+    binding?: string
+    not_found_handling?: string
+    run_worker_first?: boolean | string[]
+  }
   triggers?: { crons?: string[] }
   env: { preview: Environment; production: Environment }
 }

@@ -18,9 +18,21 @@ describe('playwright.config.ts', () => {
     // A CI variable exported empty must not become the origin ('' would start servers on no URL).
     const config = await load({ E2E_BASE_URL: '   ' })
 
-    expect(config.use?.baseURL).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)
+    expect(config.use?.baseURL).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/) // @nofrontends
+    expect(config.use?.baseURL).toMatch(/^http:\/\/[a-z][a-z0-9-]*\.localhost:\d+$/) // @frontends
     expect(config.webServer).toBeDefined()
   })
+
+  // @frontends-start
+  it('serves this frontend by its own host: the browser opens <dir>.localhost, the health check goes to 127.0.0.1 and only this build is assembled', async () => {
+    const config = await load({ E2E_BASE_URL: '' })
+    const server = config.webServer as { command: string; url: string }
+
+    expect(config.use?.baseURL).toBe('http://__PACKAGE_DIR__.localhost:__SERVER_PORT__')
+    expect(server.url).toBe('http://127.0.0.1:__SERVER_PORT__/api/health')
+    expect(server.command).toMatch(/ --only __PACKAGE_DIR__$/)
+  })
+  // @frontends-end
 
   it('starts exactly one fresh web server, never a leftover one, with a generous timeout', async () => {
     const config = await load({ E2E_BASE_URL: '' })

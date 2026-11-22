@@ -6,7 +6,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 // @server-start
 // Two modes. By default Playwright starts the server package's own chain (its e2e database, then
-// its `start`, which assembles this build with the functions and serves both on one origin) with
+// its `start`, which assembles this build with the API and serves both on one origin) with
 // its limits scaled so the suite does not trip them, and tests that origin. With E2E_BASE_URL set
 // nothing is started.
 // @server-end
@@ -16,8 +16,17 @@ import { defineConfig, devices } from '@playwright/test'
 // @noserver-end
 // A blank value (a CI variable exported empty) counts as unset.
 const external = process.env.E2E_BASE_URL?.trim() || undefined
+// @nofrontends-start
 const origin = external ?? 'http://127.0.0.1:__PORT__' // @noserver
 const origin = external ?? 'http://127.0.0.1:__SERVER_PORT__' // @server
+// @nofrontends-end
+// @frontends-start
+// One of several frontends: the API serves each on its own host. Chromium resolves *.localhost
+// itself; a Node-side request (the `request` fixture of support.ts) cannot, and goes to 127.0.0.1
+// with the host header set. The API's chain starts with `--only` so only this frontend's build is
+// assembled.
+const origin = external ?? 'http://__PACKAGE_DIR__.localhost:__SERVER_PORT__'
+// @frontends-end
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -47,11 +56,13 @@ export default defineConfig({
         // Playwright starts web servers before any global setup, so the e2e database and the
         // server are one command, run in the server's directory. The pages are assembled from
         // dist/, which `bun run test:e2e` built first.
-        command: ['__SERVER_E2E_DB_COMMAND__', '__SERVER_START_COMMAND__']
+        command: ['__SERVER_E2E_DB_COMMAND__', '__SERVER_START_COMMAND__'] // @nofrontends
+        command: ['__SERVER_E2E_DB_COMMAND__', '__SERVER_START_COMMAND__ --only __PACKAGE_DIR__'] // @frontends
           .filter(Boolean)
           .join(' && '),
         cwd: '../__SERVER_DIR__',
-        url: `${origin}/api/health`,
+        url: `${origin}/api/health`, // @nofrontends
+        url: 'http://127.0.0.1:__SERVER_PORT__/api/health', // @frontends
         env: { RATE_LIMIT_SCALE: '100' },
         // @server-end
         // @noserver-start

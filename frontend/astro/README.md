@@ -6,7 +6,7 @@ into a `<meta>` on each page, with `default-src 'self'` beside the hashes: a who
 contract (Hey API's fetch client), Vitest and Playwright with axe. It ships no image (`docker:
 false`, [ADR 0014](../../docs/adr/0014-astro-cloudflare-pages.md) K3): the build output is static
 HTML for any static host, or for the `serverless/cloudflare` package of the `astro-cloudflare` stack,
-which serves it with its functions on one origin. Generated alone or as the `frontend` of that stack.
+which serves it with its API on one origin. Generated alone or as the `frontend` of that stack.
 The ten frontend invariants hold ([docs/conventions.md](../../docs/conventions.md)); invariant 9 is
 read as ADR 0014 K3 says. A generated site is a skip link, one `main` and an index route of one `h1`
 and one line of copy, with a 404 page: the header, navigation and footer are product code
@@ -58,10 +58,11 @@ without a server, the package has no generated client, no `api:types` script and
 ## E2E
 
 `bun run test:e2e` builds, then runs Playwright on `phone` and `desktop`. Alone, the web server is
-`astro preview` on port 4321. In the stack it is the functions package's own chain (`e2eDb`, then
-`start`, which assembles this build with the functions) with the rate limits scaled, and the base URL
-is that origin.
+`astro preview` on the package's own port (4321 for the first frontend of a plan). In the stack it is
+the API package's own chain (`e2eDb`, then `start`, which assembles this build with the API) with the
+rate limits scaled, and the base URL is that origin. Beside several frontends the chain is `start
+--only <dir>` and the browser opens `http://<dir>.localhost:<api port>`.
 
 The layer map of the generated package, where each addition goes, the recipe for a content page and
 a content collection, and the recipe that migrates a hand-written static site into Astro (with and
-without the functions package) are in `base/AGENTS.md`.
+without the serverless package) are in `base/AGENTS.md`.

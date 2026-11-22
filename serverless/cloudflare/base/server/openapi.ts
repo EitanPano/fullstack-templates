@@ -2,7 +2,7 @@
 // its endpoints in its schema.ts; the list below names each registration once, in the order of the
 // routes. `bun run openapi` (scripts/openapi.ts) writes openapi.json, which a frontend's contract
 // command consumes; a unit test fails when the committed file is stale.
-// It does not belong: any import the request path needs (nothing in functions/ imports this file)
+// It does not belong: any import the request path needs (no entry or routes.ts imports this file)
 // or any binding: it runs in Bun outside the runtime.
 import { OpenApiGeneratorV31, OpenAPIRegistry } from '@asteasolutions/zod-to-openapi'
 

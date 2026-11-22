@@ -1,9 +1,7 @@
-// env.d.ts belongs: the test-only additions to the worker's bindings and the type of its main
-// module, so `exports.default.fetch` and `env.TEST_MIGRATIONS` are typed.
+// env.d.ts belongs: the test-only additions to the worker's bindings, so `env.TEST_MIGRATIONS` is
+// typed. The type of the main module (`exports.default.fetch`) is generated into
+// worker-configuration.d.ts from wrangler.jsonc's `main`.
 declare namespace Cloudflare {
-  interface GlobalProps {
-    mainModule: { default: ExportedHandler<Cloudflare.Env> }
-  }
   interface Env {
     TEST_MIGRATIONS: import('cloudflare:test').D1Migration[]
   }

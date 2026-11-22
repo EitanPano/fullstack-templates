@@ -20,7 +20,7 @@ describe('validate', () => {
     const res = await through(handler, '/probe/abc?page=2', {
       method: 'POST',
       body: { name: 'ada' },
-      params: { id: 'abc' },
+      route: '/probe/:id',
     })
     expect(res.status).toBe(200)
     expect(await json(res)).toEqual({
@@ -34,7 +34,7 @@ describe('validate', () => {
     const res = await through(handler, '/probe/abc?page=2', {
       method: 'POST',
       body: { name: '' },
-      params: { id: 'abc' },
+      route: '/probe/:id',
     })
     expect(res.status).toBe(400)
     expect(await json<Envelope>(res)).toMatchObject({
@@ -46,7 +46,7 @@ describe('validate', () => {
     const res = await through(handler, '/probe/abc?page=0', {
       method: 'POST',
       body: { name: 'ada' },
-      params: { id: 'abc' },
+      route: '/probe/:id',
     })
     expect(await json<Envelope>(res)).toMatchObject({
       error: { message: 'invalid query', details: [{ path: 'page' }] },
@@ -57,7 +57,7 @@ describe('validate', () => {
     const res = await through(handler, '/probe/ABC?page=1', {
       method: 'POST',
       body: { name: 'ada' },
-      params: { id: 'ABC' },
+      route: '/probe/:id',
     })
     expect(await json<Envelope>(res)).toMatchObject({
       error: { message: 'invalid params', details: [{ path: 'id' }] },
@@ -76,7 +76,7 @@ describe('validate', () => {
     const res = await through(handler, '/probe/ABC?page=0', {
       method: 'POST',
       body: { name: '' },
-      params: { id: 'ABC' },
+      route: '/probe/:id',
     })
     expect(await json<Envelope>(res)).toMatchObject({ error: { message: 'invalid body' } })
   })

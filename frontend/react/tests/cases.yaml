@@ -12,6 +12,18 @@ cases:
     stack: react-bun-express
     deploy: single
     withApp: true
+  # The frontend at a directory that is not `frontend` (ADR 0015): `app`, which is also the name of
+  # the Compose profile of every package service, in both deploy modes with the Compose smoke.
+  - name: app-dir-single
+    stack: react-bun-express
+    frontends: ["app=frontend/react"]
+    deploy: single
+    withApp: true
+  - name: app-dir-split
+    stack: react-bun-express
+    frontends: ["app=frontend/react"]
+    deploy: split
+    withApp: true
   # The frontend alone (ADR 0011): no server, so none of the data layer, the generated client, the
   # proxy or the API web server. Its check and its e2e (index route, shell, screens) must pass.
   - name: alone

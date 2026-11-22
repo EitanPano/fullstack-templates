@@ -17,6 +17,28 @@
         "properties": {
           "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
           "stack": { "type": "string", "minLength": 1 },
+          "frontends": {
+            "type": "array",
+            "description": "A stack case only: the frontends of the plan as <dir>=<template> pairs, in order, in place of the stack's frontend member (generate --frontend). The first takes the case's own flags and capabilities.",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*(/[a-z][a-z0-9-]*)?=[a-z]+/[a-z][a-z0-9-]*$"
+            }
+          },
+          "packages": {
+            "type": "object",
+            "description": "Flags and capabilities of further packages of the plan, by directory (an answers file's packages).",
+            "propertyNames": { "pattern": "^[a-z][a-z0-9-]*(/[a-z][a-z0-9-]*)?$" },
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "flags": { "type": "object", "additionalProperties": { "type": "boolean" } },
+                "capabilities": { "type": "object", "additionalProperties": { "type": "string" } }
+              }
+            }
+          },
           "flags": { "type": "object", "additionalProperties": { "type": "boolean" } },
           "capabilities": { "type": "object", "additionalProperties": { "type": "string" } },
           "withApp": { "type": "boolean" },

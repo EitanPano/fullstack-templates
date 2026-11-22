@@ -1,7 +1,7 @@
 // controller.ts belongs: this directory's HTTP handlers, one exported function per endpoint,
 // named after its operation. Health owns no data, so it has no service.ts: liveness reads the
 // process, readiness pings the database.
-// It does not belong: routing (functions/api/health/) or schemas (schema.ts).
+// It does not belong: routing (routes.ts) or schemas (schema.ts).
 import type { HealthResponse, Readiness } from './schema'
 import { sql } from 'drizzle-orm'
 

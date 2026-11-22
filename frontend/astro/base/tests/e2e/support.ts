@@ -2,7 +2,8 @@
 // checks, the theme set before load, console and CSP collectors, and the per-screen checks.
 // It does not belong: an assertion about one screen (the spec).
 import AxeBuilder from '@axe-core/playwright'
-import { expect, type Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test' // @nofrontends
+import { expect, test as base, type Page } from '@playwright/test' // @frontends
 
 // WCAG 2.0 and 2.1, levels A and AA, with no rule disabled and no element excluded. In dark this
 // is also the contrast measurement.
@@ -112,3 +113,22 @@ export async function watchCspViolations(page: Page) {
 export async function cspViolations(page: Page): Promise<string[]> {
   return page.evaluate(() => (window as unknown as { cspViolations: string[] }).cspViolations)
 }
+// @frontends-start
+
+// The `test` of a spec beside several frontends. The browser opens `<dir>.localhost`, which
+// Chromium resolves itself; Node cannot, so `request` goes to 127.0.0.1 and names the page's host
+// in the host header, as the API maps hosts to frontends.
+export const test = base.extend({
+  request: async ({ playwright, baseURL }, use) => {
+    const url = new URL(baseURL ?? 'http://127.0.0.1')
+    const local = url.hostname.endsWith('.localhost')
+    const context = await playwright.request.newContext(
+      local
+        ? { baseURL: `${url.protocol}//127.0.0.1:${url.port}`, extraHTTPHeaders: { host: url.host } }
+        : { baseURL: url.href },
+    )
+    await use(context)
+    await context.dispose()
+  },
+})
+// @frontends-end

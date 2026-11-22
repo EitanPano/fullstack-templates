@@ -1,4 +1,4 @@
-// The assemble step on fixture output directories: what lands in dist/, how pages/ is laid over a
+// The assemble step on fixture output directories: what lands in dist/, how static/ is laid over a
 // frontend's files, and what makes it refuse.
 import {
   existsSync,
@@ -14,7 +14,7 @@ import path from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { AssembleError, assemble } from '../../scripts/lib/assemble.mjs'
+import { AssembleError, assemble, frontendOverrides } from '../../scripts/lib/assemble.mjs'
 import { FIXED_POLICY } from '../../scripts/lib/csp-headers.mjs'
 
 const HASH_A = "'sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='"
@@ -33,7 +33,7 @@ afterEach(() => {
   }
 })
 
-// A scratch project: pages/ as the template ships it, an optional frontend output, an empty dist.
+// A scratch project: static/ as the template ships it, an optional frontend output, an empty dist.
 function project(frontend: Record<string, string> | null) {
   const root = mkdtempSync(path.join(tmpdir(), 'assemble-'))
   roots.push(root)
@@ -43,8 +43,7 @@ function project(frontend: Record<string, string> | null) {
       writeFileSync(path.join(root, base, name), text)
     }
   }
-  write('pages', {
-    '_routes.json': '{ "version": 1, "include": ["/api/*"], "exclude": [] }\n',
+  write('static', {
     '_headers': '# base\n/*\n  X-Content-Type-Options: nosniff\n',
     '_redirects': '# none\n',
   })
@@ -55,7 +54,7 @@ function project(frontend: Record<string, string> | null) {
     write,
     warnings,
     options: {
-      pages: path.join(root, 'pages'),
+      statics: path.join(root, 'static'),
       dist: path.join(root, 'dist'),
       frontend: frontend === null ? null : path.join(root, 'out'),
       warn: (message: string) => warnings.push(message),
@@ -73,16 +72,25 @@ describe('assemble with a frontend', () => {
     '_headers': '/_astro/*\n  Cache-Control: public, max-age=31536000, immutable\n',
   }
 
-  it('copies the output, lays pages/ over it and merges _headers, the frontend first', () => {
+  it('copies the output, lays static/ over it and merges _headers, the frontend first', () => {
     const p = project(output)
 
     assemble(p.options)
 
     expect(p.read('_astro/app.js')).toBe('console.log(1)')
-    expect(p.read('_routes.json')).toContain('/api/*')
     const headers = p.read('_headers')
     expect(headers.indexOf('/_astro/*')).toBeGreaterThanOrEqual(0)
     expect(headers.indexOf('/_astro/*')).toBeLessThan(headers.indexOf('X-Content-Type-Options'))
+  })
+
+  it('lets a file of static/ replace the frontend’s and writes no Pages routing file', () => {
+    const p = project({ ...output, 'robots.txt': 'theirs' })
+    p.write('static', { 'robots.txt': 'ours' })
+
+    assemble(p.options)
+
+    expect(p.read('robots.txt')).toBe('ours')
+    expect(existsSync(path.join(p.root, 'dist', '_routes.json'))).toBe(false)
   })
 
   it('writes one fixed header line, with no hash and no script or style source', () => {
@@ -239,11 +247,11 @@ describe('assemble refuses', () => {
     expect(() => assemble(p.options)).toThrow(/_headers/)
   })
 
-  it('a pages/_headers that detaches the policy', () => {
+  it('a static/_headers that detaches the policy', () => {
     const p = project({ 'index.html': page(policy(HASH_A)) })
-    p.write('pages', { _headers: '/*\n  ! Content-Security-Policy\n' })
+    p.write('static', { _headers: '/*\n  ! Content-Security-Policy\n' })
 
-    expect(() => assemble(p.options)).toThrow(/pages/)
+    expect(() => assemble(p.options)).toThrow(/static/)
   })
 
   it("a _headers file over the platform's 100 rules", () => {
@@ -261,13 +269,13 @@ describe('assemble refuses', () => {
 
   // The platform may not let a test create a link (Windows needs a privilege): the case then
   // passes without checking, and says so in its name.
-  it.each(['the frontend output', 'pages/'])(
+  it.each(['the frontend output', 'static/'])(
     'a symbolic link in %s (not checked where the platform cannot create one)',
     (where) => {
       const p = project({ 'index.html': page(policy(HASH_A)) })
       const target = path.join(p.root, 'outside.html')
       writeFileSync(target, page(null))
-      const folder = where === 'pages/' ? 'pages' : 'out'
+      const folder = where === 'static/' ? 'static' : 'out'
       const outside = path.join(p.root, 'outside')
       mkdirSync(outside)
       try {
@@ -289,14 +297,233 @@ describe('assemble refuses', () => {
   )
 })
 
+// Several frontends: a scratch project with static/ and one build folder per frontend.
+function several(builds: Record<string, Record<string, string>>) {
+  const p = project(null)
+  const frontends = Object.entries(builds).map(([dir, build]) => {
+    for (const [name, text] of Object.entries(build)) {
+      mkdirSync(path.dirname(path.join(p.root, `out-${dir}`, name)), { recursive: true })
+      writeFileSync(path.join(p.root, `out-${dir}`, name), text)
+    }
+    return { dir, build: path.join(p.root, `out-${dir}`) }
+  })
+  return { ...p, frontends, options: { ...p.options, frontend: null, frontends } }
+}
+
+describe('assemble with several frontends', () => {
+  const site = {
+    'index.html': page(policy(HASH_A)),
+    '404.html': page(policy(HASH_A)),
+    '_astro/app.js': 'console.log(1)',
+    '_headers': '/*\n  X-Site: yes\n/_astro/*\n  Cache-Control: public, max-age=31536000, immutable\n',
+    '_redirects': '# moved\n/old /new 301\n/blog/* /news/:splat 302\n/away https://example.com/x 301\n',
+  }
+  const admin = { 'index.html': page(policy(HASH_B)), 'nested/_headers': 'a page, not a rule' }
+  const both = () => several({ site, admin })
+
+  it('puts each build in a folder of its own and none at the root', () => {
+    const p = both()
+
+    assemble(p.options)
+
+    expect(p.read('site/index.html')).toBe(site['index.html'])
+    expect(p.read('site/_astro/app.js')).toBe('console.log(1)')
+    expect(p.read('admin/index.html')).toBe(admin['index.html'])
+    expect(existsSync(path.join(p.root, 'dist', 'index.html'))).toBe(false)
+    expect(existsSync(path.join(p.root, 'dist', '_astro'))).toBe(false)
+  })
+
+  it('never copies a build’s _headers or _redirects into its folder, where they would be served as text', () => {
+    const p = both()
+
+    assemble(p.options)
+
+    for (const name of ['_headers', '_redirects']) {
+      expect(existsSync(path.join(p.root, 'dist', 'site', name))).toBe(false)
+    }
+    expect(existsSync(path.join(p.root, 'dist', '_headers'))).toBe(true)
+    expect(existsSync(path.join(p.root, 'dist', '_redirects'))).toBe(true)
+  })
+
+  it('merges each build’s _headers into the root file with its folder in front of every rule', () => {
+    const p = both()
+
+    assemble(p.options)
+
+    const lines = p.read('_headers').split('\n')
+    expect(lines).toContain('/site/*')
+    expect(lines).toContain('/site/_astro/*')
+    expect(lines).not.toContain('/_astro/*')
+    // The base rules of static/ stay as they are, after the builds' own.
+    expect(lines.indexOf('/*')).toBeGreaterThan(lines.indexOf('/site/_astro/*'))
+    expect(lines).toContain('  X-Content-Type-Options: nosniff')
+    expect(lines).toContain('  X-Site: yes')
+  })
+
+  it('merges each build’s _redirects with the folder in front of the source and a path destination', () => {
+    const p = both()
+
+    assemble(p.options)
+
+    const lines = p.read('_redirects').split('\n')
+    expect(lines).toContain('/site/old /site/new 301')
+    expect(lines).toContain('/site/blog/* /site/news/:splat 302')
+    expect(lines).toContain('/site/away https://example.com/x 301')
+    expect(lines).toContain('# moved')
+    expect(lines).toContain('# none')
+  })
+
+  it('writes the fixed policy line once per folder, under that folder’s rule and not under /*', () => {
+    const p = both()
+
+    const summary = assemble(p.options)
+
+    const lines = p.read('_headers').split('\n')
+    const policyAt = lines.flatMap((l, at) => (l.includes('Content-Security-Policy') ? [at] : []))
+    expect(policyAt).toHaveLength(2)
+    const ruleOf = (at: number) => lines.slice(0, at).findLast((l) => /^\S/.test(l) && l !== '')
+    expect(policyAt.map(ruleOf).sort()).toEqual(['/admin/*', '/site/*'])
+    expect(lines[policyAt[0] ?? 0]).toBe(`  Content-Security-Policy: ${FIXED_POLICY}`)
+    expect(summary).toMatchObject({ pages: 3, withPolicy: 3, without: [] })
+  })
+
+  it('checks every folder’s pages and names the frontend that broke the policy', () => {
+    const bad = {
+      'index.html': page(policy(HASH_A)),
+      'x/y.html': page("script-src 'self' 'unsafe-inline'; style-src 'self';"),
+    }
+    const p = several({ site, admin: bad })
+    p.write('dist', { 'previous.html': 'kept' })
+
+    expect(() => assemble(p.options)).toThrow(/frontend "admin".*x\/y\.html/)
+    expect(p.read('previous.html')).toBe('kept')
+    expect(existsSync(`${p.options.dist}.assembling`)).toBe(false)
+  })
+
+  it('warns once, naming the folder of each page that has no policy meta', () => {
+    const p = several({ site: { 'index.html': page(null) }, admin })
+
+    const summary = assemble(p.options)
+
+    expect(summary.without).toEqual(['site/index.html'])
+    expect(p.warnings).toHaveLength(1)
+    expect(p.warnings[0]).toContain('site/index.html')
+  })
+
+  it('fails naming the frontend whose build is missing or empty, and keeps the previous dist', () => {
+    const p = both()
+    rmSync(path.join(p.root, 'out-admin'), { recursive: true })
+    p.write('dist', { 'previous.html': 'kept' })
+
+    expect(() => assemble(p.options)).toThrow(AssembleError)
+    expect(() => assemble(p.options)).toThrow(/frontend "admin".*missing or empty/)
+    expect(p.read('previous.html')).toBe('kept')
+
+    mkdirSync(path.join(p.root, 'out-admin'))
+    expect(() => assemble(p.options)).toThrow(/frontend "admin".*missing or empty/)
+  })
+
+  it('with only, assembles that one frontend alone and ignores the other’s missing build', () => {
+    const p = both()
+    rmSync(path.join(p.root, 'out-site'), { recursive: true })
+
+    assemble({ ...p.options, only: 'admin' })
+
+    expect(p.read('admin/index.html')).toBe(admin['index.html'])
+    expect(existsSync(path.join(p.root, 'dist', 'site'))).toBe(false)
+    const lines = p.read('_headers').split('\n')
+    expect(lines.filter((l) => l.includes('Content-Security-Policy'))).toHaveLength(1)
+    expect(lines).toContain('/admin/*')
+    expect(lines).not.toContain('/site/*')
+  })
+
+  it('reads --frontend <dir>=<output dir> pairs and refuses a value that is no pair or names no frontend', () => {
+    const names = ['site', 'admin']
+    const argv = ['--out', 'x', '--frontend', 'admin=build/admin', '--frontend', 'site=o=k']
+    expect(frontendOverrides(argv, names)).toEqual(
+      new Map([
+        ['admin', 'build/admin'],
+        ['site', 'o=k'],
+      ]),
+    )
+    expect(() => frontendOverrides(['--frontend', 'build/admin'], names)).toThrow(AssembleError)
+    expect(() => frontendOverrides(['--frontend', 'build/admin'], names)).toThrow(/<dir>=<output dir>/)
+    expect(() => frontendOverrides(['--frontend', 'nope=build'], names)).toThrow(
+      /"nope".*not a frontend \(site, admin\)/,
+    )
+    expect(() => frontendOverrides(['--frontend'], names)).toThrow(AssembleError)
+    expect(frontendOverrides([], names).size).toBe(0)
+  })
+
+  it('refuses an only that is not one of the frontends', () => {
+    const p = both()
+
+    expect(() => assemble({ ...p.options, only: 'nope' })).toThrow(/--only names "nope".*site, admin/)
+  })
+
+  it.each([
+    ['sets the policy', 'x', '/*\n  Content-Security-Policy: default-src *\n', /_headers of frontend "admin"/],
+    ['holds a host rule', 'x', 'https://:project.pages.dev/*\n  X: y\n', /rule "https:.*must be a path/],
+  ])('refuses a build whose _headers %s', (_what, _x, headers, message) => {
+    const p = several({ site, admin: { 'index.html': page(null), '_headers': headers } })
+
+    expect(() => assemble(p.options)).toThrow(message)
+  })
+
+  it.each([
+    ['a source that is not a path', 'old /new 301\n', /source "old" must be a path/],
+    ['a destination that is neither', '/old new 301\n', /destination "new" must be a path/],
+    ['a redirect with no destination', '/old\n', /has no destination/],
+  ])('refuses a build whose _redirects hold %s', (_what, redirects, message) => {
+    const p = several({
+      site: { 'index.html': page(null), '_redirects': redirects },
+      admin,
+    })
+
+    expect(() => assemble(p.options)).toThrow(message)
+  })
+
+  it('refuses a frontend directory that is not one lower-case name', () => {
+    const p = several({ 'a/b': site })
+
+    expect(() => assemble(p.options)).toThrow(/"a\/b" is not one lower-case name/)
+  })
+
+  it('replaces a previous dist, and a frontend with no _headers still gets a policy rule', () => {
+    const p = several({ site: { 'index.html': page(policy(HASH_A)) }, admin })
+    p.write('dist', { 'stale.html': 'old' })
+
+    assemble(p.options)
+
+    expect(existsSync(path.join(p.root, 'dist', 'stale.html'))).toBe(false)
+    expect(p.read('_headers')).toContain('/site/*\n  Content-Security-Policy')
+  })
+
+  it('refuses a symbolic link in a build (not checked where the platform cannot create one)', () => {
+    const p = both()
+    const target = path.join(p.root, 'outside.html')
+    writeFileSync(target, page(null))
+    try {
+      symlinkSync(target, path.join(p.root, 'out-admin', 'link.html'))
+    } catch {
+      try {
+        symlinkSync(path.join(p.root, 'out-site'), path.join(p.root, 'out-admin', 'linked'), 'junction')
+      } catch {
+        return
+      }
+    }
+
+    expect(() => assemble(p.options)).toThrow(/symbolic link/)
+  })
+})
+
 describe('assemble without a frontend', () => {
-  it('writes a dist of the files of pages/ and the fixed policy line', () => {
+  it('writes a dist of the files of static/ and the fixed policy line', () => {
     const p = project(null)
 
     const summary = assemble(p.options)
 
     expect(summary).toMatchObject({ pages: 0, withPolicy: 0, without: [] })
-    expect(p.read('_routes.json')).toContain('/api/*')
     expect(p.read('_headers')).toBe(
       `# base\n/*\n  X-Content-Type-Options: nosniff\n  Content-Security-Policy: ${FIXED_POLICY}\n`,
     )

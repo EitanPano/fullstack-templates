@@ -1,22 +1,20 @@
 schemaVersion: 1
 id: cloudflare
 kind: serverless
-name: Cloudflare Pages Functions
-version: 1.0.0
-summary: "Pages Functions API on Cloudflare: D1 through Drizzle, zod schemas and the OpenAPI contract from them, one error envelope, tests in workerd; serves a frontend's build on one origin"
-runtime: { language: typescript, platform: cloudflare-pages, minVersion: '24' }
+name: Cloudflare Workers
+version: 2.0.0
+summary: "One Cloudflare Worker with static assets, routed by Hono: D1 through Drizzle, zod schemas and the OpenAPI contract from them, one error envelope, tests in workerd; serves a frontend's build on one origin"
+runtime: { language: typescript, platform: cloudflare-workers, minVersion: '24' }
 tools:
   - { name: bun, min: '1.4' }
   - { name: node, min: '24' }
 placeholders: [PROJECT_NAME]
 flags:
   jobs:
-    summary: A second Worker with one scheduled job, the cleanup of expired rate-limit rows
+    summary: A cron trigger and a scheduled handler in the same Worker, the cleanup of expired rate-limit rows
     default: false
     onlyPaths:
-      - workers/jobs
       - tests/api/jobs.test.ts
-      - tests/unit/boundaries-jobs.test.ts
       - tests/unit/jobs-config.test.ts
 dependencies: { manifest: package.json, adapter: npm }
 commands:

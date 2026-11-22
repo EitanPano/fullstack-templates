@@ -145,13 +145,25 @@ function e2ePlaceholders(
 
 // The frontend's place as a serverless package sees it (ADR 0014 K4): the relative path from its
 // own dir to the frontend's, and the directory the frontend's build writes.
+// FRONTEND_PATH and FRONTEND_OUT name the first frontend; FRONTENDS lists them all as compact
+// JSON, in request order (ADR 0015 F2). JSON.stringify writes no single quote or backslash for a
+// dir, a relative path or a build directory, so the list is safe in a single-quoted string.
 function frontendValues(plan: GenerationPlan, pkg: PackagePlan): Record<string, string> {
-  if (pkg.template.manifest.kind !== 'serverless' || pkg.frontendDir === null) return {}
-  const frontend = plan.packages.find((candidate) => candidate.dir === pkg.frontendDir)
-  const out = frontend?.template.manifest.static?.out
+  if (pkg.template.manifest.kind !== 'serverless') return {}
+  const listed = plan.frontends.map((frontend) => ({
+    dir: frontend.dir,
+    path: path.posix.relative(pkg.dir, frontend.dir),
+    out: frontend.template.manifest.static?.out,
+    port: frontend.port,
+  }))
+  const first = listed[0]
   return {
-    FRONTEND_PATH: path.posix.relative(pkg.dir, pkg.frontendDir),
-    ...(out === undefined ? {} : { FRONTEND_OUT: out }),
+    FRONTENDS: JSON.stringify(listed),
+    // The local host map of several frontends, one `<dir>.localhost=<dir>` per frontend in request
+    // order: a browser resolves *.localhost itself, and the Worker reads it from its development vars.
+    FRONTEND_HOSTS: listed.map((frontend) => `${frontend.dir}.localhost=${frontend.dir}`).join(','),
+    ...(first === undefined ? {} : { FRONTEND_PATH: first.path }),
+    ...(first?.out === undefined ? {} : { FRONTEND_OUT: first.out }),
   }
 }
 
@@ -174,10 +186,10 @@ export function packagePlaceholders(
     ...placeholderValues(plan.projectName),
     // Absent without a frontend: a kept line that uses it fails in sweepPlaceholders, while the
     // lines marked @single are gone before this substitution runs.
-    ...(pkg.frontendDir === null ? {} : { FRONTEND_DIR: pkg.frontendDir }),
+    ...(plan.frontends[0] === undefined ? {} : { FRONTEND_DIR: plan.frontends[0].dir }),
     ...frontendValues(plan, pkg),
     PACKAGE_DIR: pkg.dir,
-    PORT: http === undefined ? '' : String(http.port),
+    PORT: http === undefined ? '' : String(pkg.port ?? http.port),
     ...serverValues,
     // Only a frontend takes the brand: no server file holds a theme.
     ...(pkg.template.manifest.kind === 'frontend' ? (plan.brand?.placeholders ?? {}) : {}),
@@ -597,10 +609,10 @@ function writeProviderFiles(plan: GenerationPlan, staging: string): void {
 function sweepPlaceholders(plan: GenerationPlan, staging: string): void {
   const names = [...new Set(plan.packages.flatMap((p) => p.template.manifest.placeholders))]
   // The generator's own token has no default, so it must not survive a plan without a frontend.
-  if (plan.packages.every((p) => p.frontendDir === null)) names.push('FRONTEND_DIR')
-  // Only a serverless package is given these two, and only beside a frontend (ADR 0014 K4): one
-  // that survives anywhere names its file.
-  names.push('FRONTEND_PATH', 'FRONTEND_OUT')
+  if (plan.frontends.length === 0) names.push('FRONTEND_DIR')
+  // Only a serverless package is given these, and the first two only beside a frontend (ADR 0014
+  // K4, ADR 0015 F2): one that survives anywhere names its file.
+  names.push('FRONTEND_PATH', 'FRONTEND_OUT', 'FRONTENDS', 'FRONTEND_HOSTS')
   // Nor may the SERVER_* tokens survive a plan without a server: a kept file that uses one names
   // itself here instead of shipping an address nobody serves (ADR 0011).
   if (plan.packages.every((p) => p.serverDir === null)) names.push(...SERVER_PLACEHOLDERS)

@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.2.0 — 2026-11-22
+
+### Added
+
+- The admin namespace ([ADR 0015](../../docs/adr/0015-several-frontends-by-directory.md) A1): `api/admin/routes.ts` is the router mounted at `/api/admin` by `config/routes.ts`, and an admin module is `api/admin/<name>/` at `/api/admin/<name>`, its router mounted in that file. One gate runs first on the whole prefix, the same in every environment: with `auth`, `requireRole('admin')` (401 without a session, 403 for another role, the JSON 404 for an unknown path only once admitted); without `auth`, every request is refused with 403 until the product writes its own gate. No admin module ships and `openapi.json` is unchanged.
+- The ESLint zones treat `api/admin/<name>/` as a module: it reaches an entity's data through that entity's `controller.ts`, no `service.ts` is imported from outside its module, and `api/admin/routes.ts` may import the admin modules' `routes.ts`. `tests/admin.test.ts` and `tests/boundaries.test.ts` prove both.
+
 ## 3.1.0 — 2026-11-12
 
 ### Added

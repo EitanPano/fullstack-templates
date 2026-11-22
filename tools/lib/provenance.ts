@@ -49,7 +49,10 @@ export function buildProvenance(
       flags: pkg.flags,
       capabilities: pkg.capabilities,
       commands: pkg.commands,
-      ...(manifest.http === undefined ? {} : { http: manifest.http }),
+      // The assigned port: another package of the plan may have taken the template's own.
+      ...(manifest.http === undefined
+        ? {}
+        : { http: { ...manifest.http, port: pkg.port ?? manifest.http.port } }),
     }
   }
   return {

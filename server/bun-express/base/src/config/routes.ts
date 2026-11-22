@@ -1,9 +1,11 @@
 // The mount table: one line per API module, in mount order. This is the only file that imports
-// a module's routes.ts, and only server.ts and tests import this file (both are lint zones).
-// Adding a module is a line here and its OpenAPI registration in openapi.ts, then running
-// `bun run openapi`.
+// a module's routes.ts (api/admin/routes.ts imports the admin modules' own), and only server.ts
+// and tests import this file (both are lint zones). Adding a module is a line here and its
+// OpenAPI registration in openapi.ts, then running `bun run openapi`; an admin module is a line
+// in api/admin/routes.ts instead.
 import type { Express } from 'express'
 
+import adminRoutes from '../api/admin/routes'
 import healthRoutes from '../api/health/routes'
 import authRoutes from '../api/auth/routes' // @auth
 import moduleRoutes from '../api/module/routes'
@@ -14,4 +16,5 @@ export function registerRoutes(app: Express): void {
   app.use('/api/auth', authRoutes) // @auth
   app.use('/api/user', userRoutes) // @auth
   app.use('/api/module', moduleRoutes)
+  app.use('/api/admin', adminRoutes)
 }

@@ -207,8 +207,15 @@ export interface CasesFile {
   cases: Array<{
     name: string
     stack?: string
+    // A stack case only: <dir>=<template> pairs that take the place of the stack's frontend.
+    frontends?: string[]
     flags?: Record<string, boolean>
     capabilities?: Record<string, string>
+    // Further packages of the plan by directory, as an answers file's packages.
+    packages?: Record<
+      string,
+      { flags?: Record<string, boolean>; capabilities?: Record<string, string> }
+    >
     // The case also runs the Compose smoke under test-generated --with-app.
     withApp?: boolean
     // The deploy mode the case generates with; the Compose smoke of T2 reads it.
@@ -706,6 +713,94 @@ function checkServerSettings(
   }
 }
 
+// A stack case may list its frontends and set flags on further packages (ADR 0015 F1). The
+// frontends must be this template's, the directories the plan's, and the flags declared by the
+// template of the package they land on.
+function checkFrontendSettings(
+  template: LoadedTemplate,
+  testCase: CasesFile['cases'][number],
+  stacks: Map<string, LoadedStack>,
+  templates: Map<string, LoadedTemplate>,
+  problems: string[],
+): void {
+  const frontends = testCase.frontends ?? []
+  const packages = testCase.packages ?? {}
+  if (frontends.length === 0 && Object.keys(packages).length === 0) return
+  const where = `${template.path}: case "${testCase.name}"`
+  const stack = testCase.stack === undefined ? undefined : stacks.get(testCase.stack)
+  if (testCase.stack === undefined) {
+    problems.push(`${where} lists frontends or packages but names no stack`)
+    return
+  }
+  if (stack === undefined) return
+  // The dir of each package in the plan this case generates, and the template it uses.
+  const plan = new Map<string, string>()
+  for (const entry of stack.manifest.packages) {
+    if (templates.get(entry.template)?.manifest.kind !== 'frontend') {
+      plan.set(entry.dir, entry.template)
+    }
+  }
+  const seen = new Set<string>()
+  for (const entry of frontends) {
+    const at = entry.indexOf('=')
+    const [dir, used] = [entry.slice(0, at), entry.slice(at + 1)]
+    if (used !== template.path) {
+      problems.push(
+        `${where} lists frontend "${dir}" with ${used}, but the case is for ${template.path}`,
+      )
+    }
+    if (seen.has(dir)) problems.push(`${where} lists frontend dir "${dir}" twice`)
+    seen.add(dir)
+    plan.set(dir, used)
+  }
+  if (frontends.length === 0) {
+    for (const entry of stack.manifest.packages) plan.set(entry.dir, entry.template)
+  }
+  // requestFor writes the case's own `flags:` and `server:` under these dirs, over a packages entry.
+  const ownDir =
+    frontends.length > 0 ? frontends[0]!.slice(0, frontends[0]!.indexOf('=')) : undefined
+  const primary =
+    ownDir ?? stack.manifest.packages.find((entry) => entry.template === template.path)?.dir
+  const apiEntry = stack.manifest.packages.find((entry) =>
+    isApiKind(templates.get(entry.template)?.manifest.kind ?? ''),
+  )
+  const setsServer =
+    Object.keys(testCase.server?.flags ?? {}).length > 0 ||
+    Object.keys(testCase.server?.capabilities ?? {}).length > 0
+  for (const [dir, settings] of Object.entries(packages)) {
+    const used = plan.get(dir)
+    if (used === undefined) {
+      problems.push(`${where} sets package "${dir}", which is not in its plan`)
+      continue
+    }
+    if (dir === primary || (setsServer && dir === apiEntry?.dir)) {
+      problems.push(
+        `${where} sets package "${dir}" under packages, which its own settings replace: use \`flags:\` / \`server:\` for ${dir}`,
+      )
+    }
+    const declared = templates.get(used)?.manifest.flags ?? {}
+    for (const flag of Object.keys(settings.flags ?? {})) {
+      if (declared[flag] === undefined) {
+        problems.push(
+          `${where} sets flag "${flag}" on package "${dir}", which ${used} does not declare`,
+        )
+      }
+    }
+    for (const [kind, provider] of Object.entries(settings.capabilities ?? {})) {
+      const spec = isKind(kind) ? templates.get(used)?.manifest.capabilities?.[kind] : undefined
+      if (spec === undefined) {
+        problems.push(
+          `${where} sets capability "${kind}" on package "${dir}", which ${used} does not declare`,
+        )
+      } else if (!spec.providers.includes(provider)) {
+        problems.push(
+          `${where} sets capability ${kind} on package "${dir}" to unlisted provider "${provider}" of ${used}`,
+        )
+      }
+    }
+  }
+}
+
 // The Compose smoke builds images and boots them: a template or a stack with none has no app smoke.
 function checkWithApp(
   template: LoadedTemplate,
@@ -775,6 +870,7 @@ function checkCrossReferences(
       }
       checkWithApp(template, testCase, stacks, templates, problems)
       checkServerSettings(template, testCase, stacks, templates, problems)
+      checkFrontendSettings(template, testCase, stacks, templates, problems)
       for (const flag of Object.keys(testCase.flags ?? {})) {
         if (!declared.has(flag)) {
           problems.push(`${template.path}: case "${testCase.name}" uses undeclared flag "${flag}"`)
