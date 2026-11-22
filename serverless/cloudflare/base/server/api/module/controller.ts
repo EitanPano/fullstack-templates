@@ -1,9 +1,11 @@
 // controller.ts belongs: this directory's business logic and its HTTP handlers, one exported
 // handler per endpoint, named after its operation (`createModule`). A handler reads the input
 // validate() parsed (readInput), applies the rules, reads and writes through service.ts and sends
-// the response. Logic another module or a job needs is exported as a typed rule function (no
-// `ctx`) that its handler calls too; nothing needs one yet, so there is none.
-// It does not belong: the gate chain (functions/api/module/), queries (service.ts) or schemas
+// the response. A rule another module needs is exported as an async function that takes and returns
+// plain data (`db` aside as its first parameter): never a Request, a Response, `ctx` or a Hono
+// type, and no module-level state the caller reads, so a service binding can stand in for the
+// import. Nothing needs one yet, so there is none.
+// It does not belong: the gate chain (routes.ts), queries (service.ts) or schemas
 // (schema.ts).
 //
 // Reference module: AGENTS.md > Adding a module explains how to copy it.

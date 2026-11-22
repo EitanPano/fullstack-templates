@@ -1,9 +1,11 @@
-// handler.ts belongs: the request flow the route files share. `handle(...gates, controller)` turns
-// a gate chain and a controller into the function a route file exports; `rootMiddleware` is what
-// functions/_middleware.ts runs around every function: request id, error envelope, response
-// headers, the one log line. It uses only web-standard Request and Response, so a move off Pages
-// replaces functions/ and nothing here.
+// handler.ts belongs: the request flow every route shares, and the one place besides the entries
+// and the routes.ts files that imports Hono. `handle(...gates, controller)` turns a gate chain and
+// a controller into the Hono handler a routes.ts registers; `rootApp` builds the app that runs
+// `rootMiddleware` (request id, the one log line, response headers) and the error handler around
+// every /api response. A controller, a service and a gate see `Context`, never Hono.
 // It does not belong: a gate's own logic (validate.ts, rate-limit.ts) or a controller's rules.
+import { Hono, type Context as HonoContext, type ErrorHandler, type MiddlewareHandler } from 'hono'
+
 import { getConfig, type Config } from '../config/env'
 import type { Bindings } from '../infra/bindings'
 import { createDb, type Db } from '../infra/db'
@@ -13,16 +15,8 @@ import { errorResponse } from './error-handler'
 import { resolveRequestId } from './request-id'
 import { logRequest } from './request-log'
 
-// The part of the platform's event the server reads. Pages' EventContext is assignable to it, so
-// functions/ passes the event through without importing a Pages type here.
-export type PlatformEvent = {
-  request: Request
-  env: Bindings
-  waitUntil(promise: Promise<unknown>): void
-  data: Record<string, unknown>
-  params: Record<string, string | string[] | undefined>
-  next(): Promise<Response>
-}
+// The app's Hono types: the platform's bindings and the one value the root middleware sets.
+export type AppEnv = { Bindings: Bindings; Variables: { requestId?: string } }
 
 // What every gate and controller receives, one object per request. A gate fills a slot it owns
 // (validate sets `input`); nothing else is mutable.
@@ -47,32 +41,35 @@ export type Gate = (ctx: Context) => void | Response | Promise<void | Response>
 
 export type Controller = (ctx: Context) => Response | Promise<Response>
 
-export type Handler = (event: PlatformEvent) => Promise<Response>
+export type Handler = (c: HonoContext<AppEnv>) => Promise<Response>
 
 const API_POLICY = "default-src 'none'; frame-ancestors 'none'"
 
-// `export const onRequestGet = handle(rateLimit(...), validate(request), controller)`
+function contextOf(c: HonoContext<AppEnv>): Context {
+  const config = getConfig(c.env)
+  const requestId = c.get('requestId') ?? resolveRequestId(c.req.raw.headers)
+  return {
+    request: c.req.raw,
+    url: new URL(c.req.url),
+    env: config,
+    bindings: c.env,
+    db: createDb(c.env),
+    params: c.req.param(),
+    input: {},
+    requestId,
+    log: createLogger({ level: config.LOG_LEVEL, bindings: { requestId } }),
+    waitUntil: (promise) => {
+      c.executionCtx.waitUntil(promise)
+    },
+  }
+}
+
+// `router.post('/', handle(rateLimit(...), validate(request), controller))` in a routes.ts.
 export function handle(...steps: [...gates: Gate[], controller: Controller]): Handler {
   const controller = steps.at(-1) as Controller
   const gates = steps.slice(0, -1) as Gate[]
-  return async (event) => {
-    const config = getConfig(event.env)
-    const requestId =
-      typeof event.data.requestId === 'string'
-        ? event.data.requestId
-        : resolveRequestId(event.request.headers)
-    const ctx: Context = {
-      request: event.request,
-      url: new URL(event.request.url),
-      env: config,
-      bindings: event.env,
-      db: createDb(event.env),
-      params: event.params,
-      input: {},
-      requestId,
-      log: createLogger({ level: config.LOG_LEVEL, bindings: { requestId } }),
-      waitUntil: (promise) => event.waitUntil(promise),
-    }
+  return async (c) => {
+    const ctx = contextOf(c)
     for (const gate of gates) {
       const answer = await gate(ctx)
       if (answer instanceof Response) return answer
@@ -81,7 +78,20 @@ export function handle(...steps: [...gates: Gate[], controller: Controller]): Ha
   }
 }
 
-// A route file's `onRequest`: every method it does not export answers 405 with an Allow header.
+// The same gate chain in front of a whole router: `routes.use('*', guard(gate))`. A gate that
+// throws or answers ends the request; otherwise the router's own routes run.
+export function guard(...gates: Gate[]): MiddlewareHandler<AppEnv> {
+  return async (c, next) => {
+    const ctx = contextOf(c)
+    for (const gate of gates) {
+      const answer = await gate(ctx)
+      if (answer instanceof Response) return answer
+    }
+    await next()
+  }
+}
+
+// A path's fallback after its endpoints: a method it does not register answers 405 with Allow.
 export function methodNotAllowed(...allowed: string[]): Handler {
   return handle(() => {
     throw new AppError('method_not_allowed', 'method not allowed', undefined, {
@@ -90,6 +100,7 @@ export function methodNotAllowed(...allowed: string[]): Handler {
   })
 }
 
+// An /api path no router claims: the not_found envelope.
 export const notFound: Handler = handle(() => {
   throw new AppError('not_found', 'route not found')
 })
@@ -111,32 +122,58 @@ function logLevel(bindings: Bindings): Config['LOG_LEVEL'] {
   }
 }
 
-// functions/_middleware.ts calls this with the event Pages gives it. Everything under it may
-// throw: an error becomes the envelope here, and every response leaves with the same headers.
-export async function rootMiddleware(event: PlatformEvent): Promise<Response> {
-  const started = performance.now()
-  const requestId = resolveRequestId(event.request.headers)
-  event.data.requestId = requestId
-  const log = createLogger({ level: logLevel(event.env), bindings: { requestId } })
-
-  let response: Response
-  try {
-    response = await event.next()
-  } catch (error) {
-    response = errorResponse(error, requestId, log)
-  }
-
-  // A response from the static asset fallback or a fetch can have immutable headers: copy it.
-  const finished = new Response(response.body, response)
-  finished.headers.set('x-request-id', requestId)
-  finished.headers.set('x-content-type-options', 'nosniff')
-  finished.headers.set('referrer-policy', 'no-referrer')
+// Every response of the Worker's own leaves with the same headers; one an API response sets for
+// itself (cache-control) is kept. A page fetched from the assets never gets them.
+export function secure(headers: Headers, requestId: string): void {
+  headers.set('x-request-id', requestId)
+  headers.set('x-content-type-options', 'nosniff')
+  headers.set('referrer-policy', 'no-referrer')
   // An API response is data, never a document: nothing may frame it, run it or embed it from
   // another origin. (A page's policy is the meta its build wrote plus the line assemble adds.)
-  finished.headers.set('content-security-policy', API_POLICY)
-  finished.headers.set('cross-origin-resource-policy', 'same-origin')
-  if (!finished.headers.has('cache-control')) finished.headers.set('cache-control', 'no-store')
+  headers.set('content-security-policy', API_POLICY)
+  headers.set('cross-origin-resource-policy', 'same-origin')
+  if (!headers.has('cache-control')) headers.set('cache-control', 'no-store')
+}
 
-  logRequest(log, event.request, finished, started)
-  return finished
+// Mounted on /api/* only: a static file's response never passes through it.
+export const rootMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
+  const started = performance.now()
+  const requestId = resolveRequestId(c.req.raw.headers)
+  c.set('requestId', requestId)
+  const log = createLogger({ level: logLevel(c.env), bindings: { requestId } })
+
+  try {
+    await next()
+  } catch (error) {
+    // Hono hands an Error to handleError; this is a value that is not one.
+    c.res = errorResponse(error, requestId, log)
+  }
+
+  try {
+    secure(c.res.headers, requestId)
+  } catch {
+    // A response another fetch returned has immutable headers: copy it.
+    c.res = new Response(c.res.body, c.res)
+    secure(c.res.headers, requestId)
+  }
+  logRequest(log, c.req.raw, c.res, started)
+}
+
+// A thrown error becomes the envelope here, and only here (error-handler.ts builds it).
+export const handleError: ErrorHandler<AppEnv> = (error, c) => {
+  const requestId = c.get('requestId') ?? resolveRequestId(c.req.raw.headers)
+  const log = createLogger({ level: logLevel(c.env), bindings: { requestId } })
+  const response = errorResponse(error, requestId, log)
+  // Outside /api the root middleware does not run: a refusal still carries the headers.
+  secure(response.headers, requestId)
+  return response
+}
+
+// The app every route runs in: the root middleware on `scope`, the error handler on everything.
+// The entry mounts the routers on it; a test mounts one router alone on a fresh one.
+export function rootApp(scope = '/api/*'): Hono<AppEnv> {
+  const app = new Hono<AppEnv>()
+  app.use(scope, rootMiddleware)
+  app.onError(handleError)
+  return app
 }

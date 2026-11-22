@@ -186,6 +186,22 @@ describe('routing', () => {
     expect(module.headers.get('allow')).toBe('GET, POST')
   })
 
+  it('hands a path outside /api to the assets, untouched: no request id, none of the API headers', async () => {
+    // @frontends-start
+    // Beside several frontends the host picks the folder: a frontend's own host, not an unnamed one.
+    const host = `${(JSON.parse('__FRONTENDS__') as { dir: string }[])[0]?.dir ?? ''}.localhost`
+    const res = await send('/no-such-page', { host })
+    // @frontends-end
+    // @nofrontends-start
+    const res = await send('/no-such-page')
+    // @nofrontends-end
+    expect(res.status).toBe(404)
+    expect(res.headers.get('x-request-id')).toBeNull()
+    // A built dist/ may answer with the page's own policy; the API's is never on a page.
+    expect(res.headers.get('content-security-policy') ?? '').not.toContain("default-src 'none'")
+    expect(res.headers.get('content-type') ?? '').not.toContain('application/json')
+  })
+
   it('still routes a supported method to its handler', async () => {
     expect((await send('/api/health')).status).toBe(200)
   })

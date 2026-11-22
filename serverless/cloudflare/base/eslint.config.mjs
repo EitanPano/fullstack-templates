@@ -2,9 +2,11 @@
 // new file is constrained by default, and tests/unit/boundaries.test.ts lints one violation and one
 // allowed case per rule through this very config. Each message names the layer to use instead.
 //
-//   functions/  imports controllers, schemas, server/middleware/ and server/config/
-//   workers/    imports what functions/ imports; nothing imports workers/ (a job's entry)
-//   server/     imports itself, by the layer map in AGENTS.md; never functions/ or workers/
+//   entries     server/server.ts, server/index.ts and every api/<module>/routes.ts import
+//               controllers, schemas, server/middleware/ and server/config/; nothing imports them
+//   server/     imports itself, by the layer map in AGENTS.md
+//   hono        only the entries, the routes.ts files and middleware/handler.ts import it
+//   admin       api/admin/<module>/ is a module like any other; api/admin/routes.ts mounts them
 //   openapi.ts  imports every module's schema.ts and services/utils/; only scripts and tests import it
 import eslint from '@eslint/js'
 import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript'
@@ -14,18 +16,34 @@ import tseslint from 'typescript-eslint'
 const SERVER_LAYERS = ['config', 'middleware', 'services', 'infra', 'models']
 const server = (...parts) => `./server/${parts.join('/')}`
 const everyServerLayer = SERVER_LAYERS.map((layer) => server(layer, '**'))
-const entries = ['./functions/**', './workers/**']
+const entries = [server('@(server|index).ts'), server('api', '**', 'routes.ts')]
 
 export const zones = [
   {
-    target: [server('**'), './functions/**'],
-    from: './workers/**',
-    message: 'workers/ is a Worker entry: nothing imports it, move shared code under server/.',
+    target: [
+      ...everyServerLayer,
+      server('api', '**', '{controller,service,model,schema}.ts'),
+      server('openapi.ts'),
+    ],
+    from: entries,
+    message:
+      'server.ts, index.ts and the routes.ts files are the routing: nothing imports them, move shared code to middleware/ or the module.',
   },
   {
-    target: [server('**'), './workers/**'],
-    from: './functions/**',
-    message: 'functions/ is the routing: nothing imports it, move shared code under server/.',
+    // Hono is the routing's library: a controller, a service, a schema, a model and every layer
+    // but the handler adapter stay free of it, so a module can move to another runtime.
+    target: [
+      server('config', '**'),
+      server('services', '**'),
+      server('infra', '**'),
+      server('models', '**'),
+      server('middleware', '**', '!(handler).ts'),
+      server('api', '**', '{controller,service,model,schema}.ts'),
+      server('openapi.ts'),
+    ],
+    from: './node_modules/hono/**',
+    message:
+      'Hono is imported by index.ts, server.ts, a routes.ts and middleware/handler.ts only: read the request through ctx.',
   },
   {
     target: server('models', '**'),
@@ -119,19 +137,41 @@ export const zones = [
     target: entries,
     from: [server('services', '**'), server('infra', '**'), server('models', '**')],
     message:
-      'a route file or a job entry imports controllers, schemas, server/middleware/ and server/config/: a gate or a rule belongs in one of those.',
+      'an entry or a routes.ts imports controllers, schemas, server/middleware/ and server/config/: a gate or a rule belongs in one of those.',
+  },
+  {
+    // server.ts mounts every module's routes.ts; api/admin/routes.ts, the admin namespace's router,
+    // mounts the routes.ts of the modules under it. Nothing else imports one.
+    target: [
+      ...everyServerLayer,
+      server('api', '!(admin)', '**'),
+      server('api', 'admin', '!(routes).ts'),
+      server('api', 'admin', '*', '**'),
+      server('index.ts'),
+      server('openapi.ts'),
+    ],
+    from: server('api', '**', 'routes.ts'),
+    message:
+      'only server.ts imports a routes.ts (api/admin/routes.ts imports the routes.ts of its admin modules).',
   },
 ]
 
 // A module reaches another module's controller only, and only from its controller.
 const otherModule = '^\\.\\./[^./][^/]*/'
 const end = '(\\.m?ts)?$'
+// An api/admin/<module>/ file sits one directory deeper: a sibling admin module is `../<module>/`
+// (otherModule above) and an entity module is `../../<module>/`.
+const entityModule = '^\\.\\./\\.\\./[^./][^/]*/'
+// The same boundary spelled around it (`../../api/other/service`) is refused too.
+const throughApi = {
+  regex: '^(\\.\\./)+api/',
+  message: "reach another module as ../<module>/controller, never through server/api/'s own path",
+}
 
 export default tseslint.config(
   {
     ignores: [
       'dist/**',
-      'dist-functions/**',
       '.wrangler/**',
       '.e2e-state/**',
       'worker-configuration.d.ts',
@@ -161,7 +201,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['server/**', 'functions/**', 'workers/**'],
+    files: ['server/**'],
     rules: {
       'no-restricted-properties': [
         'error',
@@ -186,6 +226,7 @@ export default tseslint.config(
               message:
                 'another module is reached through its controller.ts, and only a controller.ts imports it',
             },
+            throughApi,
           ],
         },
       ],
@@ -203,6 +244,55 @@ export default tseslint.config(
               message:
                 "the data layer never crosses a module boundary: a controller calls the other module's controller",
             },
+            throughApi,
+          ],
+        },
+      ],
+    },
+  },
+  // api/admin/<module>/: a module like any other, so an entity module two levels up counts as
+  // another module too. Each block restates its whole policy.
+  {
+    files: ['server/api/admin/*/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: `${otherModule}(?!controller${end})`,
+              message:
+                'another module is reached through its controller.ts, and only a controller.ts imports it',
+            },
+            {
+              regex: `${entityModule}(?!controller${end})`,
+              message:
+                "an admin module reaches an entity's data through that entity's controller.ts, and only a controller.ts imports it",
+            },
+            throughApi,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['server/api/admin/*/{service,model}.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: `${otherModule}`,
+              message:
+                "the data layer never crosses a module boundary: a controller calls the other module's controller",
+            },
+            {
+              regex: `${entityModule}`,
+              message:
+                "the data layer never crosses a module boundary: a controller calls the entity's controller",
+            },
+            throughApi,
           ],
         },
       ],

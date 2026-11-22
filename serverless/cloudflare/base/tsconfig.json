@@ -14,5 +14,5 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["functions", "server", "workers", "worker-configuration.d.ts"]
+  "include": ["server", "worker-configuration.d.ts"]
 }

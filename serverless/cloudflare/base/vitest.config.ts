@@ -1,7 +1,7 @@
 // vitest.config.ts belongs: the two test projects. `unit` runs in Node (pure code, the lint
 // boundaries, the config files, the contract, the assemble step); `api` runs in workerd (the
-// platform's real routing against a D1 with the migrations applied; `bun run test:db` runs it
-// alone).
+// Worker's own entry (server/index.ts, nothing built first) against a D1 with the migrations
+// applied; `bun run test:db` runs it alone).
 // It does not belong: test code (tests/) or the build.
 import path from 'node:path'
 
@@ -21,8 +21,7 @@ export default defineConfig(async () => {
         {
           plugins: [
             cloudflareTest({
-              // Built once per run by the global setup: every function and the middleware.
-              main: './dist-functions/index.js',
+              main: './server/index.ts',
               wrangler: { configPath: './wrangler.jsonc' },
               miniflare: {
                 bindings: {
@@ -35,7 +34,6 @@ export default defineConfig(async () => {
           test: {
             name: 'api',
             include: ['tests/api/**/*.test.ts'],
-            globalSetup: ['./tests/api/global-setup.ts'],
             setupFiles: ['./tests/api/setup.ts'],
           },
         },

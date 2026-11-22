@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import { RATE_LIMIT_CLEANUP_BATCH } from '../../server/config/constants'
 import { purgeExpiredRateLimits } from '../../server/middleware/rate-limit-cleanup'
-import worker from '../../workers/jobs'
+import worker from '../../server/index'
 
 const NOW = 1_800_000_000_000
 
@@ -29,14 +29,7 @@ async function keys(): Promise<string[]> {
 
 function run(scheduledTime = NOW): Promise<void> {
   const controller = { scheduledTime, cron: '17 * * * *', noRetry: () => undefined }
-  const context = { waitUntil: () => undefined, passThroughOnException: () => undefined }
-  return Promise.resolve(
-    worker.scheduled(
-      controller as unknown as ScheduledController,
-      env,
-      context as unknown as ExecutionContext,
-    ),
-  )
+  return worker.scheduled(controller as unknown as ScheduledController, env)
 }
 
 describe('the scheduled cleanup', () => {

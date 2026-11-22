@@ -1,48 +1,40 @@
-// The jobs Worker is a second deployment with its own wrangler.jsonc, but it reads the same D1
-// databases as the Pages project. This proves the two files agree where they must, and that the
-// job is one cron trigger with no secret in its file.
+// The `jobs` flag is a cron trigger and a `scheduled` handler in the one Worker: this proves the
+// trigger is one valid cron expression, inherited by every environment (so each deployed Worker
+// runs the job against its own database), and that no second Worker or second configuration exists.
+import { existsSync, readFileSync } from 'node:fs'
+import path from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
-import { leakedSecrets, readConfig, type Environment } from '../support/jsonc'
+import { leakedSecrets, readConfig } from '../support/jsonc'
 
-const pages = readConfig('wrangler.jsonc')
-const jobs = readConfig('workers/jobs/wrangler.jsonc')
+const root = path.resolve(import.meta.dirname, '../..')
+const config = readConfig('wrangler.jsonc')
 
-function databases(config: { d1_databases?: Environment['d1_databases'] }) {
-  return (config.d1_databases ?? []).map(({ binding, database_name, database_id }) => ({
-    binding,
-    database_name,
-    database_id,
-  }))
-}
-
-describe('workers/jobs/wrangler.jsonc', () => {
-  it('has its own name, an entry, a compatibility date and nodejs_compat', () => {
-    expect(jobs.name).toBe(`${pages.name}-jobs`)
-    expect(jobs.main).toBe('index.ts')
-    expect(jobs.compatibility_date).toBe(pages.compatibility_date)
-    expect(jobs.compatibility_flags).toContain('nodejs_compat')
+describe('the jobs flag', () => {
+  it('has exactly one cron trigger of five fields at the top level', () => {
+    expect(config.triggers?.crons).toHaveLength(1)
+    expect(config.triggers?.crons?.[0]?.trim().split(/\s+/)).toHaveLength(5)
   })
 
-  it('binds the same D1 database as the Pages project in every environment', () => {
-    expect(databases(jobs)).toEqual(databases(pages))
-    expect(databases(jobs.env.preview)).toEqual(databases(pages.env.preview))
-    expect(databases(jobs.env.production)).toEqual(databases(pages.env.production))
-    expect(databases(jobs)).toHaveLength(1)
-  })
-
-  it('names the migrations directory of the Pages project, so one folder migrates both', () => {
-    for (const config of [jobs, jobs.env.preview, jobs.env.production]) {
-      expect(config.d1_databases?.[0]?.migrations_dir).toBe('../../migrations')
+  it('leaves the environments to inherit the trigger and the entry, so each runs its own database', () => {
+    for (const environment of [config.env.preview, config.env.production]) {
+      expect(environment).not.toHaveProperty('triggers')
+      expect(environment).not.toHaveProperty('main')
+      expect(environment.d1_databases).toHaveLength(1)
     }
   })
 
-  it('has exactly one cron trigger', () => {
-    expect(jobs.triggers?.crons).toHaveLength(1)
-    expect(jobs.triggers?.crons?.[0]?.trim().split(/\s+/)).toHaveLength(5)
+  it('exports a scheduled handler from the Worker entry', () => {
+    expect(readFileSync(path.join(root, 'server/index.ts'), 'utf8')).toMatch(/async scheduled\(/)
+  })
+
+  it('has no second Worker and no second wrangler configuration', () => {
+    expect(existsSync(path.join(root, 'workers'))).toBe(false)
+    expect(existsSync(path.join(root, 'wrangler.toml'))).toBe(false)
   })
 
   it('holds no value for a key that looks like a secret', () => {
-    expect(leakedSecrets(jobs, 'wrangler')).toEqual([])
+    expect(leakedSecrets(config, 'wrangler')).toEqual([])
   })
 })

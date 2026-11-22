@@ -1,7 +1,8 @@
+import { env } from 'cloudflare:workers'
 import { describe, expect, it, vi } from 'vitest'
 
-import { onRequestGet as ready } from '../../functions/api/health/ready'
-import { json, send, through } from './helpers'
+import healthRoutes from '../../server/api/health/routes'
+import { json, mounted, send } from './helpers'
 
 type Readiness = { status: string; dependencies: Record<string, string> }
 
@@ -39,6 +40,7 @@ describe('GET /api/health/ready', () => {
   it('reports degraded with 503 when the database ping fails, with the same body shape', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const down = {
+      ...env,
       ENVIRONMENT: 'test',
       DB: {
         prepare() {
@@ -46,7 +48,7 @@ describe('GET /api/health/ready', () => {
         },
       },
     }
-    const res = await through(ready, '/api/health/ready', { bindings: down })
+    const res = await mounted(healthRoutes, '/api/health')('/api/health/ready', { bindings: down })
     expect(res.status).toBe(503)
     const body = await json<Readiness>(res)
     expect(body).toEqual({ status: 'degraded', dependencies: { database: 'down' } })
