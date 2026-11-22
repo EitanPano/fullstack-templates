@@ -224,9 +224,9 @@ forbidden_modules = [
   "app.config.env",
   "app.config.constants",
   "app.config.cors",
-  "app.api.*.controller",
-  "app.api.*.schema",
-  "app.api.*.service",
+  "app.api.**.controller",
+  "app.api.**.schema",
+  "app.api.**.service",
 ]
 allow_indirect_imports = true
 
@@ -234,9 +234,9 @@ allow_indirect_imports = true
 name = "only config routes imports a module routes"
 type = "forbidden"
 source_modules = [
-  "app.api.*.controller",
-  "app.api.*.schema",
-  "app.api.*.service",
+  "app.api.**.controller",
+  "app.api.**.schema",
+  "app.api.**.service",
   "app.middleware",
   "app.infra",
   "app.services",
@@ -247,7 +247,7 @@ source_modules = [
   "app.config.constants",
   "app.config.cors",
 ]
-forbidden_modules = ["app.api.*.routes"]
+forbidden_modules = ["app.api.**.routes"]
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
@@ -365,9 +365,9 @@ unmatched_ignore_imports_alerting = "none"
 name = "only a module service and services use the db seam"
 type = "forbidden"
 source_modules = [
-  "app.api.*.routes",
-  "app.api.*.controller",
-  "app.api.*.schema",
+  "app.api.**.routes",
+  "app.api.**.controller",
+  "app.api.**.schema",
   "app.middleware",
   "app.server",
   "app.main",
@@ -380,9 +380,9 @@ allow_indirect_imports = true
 name = "only a module service, services and middleware rate_limit use the cache seam"
 type = "forbidden"
 source_modules = [
-  "app.api.*.routes",
-  "app.api.*.controller",
-  "app.api.*.schema",
+  "app.api.**.routes",
+  "app.api.**.controller",
+  "app.api.**.schema",
   "app.middleware",
   "app.server",
   "app.main",
@@ -395,7 +395,7 @@ ignore_imports = ["app.middleware.rate_limit -> app.services.cache"]
 [[tool.importlinter.contracts]]
 name = "a routes, service or model never publishes events: a controller does"
 type = "forbidden"
-source_modules = ["app.api.*.routes", "app.api.*.service", "app.api.*.model"]
+source_modules = ["app.api.**.routes", "app.api.**.service", "app.api.**.model"]
 forbidden_modules = ["app.services.event"]
 allow_indirect_imports = true
 
@@ -463,19 +463,19 @@ unmatched_ignore_imports_alerting = "none"
 name = "jobs and subscribers reach a module through its controller only"
 type = "forbidden"
 source_modules = ["app.infra.jobs", "app.infra.subscribers"]
-forbidden_modules = ["app.api.*.routes", "app.api.*.service", "app.api.*.model"]
+forbidden_modules = ["app.api.**.routes", "app.api.**.service", "app.api.**.model"]
 allow_indirect_imports = true
 
 # What each file of a module may import.
 [[tool.importlinter.contracts]]
 name = "schema is the leaf of a module"
 type = "forbidden"
-source_modules = ["app.api.*.schema"]
+source_modules = ["app.api.**.schema"]
 forbidden_modules = [
-  "app.api.*.routes",
-  "app.api.*.controller",
-  "app.api.*.service",
-  "app.api.*.model",
+  "app.api.**.routes",
+  "app.api.**.controller",
+  "app.api.**.service",
+  "app.api.**.model",
   "app.middleware",
   "app.infra",
   "app.services.*",
@@ -485,18 +485,18 @@ forbidden_modules = [
 ]
 allow_indirect_imports = true
 ignore_imports = [
-  "app.api.*.schema -> app.services.utils.**",
-  "app.api.*.schema -> app.services.utils",
+  "app.api.**.schema -> app.services.utils.**",
+  "app.api.**.schema -> app.services.utils",
 ]
 unmatched_ignore_imports_alerting = "none"
 
 [[tool.importlinter.contracts]]
 name = "routes wire gates to handlers"
 type = "forbidden"
-source_modules = ["app.api.*.routes"]
+source_modules = ["app.api.**.routes"]
 forbidden_modules = [
-  "app.api.*.service",
-  "app.api.*.model",
+  "app.api.**.service",
+  "app.api.**.model",
   "app.services.*",
   "app.infra",
   "app.config.env",
@@ -505,23 +505,23 @@ forbidden_modules = [
 ]
 allow_indirect_imports = true
 ignore_imports = [
-  "app.api.*.routes -> app.services.utils.**",
-  "app.api.*.routes -> app.services.utils",
+  "app.api.**.routes -> app.services.utils.**",
+  "app.api.**.routes -> app.services.utils",
 ]
 unmatched_ignore_imports_alerting = "none"
 
 [[tool.importlinter.contracts]]
 name = "controller holds the rules and the handlers"
 type = "forbidden"
-source_modules = ["app.api.*.controller"]
+source_modules = ["app.api.**.controller"]
 forbidden_modules = [
-  "app.api.*.routes",
-  "app.api.*.model",
+  "app.api.**.routes",
+  "app.api.**.model",
   "app.infra.*",
   "app.config.routes",
 ]
 allow_indirect_imports = true
-ignore_imports = ["app.api.*.controller -> app.infra.dependency"]
+ignore_imports = ["app.api.**.controller -> app.infra.dependency"]
 
 # service.py (and model.py, which the Postgres overlay adds) is the data layer at the bottom of a
 # module: it imports services/db.py, services/cache.py, services/logger.py, services/utils/,
@@ -529,11 +529,11 @@ ignore_imports = ["app.api.*.controller -> app.infra.dependency"]
 [[tool.importlinter.contracts]]
 name = "service is the data layer at the bottom of a module"
 type = "forbidden"
-source_modules = ["app.api.*.service", "app.api.*.model"]
+source_modules = ["app.api.**.service", "app.api.**.model"]
 forbidden_modules = [
-  "app.api.*.routes",
-  "app.api.*.controller",
-  "app.api.*.schema",
+  "app.api.**.routes",
+  "app.api.**.controller",
+  "app.api.**.schema",
   "app.middleware",
   "app.infra",
   "app.services.*",
@@ -543,23 +543,23 @@ forbidden_modules = [
 ]
 allow_indirect_imports = true
 ignore_imports = [
-  "app.api.*.service -> app.services.db",
-  "app.api.*.service -> app.services.cache",
-  "app.api.*.service -> app.services.logger",
-  "app.api.*.service -> app.services.utils.**",
-  "app.api.*.service -> app.services.utils",
-  "app.api.*.model -> app.services.db",
-  "app.api.*.model -> app.services.cache",
-  "app.api.*.model -> app.services.logger",
-  "app.api.*.model -> app.services.utils.**",
-  "app.api.*.model -> app.services.utils",
+  "app.api.**.service -> app.services.db",
+  "app.api.**.service -> app.services.cache",
+  "app.api.**.service -> app.services.logger",
+  "app.api.**.service -> app.services.utils.**",
+  "app.api.**.service -> app.services.utils",
+  "app.api.**.model -> app.services.db",
+  "app.api.**.model -> app.services.cache",
+  "app.api.**.model -> app.services.logger",
+  "app.api.**.model -> app.services.utils.**",
+  "app.api.**.model -> app.services.utils",
 ]
 unmatched_ignore_imports_alerting = "none"
 
 [[tool.importlinter.contracts]]
 name = "the data layer never sees HTTP"
 type = "forbidden"
-source_modules = ["app.api.*.service", "app.api.*.model"]
+source_modules = ["app.api.**.service", "app.api.**.model"]
 forbidden_modules = ["fastapi", "starlette"]
 allow_indirect_imports = true
 
@@ -579,6 +579,26 @@ ignore_imports = [
   "app.api.*.controller -> app.api.*.controller",
   "app.api.*.controller -> app.api.*.schema",
   "app.api.*.schema -> app.api.*.schema",
+  "app.api.admin.*.controller -> app.api.*.controller",
+  "app.api.admin.*.controller -> app.api.*.schema",
+  "app.api.admin.*.schema -> app.api.*.schema",
+]
+unmatched_ignore_imports_alerting = "none"
+
+# api/admin/<module>/ is a module like any other (ADR 0015, A1). Above, `app.api.admin` is one unit
+# beside the entity modules: its modules reach an entity's controller and schema (the last three
+# lines) and nothing more of it, and no entity module imports an admin one. Here the admin modules
+# are independent of each other by the same doors; `app.api.admin.routes`, the namespace's router,
+# mounts each module's routes.
+[[tool.importlinter.contracts]]
+name = "admin modules are independent: a controller and a schema are a module's only doors"
+type = "independence"
+modules = ["app.api.admin.*"]
+ignore_imports = [
+  "app.api.admin.routes -> app.api.admin.*.routes",
+  "app.api.admin.*.controller -> app.api.admin.*.controller",
+  "app.api.admin.*.controller -> app.api.admin.*.schema",
+  "app.api.admin.*.schema -> app.api.admin.*.schema",
 ]
 unmatched_ignore_imports_alerting = "none"
 
@@ -595,9 +615,9 @@ name = "openapi imports no module behaviour, infra or middleware"
 type = "forbidden"
 source_modules = ["app.openapi"]
 forbidden_modules = [
-  "app.api.*.routes",
-  "app.api.*.controller",
-  "app.api.*.service",
+  "app.api.**.routes",
+  "app.api.**.controller",
+  "app.api.**.service",
   "app.infra",
   "app.middleware",
   "app.main",
