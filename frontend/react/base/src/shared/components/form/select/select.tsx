@@ -2,7 +2,7 @@ import { CheckIcon, ChevronDownIcon } from '@/shared/components/icons'
 import { Select as SelectPrimitive } from 'radix-ui'
 import type { ComponentProps } from 'react'
 
-import { cn } from '@/shared/utils/cn'
+import { cn } from '@/services/cn'
 import './select.scss'
 
 export const Select = SelectPrimitive.Root

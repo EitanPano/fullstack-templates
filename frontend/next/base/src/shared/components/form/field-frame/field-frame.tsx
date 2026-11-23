@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { Label } from '@/shared/components/form/label/label'
-import { cn } from '@/shared/utils/cn'
+import { cn } from '@/services/cn'
 import './field-frame.scss'
 
 // The label, control slot, description and error of one field. The error line always exists, so

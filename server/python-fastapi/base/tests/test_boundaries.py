@@ -1,7 +1,7 @@
-"""The import-linter contracts of `pyproject.toml` for `api/admin/<module>/`, run for real on a copy
-of the package with fixture modules added: an admin module is a module like any other, so it reaches
-an entity's data through that entity's controller and nothing reaches its service. Nothing here
-touches `src/`; the copy lives in a temporary directory."""
+"""The import-linter contracts of `pyproject.toml` for `api/admin/<entity>/`, run for real on a copy
+of the package with fixture entities added: an admin entity is an entity like any other, so it
+reaches an entity's data through that entity's controller and nothing reaches its service.
+Nothing here touches `src/`; the copy lives in a temporary directory."""
 
 import os
 import shutil
@@ -15,13 +15,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 LEAD = {
     "app/api/admin/lead/__init__.py": "",
-    "app/api/admin/lead/schema.py": "from app.api.module.schema import Module\n\nENTITY = Module\n",
+    "app/api/admin/lead/schema.py": "from app.api.entity.schema import Entity\n\nENTITY = Entity\n",
     "app/api/admin/lead/service.py": "from app.services.logger import log\n\nLOG = log\n",
     "app/api/admin/lead/controller.py": (
         "from app.api.admin.lead.schema import ENTITY\n"
         "from app.api.admin.lead.service import LOG\n"
-        "from app.api.module.controller import list_module\n\n"
-        "HANDLERS = (ENTITY, LOG, list_module)\n"
+        "from app.api.entity.controller import list_entity\n\n"
+        "HANDLERS = (ENTITY, LOG, list_entity)\n"
     ),
     "app/api/admin/lead/routes.py": (
         "from fastapi import APIRouter\n\n"
@@ -32,7 +32,7 @@ LEAD = {
 }
 MOUNT = (
     "\nfrom app.api.admin.lead.routes import router as lead_router\n"
-    '\nMODULES.append(("/lead", lead_router))\n'
+    '\nENTITIES.append(("/lead", lead_router))\n'
 )
 MOUNT_FILE = "app/api/admin/routes.py"
 
@@ -71,22 +71,26 @@ class TestAdminBoundaries:
     def test_the_template_as_shipped_passes(self, shipped: tuple[int, str]) -> None:
         assert shipped[0] == 0, shipped[1]
 
-    def test_an_admin_module_following_the_module_rules_passes(self, tmp_path: Path) -> None:
+    def test_an_admin_entity_following_the_entity_rules_passes(self, tmp_path: Path) -> None:
         code, output = lint(tmp_path, add=LEAD, append={MOUNT_FILE: MOUNT})
 
         assert code == 0, output
 
-    def test_an_entity_module_importing_an_admin_service_fails(self, tmp_path: Path) -> None:
-        entity = "\nfrom app.api.admin.lead import service as admin_service\n\nSERVICE = admin_service\n"
+    def test_a_top_level_entity_importing_an_admin_service_fails(self, tmp_path: Path) -> None:
+        entity = (
+            "\nfrom app.api.admin.lead import service as admin_service\n\nSERVICE = admin_service\n"
+        )
         code, output = lint(
-            tmp_path, add=LEAD, append={MOUNT_FILE: MOUNT, "app/api/module/controller.py": entity}
+            tmp_path, add=LEAD, append={MOUNT_FILE: MOUNT, "app/api/entity/controller.py": entity}
         )
 
         assert code != 0
-        assert "app.api.module.controller -> app.api.admin.lead.service" in output
+        assert "app.api.entity.controller -> app.api.admin.lead.service" in output
 
-    def test_an_admin_module_importing_an_entity_service_fails(self, tmp_path: Path) -> None:
-        admin = "\nfrom app.api.module import service as entity_service\n\nSERVICE = entity_service\n"
+    def test_an_admin_entity_importing_an_entity_service_fails(self, tmp_path: Path) -> None:
+        admin = (
+            "\nfrom app.api.entity import service as entity_service\n\nSERVICE = entity_service\n"
+        )
         code, output = lint(
             tmp_path,
             add=LEAD,
@@ -94,9 +98,9 @@ class TestAdminBoundaries:
         )
 
         assert code != 0
-        assert "app.api.admin.lead.controller -> app.api.module.service" in output
+        assert "app.api.admin.lead.controller -> app.api.entity.service" in output
 
-    def test_an_admin_module_importing_another_admin_service_fails(self, tmp_path: Path) -> None:
+    def test_an_admin_entity_importing_another_admin_service_fails(self, tmp_path: Path) -> None:
         other = {
             "app/api/admin/other/__init__.py": "",
             "app/api/admin/other/controller.py": (
@@ -108,8 +112,10 @@ class TestAdminBoundaries:
         assert code != 0
         assert "app.api.admin.other.controller -> app.api.admin.lead.service" in output
 
-    def test_an_admin_module_follows_the_direction_rules_of_its_files(self, tmp_path: Path) -> None:
-        routes = "\nfrom app.api.admin.lead import service as own_service\n\nSERVICE = own_service\n"
+    def test_an_admin_entity_follows_the_direction_rules_of_its_files(self, tmp_path: Path) -> None:
+        routes = (
+            "\nfrom app.api.admin.lead import service as own_service\n\nSERVICE = own_service\n"
+        )
         code, output = lint(
             tmp_path, add=LEAD, append={MOUNT_FILE: MOUNT, "app/api/admin/lead/routes.py": routes}
         )

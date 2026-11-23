@@ -3,7 +3,7 @@ import { Dialog as DialogPrimitive } from 'radix-ui'
 import type { ComponentProps } from 'react'
 
 import { Button } from '@/shared/components/button/button'
-import { cn } from '@/shared/utils/cn'
+import { cn } from '@/services/cn'
 import './dialog.scss'
 
 export const Dialog = DialogPrimitive.Root

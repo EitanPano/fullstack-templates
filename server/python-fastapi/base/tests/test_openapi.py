@@ -89,46 +89,46 @@ class TestTheDocument:
         assert "503" in responses
         assert "Readiness" in as_object(as_object(doc["components"])["schemas"])
 
-    def test_documents_the_module_endpoints_at_their_singular_paths(self) -> None:
+    def test_documents_the_entity_endpoints_at_their_singular_paths(self) -> None:
         doc = build_openapi_document(app)
 
         paths = as_object(doc["paths"])
-        assert set(paths) >= {"/api/module", "/api/module/{id}"}
-        assert set(as_object(paths["/api/module"])) == {"get", "post"}
-        assert set(as_object(paths["/api/module/{id}"])) == {"get", "patch", "delete"}
+        assert set(paths) >= {"/api/entity", "/api/entity/{id}"}
+        assert set(as_object(paths["/api/entity"])) == {"get", "post"}
+        assert set(as_object(paths["/api/entity/{id}"])) == {"get", "patch", "delete"}
 
-    def test_documents_the_module_list_query_and_its_page_component(self) -> None:
+    def test_documents_the_entity_list_query_and_its_page_component(self) -> None:
         doc = build_openapi_document(app)
 
-        list_ = as_object(as_object(as_object(doc["paths"])["/api/module"])["get"])
+        list_ = as_object(as_object(as_object(doc["paths"])["/api/entity"])["get"])
         assert isinstance(list_["parameters"], list)
         parameters = [as_object(p) for p in list_["parameters"]]
         assert {p["name"]: p["in"] for p in parameters} == {"cursor": "query", "limit": "query"}
         limit = as_object(next(p for p in parameters if p["name"] == "limit")["schema"])
         assert (limit["minimum"], limit["maximum"], limit["default"]) == (1, 100, 20)
-        page = as_object(as_object(as_object(doc["components"])["schemas"])["ModulePage"])
+        page = as_object(as_object(as_object(doc["components"])["schemas"])["EntityPage"])
         assert names(page["required"]) == {"items", "nextCursor"}
         assert "Page" not in as_object(as_object(doc["components"])["schemas"])
 
-    def test_documents_the_module_status_as_an_inline_enum_and_timestamps_as_date_time(
+    def test_documents_the_entity_status_as_an_inline_enum_and_timestamps_as_date_time(
         self,
     ) -> None:
         doc = build_openapi_document(app)
 
-        module = as_object(as_object(as_object(doc["components"])["schemas"])["Module"])
-        properties = as_object(module["properties"])
+        entity = as_object(as_object(as_object(doc["components"])["schemas"])["Entity"])
+        properties = as_object(entity["properties"])
         assert as_object(properties["status"])["enum"] == ["active", "archived"]
         assert as_object(properties["createdAt"])["format"] == "date-time"
         assert as_object(properties["updatedAt"])["format"] == "date-time"
-        assert names(module["required"]) == {"id", "name", "status", "createdAt", "updatedAt"}
+        assert names(entity["required"]) == {"id", "name", "status", "createdAt", "updatedAt"}
 
     def test_documents_a_delete_with_no_body_and_a_create_without_a_rate_limit(self) -> None:
         doc = build_openapi_document(app)
 
         paths = as_object(doc["paths"])
-        delete = as_object(as_object(paths["/api/module/{id}"])["delete"])
+        delete = as_object(as_object(paths["/api/entity/{id}"])["delete"])
         assert as_object(as_object(delete["responses"])["204"]) == {"description": "Deleted"}
-        create = as_object(as_object(paths["/api/module"])["post"])
+        create = as_object(as_object(paths["/api/entity"])["post"])
         expected = {"201", "400", "500"}
         expected |= {"401"}  # @auth
         assert set(as_object(create["responses"])) == expected
@@ -180,10 +180,10 @@ class TestTheShaping:
                 "HealthResponse",
                 "Readiness",
                 "ErrorBody",
-                "Module",
-                "ModulePage",
-                "CreateModuleBody",
-                "UpdateModuleBody",
+                "Entity",
+                "EntityPage",
+                "CreateEntityBody",
+                "UpdateEntityBody",
                 "AuthSession",  # @auth
                 "PublicUser",  # @auth
                 "AuthTokens",  # @auth
@@ -401,13 +401,13 @@ class TestTheAuthContract:
         assert paths["/api/user"] == {"get"}
         assert paths["/api/user/{id}"] == {"get"}
 
-    def test_documents_the_gated_module_endpoints_with_their_401_and_403(self) -> None:
+    def test_documents_the_gated_entity_endpoints_with_their_401_and_403(self) -> None:
         doc = build_openapi_document(app)
 
-        module = as_object(as_object(doc["paths"])["/api/module/{id}"])
-        delete = as_object(as_object(module["delete"])["responses"])
+        entity = as_object(as_object(doc["paths"])["/api/entity/{id}"])
+        delete = as_object(as_object(entity["delete"])["responses"])
         assert {"401", "403"} <= set(delete)
-        assert as_object(module["delete"])["summary"] == "Delete a module (admin only)"
+        assert as_object(entity["delete"])["summary"] == "Delete an entity (admin only)"
 
     def test_documents_the_tri_state_phone_as_an_optional_nullable_string(self) -> None:
         doc = build_openapi_document(app)
@@ -457,10 +457,10 @@ class TestEveryDocumentedPathIsMounted:
 
                 assert "no route for" not in res.text, (method, path)
 
-    async def test_still_answers_not_found_for_a_path_no_module_owns(
+    async def test_still_answers_not_found_for_a_path_no_entity_owns(
         self, client: httpx.AsyncClient
     ) -> None:
-        res = await client.get("/api/no-such-module")
+        res = await client.get("/api/no-such-entity")
 
         assert res.status_code == 404
         assert res.json()["error"]["code"] == "not_found"

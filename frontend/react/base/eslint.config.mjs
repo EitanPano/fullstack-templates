@@ -25,6 +25,9 @@ const ALL = [
   'models',
   'testing',
 ]
+// A facade is a file directly in services/ that wraps one npm package (AGENTS.md › Libraries).
+// Listing it here is the whole opt-in: every layer may import it, and it imports models/ only.
+const FACADES = ['cn', 'date', 'validation']
 const except = (...types) => ALL.filter((type) => !types.includes(type))
 
 const GUARDS_MESSAGE =
@@ -171,6 +174,26 @@ const policies = [
     disallow: { to: { element: { type: 'testing' } } },
     message: 'only a *.test.ts(x) imports testing/: it holds test helpers and is never bundled',
   },
+  {
+    // The facade tier: the one part of services/ that shared/ and core/config may import.
+    from: { element: { type: ALL } },
+    allow: { to: { file: { categories: 'facade' } } },
+  },
+  {
+    from: { file: { categories: 'entry' } },
+    allow: { to: { file: { categories: 'facade' } } },
+  },
+  {
+    from: { file: { categories: 'facade' } },
+    disallow: { to: { element: { type: ALL } } },
+    message:
+      'a facade imports its library and models/ types only: it wraps the package and nothing else',
+  },
+  {
+    from: { file: { categories: 'facade' } },
+    dependency: { kind: 'type' },
+    allow: { to: { element: { type: 'models' } } },
+  },
 ]
 
 const RAW_CONTROLS = [
@@ -187,7 +210,7 @@ const NETWORK = [
     selector:
       "CallExpression[callee.name='fetch'], CallExpression[callee.object.name='globalThis'][callee.property.name='fetch'], CallExpression[callee.object.name='window'][callee.property.name='fetch']",
     message:
-      'call the API through a services/<module>.api.ts endpoint (the generated SDK behind call), not fetch',
+      'call the API through a services/<entity>.api.ts endpoint (the generated SDK behind call), not fetch',
   },
 ]
 // Configuration is read in one place; Vite exposes it as import.meta.env.
@@ -211,7 +234,7 @@ const restrictSyntax = (...selectors) => ({
 
 // Only services/ calls the generated runtime; a type is welcome anywhere.
 const RUNTIME_MESSAGE =
-  'only services/ imports the generated runtime: add an endpoint in services/<module>.api.ts and use its hook (a type goes through models/)'
+  'only services/ imports the generated runtime: add an endpoint in services/<entity>.api.ts and use its hook (a type goes through models/)'
 const RUNTIME_GROUP = [
   '@/services/generated',
   '@/services/generated/**',
@@ -229,7 +252,7 @@ const LIBRARIES = {
   validation: {
     group: ['zod', 'zod/**', '@hookform/resolvers', '@hookform/resolvers/**'],
     message:
-      "build and run a schema through '@/shared/utils/validation', the one file that imports zod",
+      "build and run a schema through '@/services/validation', the one file that imports zod",
   },
   icons: {
     group: ['lucide-react', 'lucide-react/**'],
@@ -251,11 +274,11 @@ const LIBRARIES = {
   },
   classes: {
     group: ['clsx', 'clsx/**'],
-    message: "build class names with 'cn' from '@/shared/utils/cn', the one file that imports clsx",
+    message: "build class names with 'cn' from '@/services/cn', the one file that imports clsx",
   },
   dates: {
     group: ['date-fns', 'date-fns/**', '@date-fns/tz', '@date-fns/tz/**'],
-    message: "format and zone dates through '@/shared/utils/date', the one file that imports date-fns",
+    message: "format and zone dates through '@/services/date', the one file that imports date-fns",
   },
 }
 // The library patterns that apply to a file, less the facade it is.
@@ -268,6 +291,14 @@ const restrictImports = (...patterns) => ({
 })
 // The data-layer rule plus the library rules, for a file that is the facade of `facades`.
 const onlyServices = (...facades) => restrictImports(RUNTIME, ...libraries(...facades))
+
+// A facade wraps one library: it imports no other file of services/. The boundary rule does not
+// judge two files of one layer, so this rule does.
+const FACADE_ONLY = {
+  group: ['./*', '../*', '@/services/*'],
+  message: 'a facade imports no other file of services/: it wraps one library',
+}
+const facade = (name) => restrictImports(RUNTIME, FACADE_ONLY, ...libraries(name))
 
 export default defineConfig([
   globalIgnores([
@@ -317,6 +348,7 @@ export default defineConfig([
       'boundaries/files': [
         { pattern: 'src/core/auth/guards.ts', category: 'guards' },
         { pattern: 'src/main.tsx', category: 'entry' },
+        ...FACADES.map((name) => ({ pattern: `src/services/${name}.ts`, category: 'facade' })),
       ],
       'boundaries/elements': [
         { type: 'app', pattern: 'src/app', partialMatch: false },
@@ -395,16 +427,16 @@ export default defineConfig([
     rules: onlyServices('ui', 'toast'),
   },
   {
-    files: ['src/shared/utils/validation.ts'],
-    rules: onlyServices('validation'),
+    files: ['src/services/validation.ts'],
+    rules: facade('validation'),
   },
   {
-    files: ['src/shared/utils/cn.ts'],
-    rules: onlyServices('classes'),
+    files: ['src/services/cn.ts'],
+    rules: facade('classes'),
   },
   {
-    files: ['src/shared/utils/date.ts'],
-    rules: onlyServices('dates'),
+    files: ['src/services/date.ts'],
+    rules: facade('dates'),
   },
   {
     // The one file allowed to call fetch: the generated client's fetch wrapper lives here, because

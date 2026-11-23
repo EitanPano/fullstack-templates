@@ -1,4 +1,4 @@
-// openapi.ts belongs: building the OpenAPI document from the zod schemas. Every module registers
+// openapi.ts belongs: building the OpenAPI document from the zod schemas. Every entity registers
 // its endpoints in its schema.ts; the list below names each registration once, in the order of the
 // routes. `bun run openapi` (scripts/openapi.ts) writes openapi.json, which a frontend's contract
 // command consumes; a unit test fails when the committed file is stale.
@@ -8,11 +8,11 @@ import { OpenApiGeneratorV31, OpenAPIRegistry } from '@asteasolutions/zod-to-ope
 
 import pkg from '../package.json' with { type: 'json' }
 import { registerHealth } from './api/health/schema'
-import { registerModule } from './api/module/schema'
+import { registerEntity } from './api/entity/schema'
 
 export const registrations: readonly ((registry: OpenAPIRegistry) => void)[] = [
   registerHealth,
-  registerModule,
+  registerEntity,
 ]
 
 export function buildOpenApiDocument() {

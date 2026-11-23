@@ -1,5 +1,5 @@
 """enums.py belongs: the user's closed value sets, each a `StrEnum`. On the wire the same set is a
-`Literal[...]` alias in the module's `schema.py` and the controller converts at the edge.
+`Literal[...]` alias in the entity's `schema.py` and the controller converts at the edge.
 It does not belong: open-ended strings, limits (`constants.py`) or shapes (`type.py`).
 """
 

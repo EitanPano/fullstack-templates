@@ -18,7 +18,7 @@ is in the repository's root `AGENTS.md`; nothing here repeats it.
 - Logging goes through `server/services/logger.ts` (one JSON line per call, a secret-looking key
   prints `[redacted]`); nothing else calls `console`.
 - Files are kebab-case, entities are singular (`/api/post`, `server/api/post/`, table `post`),
-  database columns are snake_case and code fields camelCase. The domain's own term names a module.
+  database columns are snake_case and code fields camelCase. The domain's own term names an entity.
 - Not a Node server: no `fs`, no listener, no module-level connection. `nodejs_compat` gives
   `node:crypto` and `node:buffer`; use the web platform first.
 
@@ -27,14 +27,14 @@ is in the repository's root `AGENTS.md`; nothing here repeats it.
 | Path                    | What it is                                                                                                                                                                                      |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `server/index.ts`       | The Worker's default export (`main`): `fetch` hands the request to the app; with the `jobs` flag `scheduled` runs the cron's job                                    |
-| `server/server.ts`      | The app, only mounting: the root middleware, each module's router at `/api/<name>`, the admin namespace, the `not_found` envelope for other `/api` paths, everything else handed to `frontendPages` |
-| `server/api/<module>/`  | `routes.ts` (gates, validation, controller call per endpoint), `schema.ts` (zod, the contract's leaf, its OpenAPI registration), `controller.ts` (rules and handlers), `service.ts` (queries), `model.ts` (its Drizzle table); `api/admin/routes.ts` is the admin namespace's router, `api/admin/<name>/` its modules |
+| `server/server.ts`      | The app, only mounting: the root middleware, each entity's router at `/api/<name>`, the admin namespace, the `not_found` envelope for other `/api` paths, everything else handed to `frontendPages` |
+| `server/api/<entity>/`  | `routes.ts` (gates, validation, controller call per endpoint), `schema.ts` (zod, the contract's leaf, its OpenAPI registration), `controller.ts` (rules and handlers), `service.ts` (queries), `model.ts` (its Drizzle table); `api/admin/routes.ts` is the admin namespace's router, `api/admin/<name>/` its entities |
 | `server/middleware/`    | `handler.ts` (`handle`, `guard`, `Context`, `Gate`, `rootApp`, the root middleware), `admin-gate`, `frontend-host` (pages and the admin host rule), `validate`, `rate-limit` and `rate-limit-cleanup`, `error-handler`, `request-id`, `request-log`, `body` |
 | `server/config/`        | `env.ts` (the bindings as validated configuration), `constants.ts` (policy)                                                                                                                      |
 | `server/models/<name>/` | `interface.ts`, `type.ts`, `enum.ts`, `constants.ts` of one entity                                                                                                                               |
 | `server/services/`      | `logger.ts`, `security/crypto.ts`, `utils/` (pure helpers)                                                                       |
 | `server/infra/`         | `bindings.ts` (the typed bindings), `db.ts` (Drizzle over `DB`), `tables.ts` (the rate-limit table)                                                                                              |
-| `server/openapi.ts`     | Builds the OpenAPI document from every module's `schema.ts`; only `scripts/openapi.ts` and the tests import it                                                                                   |
+| `server/openapi.ts`     | Builds the OpenAPI document from every entity's `schema.ts`; only `scripts/openapi.ts` and the tests import it                                                                                   |
 | `static/`               | What the platform reads beside the built site: the base `_headers` and `_redirects`                                                                                                              |
 | `migrations/`           | SQL from `drizzle-kit generate`, applied by `bun run migrate`; `meta/` is drizzle's own                                                                                                          |
 | `scripts/`              | `openapi.ts`, `assemble.mjs`, `dev.mjs`, `start.mjs`, `e2e-db.mjs`; `lib/` holds their logic                                                                                                     |
@@ -51,19 +51,19 @@ module level.
 | You are adding…                 | It goes in                                                                | Shape                                                                                                          |
 | ------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | An endpoint                     | `server/api/<name>/routes.ts` + `controller.ts`                           | one `routes.<method>(path, handle(...gates, controller))` line; its `<operation>Request` in `schema.ts`          |
-| A resource with endpoints       | `server/api/<name>/`, `server/models/<name>/`, a line in `server/server.ts` | copy the reference `module`; one line in `server/openapi.ts`; see Adding a module                              |
+| A resource with endpoints       | `server/api/<name>/`, `server/models/<name>/`, a line in `server/server.ts` | copy the reference `entity`; one line in `server/openapi.ts`; see Adding an entity                              |
 | A request or response shape     | `server/api/<name>/schema.ts`                                             | zod, `satisfies` the `models/` type, with its `registerPath`                                                   |
-| A table                         | `server/api/<name>/model.ts`                                              | then `bun run db:generate -- --name <name>` and `bun run migrate`; a table no module owns is `server/infra/tables.ts` |
-| A query                         | `server/api/<name>/service.ts`                                            | takes `db` first; private to the module                                                                        |
-| A business rule                 | `server/api/<name>/controller.ts`                                         | in the handler; an exported async function of plain data once another module needs it                          |
+| A table                         | `server/api/<name>/model.ts`                                              | then `bun run db:generate -- --name <name>` and `bun run migrate`; a table no entity owns is `server/infra/tables.ts` |
+| A query                         | `server/api/<name>/service.ts`                                            | takes `db` first; private to the entity                                                                        |
+| A business rule                 | `server/api/<name>/controller.ts`                                         | in the handler; an exported async function of plain data once another entity needs it                          |
 | A gate (authorisation, a limit) | `server/middleware/<name>.ts`, chained in the routes.ts                   | `(ctx) => void \| Response`; throws an `AppError` to refuse; never imports `api/`                               |
 | A policy constant               | `server/config/constants.ts`                                              | durations, limits, batch sizes; an entity's field limits are `server/models/<name>/constants.ts`               |
 | An environment variable         | `server/config/env.ts` + `.env.example`                                   | in the zod schema; a secret is optional until a feature needs it, has no default, and is invalid when set wrongly |
 | A platform binding              | `wrangler.jsonc` in every environment, then `bun run types`               | an accessor in `server/infra/bindings.ts`; see Migrating Pages Functions, step 5                               |
 | A secret                        | the Worker's secrets per environment (a person), `config/env.ts`, `.env.example` | locally a line of `.env` (see Deployment)                                                                |
 | A redirect or a static header   | the frontend's `public/_redirects`, `public/_headers`; `static/` with no frontend | the files merge in `assemble`; never set or detach the Content-Security-Policy                          |
-| An admin endpoint               | `server/api/admin/<name>/`, one line in `server/api/admin/routes.ts`      | a module like any other, at `/api/admin/<name>`; the namespace's gate runs first                                 |
-| A route outside `/api`          | a router like a module's, mounted in `server/server.ts`                   | beside one frontend its path also goes in `assets.run_worker_first`; it sets its own headers; see Migrating Pages Functions, step 4 |
+| An admin endpoint               | `server/api/admin/<name>/`, one line in `server/api/admin/routes.ts`      | an entity like any other, at `/api/admin/<name>`; the namespace's gate runs first                                 |
+| A route outside `/api`          | a router like an entity's, mounted in `server/server.ts`                   | beside one frontend its path also goes in `assets.run_worker_first`; it sets its own headers; see Migrating Pages Functions, step 4 |
 | A pure helper                   | `server/services/utils/<name>.ts`                                         | no I/O, no state                                                                                               |
 | A shared capability with state  | `server/services/<name>.ts`                                               | logging, security primitives; stateful means per request, never module level                                   |
 | A scheduled job                 | a call in `scheduled` of `server/index.ts`, its logic an exported rule    | with the `jobs` flag only; see Jobs                                                                            | <!-- @jobs -->
@@ -99,14 +99,14 @@ Beside a frontend named `admin` the host rule runs first: on any other host the 
 <!-- @frontends-end -->
 
 ```ts
-// server/api/module/routes.ts
-routes.get('/', handle(validate(listModuleRequest), listModule))
+// server/api/entity/routes.ts
+routes.get('/', handle(validate(listEntityRequest), listEntity))
 routes.post(
   '/',
   handle(
-    rateLimit({ name: 'createModulePerIp', ...RATE_LIMITS.createModulePerIp, key: byIp }),
-    validate(createModuleRequest),
-    createModule,
+    rateLimit({ name: 'createEntityPerIp', ...RATE_LIMITS.createEntityPerIp, key: byIp }),
+    validate(createEntityRequest),
+    createEntity,
   ),
 )
 routes.all('/', methodNotAllowed('GET', 'POST'))
@@ -139,18 +139,18 @@ by `tests/unit/boundaries.test.ts`; each message names the layer to use instead.
 | `server/infra/`                      | `config/`, `models/`                                                                           | `middleware/`, `api/`, `services/`                       |
 | `server/middleware/`                 | `config/`, `infra/`, `services/`, `models/`                                                    | `api/`                                                   |
 | `api/<m>/schema.ts`                  | `models/`, `services/utils/`, `config/constants`                                               | everything else (it is the leaf)                         |
-| `api/<m>/service.ts`, `model.ts`     | `models/`, `infra/`, `services/`, `config/`                                                    | `middleware/`, another module                            |
-| `api/<m>/controller.ts`              | its module, `middleware/`, `services/`, `config/`, `models/`, another module's `controller.ts` | another module's `service.ts` or `model.ts`              |
+| `api/<m>/service.ts`, `model.ts`     | `models/`, `infra/`, `services/`, `config/`                                                    | `middleware/`, another entity                            |
+| `api/<m>/controller.ts`              | its entity, `middleware/`, `services/`, `config/`, `models/`, another entity's `controller.ts` | another entity's `service.ts` or `model.ts`              |
 | `server/openapi.ts`                  | every `schema.ts`, `services/utils/`                                                           | everything else; the request path never imports it       |
 
-- A module's `service.ts` and `model.ts` are imported only inside that module. Another module is
-  reached through its `controller.ts` only, from a `controller.ts`, as `../<module>/controller`.
+- An entity's `service.ts` and `model.ts` are imported only inside that entity. Another entity is
+  reached through its `controller.ts` only, from a `controller.ts`, as `../<entity>/controller`.
 - `hono` is imported by the entries, the `routes.ts` files and `middleware/handler.ts` only.
   `process.env` is refused in `server/`; read the validated `ctx.env`.
-- **A module that can move out.** These hold in every module: it imports another only through its
-  controller (lint); a rule it exports for another module is async and takes and returns plain data
-  (`db` aside, as first parameter), never a `Request`, a `Response`, `ctx` or a Hono type; modules
-  share no state in memory (no module-level cache or singleton another module reads); its router
+- **An entity that can move out.** These hold in every entity: it imports another only through its
+  controller (lint); a rule it exports for another entity is async and takes and returns plain data
+  (`db` aside, as first parameter), never a `Request`, a `Response`, `ctx` or a Hono type; entities
+  share no state in memory (no module-level cache or singleton another entity reads); its router
   answers its endpoints mounted alone (`tests/api/routes.test.ts`). The last three are review items.
   A service binding can then stand in for the import (see Scaling out).
 
@@ -187,9 +187,9 @@ and the e2e state (`.e2e-state`) never meet.
 ## Contract
 
 `bun run openapi` writes `openapi.json` (OpenAPI 3.1, servers `/`) from the same zod schemas that
-validate requests, in Bun and outside the runtime. Each module registers its paths in a
-`register<Name>` function at the bottom of its `schema.ts`; one line per module in
-`server/openapi.ts` lists it. Paths are singular, tags are the module name, every failure is the
+validate requests, in Bun and outside the runtime. Each entity registers its paths in a
+`register<Name>` function at the bottom of its `schema.ts`; one line per entity in
+`server/openapi.ts` lists it. Paths are singular, tags are the entity name, every failure is the
 `ErrorBody` envelope (`errorResponses(400, 404, ...)`), and an operation has no hand-written id.
 The file is committed;
 `tests/unit/openapi.test.ts` fails when it is stale (run `bun run openapi`), when a documented
@@ -256,10 +256,10 @@ A page has no request id. An unknown `/api/x` answers the JSON `not_found` envel
 answers the frontend's 404 page. `dist/` must exist for `wrangler` to start: `dev` uses an empty
 folder, `start` assembles first.
 
-## Adding a module
+## Adding an entity
 
-Work in this order, test first. Copy the reference module (`server/api/module/`,
-`server/models/module/`, `tests/api/module.test.ts`), renaming `module` to `<name>`, `Module` to
+Work in this order, test first. Copy the reference entity (`server/api/entity/`,
+`server/models/entity/`, `tests/api/entity.test.ts`), renaming `entity` to `<name>`, `Entity` to
 `<Name>`. Drop it (those paths, its lines in `server/openapi.ts` and `server/server.ts`, its table
 in a migration) once a real one exists.
 
@@ -269,11 +269,11 @@ in a migration) once a real one exists.
    `models/` type; one `<operation>Request` object per endpoint (only the parts it reads: `body`,
    `query`, `params`); and `register<Name>(registry)` with a `registerPath` per endpoint. Add
    `register<Name>` to the list in `server/openapi.ts`.
-3. `tests/api/<name>.test.ts`, red (see Tests), and the module's case in `tests/api/routes.test.ts`.
+3. `tests/api/<name>.test.ts`, red (see Tests), and the entity's case in `tests/api/routes.test.ts`.
 4. `server/api/<name>/model.ts` (the table), then `bun run db:generate -- --name <name>` and
    `bun run migrate` (see Adding the data layer).
 5. `service.ts`: queries taking `db` as their first parameter.
-6. `controller.ts`: one handler per endpoint, then the rules other modules need.
+6. `controller.ts`: one handler per endpoint, then the rules other entities need.
 7. `routes.ts`: a `Hono<AppEnv>` router, one `routes.<method>(path, handle(...gates, controller))`
    per endpoint and one `routes.all(path, methodNotAllowed(...))` per path, exported as default;
    then `app.route('/api/<name>', <name>Routes)` in `server/server.ts`. A list route is
@@ -286,27 +286,27 @@ in a migration) once a real one exists.
 - A list paginates: `PageQuery` and `pageOf` from `services/utils/pagination.ts`, the service
   fetches `limit + 1` rows and `toPage` slices, the cursor is opaque. Bodies are JSON only. Statuses: 200 read and update, 201 create, 204
   delete, 400 validation, 404 missing, 405 wrong method, 409 conflict, 429 rate limited.
-- Admin endpoints live in `server/api/admin/<name>/`, a module like any other, at `/api/admin/<name>`
+- Admin endpoints live in `server/api/admin/<name>/`, an entity like any other, at `/api/admin/<name>`
   (`admin` is a namespace, not an entity); mount its router in `server/api/admin/routes.ts`
   (`routes.route('/<name>', <name>Routes)`). That file's one gate refuses every request (403) until
   the product replaces it with its own.
 - Ids are made in the controller (`crypto.randomUUID()`), never by the database or the client.
 - A rate limit is a gate (`rateLimit({ name, limit, window, key })`) with its numbers in
   `RATE_LIMITS`; `byIp` keys an IPv6 address by its /64 network. Every mutation carries one, with
-  its own name and counter (`createModulePerIp`, `updateModulePerIp`, `deleteModulePerIp`).
+  its own name and counter (`createEntityPerIp`, `updateEntityPerIp`, `deleteEntityPerIp`).
 
 ## Adding the data layer
 
-D1 through Drizzle is part of the base. A table is `server/api/<module>/model.ts`; the platform
+D1 through Drizzle is part of the base. A table is `server/api/<entity>/model.ts`; the platform
 layers' own tables are `server/infra/tables.ts`. `drizzle.config.ts` reads both.
 
-- **Adding a table.** Write the `sqliteTable` in the module's `model.ts`, run
+- **Adding a table.** Write the `sqliteTable` in the entity's `model.ts`, run
   `bun run db:generate -- --name <name>` (SQL lands in `migrations/`; commit it with the model), then
   `bun run migrate`. Never edit an applied migration: add a new one.
 - **Ids and timestamps.** Ids are `text` (a UUID made in the controller). Timestamps are
   `integer({ mode: 'timestamp_ms' })` columns (epoch milliseconds, read back as `Date`). Table and
   column names are snake_case singular, fields camelCase in code. Index names say what they cover
-  (`module_created_at_id_idx`).
+  (`entity_created_at_id_idx`).
 - **No interactive transaction.** D1 offers none, so a rule that must not race is one of three
   patterns: a conditional statement (`UPDATE ... WHERE <still true> ... RETURNING`: no row back means
   it failed); an upsert (`insert ... onConflictDoUpdate ... returning`, as the rate limiter
@@ -372,7 +372,7 @@ migrations applied. Bindings for the run (`ENVIRONMENT: test`) are in `vitest.co
   Worker's entry; `json(response)` reads it; `through(handler, path, { bindings, route })` runs one
   handler built in the test in a fresh root app, for what no route exercises (a probe that throws, a
   production environment, a broken database, a fake binding; `route` names the Hono path when the
-  test reads parameters); `mounted(routes, base)` mounts one module's router alone; `settle` awaits
+  test reads parameters); `mounted(routes, base)` mounts one entity's router alone; `settle` awaits
   what the code gave to `waitUntil`.
 - Storage is isolated per test file: `tests/api/setup.ts` empties every table before each test.
 - **Long paths on Windows** (observed): wrangler's local D1 file is
@@ -474,7 +474,7 @@ Cloudflare's guide "Migrate from Pages to Workers". Each step leaves `bun run ch
    `not_found_handling: "404-page"`, `run_worker_first: ["/api/*"]`); run `bun run types`.
 2. **Routing.** Add `hono` (exact pin), `server/middleware/handler.ts`, `server/server.ts`,
    `server/index.ts`, the lint zones and the tests. Each `functions/api/<name>/*.ts` becomes the
-   module's `routes.ts` (`onRequestGet = handle(...)` becomes `routes.get(path, handle(...))`,
+   entity's `routes.ts` (`onRequestGet = handle(...)` becomes `routes.get(path, handle(...))`,
    `onRequest = methodNotAllowed(...)` becomes `routes.all(path, ...)`, `[id]` becomes `/:id`,
    `[[path]].ts` becomes the `not_found` line of `server.ts`). Then delete `functions/`.
 3. **Static files and jobs.** `pages/` becomes `static/`, `_routes.json` goes, `assemble`'s `pages`
@@ -491,11 +491,11 @@ Cloudflare's guide "Migrate from Pages to Workers". Each step leaves `bun run ch
 
 ## Scaling out
 
-One Worker holds every module until traffic has been measured and the business decides to scale. A
+One Worker holds every entity until traffic has been measured and the business decides to scale. A
 project then moves one step at a time; the rules in Import direction make each a change of wiring,
 not a rewrite.
 
-- **A module in a Worker of its own.** Give it an entry (`server/<name>.ts`: `rootApp()`,
+- **An entity in a Worker of its own.** Give it an entry (`server/<name>.ts`: `rootApp()`,
   `app.route('/api/<name>', <name>Routes)`, a default export with `fetch`) and a second
   `wrangler.jsonc` (its own `name` and `main`, the same D1 binding, no assets). The first Worker
   stops mounting the router and forwards `/api/<name>/*` by a Cloudflare route or a service binding
@@ -536,9 +536,9 @@ check` green and the site deployable; a person does what Deployment says is a pe
    then `d1 execute <preview> --file backup.sql`).
 2. **Baseline the existing database's migrations without running them.** The migrations folder must
    describe what the database already has, and the database must be told so.
-   - Make `server/api/<module>/model.ts` match each live table (compare with
+   - Make `server/api/<entity>/model.ts` match each live table (compare with
      `wrangler d1 execute DB --remote --command "SELECT name, sql FROM sqlite_master"`), delete the
-     reference module and the template's `migrations/0000_init.sql` with `migrations/meta/`, keep
+     reference entity and the template's `migrations/0000_init.sql` with `migrations/meta/`, keep
      `rateLimitTable` out of this one generate (comment its export in `server/infra/tables.ts`), run
      `bun run db:generate -- --name baseline`, restore the table and run
      `bun run db:generate -- --name rate_limit`: `0000_baseline.sql` is the existing schema and
@@ -565,7 +565,7 @@ check` green and the site deployable; a person does what Deployment says is a pe
    `bun run openapi` is run; the envelope replaces any ad-hoc error body (change the site's own
    callers in the same task, or the test records the difference). When no `_lib` file is left,
    delete the folder.
-4. **Routes outside `/api`** (two that answer HTML, say): a router like a module's mounted at its
+4. **Routes outside `/api`** (two that answer HTML, say): a router like an entity's mounted at its
    path in `server/server.ts`, and the path added to `assets.run_worker_first`. The root middleware
    wraps `/api/*` only, so such a route sets its own `content-type`, `cache-control` and
    `Content-Security-Policy`.

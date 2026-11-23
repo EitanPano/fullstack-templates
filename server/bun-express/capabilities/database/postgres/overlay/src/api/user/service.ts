@@ -1,12 +1,12 @@
-// service.ts belongs: every query for the user module and nothing else; it is private to the
-// module (only its controller.ts imports it) and one of the few files that import the store
+// service.ts belongs: every query for the user entity and nothing else; it is private to the
+// entity (only its controller.ts imports it) and one of the few files that import the store
 // (services/db.ts). It does not belong: business rules, response shaping or events
 // (controller.ts).
 //
 // This is the Postgres variant: the bodies are SQL against the "user" table
 // (infra/migrations/0001-init.sql) and the signatures are the memory variant's, plus an
 // optional last `db` so a query can join a transaction a controller opened. This file exports no
-// `withTransaction`: the reference is `api/module/service.ts › withTransaction`, and a module adds
+// `withTransaction`: the reference is `api/entity/service.ts › withTransaction`, and an entity adds
 // its own when a rule needs one. The list is ordered by (created_at, id) and the cursor carries
 // the last row's pair.
 //

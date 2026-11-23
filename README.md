@@ -30,14 +30,14 @@ template finds the same shape.
 <!-- matrix:start -->
 | Template | Kind | Version | Flags | Capabilities | Summary |
 | --- | --- | --- | --- | --- | --- |
-| `bun-express` | server | 3.2.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
-| `python-fastapi` | server | 2.2.0 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
-| `cloudflare` | serverless | 2.1.1 | jobs | — | One Cloudflare Worker with static assets, routed by Hono: D1 through Drizzle, zod schemas and the OpenAPI contract from them, one error envelope, tests in workerd; serves a frontend's build on one origin |
-| `angular` | frontend | 4.2.0 | i18n, pwa | — | Angular 22 single-page app on standalone components and signals, @ngrx/signals stores, co-located SCSS on a global token tree and Hey API's Angular client, with Transloco and the service worker behind flags |
-| `astro` | frontend | 1.1.0 | islands | — | Astro 7 static site: pages and an Astro kit on co-located SCSS over a global token tree, a hashed Content-Security-Policy with no unsafe-inline, a typed client generated from the server's contract, React islands behind a flag; ships no image |
-| `next` | frontend | 4.0.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
-| `react` | frontend | 6.0.0 | — | — | Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives styled by co-located SCSS on a global token tree |
-| `vue` | frontend | 4.0.0 | i18n, pwa | — | Vite and Vue 3 single-page app: Vue Router 5, Pinia 4 setup stores over a client generated from the server's contract, Reka UI primitives styled by co-located SCSS on a global token tree, vue-i18n and the service worker behind flags |
+| `bun-express` | server | 4.0.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
+| `python-fastapi` | server | 3.0.0 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
+| `cloudflare` | serverless | 3.0.0 | jobs | — | One Cloudflare Worker with static assets, routed by Hono: D1 through Drizzle, zod schemas and the OpenAPI contract from them, one error envelope, tests in workerd; serves a frontend's build on one origin |
+| `angular` | frontend | 5.0.0 | i18n, pwa | — | Angular 22 single-page app on standalone components and signals, @ngrx/signals stores, co-located SCSS on a global token tree and Hey API's Angular client, with Transloco and the service worker behind flags |
+| `astro` | frontend | 1.1.1 | islands | — | Astro 7 static site: pages and an Astro kit on co-located SCSS over a global token tree, a hashed Content-Security-Policy with no unsafe-inline, a typed client generated from the server's contract, React islands behind a flag; ships no image |
+| `next` | frontend | 5.0.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
+| `react` | frontend | 7.0.0 | — | — | Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives styled by co-located SCSS on a global token tree |
+| `vue` | frontend | 5.0.0 | i18n, pwa | — | Vite and Vue 3 single-page app: Vue Router 5, Pinia 4 setup stores over a client generated from the server's contract, Reka UI primitives styled by co-located SCSS on a global token tree, vue-i18n and the service worker behind flags |
 
 | Stack | Packages | Summary |
 | --- | --- | --- |
@@ -225,6 +225,13 @@ stack; production does not refuse its credentials if you export them.
   `frontend/angular` 4.2.0.
 - v1.16.1: `serverless/cloudflare` 2.1.1, its tests fixed beside a single-page frontend and a
   case that runs them.
+- v1.17.0: the architecture unit and the sample a developer copies are named `entity`
+  (`api/entity/`, `/api/entity`), and a file that wraps a library is a facade in `services/` with
+  a lint tier of its own ([ADR 0018](docs/adr/0018-entity-term-and-service-facades.md)):
+  `server/bun-express` 4.0.0, `server/python-fastapi` 3.0.0, `serverless/cloudflare` 3.0.0,
+  `frontend/react` 7.0.0, `frontend/next` 5.0.0, `frontend/vue` 5.0.0, `frontend/angular` 5.0.0,
+  `frontend/astro` 1.1.1. A package's `AGENTS.md` is the template's: no step tells a task to edit
+  it ([ADR 0019](docs/adr/0019-package-docs.md)).
 - Next: mongodb, redis, and a worker with rabbitmq.
 
 The design is in [ADR 0001](docs/adr/0001-catalog-architecture.md).

@@ -1,8 +1,8 @@
 // routes.ts belongs: the admin namespace's router, mounted at /api/admin by config/routes.ts.
-// It applies the one gate first, then mounts each admin module's router (one line each).
-// It does not belong: an endpoint, a rule or a query (the module's own files), or a second gate.
+// It applies the one gate first, then mounts each admin entity's router (one line each).
+// It does not belong: an endpoint, a rule or a query (the entity's own files), or a second gate.
 //
-// `admin` is a namespace, not an entity: a module is `api/admin/<entity>/` (copy `api/module/`),
+// `admin` is a namespace, not an entity: an entity is `api/admin/<entity>/` (copy `api/entity/`),
 // its paths are `/api/admin/<entity>`, and its router is mounted here:
 //   router.use('/lead', leadRoutes)
 // The gate is on the namespace, so a route inside it cannot ship without it, and the same

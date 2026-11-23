@@ -181,9 +181,9 @@ describe('routing', () => {
     expect(res.headers.get('allow')).toBe('GET')
     expect(await json<Envelope>(res)).toMatchObject({ error: { code: 'method_not_allowed' } })
 
-    const module = await send('/api/module', { method: 'PUT', body: {} })
-    expect(module.status).toBe(405)
-    expect(module.headers.get('allow')).toBe('GET, POST')
+    const entity = await send('/api/entity', { method: 'PUT', body: {} })
+    expect(entity.status).toBe(405)
+    expect(entity.headers.get('allow')).toBe('GET, POST')
   })
 
   it('hands a path outside /api to the assets, untouched: no request id, none of the API headers', async () => {

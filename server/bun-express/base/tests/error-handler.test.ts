@@ -11,7 +11,7 @@ import { requestId } from '../src/middleware/request-id'
 
 const Greeting = z.object({ name: z.string().min(1) })
 
-// Route adapters shaped like the real ones on a throwaway app: pins the contract every module
+// Route adapters shaped like the real ones on a throwaway app: pins the contract every entity
 // relies on (validation envelope, AppError mapping, body limits) without depending on one.
 function probeApp() {
   const app = express()

@@ -41,7 +41,7 @@ function modelProblems(root: string): string[] {
 
 // Rule 2: the stem is the name up to its first dot. Two files in one folder with the same stem
 // belong in a folder of that name. A route table, a form schema and a copy table
-// (routes.tsx, <module>.routes.tsx, <module>.form.ts, <module>.copy.ts) are the module's wiring,
+// (routes.tsx, <name>.routes.tsx, <name>.form.ts, <name>.copy.ts) are a page folder's wiring,
 // not components, so they are left out.
 const WIRING = /^(?:routes\.|[^/]*\.(?:routes|form|copy)\.)/
 function stemProblems(root: string): string[] {

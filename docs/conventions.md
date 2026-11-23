@@ -14,24 +14,24 @@ language-neutral core.
   shutdown (`index` in TypeScript, `main` in Python), and one that builds the application
   without listening (`server`), so tests import the app and never start infrastructure.
 - Directories: `config/` (env read once, constants, CORS, the route mount table),
-  `api/<module>/` (`routes` the router: the gates and one handler per endpoint, `controller`
-  the business rules, the module's only public API and its HTTP handlers, `schema` the leaf,
-  `service` the module's private queries, only when it has data of its own),
+  `api/<entity>/` (`routes` the router: the gates and one handler per endpoint, `controller`
+  the business rules, the entity's only public API and its HTTP handlers, `schema` the leaf,
+  `service` the entity's private queries, only when it has data of its own),
   `models/<name>/` (entity types), `middleware/`, `services/` (stateful shared
   capabilities; `security/`, `communicate/`, pure `utils/`), `infra/` (live connections
   as resources, `jobs/`, `subscribers/`, `scripts/`).
 - Admin namespace ([ADR 0015](adr/0015-several-frontends-by-directory.md) A1): every admin
-  endpoint is under `/api/admin/` and lives in `api/admin/<module>/`, a module like any other
+  endpoint is under `/api/admin/` and lives in `api/admin/<entity>/`, an entity like any other
   (`/api/admin/<entity>`, the entity singular). The namespace's `routes` mounts at `/api/admin`
   and applies the one gate first, the same in every environment: the role gate with accounts,
-  a refusal of every request (403) without, until the product writes its own. No admin module
+  a refusal of every request (403) without, until the product writes its own. No admin entity
   ships.
-- Request flow: `config routes → module routes → gates → controller handler → service →
+- Request flow: `config routes → entity routes → gates → controller handler → service →
   db seam → infra store`. The gates are what the framework runs before a handler (middleware
   in Express, dependencies in FastAPI): authentication, roles, rate limits. Validation comes
-  from the schema through the framework's own mechanism. A module's routes hold nothing but the
+  from the schema through the framework's own mechanism. An entity's routes hold nothing but the
   gate chain and the handler per endpoint; the handler holds the endpoint's logic. Behaviour
-  crosses modules only through rules a controller exports for that purpose, and a module's
+  crosses entities only through rules a controller exports for that purpose, and an entity's
   service is never imported from outside it.
 - Import direction enforced by the language's tool: ESLint zones (TypeScript),
   import-linter (Python), ArchUnit (Java), NetArchTest (.NET), deptrac (PHP). What the
@@ -70,14 +70,14 @@ The per-language equivalents (the table every new server template is written aga
 
 An API that runs as a provider's functions, in `serverless/<provider>/` with a project directory of
 the same two segments. It satisfies the Server contract above except for the rows below, and it
-keeps the layer map and import direction (lint zones), `api/<module>/schema` as the leaf, the
+keeps the layer map and import direction (lint zones), `api/<entity>/schema` as the leaf, the
 OpenAPI 3.1 contract produced from the schemas, singular `/api/<entity>` paths, JSON only, the one
 error envelope, a request id on every response, `by_ip`, both health endpoints, one log line per
 request and the agents file's five server headings.
 
 | Server contract | In a serverless template |
 | --- | --- |
-| Two entry files, a listener | One entry that only mounts each module's `routes` (a route file is `gates → validate → controller`); tests send a request through the entry |
+| Two entry files, a listener | One entry that only mounts each entity's `routes` (a route file is `gates → validate → controller`); tests send a request through the entry |
 | One Docker image, `STATIC_DIR` | None: no image, no `compose.yaml` (refused), no deploy mode. `start` serves the frontends' builds on the Worker's origin when the plan has frontends that declare `static` |
 | Jobs and the in-process bus | No bus; a scheduled job is a `scheduled` handler of the same Worker behind a flag |
 | Config read once from environment variables | The same rule on the request's bindings, validated once per isolate; nothing reads `process.env` or keeps a module-level connection |
@@ -87,8 +87,8 @@ request and the agents file's five server headings.
   `server:<flag>` facts, the `SERVER_*` placeholders, `contract: { consumes: "<server>/..." }`. A plan
   has at most one package of kind `server` or `serverless`.
 - One Worker with static assets, routed by Hono ([ADR 0016](adr/0016-one-worker-with-static-assets.md)):
-  one deployable that serves the API and every frontend's build, its modules able to move to a
-  Worker each later (controllers async, plain data across a module boundary).
+  one deployable that serves the API and every frontend's build, its entities able to move to a
+  Worker each later (controllers async, plain data across an entity boundary).
 - Its own placeholders for the frontends in the plan: `__FRONTEND_PATH__` and `__FRONTEND_OUT__`
   (the first frontend's directory path and `static.out`), `__FRONTENDS__` (a JSON list of
   `{dir,path,out,port}`, plus `fallback` for a single-page frontend, `[]` with no frontend) and `__FRONTEND_HOSTS__` (the local host map, empty
@@ -183,10 +183,12 @@ that enforces them, and where an addition goes. The rationale is in
    is generated alone ([capabilities](capabilities.md)).
 10. **The agents file.** The headings `Adding a feature`, `Styling`, `Errors`, `Tests` and
     `Deployment`; the layer map; the import rules with the lint that enforces them; and under
-    `Adding a feature` the recipe for a new module, file by file. The recipe is documentation, as
-    the server's `Adding a module` is; a template never ships placeholder code, nor an example
+    `Adding a feature` the recipe for a new entity, file by file. The recipe is documentation, as
+    the server's `Adding an entity` is; a template never ships placeholder code, nor an example
     screen: the index route is one `h1` and one line of copy. `validate` checks the five headings;
-    the layer map is not a checked heading.
+    the layer map is not a checked heading. No step in the file tells a task to edit it: product
+    facts go to this package's `.doc/` ([ADR 0019](adr/0019-package-docs.md)), and a bare `.doc/…`
+    in template text is the repository's root folder.
 
 **E2E** (ADR 0004, U4; amended). Playwright serves the production build and starts the server
 fresh with `reuseExistingServer: false`, `RATE_LIMIT_SCALE=100` and the server's `start` command.

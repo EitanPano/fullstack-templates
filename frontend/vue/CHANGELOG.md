@@ -1,5 +1,18 @@
 # Changelog
 
+## 5.0.0 — 2026-11-24
+
+The server templates name their sample `entity` ([ADR 0018](../../docs/adr/0018-entity-term-and-service-facades.md)), and the generated client follows. Markup, copy, routes and behaviour are unchanged.
+
+### Breaking
+
+- `src/services/generated/` is regenerated from the renamed contract: `/api/module` is `/api/entity`; `getApiModule`, `getApiModuleById`, `postApiModule`, `patchApiModuleById` and `deleteApiModuleById` are `getApiEntity`, `getApiEntityById`, `postApiEntity`, `patchApiEntityById` and `deleteApiEntityById`; `Module`, `ModulePage`, `CreateModuleBody` and `UpdateModuleBody` (and their `z` schemas) are `Entity`, `EntityPage`, `CreateEntityBody` and `UpdateEntityBody`. A project generated before regenerates its client with `contract` against a 5.x server.
+- `shared/utils/validation.ts` (and its spec) is `services/validation.ts`: the file that wraps `zod` is a facade, flat in `services/`. Lint adds a facade tier: every layer may import a listed facade, `shared/` and `core/config` included; a facade imports `zod` and `models/` types only, and no other file of `services/`; `shared/` still cannot import an entity's service. Imports of `@/shared/utils/validation` become `@/services/validation`; `tests/unit/main-imports.spec.ts`, `validation-first.spec.ts` and `eslint-boundaries.spec.ts` name the new path, and the last gains three cases. A project generated before moves the file and edits its imports.
+
+### Changed
+
+- Wording: `AGENTS.md`, the lint messages and their tests say "entity" for what a server serves (`services/<entity>.service.ts`, one service per entity), "page folder" for a directory under `pages/`, and "service" for an entity's file in `services/`; "facade" names only a file that wraps an external library.
+
 ## 4.0.0 — 2026-11-12
 
 The owner's folder rules ([ADR 0012](../../docs/adr/0012-next-spa-tree-colocated-scss.md)): `models/` holds one folder per noun with four file names, one folder is named `components`, and a component of two or more files is a folder. Markup, class names, copy, routes, URLs and behaviour are unchanged. A project generated from 3.x keeps its tree; there is no migration tool.

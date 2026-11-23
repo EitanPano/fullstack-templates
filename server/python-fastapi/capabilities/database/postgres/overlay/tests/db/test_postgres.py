@@ -9,20 +9,20 @@ import psycopg
 import pytest
 from psycopg import errors, sql
 
-from app.api.module.service import (
-    create_module,
-    delete_module,
-    find_module_by_id,
-    list_modules,
-    update_module,
+from app.api.entity.service import (
+    create_entity,
+    delete_entity,
+    find_entity_by_id,
+    list_entities,
+    update_entity,
     with_transaction,
 )
 from app.infra import postgres as postgres_module
 from app.infra.postgres import postgres
 from app.infra.scripts import migrate as migrate_script
 from app.infra.scripts.migrate import migrate
-from app.models.module.enums import ModuleStatus
-from app.models.module.interface import ModuleRecord
+from app.models.entity.enums import EntityStatus
+from app.models.entity.interface import EntityRecord
 from app.services.db import Executor, fetch_all, fetch_one, get_db
 from app.services.utils.error import AppError
 from tests.store import reset_store, store_backed
@@ -97,11 +97,11 @@ async def recorded_migrations(names: list[str]) -> list[str]:
     return sorted(row.name for row in rows)
 
 
-def module_record(module_id: str, created_at: datetime, name: str | None = None) -> ModuleRecord:
-    return ModuleRecord(
-        id=module_id,
-        name=module_id if name is None else name,
-        status=ModuleStatus.active,
+def entity_record(entity_id: str, created_at: datetime, name: str | None = None) -> EntityRecord:
+    return EntityRecord(
+        id=entity_id,
+        name=entity_id if name is None else name,
+        status=EntityStatus.active,
         created_at=created_at,
         updated_at=created_at,
     )
@@ -132,7 +132,7 @@ class TestThePostgresResource:
 
         await postgres.ping()
 
-        assert await table_exists("module") is True
+        assert await table_exists("entity") is True
 
     async def test_a_failed_connect_closes_the_pool_it_built_and_the_next_use_builds_another(
         self, monkeypatch: pytest.MonkeyPatch
@@ -231,8 +231,8 @@ class TestMigrate:
 
         assert applied == [early, late]
 
-    async def test_has_applied_the_module_table_from_the_shipped_migrations(self) -> None:
-        assert await table_exists("module") is True
+    async def test_has_applied_the_entity_table_from_the_shipped_migrations(self) -> None:
+        assert await table_exists("entity") is True
         assert await table_exists("schema_migration") is True
 
     async def test_reads_the_shipped_migrations_from_the_package(self) -> None:
@@ -281,46 +281,46 @@ class TestWithTransaction:
         now = datetime.now(UTC)
 
         async def work(tx: Executor) -> None:
-            await create_module(module_record("rolled-back", now), db=tx)
+            await create_entity(entity_record("rolled-back", now), db=tx)
             raise RuntimeError("stop")
 
         with pytest.raises(RuntimeError, match="stop"):
             await with_transaction(work)
 
-        assert await find_module_by_id("rolled-back") is None
+        assert await find_entity_by_id("rolled-back") is None
 
     async def test_commits_the_writes_of_work_that_returns_and_returns_its_value(self) -> None:
         now = datetime.now(UTC)
 
-        async def work(tx: Executor) -> ModuleRecord:
-            await create_module(module_record("one", now), db=tx)
-            return await create_module(module_record("two", now), db=tx)
+        async def work(tx: Executor) -> EntityRecord:
+            await create_entity(entity_record("one", now), db=tx)
+            return await create_entity(entity_record("two", now), db=tx)
 
         created = await with_transaction(work)
 
         assert created.id == "two"
-        assert await find_module_by_id("one") is not None
+        assert await find_entity_by_id("one") is not None
 
     async def test_a_query_inside_the_transaction_sees_its_own_uncommitted_write(self) -> None:
         now = datetime.now(UTC)
 
         async def work(tx: Executor) -> tuple[bool, bool]:
-            await create_module(module_record("inside", now), db=tx)
+            await create_entity(entity_record("inside", now), db=tx)
             return (
-                await find_module_by_id("inside", db=tx) is not None,
-                await find_module_by_id("inside") is not None,
+                await find_entity_by_id("inside", db=tx) is not None,
+                await find_entity_by_id("inside") is not None,
             )
 
         assert await with_transaction(work) == (True, False)
 
 
-class TestTheModuleService:
+class TestTheEntityService:
     async def test_round_trips_a_record_dates_included(self) -> None:
         created_at = datetime(2026, 1, 2, 3, 4, 5, 678000, tzinfo=UTC)
-        record = module_record("abc", created_at, "first")
+        record = entity_record("abc", created_at, "first")
 
-        created = await create_module(record)
-        found = await find_module_by_id("abc")
+        created = await create_entity(record)
+        found = await find_entity_by_id("abc")
 
         assert created == record
         assert found == record
@@ -330,32 +330,32 @@ class TestTheModuleService:
     async def test_finds_nothing_for_an_unknown_id_and_reports_whether_a_delete_removed_a_row(
         self,
     ) -> None:
-        await create_module(module_record("abc", datetime.now(UTC)))
+        await create_entity(entity_record("abc", datetime.now(UTC)))
 
-        assert await find_module_by_id("missing") is None
-        assert await delete_module("missing") is False
-        assert await delete_module("abc") is True
-        assert await find_module_by_id("abc") is None
+        assert await find_entity_by_id("missing") is None
+        assert await delete_entity("missing") is False
+        assert await delete_entity("abc") is True
+        assert await find_entity_by_id("abc") is None
 
     async def test_updates_by_id_and_keeps_the_creation_time(self) -> None:
         created_at = datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC)
-        await create_module(module_record("abc", created_at, "before"))
+        await create_entity(entity_record("abc", created_at, "before"))
         later = datetime(2026, 2, 1, tzinfo=UTC)
 
-        updated = await update_module(
-            ModuleRecord(
+        updated = await update_entity(
+            EntityRecord(
                 id="abc",
                 name="after",
-                status=ModuleStatus.archived,
+                status=EntityStatus.archived,
                 created_at=later,
                 updated_at=later,
             )
         )
 
-        assert updated == ModuleRecord(
+        assert updated == EntityRecord(
             id="abc",
             name="after",
-            status=ModuleStatus.archived,
+            status=EntityStatus.archived,
             created_at=created_at,
             updated_at=later,
         )
@@ -365,13 +365,13 @@ class TestTheModuleService:
     ) -> None:
         same = datetime(2026, 3, 4, 5, 6, 7, tzinfo=UTC)
         later = datetime(2026, 3, 4, 5, 6, 8, tzinfo=UTC)
-        for module_id in ("d", "a", "c", "b"):
-            await create_module(module_record(module_id, same))
-        await create_module(module_record("e", later))
+        for entity_id in ("d", "a", "c", "b"):
+            await create_entity(entity_record(entity_id, same))
+        await create_entity(entity_record("e", later))
 
-        first = await list_modules(cursor=None, limit=2)
-        second = await list_modules(cursor=first.next_cursor, limit=2)
-        third = await list_modules(cursor=second.next_cursor, limit=2)
+        first = await list_entities(cursor=None, limit=2)
+        second = await list_entities(cursor=first.next_cursor, limit=2)
+        third = await list_entities(cursor=second.next_cursor, limit=2)
 
         assert [item.id for item in first.items] == ["a", "b"]
         assert [item.id for item in second.items] == ["c", "d"]
@@ -381,22 +381,22 @@ class TestTheModuleService:
     async def test_lists_an_empty_table_as_an_empty_page_and_rejects_an_invalid_cursor(
         self,
     ) -> None:
-        page = await list_modules(cursor=None, limit=5)
+        page = await list_entities(cursor=None, limit=5)
 
         assert (page.items, page.next_cursor) == ([], None)
         with pytest.raises(AppError) as raised:
-            await list_modules(cursor="not-a-cursor", limit=5)
+            await list_entities(cursor="not-a-cursor", limit=5)
         assert raised.value.code == "validation_failed"
 
     async def test_sends_every_value_as_a_parameter_never_inside_the_statement(self) -> None:
-        hostile = "x'); drop table module; --"
+        hostile = "x'); drop table entity; --"
         now = datetime.now(UTC)
 
-        await create_module(module_record("quoted'id", now, hostile))
-        found = await find_module_by_id("quoted'id")
-        gone = await find_module_by_id("' or '1'='1")
+        await create_entity(entity_record("quoted'id", now, hostile))
+        found = await find_entity_by_id("quoted'id")
+        gone = await find_entity_by_id("' or '1'='1")
 
         assert found is not None
         assert found.name == hostile
         assert gone is None
-        assert await table_exists("module") is True
+        assert await table_exists("entity") is True

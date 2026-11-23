@@ -1,4 +1,4 @@
-CREATE TABLE `module` (
+CREATE TABLE `entity` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
 	`status` text NOT NULL,
@@ -6,7 +6,7 @@ CREATE TABLE `module` (
 	`updated_at` integer NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX `module_created_at_id_idx` ON `module` (`created_at`,`id`);--> statement-breakpoint
+CREATE INDEX `entity_created_at_id_idx` ON `entity` (`created_at`,`id`);--> statement-breakpoint
 CREATE TABLE `rate_limit` (
 	`key` text PRIMARY KEY NOT NULL,
 	`window_start` integer NOT NULL,

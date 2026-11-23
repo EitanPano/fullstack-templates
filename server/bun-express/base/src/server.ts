@@ -13,7 +13,7 @@ import { requestLog } from './middleware/request-log'
 import { staticFiles } from './middleware/static'
 import { buildOpenApiDocument } from './openapi'
 
-// The app, assembled in one place: middleware, every module mounted under /api by
+// The app, assembled in one place: middleware, every entity mounted under /api by
 // config/routes.ts, then the 404 and the error handler last. server.ts imports middleware/,
 // config/ and openapi.ts and nothing from api/ (routes come through config/routes.ts) or infra/.
 // Nothing here listens or touches infrastructure: tests import `app` as is, or call
@@ -40,7 +40,7 @@ export function createApp(staticDir: string | undefined = env.STATIC_DIR): Expre
   // Cookies are parsed once here for the auth resolver. // @auth
   app.use(cookieParser()) // @auth
 
-  // One line per module lives in config/routes.ts.
+  // One line per entity lives in config/routes.ts.
   registerRoutes(app)
 
   // The generated contract, served for tooling.

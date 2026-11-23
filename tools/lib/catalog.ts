@@ -283,7 +283,7 @@ const EMPTY_CASES: CasesFile = { schemaVersion: 1, cases: [] }
 
 // The harness's own rules cite these sections of a server package's agents file.
 export const SERVER_AGENTS_HEADINGS = [
-  'Adding a module',
+  'Adding an entity',
   'Adding the data layer',
   'Errors',
   'Tests',

@@ -1,5 +1,13 @@
 # Changelog
 
+## 5.0.0 — 2026-11-24
+
+The server's sample is renamed from `module` to `entity` ([ADR 0018](../../docs/adr/0018-entity-term-and-service-facades.md) E2, E4); the generated client follows it. Needs a server with the `/api/entity` sample.
+
+- `src/app/services/generated/` is regenerated: `/api/module` → `/api/entity`; `getApiModule`, `postApiModule`, `patchApiModuleById`, `deleteApiModuleById` → the `…ApiEntity…` names; `Module`, `ModulePage`, `CreateModuleBody`, `UpdateModuleBody` → `Entity`, `EntityPage`, `CreateEntityBody`, `UpdateEntityBody`.
+- Breaking, ADR 0018 S1 to S3: `src/app/shared/utils/validation.ts` (and its spec) moves to `src/app/services/validation.ts`; every importer follows (`@app/services/validation`). A library facade is a file directly in `services/` that `eslint.config.mjs` lists in `FACADES`: it imports its library and `models/` types only (no other file of `services/`), and every layer, `shared/` included, may import it. Any other file in `services/` stays closed to `shared/`. `tests/unit/eslint-boundaries.spec.ts` gains cases for the tier: `shared/` → a facade (allowed), `shared/` → an entity service, a facade → `core/config`, another `services/` file or a `models/` value (refused). A project generated before keeps `shared/utils/validation.ts`.
+- Wording in `AGENTS.md` and the lint messages: `services/<entity>.service.ts` is one service per entity; a directory under `pages/` is a page folder, `pages/<name>/`.
+
 ## 4.2.0 — 2026-11-23
 
 One of several frontends beside a `serverless` API ([ADR 0017](../../docs/adr/0017-another-frontend-template-beside-a-worker.md) D3, D4).

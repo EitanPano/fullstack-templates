@@ -46,7 +46,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         // The worker never answers an /api navigation with the shell. // @server
         navigateFallbackDenylist: [/^\/api\//], // @server
-        // No API response is cached. A page module adds a `runtimeCaching` rule for a public read // @server
+        // No API response is cached. A page folder adds a `runtimeCaching` rule for a public read // @server
         // that carries no session or personal data, never for /api/user/** or /api/auth/**. // @server
       },
     }),

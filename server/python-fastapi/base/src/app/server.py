@@ -17,7 +17,7 @@ from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.middleware.static_files import SpaMount
 from app.openapi import openapi_document
 
-# The app, assembled in one place: middleware, the exception handlers, every module mounted under
+# The app, assembled in one place: middleware, the exception handlers, every entity mounted under
 # /api by config/routes.py, and the contract route. server.py imports middleware/, config/ and
 # openapi.py and nothing from api/ (routes come through config/routes.py) or infra/. Nothing here
 # listens or touches infrastructure: tests import `app` as is, and main.py composes the infra
@@ -62,7 +62,7 @@ def create_app(lifespan: Lifespan[FastAPI] | None = None, *, config: Env = env) 
     app.add_middleware(SecurityHeadersMiddleware)
 
     register_exception_handlers(app)
-    # One line per module lives in config/routes.py.
+    # One line per entity lives in config/routes.py.
     register_routes(app)
 
     # The generated contract, served for tooling.

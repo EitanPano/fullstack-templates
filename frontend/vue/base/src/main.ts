@@ -1,7 +1,7 @@
 import '@fontsource-variable/inter'
 import '@/styles/themes/brand.css'
 import '@/styles/styles.scss'
-import '@/shared/utils/validation'
+import '@/services/validation'
 import { createApp } from 'vue'
 
 import App from '@/app/App.vue'

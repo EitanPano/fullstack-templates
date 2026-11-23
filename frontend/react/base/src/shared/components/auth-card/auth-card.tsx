@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { Card, CardContent, CardDescription, CardHeader } from '@/shared/components/card/card'
-import { cn } from '@/shared/utils/cn'
+import { cn } from '@/services/cn'
 import './auth-card.scss'
 
 // The centred card of the sign-in and sign-up screens. The title is the page's `h1`: these screens

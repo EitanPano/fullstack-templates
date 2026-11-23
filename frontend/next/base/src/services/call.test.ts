@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { call, DEFAULT_COPY } from '@/services/call'
 import { ActionError } from '@/core/actions/action-error'
 import { action } from '@/core/actions/safe-action'
-import { object, text } from '@/shared/utils/validation'
+import { object, text } from '@/services/validation'
 
 // `call` turns the generated client's result into data or an ActionError carrying copy we wrote.
 // The results below have the shape of the generated client's: { data, error, response }.

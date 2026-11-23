@@ -1,4 +1,4 @@
-import type { ErrorBody, ModulePage } from '@app/services/generated/types.gen'
+import type { ErrorBody, EntityPage } from '@app/services/generated/types.gen'
 
 import type { ApiFailure } from './interface'
 
@@ -8,8 +8,8 @@ import type { ApiFailure } from './interface'
 export type EnvelopeCode = ErrorBody['error']['code']
 export type ApiErrorCode = EnvelopeCode | 'network' | 'unknown' | 'validation'
 
-// The generated page envelope with the items typed by the caller: `Paginated<Module>`.
-export type Paginated<T> = Omit<ModulePage, 'items'> & { items: T[] }
+// The generated page envelope with the items typed by the caller: `Paginated<Entity>`.
+export type Paginated<T> = Omit<EntityPage, 'items'> & { items: T[] }
 
 // What a store method that calls the API resolves to; it never rejects. `error: null` means there
 // is nothing for the caller to show: the call was not sent (offline, a form still pending) or a

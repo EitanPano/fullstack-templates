@@ -2,7 +2,7 @@ import { CircleIcon } from '@/shared/components/icons'
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui'
 import type { ComponentProps } from 'react'
 
-import { cn } from '@/shared/utils/cn'
+import { cn } from '@/services/cn'
 import './dropdown-menu.scss'
 
 export const DropdownMenu = DropdownMenuPrimitive.Root

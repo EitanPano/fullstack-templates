@@ -51,14 +51,14 @@ dev dependency; the image never uses it.
 ## Flags
 
 - `auth` (default on): accounts, sessions, JWT and OTP. Off removes the `auth` and `user`
-  modules, their middleware, models, jobs, subscribers and tests and the `pyjwt` dependency;
+  entities, their middleware, models, jobs, subscribers and tests and the `pyjwt` dependency;
   every endpoint is then public.
 
 ## Capabilities
 
 - `database/postgres`: records, users and sessions in Postgres through psycopg 3 and its async
   connection pool (`psycopg[binary,pool]`). Generate with `--capability database=postgres`. The
-  overlay replaces `services/db.py` and each module's `service.py` (and `services/session.py` with
+  overlay replaces `services/db.py` and each entity's `service.py` (and `services/session.py` with
   `auth`), adds `infra/postgres.py`, `infra/migrations/` and the migrate script, and the root
   `docker-compose.yml` gets the `database` service. Two commands are added:
 

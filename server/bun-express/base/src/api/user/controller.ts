@@ -1,8 +1,8 @@
-// controller.ts belongs: the user module's business logic, its public API and its HTTP
+// controller.ts belongs: the user entity's business logic, its public API and its HTTP
 // handlers. Each handler, named after its operation (`updateMe`), reads the input validate()
 // parsed, resolves the caller, applies the rules, reads and writes through service.ts and sends
-// the status and body. Logic other modules (auth), jobs and scripts need is exported as a typed
-// rule with no `req` and no `res`: they cross into the user module through those rules and
+// the status and body. Logic other entities (auth), jobs and scripts need is exported as a typed
+// rule with no `req` and no `res`: they cross into the user entity through those rules and
 // nothing else. Rules throw AppError, map stored records to the public shape and publish events.
 // It does not belong: middleware (routes.ts), queries (service.ts), credential verification or
 // token handling (auth). Every rule returns the public shape; findUserByEmail alone also hands
@@ -69,7 +69,7 @@ export async function getCallerUser(caller: Caller): Promise<PublicUser> {
   return toPublic(await requireCallerRecord(caller))
 }
 
-// The operations below take no caller: they are system operations for other modules (auth),
+// The operations below take no caller: they are system operations for other entities (auth),
 // jobs and scripts. No route exposes them, so whoever calls them has already decided it may.
 
 // Sends nothing itself: a subscriber to `user.signedup` sends the welcome message.

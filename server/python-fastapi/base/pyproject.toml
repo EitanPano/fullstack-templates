@@ -95,16 +95,16 @@ include_external_packages = true
 # direction. ESLint's "everything except" zones are `app.services.*` or `app.infra.*` with the
 # allowed imports in `ignore_imports`, so a new service or store is closed by default; a contract
 # that names allowed imports ahead of the file that makes them sets
-# `unmatched_ignore_imports_alerting = "none"`. Module privacy (a module's `service` imported only
-# from inside its own module) is the `independence` contract over `app.api.*` at the end. Imports
+# `unmatched_ignore_imports_alerting = "none"`. Entity privacy (an entity's `service` imported only
+# from inside its own entity) is the `independence` contract over `app.api.*` at the end. Imports
 # inside a function count too: openapi.py imports the server only to write the contract from the
 # command line.
 
-# The overall direction: the entry on top, then the app, the mount table, the modules, middleware,
+# The overall direction: the entry on top, then the app, the mount table, the entities, middleware,
 # the shared services and the config leaves. `app.infra` is not listed: its jobs and subscribers
-# will sit above the modules while `infra.dependency` sits below them.
+# will sit above the entities while `infra.dependency` sits below them.
 [[tool.importlinter.contracts]]
-name = "layers: entry, server, routes, modules, middleware, services, config"
+name = "layers: entry, server, routes, entities, middleware, services, config"
 type = "layers"
 layers = [
   "app.main",
@@ -123,7 +123,7 @@ layers = [
 ignore_imports = ["app.infra.pubsub -> app.infra.subscribers.send_welcome"]
 # @auth-end
 
-# Leaves: models/ imports models/ only (not even pydantic: the wire shape is in a module's schema).
+# Leaves: models/ imports models/ only (not even pydantic: the wire shape is in an entity's schema).
 [[tool.importlinter.contracts]]
 name = "models import models only"
 type = "forbidden"
@@ -209,9 +209,9 @@ forbidden_modules = [
 ]
 allow_indirect_imports = true
 
-# config/routes.py imports every module's routes.py and nothing else of a module; only it does.
+# config/routes.py imports every entity's routes.py and nothing else of an entity; only it does.
 [[tool.importlinter.contracts]]
-name = "config routes imports module routes only"
+name = "config routes imports entity routes only"
 type = "forbidden"
 source_modules = ["app.config.routes"]
 forbidden_modules = [
@@ -231,7 +231,7 @@ forbidden_modules = [
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
-name = "only config routes imports a module routes"
+name = "only config routes imports an entity routes"
 type = "forbidden"
 source_modules = [
   "app.api.**.controller",
@@ -358,11 +358,11 @@ ignore_imports = [
 ]
 unmatched_ignore_imports_alerting = "none"
 
-# The store seams. A module's routes, controller and schema never touch a store: only its service
+# The store seams. An entity's routes, controller and schema never touch a store: only its service
 # does (db, cache), and only a controller publishes (event). Middleware reaches the cache through
 # rate_limit.py alone.
 [[tool.importlinter.contracts]]
-name = "only a module service and services use the db seam"
+name = "only an entity service and services use the db seam"
 type = "forbidden"
 source_modules = [
   "app.api.**.routes",
@@ -377,7 +377,7 @@ forbidden_modules = ["app.services.db"]
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
-name = "only a module service, services and middleware rate_limit use the cache seam"
+name = "only an entity service, services and middleware rate_limit use the cache seam"
 type = "forbidden"
 source_modules = [
   "app.api.**.routes",
@@ -408,7 +408,7 @@ forbidden_modules = ["app.api", "app.infra", "app.server", "app.main", "app.open
 allow_indirect_imports = true
 
 # infra/ never imports middleware, the server or the entry, and its dependency and loop modules
-# import no api (jobs, subscribers and scripts, which may import controllers, come with the modules).
+# import no api (jobs, subscribers and scripts, which may import controllers, come with the entities).
 [[tool.importlinter.contracts]]
 name = "infra never imports middleware, server or entry"
 type = "forbidden"
@@ -416,7 +416,7 @@ source_modules = ["app.infra"]
 forbidden_modules = ["app.middleware", "app.server", "app.main", "app.openapi"]
 allow_indirect_imports = true
 
-# The infra files outside jobs/, subscribers/ and scripts/ (those directories come with the modules
+# The infra files outside jobs/, subscribers/ and scripts/ (those directories come with the entities
 # that need them, and add their own contracts) import no api, and from services/ only the logger,
 # the db, cache and event seams and utils. The sources are listed: a new infra file joins the list.
 [[tool.importlinter.contracts]]
@@ -456,19 +456,19 @@ ignore_imports = [
 ]
 unmatched_ignore_imports_alerting = "none"
 
-# Jobs and subscribers reach a module through its controller and schema only: never a routes,
+# Jobs and subscribers reach an entity through its controller and schema only: never a routes,
 # service or model. Which of those a job or a subscriber may call stays a review rule. The two
 # packages exist in every variant (empty without `auth`), so a first job is linted from the start.
 [[tool.importlinter.contracts]]
-name = "jobs and subscribers reach a module through its controller only"
+name = "jobs and subscribers reach an entity through its controller only"
 type = "forbidden"
 source_modules = ["app.infra.jobs", "app.infra.subscribers"]
 forbidden_modules = ["app.api.**.routes", "app.api.**.service", "app.api.**.model"]
 allow_indirect_imports = true
 
-# What each file of a module may import.
+# What each file of an entity may import.
 [[tool.importlinter.contracts]]
-name = "schema is the leaf of a module"
+name = "schema is the leaf of an entity"
 type = "forbidden"
 source_modules = ["app.api.**.schema"]
 forbidden_modules = [
@@ -523,11 +523,11 @@ forbidden_modules = [
 allow_indirect_imports = true
 ignore_imports = ["app.api.**.controller -> app.infra.dependency"]
 
-# service.py (and model.py, which the Postgres overlay adds) is the data layer at the bottom of a
-# module: it imports services/db.py, services/cache.py, services/logger.py, services/utils/,
+# service.py (and model.py, which the Postgres overlay adds) is the data layer at the bottom of an
+# entity: it imports services/db.py, services/cache.py, services/logger.py, services/utils/,
 # models/ and config/constants.py only, and never sees HTTP.
 [[tool.importlinter.contracts]]
-name = "service is the data layer at the bottom of a module"
+name = "service is the data layer at the bottom of an entity"
 type = "forbidden"
 source_modules = ["app.api.**.service", "app.api.**.model"]
 forbidden_modules = [
@@ -563,15 +563,15 @@ source_modules = ["app.api.**.service", "app.api.**.model"]
 forbidden_modules = ["fastapi", "starlette"]
 allow_indirect_imports = true
 
-# Module privacy (ADR 0002, M4-10): a module's service is imported only from inside its own module.
-# The modules are independent of each other, except that a controller imports another module's
-# controller and schema (the rules it exports) and a schema another module's schema (to embed its
+# Entity privacy (ADR 0002, M4-10): an entity's service is imported only from inside its own entity.
+# The entities are independent of each other, except that a controller imports another entity's
+# controller and schema (the rules it exports) and a schema another entity's schema (to embed its
 # entity). Anything else crossing the boundary, a service above all, breaks this contract. The
 # standard `independence` contract expresses it, so there is no custom contract type. The one
-# stricter point than ESLint: a routes, service or model may not import another module's schema
+# stricter point than ESLint: a routes, service or model may not import another entity's schema
 # even as a type, since an import-linter contract cannot tell a type-only import.
 [[tool.importlinter.contracts]]
-name = "modules are independent: a controller and a schema are a module's only doors"
+name = "entities are independent: a controller and a schema are an entity's only doors"
 type = "independence"
 modules = ["app.api.*"]
 ignore_imports = [
@@ -585,13 +585,13 @@ ignore_imports = [
 ]
 unmatched_ignore_imports_alerting = "none"
 
-# api/admin/<module>/ is a module like any other (ADR 0015, A1). Above, `app.api.admin` is one unit
-# beside the entity modules: its modules reach an entity's controller and schema (the last three
-# lines) and nothing more of it, and no entity module imports an admin one. Here the admin modules
+# api/admin/<entity>/ is an entity like any other (ADR 0015, A1). Above, `app.api.admin` is one unit
+# beside the top-level entities: its entities reach an entity's controller and schema (the last three
+# lines) and nothing more of it, and no top-level entity imports an admin one. Here the admin entities
 # are independent of each other by the same doors; `app.api.admin.routes`, the namespace's router,
-# mounts each module's routes.
+# mounts each entity's routes.
 [[tool.importlinter.contracts]]
-name = "admin modules are independent: a controller and a schema are a module's only doors"
+name = "admin entities are independent: a controller and a schema are an entity's only doors"
 type = "independence"
 modules = ["app.api.admin.*"]
 ignore_imports = [
@@ -611,7 +611,7 @@ forbidden_modules = ["app.models", "app.api", "app.infra", "app.services.utils",
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
-name = "openapi imports no module behaviour, infra or middleware"
+name = "openapi imports no entity behaviour, infra or middleware"
 type = "forbidden"
 source_modules = ["app.openapi"]
 forbidden_modules = [

@@ -3,7 +3,8 @@ import { dirname, normalize } from 'node:path/posix'
 
 // A Client Component ('use client') reaches the server only through a server action: it may import
 // from actions/ (and types, which are erased), never a read in services/ or the session code in
-// core/auth/, because that code would be bundled for the browser.
+// core/auth/, because that code would be bundled for the browser. A facade (the `facades` option:
+// file names in services/) wraps a library and does no I/O, so a Client Component may import it.
 const SERVER_ONLY = /^src\/(services|core\/auth)(\/|$)/
 
 // The specifier as a path from the project root, or null for a package. Handles the `@/` alias
@@ -25,7 +26,13 @@ const isTypeOnly = (node) =>
 export const clientServerImport = {
   meta: {
     type: 'problem',
-    schema: [],
+    schema: [
+      {
+        type: 'object',
+        properties: { facades: { type: 'array', items: { type: 'string' } } },
+        additionalProperties: false,
+      },
+    ],
     messages: {
       onlyAction:
         'a Client Component imports no value from services/ or core/auth/: call it in a Server Component and pass the data down, or call an action from actions/',
@@ -34,11 +41,14 @@ export const clientServerImport = {
   create(context) {
     let isClient = false
     const file = projectFile(context)
+    const facades = new Set(
+      (context.options[0]?.facades ?? []).map((name) => `src/services/${name}`),
+    )
     const check = (node) => {
       if (!isClient || node.source == null || isTypeOnly(node)) return
       if (node.source.type !== 'Literal' || typeof node.source.value !== 'string') return
       const resolved = resolveFromRoot(String(node.source.value), file)
-      if (resolved !== null && SERVER_ONLY.test(resolved)) {
+      if (resolved !== null && SERVER_ONLY.test(resolved) && !facades.has(resolved)) {
         context.report({ node, messageId: 'onlyAction' })
       }
     }

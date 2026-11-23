@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { validate, type Result } from '@/shared/utils/validation'
+import { validate, type Result } from '@/services/validation'
 
 // The generated request schema depends on the server: Bun's OpenAPI has no email format, Python's
 // has one (Hey API emits a regex, whose default message is not ours). The form must word the
@@ -8,7 +8,7 @@ import { validate, type Result } from '@/shared/utils/validation'
 async function loadModels(email: 'plain' | 'regex') {
   vi.resetModules()
   vi.doMock('@/services/generated/zod.gen', async () => {
-    const { object, text } = await import('@/shared/utils/validation')
+    const { object, text } = await import('@/services/validation')
     const field =
       email === 'plain'
         ? text({ max: 254 })

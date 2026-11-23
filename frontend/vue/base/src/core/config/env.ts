@@ -1,4 +1,4 @@
-import { flag, object, parse, text } from '@/shared/utils/validation'
+import { flag, object, parse, text } from '@/services/validation'
 
 // The only file that reads import.meta.env. Vite compiles every VITE_* variable into the
 // @noserver-start

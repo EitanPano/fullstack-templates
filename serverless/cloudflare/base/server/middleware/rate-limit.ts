@@ -23,7 +23,7 @@ export type RateLimitOptions = {
   limit: number
   // Multiplies the limit; defaults to RATE_LIMIT_SCALE, which is 1 unless an e2e run raises it.
   scale?: number
-  // A duration string, e.g. RATE_LIMITS.createModulePerIp.window.
+  // A duration string, e.g. RATE_LIMITS.createEntityPerIp.window.
   window: string
   // The subject being limited; undefined skips the limit (validation rejects the request anyway).
   key: (ctx: Context) => string | undefined | Promise<string | undefined>

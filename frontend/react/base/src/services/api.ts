@@ -9,7 +9,7 @@ import type { ApiError } from '@/models/api-error/type'
 export const refetchIfRejected = ({ endpointState }: { endpointState?: { status: string } }) =>
   endpointState?.status === 'rejected'
 
-// The one RTK Query API; each server module injects its endpoints (services/<module>.api.ts).
+// The one RTK Query API; each entity injects its endpoints (services/<entity>.api.ts).
 // The base query is fake because every endpoint runs the generated SDK through `call`. A read is
 // refetched on mount only when its data is older than 30 s, the staleness the SPA always had.
 export const api = createApi({

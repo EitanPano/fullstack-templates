@@ -1,5 +1,5 @@
 """session.py belongs: refresh sessions with rotation and reuse detection. It keeps its own queries
-because it is not a module and has no `service.py`; the data-layer task rewrites it against the
+because it is not an entity and has no `service.py`; the data-layer task rewrites it against the
 chosen engine. It does not belong: token verification (`security/jwt.py`), cookies or HTTP
 concerns (the auth controller).
 

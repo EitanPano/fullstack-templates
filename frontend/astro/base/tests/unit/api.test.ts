@@ -11,9 +11,9 @@ import {
 } from '../../src/services/api'
 import { client } from '../../src/services/generated/client.gen'
 import {
-  deleteApiModuleById,
+  deleteApiEntityById,
   getApiHealth,
-  postApiModule,
+  postApiEntity,
 } from '../../src/services/generated/sdk.gen'
 
 const HEALTH = { status: 'ok', uptimeSeconds: 1, version: '1' }
@@ -55,7 +55,7 @@ describe('request', () => {
     const created = { id: 'a', name: 'n' }
     const fetchMock = stub(json(created, 201))
 
-    await request(() => postApiModule({ body: { name: 'n' }, throwOnError: true }))
+    await request(() => postApiEntity({ body: { name: 'n' }, throwOnError: true }))
 
     const sent = fetchMock.mock.calls[0]?.[0] as Request
     expect(sent.method).toBe('POST')
@@ -93,7 +93,7 @@ describe('request', () => {
     stub(failure('validation_failed', 400, { details: [{ path: 'name', message: 'x' }] }))
 
     await expect(
-      request(() => postApiModule({ body: { name: '' }, throwOnError: true })),
+      request(() => postApiEntity({ body: { name: '' }, throwOnError: true })),
     ).rejects.toMatchObject({ code: 'validation_failed', fieldPaths: ['name'] })
   })
 
@@ -119,12 +119,12 @@ describe('request', () => {
 
   it('resolves a 204 with no body and fails on an envelope', async () => {
     stub(new Response(null, { status: 204 }))
-    const body = await request(() => deleteApiModuleById({ path: { id: 'a' }, throwOnError: true }))
+    const body = await request(() => deleteApiEntityById({ path: { id: 'a' }, throwOnError: true }))
     expect(body ?? null).toBeNull()
 
     stub(failure('not_found', 404))
     await expect(
-      request(() => deleteApiModuleById({ path: { id: 'a' }, throwOnError: true })),
+      request(() => deleteApiEntityById({ path: { id: 'a' }, throwOnError: true })),
     ).rejects.toMatchObject({ code: 'not_found' })
   })
 })

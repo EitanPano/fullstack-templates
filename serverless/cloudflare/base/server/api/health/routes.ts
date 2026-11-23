@@ -1,4 +1,4 @@
-// routes.ts belongs: this module's router, mounted at /api/health by server/server.ts. Each endpoint
+// routes.ts belongs: this entity's router, mounted at /api/health by server/server.ts. Each endpoint
 // is one line: its gate chain and the call to its controller; a path also answers 405 for the
 // methods it does not register.
 // It does not belong: logic (controller.ts) or schemas (schema.ts).

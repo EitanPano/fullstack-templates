@@ -36,9 +36,9 @@ export type AuthTokens = {
 };
 
 /**
- * CreateModuleBody
+ * CreateEntityBody
  */
-export type CreateModuleBody = {
+export type CreateEntityBody = {
     name: string;
 };
 
@@ -48,6 +48,37 @@ export type CreateModuleBody = {
 export type Credentials = {
     email: string;
     password: string;
+};
+
+/**
+ * Entity
+ */
+export type Entity = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    status: 'active' | 'archived';
+    createdAt: string;
+    updatedAt: string;
+};
+
+/**
+ * EntityPage
+ */
+export type EntityPage = {
+    /**
+     * Items
+     */
+    items: Array<Entity>;
+    /**
+     * Nextcursor
+     */
+    nextCursor: string | null;
 };
 
 /**
@@ -100,37 +131,6 @@ export type LogoutBody = {
      * All
      */
     all?: boolean;
-};
-
-/**
- * Module
- */
-export type Module = {
-    /**
-     * Id
-     */
-    id: string;
-    /**
-     * Name
-     */
-    name: string;
-    status: 'active' | 'archived';
-    createdAt: string;
-    updatedAt: string;
-};
-
-/**
- * ModulePage
- */
-export type ModulePage = {
-    /**
-     * Items
-     */
-    items: Array<Module>;
-    /**
-     * Nextcursor
-     */
-    nextCursor: string | null;
 };
 
 /**
@@ -233,18 +233,18 @@ export type RefreshBody = {
 };
 
 /**
+ * UpdateEntityBody
+ */
+export type UpdateEntityBody = {
+    name?: string;
+    status?: 'active' | 'archived';
+};
+
+/**
  * UpdateMeBody
  */
 export type UpdateMeBody = {
     phone?: string | null;
-};
-
-/**
- * UpdateModuleBody
- */
-export type UpdateModuleBody = {
-    name?: string;
-    status?: 'active' | 'archived';
 };
 
 /**
@@ -703,7 +703,7 @@ export type GetApiUserByIdResponses = {
 
 export type GetApiUserByIdResponse = GetApiUserByIdResponses[keyof GetApiUserByIdResponses];
 
-export type GetApiModuleData = {
+export type GetApiEntityData = {
     body?: never;
     path?: never;
     query?: {
@@ -716,10 +716,10 @@ export type GetApiModuleData = {
          */
         limit?: number;
     };
-    url: '/api/module';
+    url: '/api/entity';
 };
 
-export type GetApiModuleErrors = {
+export type GetApiEntityErrors = {
     /**
      * Validation failed
      */
@@ -730,25 +730,25 @@ export type GetApiModuleErrors = {
     500: ErrorBody;
 };
 
-export type GetApiModuleError = GetApiModuleErrors[keyof GetApiModuleErrors];
+export type GetApiEntityError = GetApiEntityErrors[keyof GetApiEntityErrors];
 
-export type GetApiModuleResponses = {
+export type GetApiEntityResponses = {
     /**
-     * A page of modules
+     * A page of entities
      */
-    200: ModulePage;
+    200: EntityPage;
 };
 
-export type GetApiModuleResponse = GetApiModuleResponses[keyof GetApiModuleResponses];
+export type GetApiEntityResponse = GetApiEntityResponses[keyof GetApiEntityResponses];
 
-export type PostApiModuleData = {
-    body?: CreateModuleBody;
+export type PostApiEntityData = {
+    body?: CreateEntityBody;
     path?: never;
     query?: never;
-    url: '/api/module';
+    url: '/api/entity';
 };
 
-export type PostApiModuleErrors = {
+export type PostApiEntityErrors = {
     /**
      * Validation failed
      */
@@ -763,18 +763,18 @@ export type PostApiModuleErrors = {
     500: ErrorBody;
 };
 
-export type PostApiModuleError = PostApiModuleErrors[keyof PostApiModuleErrors];
+export type PostApiEntityError = PostApiEntityErrors[keyof PostApiEntityErrors];
 
-export type PostApiModuleResponses = {
+export type PostApiEntityResponses = {
     /**
-     * The created module
+     * The created entity
      */
-    201: Module;
+    201: Entity;
 };
 
-export type PostApiModuleResponse = PostApiModuleResponses[keyof PostApiModuleResponses];
+export type PostApiEntityResponse = PostApiEntityResponses[keyof PostApiEntityResponses];
 
-export type DeleteApiModuleByIdData = {
+export type DeleteApiEntityByIdData = {
     body?: never;
     path: {
         /**
@@ -783,10 +783,10 @@ export type DeleteApiModuleByIdData = {
         id: string;
     };
     query?: never;
-    url: '/api/module/{id}';
+    url: '/api/entity/{id}';
 };
 
-export type DeleteApiModuleByIdErrors = {
+export type DeleteApiEntityByIdErrors = {
     /**
      * Validation failed
      */
@@ -809,18 +809,18 @@ export type DeleteApiModuleByIdErrors = {
     500: ErrorBody;
 };
 
-export type DeleteApiModuleByIdError = DeleteApiModuleByIdErrors[keyof DeleteApiModuleByIdErrors];
+export type DeleteApiEntityByIdError = DeleteApiEntityByIdErrors[keyof DeleteApiEntityByIdErrors];
 
-export type DeleteApiModuleByIdResponses = {
+export type DeleteApiEntityByIdResponses = {
     /**
      * Deleted
      */
     204: void;
 };
 
-export type DeleteApiModuleByIdResponse = DeleteApiModuleByIdResponses[keyof DeleteApiModuleByIdResponses];
+export type DeleteApiEntityByIdResponse = DeleteApiEntityByIdResponses[keyof DeleteApiEntityByIdResponses];
 
-export type GetApiModuleByIdData = {
+export type GetApiEntityByIdData = {
     body?: never;
     path: {
         /**
@@ -829,10 +829,10 @@ export type GetApiModuleByIdData = {
         id: string;
     };
     query?: never;
-    url: '/api/module/{id}';
+    url: '/api/entity/{id}';
 };
 
-export type GetApiModuleByIdErrors = {
+export type GetApiEntityByIdErrors = {
     /**
      * Validation failed
      */
@@ -847,19 +847,19 @@ export type GetApiModuleByIdErrors = {
     500: ErrorBody;
 };
 
-export type GetApiModuleByIdError = GetApiModuleByIdErrors[keyof GetApiModuleByIdErrors];
+export type GetApiEntityByIdError = GetApiEntityByIdErrors[keyof GetApiEntityByIdErrors];
 
-export type GetApiModuleByIdResponses = {
+export type GetApiEntityByIdResponses = {
     /**
-     * The module
+     * The entity
      */
-    200: Module;
+    200: Entity;
 };
 
-export type GetApiModuleByIdResponse = GetApiModuleByIdResponses[keyof GetApiModuleByIdResponses];
+export type GetApiEntityByIdResponse = GetApiEntityByIdResponses[keyof GetApiEntityByIdResponses];
 
-export type PatchApiModuleByIdData = {
-    body?: UpdateModuleBody;
+export type PatchApiEntityByIdData = {
+    body?: UpdateEntityBody;
     path: {
         /**
          * Id
@@ -867,10 +867,10 @@ export type PatchApiModuleByIdData = {
         id: string;
     };
     query?: never;
-    url: '/api/module/{id}';
+    url: '/api/entity/{id}';
 };
 
-export type PatchApiModuleByIdErrors = {
+export type PatchApiEntityByIdErrors = {
     /**
      * Validation failed
      */
@@ -889,13 +889,13 @@ export type PatchApiModuleByIdErrors = {
     500: ErrorBody;
 };
 
-export type PatchApiModuleByIdError = PatchApiModuleByIdErrors[keyof PatchApiModuleByIdErrors];
+export type PatchApiEntityByIdError = PatchApiEntityByIdErrors[keyof PatchApiEntityByIdErrors];
 
-export type PatchApiModuleByIdResponses = {
+export type PatchApiEntityByIdResponses = {
     /**
-     * The updated module
+     * The updated entity
      */
-    200: Module;
+    200: Entity;
 };
 
-export type PatchApiModuleByIdResponse = PatchApiModuleByIdResponses[keyof PatchApiModuleByIdResponses];
+export type PatchApiEntityByIdResponse = PatchApiEntityByIdResponses[keyof PatchApiEntityByIdResponses];

@@ -1,11 +1,11 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "0ced3b93-47bd-4c50-be03-ba9107681cec",
+  "id": "5c3a15c1-c072-4b90-94e2-c8d0ab39856f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
-    "module": {
-      "name": "module",
+    "entity": {
+      "name": "entity",
       "columns": {
         "id": {
           "name": "id",
@@ -44,8 +44,8 @@
         }
       },
       "indexes": {
-        "module_created_at_id_idx": {
-          "name": "module_created_at_id_idx",
+        "entity_created_at_id_idx": {
+          "name": "entity_created_at_id_idx",
           "columns": [
             "created_at",
             "id"

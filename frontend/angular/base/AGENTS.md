@@ -9,17 +9,17 @@ The layer map of this package. Commands are in `package.json`.
 
 - `main.ts`: `bootstrapApplication(AppComponent, appConfig)`, nothing else.
 - `app/`: the files beside the folders are the wiring. `app.component.ts` (a `<router-outlet />`),
-  `app.config.ts` (the providers), `app.routes.ts` (the two shells, one lazy `loadChildren` per page module,
+  `app.config.ts` (the providers), `app.routes.ts` (the two shells, one lazy `loadChildren` per page folder,
   `**` to not-found) and `nav.ts` (the one navigation table; `NavEntry` lives in `models/nav/`, and
   `app.config.ts` hands the table to `layout/` through the `NAV_ENTRIES` token in `core/config/`).
   No business logic here.
   - `core/`: singletons wired once in `app.config.ts`, never imported by `shared/`.
 <!-- @server-start -->
-    `config/` (`constants.ts` with the `STORAGE_KEYS`, `api-client.ts` the generated client's
+    `config/` (`constants.ts`, `api-client.ts` the generated client's
     configuration, `api-client.provider.ts` its provider, `app-config.token.ts`, `http-context.ts`),
 <!-- @server-end -->
 <!-- @noserver-start -->
-    `config/` (`constants.ts` with the `STORAGE_KEYS`, `app-config.token.ts`, `http-context.ts`),
+    `config/` (`constants.ts`, `app-config.token.ts`, `http-context.ts`),
 <!-- @noserver-end -->
     `interceptors/`, `guards/`, `initializers/`, `providers/` (storage, logger, notification,
     theme, network, loading, install-prompt and app-update, the last two with the `pwa` flag;
@@ -30,19 +30,18 @@ The layer map of this package. Commands are in `package.json`.
   - `layout/app-<name>/`: the app-wide components, one folder each with
     `app-<name>.component.ts`, `.html`, `.scss` and `.spec.ts`: the two layouts (`app-main-layout`,
     `app-auth-layout`) and the components the product places in its own chrome, such as
-    `app-theme-toggle` (see The shell). The class carries `App` (`AppThemeToggleComponent`), the
-    selector is written out (`app-theme-toggle`). A component goes here when the product's shell
+    `app-theme-toggle` (see The shell). A component goes here when the product's shell
     composes it or it reads the store, the theme or the session; a reusable control or pattern goes
     to `shared/components/`.
-  - `pages/<module>/`: one glossary noun or screen group, flat. `<module>.routes.ts`,
+  - `pages/<name>/`: one entity or screen group, flat. `<name>.routes.ts`,
 <!-- @server-start -->
-    `<module>.form.ts` (typed form builders over the generated zod schemas), one folder per routed
+    `<name>.form.ts` (typed form builders over the generated zod schemas), one folder per routed
 <!-- @server-end -->
 <!-- @noserver-start -->
-    `<module>.form.ts` (typed form builders), one folder per routed
+    `<name>.form.ts` (typed form builders), one folder per routed
 <!-- @noserver-end -->
     page, `<page>/<page>.component.*` (reads the store; its `.scss` beside it), and
-    `<page>/<component>/` (the page's own presentational pieces, a folder named for each). A page module never imports
+    `<page>/<component>/` (the page's own presentational pieces, a folder named for each). A page folder never imports
     another one. `home/` is the index route; `not-found/` is the `**` route.
 <!-- @server-start -->
   - `store/`: `@ngrx/signals` stores, one per noun, `with-request-status.ts` (the call runner) and,
@@ -52,11 +51,11 @@ The layer map of this package. Commands are in `package.json`.
   - `store/`: `@ngrx/signals` stores, one per noun.
 <!-- @noserver-end -->
 <!-- @server-start -->
-  - `services/`: one facade per server module over the generated SDK; `generated/` is the Hey API
+  - `services/`: one service per entity over the generated SDK, and the library facades (`validation.ts`); `generated/` is the Hey API
     output (types, zod, the Angular client, the flat SDK; committed, lint-ignored).
 <!-- @server-end -->
 <!-- @noserver-start -->
-  - `services/`: one facade per server module; the folder arrives with a server.
+  - `services/`: library facades (`validation.ts`); a service per entity arrives with a server.
 <!-- @noserver-end -->
   - `shared/`: product-agnostic. `components/` (the browser controls wrapped once, the form controls in `components/form/`), `directives/`,
     `pipes/`, `validators/`, `utils/`, `i18n/`.
@@ -86,14 +85,15 @@ copying the nearest sibling.
 | ------------------------------------------- | -------------------------------------------------- |
 | A noun's types, enums, labels               | `app/models/<noun>/`                               |
 <!-- @server-start -->
-| A read or write on a server module          | `app/services/<module>.service.ts`                 |
+| A read or write on an entity                | `app/services/<entity>.service.ts`                 |
 <!-- @server-end -->
 | State a page reads, and the methods on it   | `app/store/<noun>.store.ts`                        |
-| A routed screen                             | `app/pages/<module>/<page>/`                       |
-| A presentational piece of one page          | `app/pages/<module>/<page>/<name>/`                |
-| A form                                      | `app/pages/<module>/<module>.form.ts`              |
+| A routed screen                             | `app/pages/<name>/<page>/`                         |
+| A presentational piece of one page          | `app/pages/<name>/<page>/<component>/`             |
+| A form                                      | `app/pages/<name>/<name>.form.ts`                  |
 | An app-wide component (header, menu)        | `app/layout/app-<name>/`                           |
 | A reusable control, pattern or pipe         | `app/shared/`                                      |
+| A library facade                            | `app/services/<name>.ts`                           |
 | A guard, interceptor, initializer, provider | `app/core/`                                        |
 | A navigation entry                          | `app/nav.ts`                                       |
 | A component's or page's style               | a sibling `<stem>.component.scss` under `styleUrl` |
@@ -102,9 +102,9 @@ copying the nearest sibling.
 **Naming.** Files follow the Angular style guide before v20, not the suffix-less one:
 `*.component.ts` with its template in an external `*.component.html` and its styles in a sibling
 `*.component.scss` under `styleUrl` (never an inline `styles:`), `*.service.ts`, `*.store.ts`, `*.guard.ts`, `*.interceptor.ts`, `*.pipe.ts`,
-`*.directive.ts`. The class carries the suffix (`AppComponent`, `LoginComponent`); a class in `layout/` also
+`*.directive.ts`. The class carries the suffix; a class in `layout/` also
 carries `App` (`AppMainLayoutComponent`) while its selector and folder read `app-main-layout`.
-Cross-layer imports use the alias `@app/*` (`src/app/*`); imports inside one page module or one
+Cross-layer imports use the alias `@app/*` (`src/app/*`); imports inside one page folder or one
 directory stay relative.
 
 **Import rules** (`eslint-plugin-boundaries`; each lint message names the layer to use instead):
@@ -113,14 +113,14 @@ directory stay relative.
 | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `app/` files                                                | layout, pages (lazy routes only), core, store, shared, models                                      |
 | `layout/`                                                   | core, store, shared, models                                                                            |
-| `pages/<m>/<page>/`                                         | store, shared, models, `core/config`, `core/providers`, its own components and its module's `*.form.ts`   |
-| `pages/<m>/<page>/<component>/`                             | shared, models                                                                                         |
-| `pages/<m>/*.routes.ts`                                     | `core/guards`, its own pages                                                                           |
+| `pages/<name>/<page>/`                                      | store, shared, models, `core/config`, `core/providers`, its own components and its page folder's `*.form.ts`   |
+| `pages/<name>/<page>/<component>/`                          | shared, models                                                                                         |
+| `pages/<name>/*.routes.ts`                                  | `core/guards`, its own pages                                                                           |
 <!-- @server-start -->
-| `pages/<m>/*.form.ts`                                       | `shared/validators`, `shared/utils/validation`, models, the generated zod schemas                      |
+| `pages/<name>/*.form.ts`                                    | `shared/validators`, facades, models, the generated zod schemas                                        |
 <!-- @server-end -->
 <!-- @noserver-start -->
-| `pages/<m>/*.form.ts`                                       | `shared/validators`, `shared/utils/validation`, models                                                 |
+| `pages/<name>/*.form.ts`                                    | `shared/validators`, facades, models                                                                   |
 <!-- @noserver-end -->
 | `store/`                                                    | services, models, `core/providers`, `core/config`                                                      |
 <!-- @server-start -->
@@ -129,6 +129,7 @@ directory stay relative.
 | `core/guards`, `core/interceptors`, `core/initializers`     | store, services, core, shared, models (they are the wiring)                                            |
 | `core/config`, `core/providers`, `core/i18n`, `core/errors` | each other, shared, models                                                                             |
 | `shared/`                                                   | shared, models                                                                                         |
+| `services/<name>.ts`, a facade                              | models; every layer may import it                                                                      |
 <!-- @server-start -->
 | `models/`                                                   | models; the generated types with `import type` only                                                    |
 <!-- @server-end -->
@@ -137,18 +138,18 @@ directory stay relative.
 <!-- @noserver-end -->
 
 <!-- @server-start -->
-- A page module never imports another page module. A page that needs a one-off request adds a service
+- A page folder never imports another page folder. A page that needs a one-off request adds a service
   and a store method first.
 <!-- @server-end -->
 <!-- @noserver-start -->
-- A page module never imports another page module. A page that needs shared state adds a store
+- A page folder never imports another page folder. A page that needs shared state adds a store
   method first.
 <!-- @noserver-end -->
 <!-- @server-start -->
 - `@angular/common/http` is imported only in `services/`, `core/interceptors/` and `core/config/`
   (`no-restricted-imports`). The generated client's runtime is imported only in `services/`, and by
   `core/config/api-client.provider.ts`, which hands it the `HttpClient`; `models/` and `core/config/`
-  take its types with `import type`. `api-client.ts` (the generator's `runtimeConfigPath`) imports
+  take its types with `import type`. `api-client.ts` imports
   types only, because the generated client imports that file back.
 <!-- @server-end -->
 <!-- @noserver-start -->
@@ -162,14 +163,12 @@ directory stay relative.
 
 `tests/unit/eslint-boundaries.spec.ts` lints one violation and one allowed case per rule, in a
 throwaway project built from the real `eslint.config.mjs`. A new rule gets a case there.
-`boundaries/no-unknown-files` is on: a file outside every layer in the table (a stray
-`src/app/widgets/` folder) is an error; `main.ts`, `src/environments/` and the specs are
-boundaries-ignored. The page layers are two levels deep (`pages/<m>/<page>/`), so a module's own
+`boundaries/no-unknown-files` is on: a file outside every layer in the table is an error; `main.ts`, `src/environments/` and the specs are
+boundaries-ignored. The page layers are two levels deep (`pages/<name>/<page>/`), so a page folder's own
 `*.routes.ts` and `*.form.ts` are matched by their rows, not read as pages.
 
 <!-- @server-start -->
-The API is always reached at relative `/api` on the page's own origin (see Deployment), so the
-bundle carries no API URL.
+The API is always reached at relative `/api` on the page's own origin (see Deployment).
 
 <!-- @server-end -->
 ## Adding a feature
@@ -193,7 +192,7 @@ The data flows one way: **page -> store -> service -> generated SDK**. A page in
 never a service or `HttpClient`; `@angular/common/http` appears only in `services/`,
 `core/interceptors/`, `core/config/` and one named exception, Transloco's loader
 `core/i18n/transloco-http.loader.ts` (the `i18n` flag; it marks its call `BACKGROUND`). The server's
-`module` endpoints stand in for a product noun below; file by file:
+`entity` endpoints stand in for a product noun below; file by file:
 <!-- @server-end -->
 <!-- @noserver-start -->
 A page injects the store and never `HttpClient`; `@angular/common/http` appears only in `services/`,
@@ -211,10 +210,10 @@ A page injects the store and never `HttpClient`; `@angular/common/http` appears 
    `core/config/error-copy.ts` holds `errorMessageKey()`.
 
    ```ts
-   // app/models/module/interface.ts
-   import type { Module, ModulePage } from '@app/services/generated/types.gen'
+   // app/models/entity/interface.ts
+   import type { Entity, EntityPage } from '@app/services/generated/types.gen'
 
-   export type { Module, ModulePage }
+   export type { Entity, EntityPage }
    ```
 
 3. **Service.** `@Injectable({ providedIn: 'root' })`, one method per call, each returning the
@@ -222,16 +221,16 @@ A page injects the store and never `HttpClient`; `@angular/common/http` appears 
    `ApiError` the interceptor built.
 
    ```ts
-   // app/services/module.service.ts
+   // app/services/entity.service.ts
    @Injectable({ providedIn: 'root' })
-   export class ModuleService {
-     async list(): Promise<ModulePage> {
-       const { data } = await getApiModule()
+   export class EntityService {
+     async list(): Promise<EntityPage> {
+       const { data } = await getApiEntity()
        return data
      }
 
-     async create(body: CreateModuleBody): Promise<Module> {
-       const { data } = await postApiModule({ body })
+     async create(body: CreateEntityBody): Promise<Entity> {
+       const { data } = await postApiEntity({ body })
        return data
      }
    }
@@ -247,19 +246,19 @@ A page injects the store and never `HttpClient`; `@angular/common/http` appears 
    dropped (`error: null`), so a method never checks for staleness itself.
 
    ```ts
-   // app/store/module.store.ts
-   export const ModuleStore = signalStore(
+   // app/store/entity.store.ts
+   export const EntityStore = signalStore(
      { providedIn: 'root' },
-     withState<{ page: ModulePage | null }>({ page: null }),
-     withRequestStatus({ store: 'ModuleStore', calls: ['list', 'create'] }),
-     withMethods((store, service = inject(ModuleService)) => ({
+     withState<{ page: EntityPage | null }>({ page: null }),
+     withRequestStatus({ store: 'EntityStore', calls: ['list', 'create'] }),
+     withMethods((store, service = inject(EntityService)) => ({
        list: () =>
          store._call('list', () => service.list(), {
            onSuccess: (page) => {
              patchState(store, { page })
            },
          }),
-       create: (body: CreateModuleBody) =>
+       create: (body: CreateEntityBody) =>
          store._call('create', () => service.create(body), { mutation: true, form: true }),
      })),
    )
@@ -276,16 +275,16 @@ A page injects the store and never `HttpClient`; `@angular/common/http` appears 
    <!-- @server:auth-end -->
 <!-- @server-start -->
 
-5. **Page module and route.** `app/pages/<module>/<module>.routes.ts` (the default export,
+5. **Page folder and route.** `app/pages/<name>/<name>.routes.ts` (the default export,
    lazy-loads the page) and `<page>/` (the routed page; injects the store; a skeleton while loading,
    `app-error-state` with retry on failure, the loaded view, all inside `<app-page>`). A lazy
    `loadChildren` in `app/app.routes.ts` inside the main shell mounts it; a top-level screen also
-   gets an entry in `app/nav.ts` (`{ path: '/module', labelKey: 'module.title' }`).
+   gets an entry in `app/nav.ts` (`{ path: '/entity', labelKey: 'entity.title' }`).
 
    ```html
-   <!-- app/pages/module/module-list/module-list.component.html -->
+   <!-- app/pages/entity/entity-list/entity-list.component.html -->
    <app-page>
-     <app-page-header [heading]="'module.title' | t" />
+     <app-page-header [heading]="'entity.title' | t" />
      @if (store.failed('list')) {
        <app-error-state [description]="'errors.unknown' | t" (retry)="store.list()" />
      } @else {
@@ -298,7 +297,7 @@ A page injects the store and never `HttpClient`; `@angular/common/http` appears 
 
    ```ts
    // app/app.routes.ts, inside the main shell's children
-   { path: 'module', loadChildren: () => import('./pages/module/module.routes') },
+   { path: 'entity', loadChildren: () => import('./pages/entity/entity.routes') },
    ```
 
 6. **Styles.** A sibling `<stem>.component.scss` named in the component's `styleUrl`. BEM classes;
@@ -311,15 +310,15 @@ A page injects the store and never `HttpClient`; `@angular/common/http` appears 
 
 <!-- @server-end -->
 <!-- @noserver-start -->
-1. **Page module and route.** `app/pages/<module>/<module>.routes.ts` (the default export,
+1. **Page folder and route.** `app/pages/<name>/<name>.routes.ts` (the default export,
    lazy-loads the page) and `<page>/` (the routed page; injects the store; a skeleton while loading,
    `app-error-state` with retry on failure, the loaded view, all inside `<app-page>`). A lazy
    `loadChildren` in `app/app.routes.ts` inside the main shell mounts it; a top-level screen also
-   gets an entry in `app/nav.ts` (`{ path: '/module', labelKey: 'module.title' }`).
+   gets an entry in `app/nav.ts` (`{ path: '/entity', labelKey: 'entity.title' }`).
 
    ```ts
    // app/app.routes.ts, inside the main shell's children
-   { path: 'module', loadChildren: () => import('./pages/module/module.routes') },
+   { path: 'entity', loadChildren: () => import('./pages/entity/entity.routes') },
    ```
 
 2. **Styles.** A sibling `<stem>.component.scss` named in the component's `styleUrl`. BEM classes;
@@ -375,7 +374,7 @@ has none (the controls keep no such state), so none is used. Not used, on purpos
 **Guarding a route (the server's `auth` flag; the files exist only then).** `core/guards/` holds
 `authGuard` (a `CanMatchFn`: a visitor is redirected, with a `RedirectCommand`, to
 `/auth/login?next=<attempted path and query>`), `guestGuard` (login and signup: an account goes
-home) and `roleGuard`. Put them on the route in the module's `*.routes.ts`:
+home) and `roleGuard`. Put them on the route in the page folder's `*.routes.ts`:
 `{ path: '', canMatch: [authGuard], loadComponent: ... }`, and for a role
 `{ canMatch: [roleGuard], data: { roles: ['admin'] }, ... }` (a visitor goes to login, another role to
 `/forbidden`). A guard only keeps a visitor off a screen; the API decides on every call. In a template,
@@ -460,7 +459,7 @@ basics;`), then setup, themes, basics; the rules of those six global partials si
 <!-- @noserver-start -->
   light, dark and system. The product places it once, in its header (The shell).
 <!-- @noserver-end -->
-- **External libraries.** An external library is imported only by its facade: zod by `shared/utils/validation.ts` (`text`, `number`, `object`, `field`, `pick`, `either`, `check`, `validate` and the `Schema` types); call no method on a schema anywhere else, the generated `zod.gen` schemas and specs included. Lint refuses the import elsewhere. The framework, rxjs, Transloco (`core/i18n/`) and NgRx Signals (`store/`) are the architecture and need no facade.
+- **External libraries.** An npm package is imported only by its facade, a file directly in `services/` that lint names: zod by `services/validation.ts` (`text`, `number`, `object`, `field`, `pick`, `either`, `check`, `validate`, the `Schema` types). A facade imports `models/` types only; call no method on a schema elsewhere, the generated `zod.gen` schemas and specs included. Lint refuses the import elsewhere. The framework, rxjs, Transloco (`core/i18n/`) and NgRx Signals (`store/`) need no facade.
 - **Copy.** Every user-visible string in a template goes through the `t` pipe
   (`{{ 'notFound.title' | t }}`) with its key in `core/i18n/translations/en.json`, nested by area,
   `{{param}}` for values, and the same key in `he.json` when the `i18n` flag is on. Code asks
@@ -518,7 +517,7 @@ grouped display, anything else unchanged) and `shared/utils/time.ts` (pure: `par
 `differenceIn`, `isSameDay`).
 
 <!-- @server-start -->
-**The form recipe.** A page module's `<module>.form.ts` builds the typed `FormGroup` with
+**The form recipe.** A page folder's `<name>.form.ts` builds the typed `FormGroup` with
 `{ validators: schemaValidator(zCredentials) }` over the generated zod request schema
 (`services/generated/zod.gen`), so a rule is written once, in the server's contract: a limit is
 never copied into the template (there is no `password.ts`; the generated schema validates a
@@ -532,7 +531,7 @@ a looser shape (`user.form.ts` widens the generated phone rule with `either(fiel
 number", and keeps the rule itself). The page composes
 <!-- @server-end -->
 <!-- @noserver-start -->
-**The form recipe.** A page module's `<module>.form.ts` builds the typed `FormGroup`; `schemaValidator`
+**The form recipe.** A page folder's `<name>.form.ts` builds the typed `FormGroup`; `schemaValidator`
 writes each issue of a schema onto the control its path names
 (`errors.schema = { messageKey, params }`, copy `errors.required|minlength|maxlength|min|max|email|
 pattern|invalid`), clears it when the value is fixed, and returns an issue that matches no control
@@ -567,7 +566,7 @@ store method that awaited the call shows the outcome.
   a spec compares the code list with `en.json`, and a code added to the contract fails the build in
   `models/api/constant.ts` until it is listed.
 - **Failure rejects.** `throwOnError` is set once, in `openapi-ts.config.ts` and the client config,
-  so a facade returns the call's `data` and a failure rejects with the `ApiError`. A store's `_call`
+  so a service returns the call's `data` and a failure rejects with the `ApiError`. A store's `_call`
   catches it and toasts through the copy table.
 - **Interceptors.** `provideHttp()` in `core/interceptors/http.provider.ts` is the one place the
   order is set: loading (outermost, so one exchange counts once even if the auth interceptor replays
@@ -637,7 +636,7 @@ interceptor and `applyFieldErrors` arrive with one (see Adding a feature).
   their layer and no component sheet does. The control sizing contract (36, 32, 44 px) is asserted by
   the e2e (`shell.spec`) on the rendered page, not by a compile test.
 <!-- @server-start -->
-- **A facade or an interceptor** is tested with `provideHttpClient(withInterceptors([...]))`,
+- **A service or an interceptor** is tested with `provideHttpClient(withInterceptors([...]))`,
   `provideHttpClientTesting()` and, for the SDK, `provideApiClient()` (from
   `core/config/api-client.provider`). The generated client issues its request after one internal
   `await`, so a spec yields a microtask before `expectOne`:

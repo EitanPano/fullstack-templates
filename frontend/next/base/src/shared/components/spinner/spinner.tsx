@@ -1,6 +1,6 @@
 import type { ComponentProps } from 'react'
 
-import { cn } from '@/shared/utils/cn'
+import { cn } from '@/services/cn'
 import './spinner.scss'
 
 // Decorative: the parent carries the status (a status role or a button name).

@@ -13,14 +13,14 @@ describe('event', () => {
     const seen: string[] = []
     cleanups.push(
       subscribe('user.signedup', ({ userId }) => { // @auth
-      subscribe('module.created', ({ moduleId }) => { // @noauth
+      subscribe('entity.created', ({ entityId }) => { // @noauth
         seen.push(userId) // @auth
-        seen.push(moduleId) // @noauth
+        seen.push(entityId) // @noauth
       }),
     )
 
     await publish('user.signedup', { userId: 'u1' }) // @auth
-    await publish('module.created', { moduleId: 'm1' }) // @noauth
+    await publish('entity.created', { entityId: 'm1' }) // @noauth
     await drain()
 
     expect(seen).toEqual(['u1']) // @auth
@@ -33,18 +33,18 @@ describe('event', () => {
     const logs = captureLogs([/^subscriber failed topic=\S+ reason=boom/])
     cleanups.push(
       subscribe('user.signedup', () => { // @auth
-      subscribe('module.created', () => { // @noauth
+      subscribe('entity.created', () => { // @noauth
         throw new Error('boom')
       }),
       subscribe('user.signedup', () => { // @auth
-      subscribe('module.created', () => { // @noauth
+      subscribe('entity.created', () => { // @noauth
         ran = true
       }),
     )
 
     try {
       await publish('user.signedup', { userId: 'u2' }) // @auth
-      await publish('module.created', { moduleId: 'm2' }) // @noauth
+      await publish('entity.created', { entityId: 'm2' }) // @noauth
       await drain()
     } finally {
       logs.restore()
@@ -57,13 +57,13 @@ describe('event', () => {
   it('stops delivering after unsubscribe', async () => {
     let calls = 0
     const unsubscribe = subscribe('user.signedup', () => { // @auth
-    const unsubscribe = subscribe('module.created', () => { // @noauth
+    const unsubscribe = subscribe('entity.created', () => { // @noauth
       calls += 1
     })
 
     unsubscribe()
     await publish('user.signedup', { userId: 'u3' }) // @auth
-    await publish('module.created', { moduleId: 'm3' }) // @noauth
+    await publish('entity.created', { entityId: 'm3' }) // @noauth
     await drain()
 
     expect(calls).toBe(0)

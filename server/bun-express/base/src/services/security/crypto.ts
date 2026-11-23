@@ -32,7 +32,7 @@ export function randomToken(bytes = 32): string {
 }
 // @auth-start
 
-// The user module verifies an unknown email against this hash so a login for a missing account
+// The user entity verifies an unknown email against this hash so a login for a missing account
 // costs the same time as one for a real account; timing then does not reveal which emails exist.
 export const DUMMY_HASH: string = Bun.password.hashSync(randomToken(), { algorithm: 'argon2id' })
 // @auth-end

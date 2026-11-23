@@ -1,4 +1,4 @@
-// routes.ts belongs: the user module's router. Each endpoint is one line: its auth gate,
+// routes.ts belongs: the user entity's router. Each endpoint is one line: its auth gate,
 // validation, then the controller's handler; the middleware is built once above the table.
 // It does not belong: request handling (controller.ts).
 import { Router } from 'express'

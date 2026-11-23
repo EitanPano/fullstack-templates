@@ -28,6 +28,10 @@ const ALL = [
   'shared',
   'models',
 ]
+// The facade tier (AGENTS.md › Imports): the files directly in services/ that wrap one npm library,
+// a file category of their own. A facade is imported by every layer, shared/ and core/config
+// included, and imports its library and models/ only. The library rules below name each file too.
+const FACADES = ['validation', 'date', 'cn']
 const except = (...types) => ALL.filter((type) => !types.includes(type))
 
 // Later policies override earlier ones, so each forbidden edge comes first and its exceptions after.
@@ -68,7 +72,19 @@ const policies = [
     from: { element: { type: 'shared' } },
     disallow: { to: { element: { type: except('shared', 'models') } } },
     message:
-      'shared/ is product-agnostic: it imports shared/ and models/ only. Move the code to layout/, core/ or services/, or pass it in as props',
+      'shared/ is product-agnostic: it imports shared/, models/ and a facade only. Move the code to layout/, core/ or services/, or pass it in as props',
+  },
+  {
+    from: { file: { categories: 'facade' } },
+    disallow: { to: { element: { type: except('models') } } },
+    message:
+      'a facade in services/ imports its library and the types of models/ only: it wraps the library, nothing else of the app',
+  },
+  {
+    from: { file: { categories: 'facade' } },
+    dependency: { kind: 'value' },
+    disallow: { to: { element: { type: 'models' } } },
+    message: 'a facade imports models/ as types only: `import type`, so the layers cannot cycle',
   },
   {
     from: { element: { type: 'models' } },
@@ -87,6 +103,11 @@ const policies = [
     disallow: { to: { element: { type: 'services-generated' } } },
     message:
       "call the API through services/<entity>.ts; only services/ imports the generated client's functions",
+  },
+  {
+    // The facade tier: the one allow that opens a facade to the layers that refuse services/.
+    from: { element: { type: ['shared', 'store', 'models'] } },
+    allow: { to: { file: { categories: 'facade' } } },
   },
   {
     // The contract's types reach models/, actions/ and core/ through import type; the runtime
@@ -161,7 +182,7 @@ const library = (modules, message) => ({
 })
 const VALIDATION_LIBRARY = library(
   ['zod', '@hookform/resolvers'],
-  "build and run a schema through '@/shared/utils/validation'",
+  "build and run a schema through '@/services/validation'",
 )
 const ICON_LIBRARY = library(['lucide-react'], "import an icon from '@/shared/components/icons'")
 const TOAST_LIBRARY = library(
@@ -184,10 +205,10 @@ const KIT_LIBRARY = library(
   ['radix-ui', '@radix-ui'],
   'radix-ui is used inside src/shared/components/ only: wrap the primitive there',
 )
-const CLASS_LIBRARY = library(['clsx'], "compose class names with cn from '@/shared/utils/cn'")
+const CLASS_LIBRARY = library(['clsx'], "compose class names with cn from '@/services/cn'")
 const DATE_LIBRARY = library(
   ['date-fns', '@date-fns'],
-  "format and shift dates through '@/shared/utils/date'",
+  "format and shift dates through '@/services/date'",
 )
 const LIBRARIES = {
   validation: VALIDATION_LIBRARY,
@@ -205,6 +226,12 @@ const librariesExcept = (...names) =>
   Object.entries(LIBRARIES)
     .filter(([name]) => !names.includes(name))
     .map(([, pattern]) => pattern)
+// A facade wraps one library: no other file of services/. The boundary plugin does not judge an
+// import between two files of one element, so this restriction does.
+const FACADE_LOCAL = {
+  group: ['./*', '../*', '@/services/*'],
+  message: 'a facade imports no other file of services/: it wraps one library',
+}
 const restrictImports = (...patterns) => ({
   'no-restricted-imports': ['error', { patterns }],
 })
@@ -268,6 +295,9 @@ export default defineConfig([
       // Next's own entry file and sits outside the layers.
       // The styles tree is CSS, not code, and sits outside the layers.
       'boundaries/ignore': ['src/**/*.test.{ts,tsx}', 'src/proxy.ts', 'src/styles/**'],
+      'boundaries/files': [
+        { category: 'facade', pattern: FACADES.map((name) => `src/services/${name}.ts`) },
+      ],
       // A file matches every element that fits, so the nested generated folder stops the search.
       'boundaries/elements': [
         { type: 'app', pattern: 'src/app', partialMatch: false },
@@ -291,7 +321,7 @@ export default defineConfig([
       // A file in a directory no layer claims (src/lib, src/helper, a stray file under src/) is an
       // error: put it in a layer from AGENTS.md › Layers.
       'boundaries/no-unknown-files': 'error',
-      'local/client-server-import': 'error',
+      'local/client-server-import': ['error', { facades: FACADES }],
       'local/route-components': 'error',
       ...restrictSyntax(RAW_CONTROLS, NETWORK, STYLE),
       ...restrictImports(...STYLESHEETS, ...librariesExcept()),
@@ -333,9 +363,9 @@ export default defineConfig([
     rules: restrictImports(...STYLESHEETS, ...librariesExcept('form', 'action')),
   },
   ...[
-    ['src/shared/utils/validation.ts', 'validation'],
-    ['src/shared/utils/cn.ts', 'cls'],
-    ['src/shared/utils/date.ts', 'date'],
+    ['src/services/validation.ts', 'validation'],
+    ['src/services/cn.ts', 'cls'],
+    ['src/services/date.ts', 'date'],
     ['src/shared/components/icons.ts', 'icon'],
     ['src/shared/components/toaster/toaster.tsx', 'toast'],
     ['src/shared/components/theme/theme.tsx', 'theme'],
@@ -343,7 +373,11 @@ export default defineConfig([
     ['src/core/actions/field-errors.ts', 'action'],
   ].map(([file, name]) => ({
     files: [file],
-    rules: restrictImports(...STYLESHEETS, ...librariesExcept(name)),
+    rules: restrictImports(
+      ...STYLESHEETS,
+      ...(file.startsWith('src/services/') ? [FACADE_LOCAL] : []),
+      ...librariesExcept(name),
+    ),
   })),
   {
     files: [

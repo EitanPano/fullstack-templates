@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.0.0 — 2026-11-24
+
+### Changed (breaking)
+
+- The architecture unit is an entity, not a module ([ADR 0018](../../docs/adr/0018-entity-term-and-service-facades.md) E1, E2): `api/<entity>/`, `api/admin/<entity>/`, the `Adding an entity` heading of `AGENTS.md`, the lint messages and the comments say so. "Module" stays only in its language sense. Behaviour, the error envelope and the status codes are unchanged; the sample's 404 message is `entity not found`.
+- The sample a developer copies is named `entity`. To rename a project generated earlier, by hand:
+  - directories `src/api/module/` → `src/api/entity/` and `src/models/module/` → `src/models/entity/`; the test file `tests/module.test.ts` → `tests/entity.test.ts`;
+  - the route `/api/module` → `/api/entity` (`config/routes.ts` and the OpenAPI paths and tag), so `openapi.json` and the frontend's generated client change: regenerate them with the `openapi` and `contract` commands;
+  - the event `module.created` → `entity.created` and its payload `moduleId` → `entityId` (`services/event.ts`, the controller, the tests);
+  - the OpenAPI components `Module` → `Entity`, `ModulePage` → `EntityPage` (and `CreateModuleBody`, `UpdateModuleBody`);
+  - the identifiers, case kept: `ModuleRecord` → `EntityRecord`, `ModuleStatus` → `EntityStatus`, `PublicModule` → `PublicEntity`, `CreateModuleInput` → `CreateEntityInput`, `UpdateModuleInput` → `UpdateEntityInput`, `MODULE_LIMITS` → `ENTITY_LIMITS`, `moduleRoutes` → `entityRoutes`, `registerModule` → `registerEntity`, `ModuleIdParams` → `EntityIdParams`, `ListModuleQuery` → `ListEntityQuery`, `listModuleRequest` → `listEntityRequest` (and `get`, `create`, `update`, `delete` alike), the handlers `listModule`, `getModule`, `createModule`, `updateModule`, `deleteModule` → the `Entity` spelling, the service functions `listModules` → `listEntities`, `findModuleById` → `findEntityById`, `createModule`, `updateModule`, `deleteModule`, and the row type `ModuleRow` → `EntityRow`.
+  - With `postgres`: the first migration creates the table `entity` and the index `entity_created_at_id_idx` (edited in place). A database that applied the old `0001-init.sql` keeps `module` and `module_created_at_id_idx` until a new migration renames them (`alter table module rename to entity`, `alter index module_created_at_id_idx rename to entity_created_at_id_idx`).
+- The role-change line in `AGENTS.md` names the role list in this package's `.doc/architecture.md` instead of "this file" ([ADR 0019](../../docs/adr/0019-package-docs.md)). A project generated earlier changes "role; this file. The frontend's role type guard" by hand.
+
 ## 3.2.0 — 2026-11-22
 
 ### Added

@@ -2,12 +2,12 @@
 // new file is constrained by default, and tests/unit/boundaries.test.ts lints one violation and one
 // allowed case per rule through this very config. Each message names the layer to use instead.
 //
-//   entries     server/server.ts, server/index.ts and every api/<module>/routes.ts import
+//   entries     server/server.ts, server/index.ts and every api/<entity>/routes.ts import
 //               controllers, schemas, server/middleware/ and server/config/; nothing imports them
 //   server/     imports itself, by the layer map in AGENTS.md
 //   hono        only the entries, the routes.ts files and middleware/handler.ts import it
-//   admin       api/admin/<module>/ is a module like any other; api/admin/routes.ts mounts them
-//   openapi.ts  imports every module's schema.ts and services/utils/; only scripts and tests import it
+//   admin       api/admin/<entity>/ is an entity like any other; api/admin/routes.ts mounts them
+//   openapi.ts  imports every entity's schema.ts and services/utils/; only scripts and tests import it
 import eslint from '@eslint/js'
 import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript'
 import { importX } from 'eslint-plugin-import-x'
@@ -27,11 +27,11 @@ export const zones = [
     ],
     from: entries,
     message:
-      'server.ts, index.ts and the routes.ts files are the routing: nothing imports them, move shared code to middleware/ or the module.',
+      'server.ts, index.ts and the routes.ts files are the routing: nothing imports them, move shared code to middleware/ or the entity.',
   },
   {
     // Hono is the routing's library: a controller, a service, a schema, a model and every layer
-    // but the handler adapter stay free of it, so a module can move to another runtime.
+    // but the handler adapter stay free of it, so an entity can move to another runtime.
     target: [
       server('config', '**'),
       server('services', '**'),
@@ -85,15 +85,15 @@ export const zones = [
   {
     target: server('middleware', '**'),
     from: server('api', '**'),
-    message: 'middleware/ never imports api/: a gate is shared, a module is not.',
+    message: 'middleware/ never imports api/: a gate is shared, an entity is not.',
   },
   {
-    // A module's service and model are private to it: the gate chain, shared layers and the
-    // entries reach a module through its controller.
+    // An entity's service and model are private to it: the gate chain, shared layers and the
+    // entries reach an entity through its controller.
     target: [...everyServerLayer, ...entries],
     from: server('api', '**', '{service,model}.ts'),
     message:
-      "a module's service.ts and model.ts are private: reach a module through its controller.ts.",
+      "an entity's service.ts and model.ts are private: reach an entity through its controller.ts.",
   },
   {
     target: server('api', '**', '{service,model}.ts'),
@@ -102,7 +102,7 @@ export const zones = [
       'the data layer never sees HTTP: the controller reads the request and calls the service.',
   },
   {
-    // schema.ts is the leaf of its module: the contract imports no behaviour.
+    // schema.ts is the leaf of its entity: the contract imports no behaviour.
     target: server('api', '**', 'schema.ts'),
     from: [
       server('middleware', '**'),
@@ -113,7 +113,7 @@ export const zones = [
       server('api', '**', '{controller,service,model}.ts'),
     ],
     message:
-      'schema.ts is the leaf of a module: it imports models/, services/utils/ and config/constants only.',
+      'schema.ts is the leaf of an entity: it imports models/, services/utils/ and config/constants only.',
   },
   {
     target: server('openapi.ts'),
@@ -125,7 +125,7 @@ export const zones = [
       server('services', 'security', '**'),
       server('api', '**', '{controller,service,model}.ts'),
     ],
-    message: "openapi.ts imports every module's schema.ts and services/utils/ only.",
+    message: "openapi.ts imports every entity's schema.ts and services/utils/ only.",
   },
   {
     target: [...everyServerLayer, server('api', '**'), ...entries],
@@ -140,8 +140,8 @@ export const zones = [
       'an entry or a routes.ts imports controllers, schemas, server/middleware/ and server/config/: a gate or a rule belongs in one of those.',
   },
   {
-    // server.ts mounts every module's routes.ts; api/admin/routes.ts, the admin namespace's router,
-    // mounts the routes.ts of the modules under it. Nothing else imports one.
+    // server.ts mounts every entity's routes.ts; api/admin/routes.ts, the admin namespace's router,
+    // mounts the routes.ts of the entities under it. Nothing else imports one.
     target: [
       ...everyServerLayer,
       server('api', '!(admin)', '**'),
@@ -152,20 +152,20 @@ export const zones = [
     ],
     from: server('api', '**', 'routes.ts'),
     message:
-      'only server.ts imports a routes.ts (api/admin/routes.ts imports the routes.ts of its admin modules).',
+      'only server.ts imports a routes.ts (api/admin/routes.ts imports the routes.ts of its admin entities).',
   },
 ]
 
-// A module reaches another module's controller only, and only from its controller.
-const otherModule = '^\\.\\./[^./][^/]*/'
+// An entity reaches another entity's controller only, and only from its controller.
+const otherEntity = '^\\.\\./[^./][^/]*/'
 const end = '(\\.m?ts)?$'
-// An api/admin/<module>/ file sits one directory deeper: a sibling admin module is `../<module>/`
-// (otherModule above) and an entity module is `../../<module>/`.
-const entityModule = '^\\.\\./\\.\\./[^./][^/]*/'
+// An api/admin/<entity>/ file sits one directory deeper: a sibling admin entity is `../<entity>/`
+// (otherEntity above) and a top-level entity is `../../<entity>/`.
+const topLevelEntity = '^\\.\\./\\.\\./[^./][^/]*/'
 // The same boundary spelled around it (`../../api/other/service`) is refused too.
 const throughApi = {
   regex: '^(\\.\\./)+api/',
-  message: "reach another module as ../<module>/controller, never through server/api/'s own path",
+  message: "reach another entity as ../<entity>/controller, never through server/api/'s own path",
 }
 
 export default tseslint.config(
@@ -222,9 +222,9 @@ export default tseslint.config(
         {
           patterns: [
             {
-              regex: `${otherModule}(?!controller${end})`,
+              regex: `${otherEntity}(?!controller${end})`,
               message:
-                'another module is reached through its controller.ts, and only a controller.ts imports it',
+                'another entity is reached through its controller.ts, and only a controller.ts imports it',
             },
             throughApi,
           ],
@@ -240,9 +240,9 @@ export default tseslint.config(
         {
           patterns: [
             {
-              regex: `${otherModule}`,
+              regex: `${otherEntity}`,
               message:
-                "the data layer never crosses a module boundary: a controller calls the other module's controller",
+                "the data layer never crosses an entity boundary: a controller calls the other entity's controller",
             },
             throughApi,
           ],
@@ -250,8 +250,8 @@ export default tseslint.config(
       ],
     },
   },
-  // api/admin/<module>/: a module like any other, so an entity module two levels up counts as
-  // another module too. Each block restates its whole policy.
+  // api/admin/<entity>/: an entity like any other, so a top-level entity two levels up counts as
+  // another entity too. Each block restates its whole policy.
   {
     files: ['server/api/admin/*/**'],
     rules: {
@@ -260,14 +260,14 @@ export default tseslint.config(
         {
           patterns: [
             {
-              regex: `${otherModule}(?!controller${end})`,
+              regex: `${otherEntity}(?!controller${end})`,
               message:
-                'another module is reached through its controller.ts, and only a controller.ts imports it',
+                'another entity is reached through its controller.ts, and only a controller.ts imports it',
             },
             {
-              regex: `${entityModule}(?!controller${end})`,
+              regex: `${topLevelEntity}(?!controller${end})`,
               message:
-                "an admin module reaches an entity's data through that entity's controller.ts, and only a controller.ts imports it",
+                "an admin entity reaches a top-level entity's data through that entity's controller.ts, and only a controller.ts imports it",
             },
             throughApi,
           ],
@@ -283,14 +283,14 @@ export default tseslint.config(
         {
           patterns: [
             {
-              regex: `${otherModule}`,
+              regex: `${otherEntity}`,
               message:
-                "the data layer never crosses a module boundary: a controller calls the other module's controller",
+                "the data layer never crosses an entity boundary: a controller calls the other entity's controller",
             },
             {
-              regex: `${entityModule}`,
+              regex: `${topLevelEntity}`,
               message:
-                "the data layer never crosses a module boundary: a controller calls the entity's controller",
+                "the data layer never crosses an entity boundary: a controller calls the entity's controller",
             },
             throughApi,
           ],

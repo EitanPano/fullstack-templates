@@ -1,8 +1,8 @@
-"""controller.py belongs: the user module's business logic, its public API and its HTTP handlers.
+"""controller.py belongs: the user entity's business logic, its public API and its HTTP handlers.
 Each handler, named after its operation (`update_me`), receives the input FastAPI validated,
 resolves the caller, applies the rules, reads and writes through `service.py` and returns the
-response model. Logic other modules (auth), jobs and scripts need is exported as a typed rule with
-no request and no response: they cross into the user module through those rules and nothing else.
+response model. Logic other entities (auth), jobs and scripts need is exported as a typed rule with
+no request and no response: they cross into the user entity through those rules and nothing else.
 Rules raise `AppError`, map stored records to the public shape and publish events.
 It does not belong: gates (`routes.py`), queries (`service.py`), credential verification or token
 handling (auth). Every rule returns the public shape; `find_user_by_email` alone also hands auth the
@@ -79,7 +79,7 @@ def _wire_status(status: UserStatus) -> UserStatusName:
 
 
 def to_response(public: PublicUser) -> PublicUserResponse:
-    """The wire form of a public user; the auth module embeds it in its own responses."""
+    """The wire form of a public user; the auth entity embeds it in its own responses."""
     return PublicUserResponse(
         id=public.id,
         email=public.email,
@@ -125,7 +125,7 @@ async def get_caller_user(caller: Caller) -> PublicUser:
     return to_public(await _require_caller_record(caller))
 
 
-# The operations below take no caller: they are system operations for other modules (auth), jobs
+# The operations below take no caller: they are system operations for other entities (auth), jobs
 # and scripts. No route exposes them, so whoever calls them has already decided it may.
 
 

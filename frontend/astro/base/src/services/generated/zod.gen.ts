@@ -34,7 +34,7 @@ export const zReadiness = z.object({
   dependencies: z.record(z.string(), z.enum(['ok', 'down'])),
 })
 
-export const zModule = z.object({
+export const zEntity = z.object({
   id: z.string(),
   name: z.string(),
   status: z.enum(['active', 'archived']),
@@ -42,16 +42,16 @@ export const zModule = z.object({
   updatedAt: z.iso.datetime(),
 })
 
-export const zModulePage = z.object({
-  items: z.array(zModule),
+export const zEntityPage = z.object({
+  items: z.array(zEntity),
   nextCursor: z.string().nullable(),
 })
 
-export const zCreateModuleBody = z.object({
+export const zCreateEntityBody = z.object({
   name: z.string().min(1).max(100),
 })
 
-export const zUpdateModuleBody = z.object({
+export const zUpdateEntityBody = z.object({
   name: z.string().min(1).max(100).optional(),
   status: z.enum(['active', 'archived']).optional(),
 })
@@ -66,48 +66,48 @@ export const zGetApiHealthResponse = zHealthResponse
  */
 export const zGetApiHealthReadyResponse = zReadiness
 
-export const zGetApiModuleQuery = z.object({
+export const zGetApiEntityQuery = z.object({
   cursor: z.string().optional(),
   limit: z.int().gte(1).lte(100).optional().default(20),
 })
 
 /**
- * A page of modules
+ * A page of entities
  */
-export const zGetApiModuleResponse = zModulePage
+export const zGetApiEntityResponse = zEntityPage
 
-export const zPostApiModuleBody = zCreateModuleBody
+export const zPostApiEntityBody = zCreateEntityBody
 
 /**
- * The created module
+ * The created entity
  */
-export const zPostApiModuleResponse = zModule
+export const zPostApiEntityResponse = zEntity
 
-export const zDeleteApiModuleByIdPath = z.object({
+export const zDeleteApiEntityByIdPath = z.object({
   id: z.string().min(1),
 })
 
 /**
  * Deleted
  */
-export const zDeleteApiModuleByIdResponse = z.void()
+export const zDeleteApiEntityByIdResponse = z.void()
 
-export const zGetApiModuleByIdPath = z.object({
+export const zGetApiEntityByIdPath = z.object({
   id: z.string().min(1),
 })
 
 /**
- * The module
+ * The entity
  */
-export const zGetApiModuleByIdResponse = zModule
+export const zGetApiEntityByIdResponse = zEntity
 
-export const zPatchApiModuleByIdBody = zUpdateModuleBody
+export const zPatchApiEntityByIdBody = zUpdateEntityBody
 
-export const zPatchApiModuleByIdPath = z.object({
+export const zPatchApiEntityByIdPath = z.object({
   id: z.string().min(1),
 })
 
 /**
- * The updated module
+ * The updated entity
  */
-export const zPatchApiModuleByIdResponse = zModule
+export const zPatchApiEntityByIdResponse = zEntity

@@ -15,9 +15,13 @@ import tseslint from 'typescript-eslint'
 //
 // A layer is an element (a folder) or, for the files that sit beside folders, a file category:
 // `app` (the files directly in src/app), `page-routes` and `page-form` (beside the page folders in
-// src/app/pages/<module>/). `components` is the app-wide folder (the shells and what they compose);
-// `page` is a page folder and `page-components` a module's own presentational pieces.
-const FILE_LAYERS = ['app', 'page-routes', 'page-form']
+// src/app/pages/<name>/). `components` is the app-wide folder (the shells and what they compose);
+// `page` is a page folder and `page-components` a page folder's own presentational pieces.
+// `service-facade` is a file directly in services/ that wraps one library (FACADES, the same
+// list that names the library's one importer below); every layer may import it. The plugin skips
+// an import inside one element, so the facade block at the end bars the rest of services/.
+const FACADES = ['validation']
+const FILE_LAYERS = ['app', 'page-routes', 'page-form', 'service-facade']
 const SHARED = ['shared', 'shared-validators']
 const CORE_WIRING = ['core-guards', 'core-interceptors', 'core-initializers']
 const CORE_LEAVES = ['core-config', 'core-providers', 'core-i18n', 'core-errors']
@@ -30,6 +34,7 @@ const LAYERS = [
   'store',
   'services',
   'services-generated',
+  'service-facade',
   ...CORE,
   ...SHARED,
   'models',
@@ -57,7 +62,7 @@ const sel = (layers, { feature, fileInternalPath } = {}) => {
     ...(categories.length > 0 ? [{ file: { categories, ...captured } }] : []),
   ]
 }
-// The module of the importing file (pages/<module>/): `from.element` for a folder layer, `from.file` for a file one.
+// The page folder of the importing file (pages/<name>/): `from.element` for a folder layer, `from.file` for a file one.
 const same = (kind) => `{{ from.${kind}.captured.feature }}`
 const other = (kind) => `!{{ from.${kind}.captured.feature }}`
 
@@ -71,7 +76,7 @@ const policies = [
   ...row(
     'app',
     [sel(['app', 'layout', 'page-routes', ...CORE, 'store', ...SHARED, 'models'])],
-    'app/ wires layout/, pages/ (lazy routes only), core/, store/, shared/ and models/: import a page only through its module *.routes.ts, and reach services/ through a store',
+    'app/ wires layout/, pages/ (lazy routes only), core/, store/, shared/ and models/: import a page only through its page folder *.routes.ts, and reach services/ through a store',
   ),
   ...row(
     'layout',
@@ -85,7 +90,7 @@ const policies = [
       sel('page-components', { feature: same('element') }),
       sel('page-form', { feature: same('element') }),
     ],
-    'a page imports store/, shared/, models/, core/config, core/providers, its own components and its module *.form.ts: call services through a store method, never directly',
+    'a page imports store/, shared/, models/, core/config, core/providers, its own components and its page folder *.form.ts: call services through a store method, never directly',
   ),
   ...row(
     'page-components',
@@ -95,17 +100,17 @@ const policies = [
   ...row(
     'page-routes',
     [sel('core-guards'), sel('page', { feature: same('file') })],
-    'a module routes file imports core/guards and its own pages only',
+    'a page folder routes file imports core/guards and its own pages only',
   ),
   ...row(
     'page-form',
     [sel(['shared-validators', 'models'])],
-    'a *.form.ts imports shared/validators, shared/utils/validation, models/ and the generated zod schemas (services/generated/zod.gen) only',
+    'a *.form.ts imports shared/validators, a services/ facade, models/ and the generated zod schemas (services/generated/zod.gen) only',
   ),
   ...row(
     'store',
     [sel(['services', 'models', 'core-providers', 'core-config'])],
-    'a store imports services/, models/, core/providers and core/config: put the HTTP call in a service facade and the shared UI in shared/',
+    'a store imports services/, models/, core/providers and core/config: put the HTTP call in a service and the shared UI in shared/',
   ),
   ...row(
     'services',
@@ -125,7 +130,7 @@ const policies = [
   ...row(
     SHARED,
     [sel([...SHARED, 'models'])],
-    'shared/ is product-agnostic: it imports only shared/ and models/. Move the code to core/, layout/ or a page module, or pass the value in as an input',
+    'shared/ is product-agnostic: it imports only shared/ and models/. Move the code to core/, layout/ or a page folder, or pass the value in as an input',
   ),
   ...row(
     'models',
@@ -137,13 +142,13 @@ const policies = [
     from: sel(PAGE.filter((name) => FILE_LAYERS.includes(name) === (kind === 'file'))),
     disallow: { to: sel(PAGE, { feature: other(kind) }) },
     message:
-      'a page module never imports another page module: lift the shared part to shared/ or compose both in app/ or layout/',
+      'a page folder never imports another page folder: lift the shared part to shared/ or compose both in app/ or layout/',
   })),
   {
     from: sel(LAYERS.filter((name) => name !== 'services')),
     disallow: { to: sel('services-generated') },
     message:
-      'the generated client is imported only by services/: call it through the facade in services/ (a *.form.ts may import the generated zod schemas, models/ and core/config may import type, core/config/api-client.provider.ts provides it)',
+      'the generated client is imported only by services/: call it through a service in services/ (a *.form.ts may import the generated zod schemas, models/ and core/config may import type, core/config/api-client.provider.ts provides it)',
   },
   // models/ re-exports the contract's types; a form builds on the generated zod schemas.
   {
@@ -168,12 +173,25 @@ const policies = [
     allow: { to: sel('services-generated', { fileInternalPath: 'zod.gen.ts' }) },
   },
   {
-    from: sel('page-form'),
-    allow: { to: sel('shared', { fileInternalPath: 'utils/validation.ts' }) },
-  },
-  {
     from: sel('services'),
     allow: { to: sel('services-generated') },
+  },
+  // The facade tier: a facade imports models/ types only, no other facade, and every other layer
+  // may import one. These come last because the last matching policy decides.
+  {
+    from: sel('service-facade'),
+    disallow: { to: sel(LAYERS) },
+    message:
+      'a services/ facade wraps one library and imports models/ types only: keep core/config, services/ and the rest out of it',
+  },
+  {
+    from: sel('service-facade'),
+    dependency: { kind: 'type' },
+    allow: { to: sel('models') },
+  },
+  {
+    from: sel(LAYERS.filter((name) => name !== 'service-facade')),
+    allow: { to: sel('service-facade') },
   },
 ]
 
@@ -181,7 +199,7 @@ const HTTP = [
   {
     name: '@angular/common/http',
     message:
-      'HttpClient is imported only in services/, core/interceptors/ and core/config/: call the API through a service facade over the generated client',
+      'HttpClient is imported only in services/, core/interceptors/ and core/config/: call the API through a service over the generated client',
   },
 ]
 
@@ -191,7 +209,7 @@ const VALIDATION_LIBRARY = [
   {
     name: 'zod',
     message:
-      'zod is imported only by shared/utils/validation.ts: build and run schemas through its functions',
+      'zod is imported only by services/validation.ts: build and run schemas through its functions',
   },
 ]
 
@@ -252,10 +270,14 @@ export default defineConfig([
         { pattern: 'src/app/*.ts', category: 'app' },
         { pattern: 'src/app/pages/*/*.routes.ts', category: 'page-routes', capture: ['feature'] },
         { pattern: 'src/app/pages/*/*.form.ts', category: 'page-form', capture: ['feature'] },
+        {
+          pattern: FACADES.map((name) => `src/app/services/${name}.ts`),
+          category: 'service-facade',
+        },
       ],
       'boundaries/elements': [
         { type: 'layout', pattern: 'src/app/layout', partialMatch: false },
-        // A component folder inside a page folder, pages/<module>/<page>/<component>: it comes
+        // A component folder inside a page folder, pages/<name>/<page>/<component>: it comes
         // first so it matches before the page element.
         {
           type: 'page-components',
@@ -263,8 +285,8 @@ export default defineConfig([
           partialMatch: false,
           capture: ['feature'],
         },
-        // A page folder, pages/<module>/<page>: two levels, so the module's own *.routes.ts and
-        // *.form.ts (file categories above) are not also read as pages.
+        // A page folder, pages/<name>/<page>: two levels, so the page folder's own *.routes.ts and
+        // *.form.ts (file categories in the settings) are not also read as pages.
         {
           type: 'page',
           pattern: 'src/app/pages/*/*',
@@ -293,7 +315,7 @@ export default defineConfig([
     },
   },
   {
-    // The only places that name HttpClient: the facades, the interceptors, the client's config and
+    // The only places that name HttpClient: the services, the interceptors, the client's config and
     // the loader that fetches the copy tables and its spec (ruling R22).
     files: [
       'src/app/services/**/*.ts',
@@ -304,9 +326,23 @@ export default defineConfig([
     rules: { 'no-restricted-imports': ['error', { paths: VALIDATION_LIBRARY }] },
   },
   {
-    // The validation facade is the one file that names the library.
-    files: ['src/app/shared/utils/validation.ts'],
-    rules: { 'no-restricted-imports': 'off' },
+    // A facade is the one file that names its library, and imports no other file of services/.
+    files: FACADES.map((name) => `src/app/services/${name}.ts`),
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: HTTP,
+          patterns: [
+            {
+              group: ['./*', '../*', '@app/services', '@app/services/*'],
+              message:
+                'a services/ facade imports no other file of services/: it wraps one library',
+            },
+          ],
+        },
+      ],
+    },
   },
   {
     files: ['**/*.mjs', '**/*.mts', '*.config.ts'],

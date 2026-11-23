@@ -5,8 +5,8 @@ import pytest
 
 from app.infra.pubsub import SubscriberEntry
 from app.services.event import (
-    MODULE_CREATED,
-    ModuleCreated,
+    ENTITY_CREATED,
+    EntityCreated,
     Unsubscribe,
     drain,
     publish,
@@ -30,12 +30,12 @@ class TestEvent:
     ) -> None:
         seen: list[str] = []
 
-        def on_created(payload: ModuleCreated) -> None:
-            seen.append(payload["module_id"])
+        def on_created(payload: EntityCreated) -> None:
+            seen.append(payload["entity_id"])
 
-        cleanups.append(subscribe(MODULE_CREATED, on_created))
+        cleanups.append(subscribe(ENTITY_CREATED, on_created))
 
-        await publish(MODULE_CREATED, {"module_id": "m1"})
+        await publish(ENTITY_CREATED, {"entity_id": "m1"})
         await drain()
 
         assert seen == ["m1"]
@@ -45,17 +45,17 @@ class TestEvent:
     ) -> None:
         ran = False
 
-        def raises(_: ModuleCreated) -> None:
+        def raises(_: EntityCreated) -> None:
             raise RuntimeError("boom")
 
-        def survives(_: ModuleCreated) -> None:
+        def survives(_: EntityCreated) -> None:
             nonlocal ran
             ran = True
 
-        cleanups.append(subscribe(MODULE_CREATED, raises))
-        cleanups.append(subscribe(MODULE_CREATED, survives))
+        cleanups.append(subscribe(ENTITY_CREATED, raises))
+        cleanups.append(subscribe(ENTITY_CREATED, survives))
 
-        await publish(MODULE_CREATED, {"module_id": "m2"})
+        await publish(ENTITY_CREATED, {"entity_id": "m2"})
         await drain()
 
         assert ran is True
@@ -63,14 +63,14 @@ class TestEvent:
     async def test_stops_delivering_after_unsubscribe(self) -> None:
         calls = 0
 
-        def count(_: ModuleCreated) -> None:
+        def count(_: EntityCreated) -> None:
             nonlocal calls
             calls += 1
 
-        unsubscribe = subscribe(MODULE_CREATED, count)
+        unsubscribe = subscribe(ENTITY_CREATED, count)
 
         unsubscribe()
-        await publish(MODULE_CREATED, {"module_id": "m3"})
+        await publish(ENTITY_CREATED, {"entity_id": "m3"})
         await drain()
 
         assert calls == 0
@@ -78,12 +78,12 @@ class TestEvent:
     async def test_subscribes_an_async_handler(self, cleanups: list[Unsubscribe]) -> None:
         seen: list[str] = []
 
-        async def on_created(payload: ModuleCreated) -> None:
-            seen.append(payload["module_id"])
+        async def on_created(payload: EntityCreated) -> None:
+            seen.append(payload["entity_id"])
 
-        cleanups.append(subscribe(MODULE_CREATED, on_created))
+        cleanups.append(subscribe(ENTITY_CREATED, on_created))
 
-        await publish(MODULE_CREATED, {"module_id": "m4"})
+        await publish(ENTITY_CREATED, {"entity_id": "m4"})
         await drain()
 
         assert seen == ["m4"]
@@ -93,14 +93,14 @@ class TestSubscriberEntry:
     async def test_makes_a_typed_entry_for_the_bus_to_register_on_connect(self) -> None:
         seen: list[str] = []
 
-        async def on_created(payload: ModuleCreated) -> None:
-            seen.append(payload["module_id"])
+        async def on_created(payload: EntityCreated) -> None:
+            seen.append(payload["entity_id"])
 
-        entry = subscriber(MODULE_CREATED, on_created)
+        entry = subscriber(ENTITY_CREATED, on_created)
 
         assert isinstance(entry, SubscriberEntry)
-        assert entry.topic == "module.created"
-        result = entry.handle({"module_id": "m5"})
+        assert entry.topic == "entity.created"
+        result = entry.handle({"entity_id": "m5"})
         assert inspect.isawaitable(result)
         await result
         assert seen == ["m5"]

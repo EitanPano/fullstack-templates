@@ -1,6 +1,6 @@
 """subscribers/ belongs: a reaction to an event, a `SubscriberEntry` listed in `infra/pubsub.py`. It
-may call a module's `controller.py` (its exported rules, never a handler) and `services/`; never a
-module's routes or service. It does not belong: the rule that raised the event.
+may call an entity's `controller.py` (its exported rules, never a handler) and `services/`; never an
+entity's routes or service. It does not belong: the rule that raised the event.
 
 A failure (unknown user, blocked user, provider error) propagates to the bus, which logs it
 (`subscriber failed topic=user.signedup`) and never surfaces it to the publisher. The bus runs

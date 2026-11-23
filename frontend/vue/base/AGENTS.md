@@ -8,17 +8,16 @@ The layer map of this package. Commands are in `package.json`; the contract code
 **`src/`**
 
 - `main.ts`: imports the font, `styles/themes/brand.css`, `styles/styles.scss` and
-  `shared/utils/validation`, creates the app, calls `installPlugins(app)` and mounts in its
+  `services/validation`, creates the app, calls `installPlugins(app)` and mounts in its
   `.then` (the saved language loads before the first render). It installs
   `core/initializers/preload-error`: one reload per 30 s on `vite:preloadError` (a chunk the new
   build no longer has), then the error surfaces.
 - `app/`: the wiring; no product logic, no fetch. `App.vue` (a `<RouterView />`), `plugins.ts`
   (`installPlugins`: Pinia, router, i18n, the error interceptor, the global error handler, the
   `has-role` directive and `ROLES_KEY`, the session and PWA initializers), `routes.ts` (the main
-  layout, one lazy `*.routes.ts` per page module, the catch-all last; the auth layout and its
+  layout, one lazy `*.routes.ts` per page folder, the catch-all last; the auth layout and its
   routes with auth), `router.ts` (sets `document.title` from
-  `meta.titleKey`) and `nav.ts` (the one navigation table, read by `screens.spec` and by the navigation a product
-  builds; `NavEntry` lives in `models/nav/`).
+  `meta.titleKey`) and `nav.ts` (the one navigation table, read by `screens.spec`; `NavEntry` lives in `models/nav/`).
 - `core/`: singletons wired once in `app/plugins.ts`, never imported by `shared/`.
   `config/` (`env.ts` the only reader of `import.meta`, `constants.ts` with the `STORAGE_KEYS`,
   `api-client.ts` the generator's `runtimeConfigPath`), `interceptors/`, `guards/`,
@@ -48,21 +47,22 @@ The layer map of this package. Commands are in `package.json`; the contract code
 
 <!-- @pwa-end -->
 
-- `pages/<module>/`: one directory per server module or screen group, named for the glossary
-  noun: `<module>.routes.ts` (a default export of `RouteRecordRaw[]`), the routed
-  `<name>-page/` folders beside it (each holds `<name>-page.vue`, which reads a store, with its
-  `<name>-page.scss` and spec), when needed `<module>.form.ts` (a form over the generated
-  schemas); the module's own presentational pieces sit beside the pages (a folder of their name
-  when they have a sheet or a spec), never in a `components/` folder. A page never imports another
-  module. `home/` is the index route and `not-found/` the catch-all.
-- `store/`: every Pinia store, all setup stores. The domain stores (one per server
-  module; with auth `auth` and `user`) and the app-state stores (`theme`, `notification`,
+- `pages/<name>/`: one directory per entity or screen group, named for the glossary
+  noun: `<name>.routes.ts` (a default export of `RouteRecordRaw[]`), the routed
+  `<page>-page/` folders beside it (each holds `<page>-page.vue`, which reads a store, with its
+  `<page>-page.scss` and spec), when needed `<name>.form.ts` (a form over the generated
+  schemas); the page folder's own presentational pieces sit beside the pages (a folder of their name
+  when they have a sheet or a spec), never in a `components/` folder. A page never imports another page
+  folder. `home/` is the index route and `not-found/` the catch-all.
+- `store/`: every Pinia store, all setup stores. The domain stores (one per
+  entity; with auth `auth` and `user`) and the app-state stores (`theme`, `notification`,
   `network`, `loading`; `language` with `i18n`; `app-update` and `install-prompt` with `pwa`),
   plus `request-status.ts`. The import rule is the same for both kinds.
 <!-- @server-start -->
-- `services/`: one facade per server module over the generated SDK; `generated/` is the Hey API
+- `services/`: one service per entity over the generated SDK; `generated/` is the Hey API
   output (types, the fetch client, the flat SDK, zod; committed, lint-ignored).
 <!-- @server-end -->
+- `services/<name>.ts`: a facade (`validation.ts`).
 - `shared/`: product-agnostic. `components/` (the `base-*` primitives that wrap the browser
   controls once, and the patterns, each a folder of its name with its `.scss` and spec beside it;
   the form controls, `form-field` and `form-actions` in `components/form/`; the four controls
@@ -84,13 +84,14 @@ Write the files by hand, copying the nearest sibling.
 | Addition                                    | Home                                                     |
 | ------------------------------------------- | -------------------------------------------------------- |
 | A noun's types, enums, labels               | `models/<noun>/`                                         |
-| A read or write on a server module          | `services/<module>.service.ts`                           |
+| A read or write on an entity                | `services/<entity>.service.ts`                           |
 | State a page reads, and the methods on it   | `store/<noun>.store.ts`                                  |
-| A routed screen                             | `pages/<module>/<page>-page/<page>-page.vue` + `.scss`   |
-| A presentational piece of one module        | `pages/<module>/<piece>/<piece>.vue` + `.scss`           |
-| A form                                      | `pages/<module>/<module>.form.ts`                        |
+| A routed screen                             | `pages/<name>/<page>-page/<page>-page.vue` + `.scss`     |
+| A presentational piece of one page          | `pages/<name>/<piece>/<piece>.vue` + `.scss`             |
+| A form                                      | `pages/<name>/<name>.form.ts`                            |
 | An app-wide component (a header, a menu)    | `layout/app-<name>/app-<name>.vue` + `app-<name>.scss`   |
 | A primitive (button, input, dialog)         | `shared/components/base-<name>/base-<name>.vue`          |
+| A library facade                            | `services/<name>.ts`                                     |
 | A reusable pattern or composable            | `shared/`                                                |
 | A guard, interceptor, initializer, provider | `core/`                                                  |
 | A navigation entry                          | `app/nav.ts`                                             |
@@ -104,31 +105,32 @@ Composition API only. A primitive carries the `Base` prefix (`base-button.vue`,
 (`app-theme-toggle.vue`, `<AppThemeToggle>`). A file that is not a component takes a suffix:
 `*.store.ts`, `*.service.ts`, `*.guard.ts`, `*.interceptor.ts`, `*.routes.ts`, `*.form.ts`,
 `*.initializer.ts`; a composable is `use-kebab.ts` and exports `useKebab`. Cross-layer imports use
-the alias `@/*` (`src/*`); imports inside one page module stay relative. Specs sit beside the file as
+the alias `@/*` (`src/*`); imports inside one page folder stay relative. Specs sit beside the file as
 `*.spec.ts`.
 
 **Import rules** (`eslint-plugin-boundaries`; each lint message names the layer to use instead):
 
-| From                                                                                                          | May import                                                                                                                                             |
-| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `app/`                                                                                                        | components, pages (`*.routes.ts` only), core, store, shared, models; never `services/`                                                                 |
-| `main.ts` (the entry)                                                                                         | app, core, shared, models                                                                                                                              |
-| `layout/`                                                                                                     | `core/config`, `core/providers`, store, shared, models                                                                                                 |
-| `pages/<m>/` screens (`*-page.vue` and any other `.ts` beside them, not `*.routes.ts` or `*.form.ts`)        | store, shared, models, `core/config`, `core/providers`, `core/guards` (the unsaved-changes composable), its own module's components and `*.form.ts`     |
-| `pages/<m>/` components (a `.vue` that is not a `*-page.vue`)                                                 | shared, models                                                                                                                                         |
-| `pages/<m>/*.routes.ts`                                                                                       | `core/guards`, its own module's pages                                                                                                                  |
-| `pages/<m>/*.form.ts`                                                                                         | `shared/validators`, `shared/utils/validation`, models, the generated zod schemas (`@/services/generated/zod.gen`)                                     |
-| `store/`                                                                                                      | store, services, models, `core/providers`, `core/config`, `core/i18n` (the language store applies the locale)                                          |
-| `services/`                                                                                                   | models, `core/config`, `services/generated`                                                                                                            |
-| `core/guards`, `core/initializers`, `core/interceptors/error.interceptor.ts`, `http.provider.ts`              | store, services, core, shared, models (they are the wiring); `http.provider.ts` alone imports the generated client                                     |
-| `core/interceptors/loading.interceptor.ts`                                                                    | `core/config`, `core/providers`, models and `store/loading.store.ts`                                                                                   |
-| `core/interceptors/auth.interceptor.ts`                                                                       | `core/config`, `core/providers`, models: a leaf, never `store/`, `services/` or another interceptor                                                    |
-| `core/config`, `core/providers`, `core/i18n`, `core/errors`                                                   | each other, shared, models; `core/config/api-client.ts` alone also the two fetch wrappers                                                              |
-| `shared/`                                                                                                     | shared, models                                                                                                                                         |
-| `models/`                                                                                                     | models; the generated types and zod schemas with `import type` only                                                                                    |
-| `testing/`                                                                                                    | anything; nothing outside a `*.spec.ts` imports it                                                                                                     |
+| From                                                                                                     | May import                                                                                                                                               |
+| -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/`                                                                                                   | components, pages (`*.routes.ts` only), core, store, shared, models; never `services/`                                                                   |
+| `main.ts` (the entry)                                                                                    | app, core, shared, models                                                                                                                                |
+| `layout/`                                                                                                | `core/config`, `core/providers`, store, shared, models                                                                                                   |
+| `pages/<name>/` screens (`*-page.vue` and any other `.ts` beside them, not `*.routes.ts` or `*.form.ts`) | store, shared, models, `core/config`, `core/providers`, `core/guards` (the unsaved-changes composable), its own page folder's components and `*.form.ts` |
+| `pages/<name>/` components (a `.vue` that is not a `*-page.vue`)                                         | shared, models                                                                                                                                           |
+| `pages/<name>/*.routes.ts`                                                                               | `core/guards`, its own page folder's pages                                                                                                               |
+| `pages/<name>/*.form.ts`                                                                                 | `shared/validators`, the `services/validation.ts` facade, models, the generated zod schemas (`@/services/generated/zod.gen`)                             |
+| `store/`                                                                                                 | store, services, models, `core/providers`, `core/config`, `core/i18n` (the language store applies the locale)                                            |
+| `services/`                                                                                              | models, `core/config`, `services/generated`                                                                                                              |
+| a facade (`services/validation.ts`)                                                                      | its library and models; every layer may import one                                                                                                       |
+| `core/guards`, `core/initializers`, `core/interceptors/error.interceptor.ts`, `http.provider.ts`         | store, services, core, shared, models (they are the wiring); `http.provider.ts` alone imports the generated client                                       |
+| `core/interceptors/loading.interceptor.ts`                                                               | `core/config`, `core/providers`, models and `store/loading.store.ts`                                                                                     |
+| `core/interceptors/auth.interceptor.ts`                                                                  | `core/config`, `core/providers`, models: a leaf, never `store/`, `services/` or another interceptor                                                      |
+| `core/config`, `core/providers`, `core/i18n`, `core/errors`                                              | each other, shared, models; `core/config/api-client.ts` alone also the two fetch wrappers                                                                |
+| `shared/`                                                                                                | shared, models, the facades                                                                                                                              |
+| `models/`                                                                                                | models; the generated types and zod schemas with `import type` only                                                                                      |
+| `testing/`                                                                                               | anything; nothing outside a `*.spec.ts` imports it                                                                                                       |
 
-- A page module never imports another page module, and no page renders a `layout/` shell piece. A page that needs a one-off request adds a facade
+- A page folder never imports another one, and no page renders a `layout/` shell piece. A page that needs a one-off request adds a service
   method and a store method first.
 <!-- @server-start -->
 - The generated runtime (`client.gen`, `sdk.gen`, the barrel) is imported only in `services/` and
@@ -147,10 +149,9 @@ the alias `@/*` (`src/*`); imports inside one page module stay relative. Specs s
   `tests/unit/styles-tree.spec.ts` refuses `scoped` and a block with a body), no `style` attribute
   (`vue/no-static-inline-styles`, and the scan also reads bound ones), no `.css` or `.scss` import
   outside `main.ts`.
-- A file in a directory no layer claims is an error (`boundaries/no-unknown-files`), and so is importing one (`boundaries/no-unknown-dependencies`). The boundary
-  rule is silent on an import it cannot resolve, so `eslint-import-resolver-typescript` reads the
-  `@/*` alias from `tsconfig.app.json` and resolves `.vue` imports; keep the setting when the
-  config changes.
+- A file in a directory no layer claims is an error (`boundaries/no-unknown-files`), and so is importing one (`boundaries/no-unknown-dependencies`). `eslint-import-resolver-typescript`
+  reads the `@/*` alias from `tsconfig.app.json` and resolves `.vue` imports (an unresolved import is
+  silent): keep it.
 
 `tests/unit/eslint-boundaries.spec.ts` lints one violation and one allowed case per rule, through
 the real `eslint.config.mjs`. A new rule gets a case there.
@@ -179,14 +180,14 @@ The harness adds them with the server (`scripts/scaffold.mjs`); never copy them 
 The layer map and the lint fences above already name those layers (`services/`, `core/interceptors/`,
 the generated client); none of their files exists yet.
 
-A feature is a page module `pages/<noun>/` (`<noun>.routes.ts` with a lazy component and
+A feature is a page folder `pages/<noun>/` (`<noun>.routes.ts` with a lazy component and
 `meta: { titleKey }`, and `<noun>-page/<noun>-page.vue` wrapped in `PageContainer` with its sibling `.scss`), a setup
 store in `store/` when state is shared, and types in `models/<noun>/`. Spread the routes into the main
 layout's `children` in `app/routes.ts`, add the nav entry in `app/nav.ts`, the copy in `en.json`, and
 a spec beside each file.
 <!-- @noserver-end -->
 <!-- @server-start -->
-The data flows one way: **page -> store -> facade -> generated SDK**. A page reads a store and never
+The data flows one way: **page -> store -> service -> generated SDK**. A page reads a store and never
 a service; the generated runtime is imported only in `services/` and `http.provider.ts`. A noun
 `post`, step by step; the names the contract generates (`getApiPost`, `patchApiPostById`, `Post`)
 exist once step 1 has run.
@@ -231,7 +232,7 @@ exist once step 1 has run.
    ```
 
 3. **A read** is a setup store: `useRequestStatus()` gives `status`, `error`, `loading`, `loaded`,
-   `failed` and the setters; a method sets loading, awaits the facade, patches the refs and, in the
+   `failed` and the setters; a method sets loading, awaits the service, patches the refs and, in the
    `catch`, toasts once. `fail` keeps the `ApiError` in state and logs a cause that is not an
    `ApiError`, so a bug is never silent. A store with two independent requests calls
    `useRequestStatus()` twice.
@@ -396,7 +397,7 @@ With `pwa`, so is `app-install-button`.
 **Guarding a route (the server's `auth` flag; the files exist only then).** `core/guards/` holds
 `authGuard` (a visitor is redirected to `/auth/login?next=<attempted path and query>`),
 `guestGuard` (login and signup: an account goes home) and `roleGuard`. They are
-`beforeEnter` guards on the route in the module's `*.routes.ts`: `{ path: '', beforeEnter:
+`beforeEnter` guards on the route in the page folder's `*.routes.ts`: `{ path: '', beforeEnter:
 authGuard, component: ... }`, and for a role `{ beforeEnter: roleGuard, meta: { roles: ['admin']
 }, ... }` (a visitor goes to login, another role to `/forbidden`). Each awaits `authStore.ready`
 before it decides. A guard only keeps a visitor off a screen; the API decides on every call. In a
@@ -426,7 +427,7 @@ discarded, and a guarded deep link lands on sign-in with `next`.
 (`loginForm()`, `signupForm()` with `match('password', 'confirm')` as its rule, `otpForm()`),
 each `useSchemaForm(schema, initial, rules?)` (`shared/validators/schema-form.ts`) over the generated
 request schema (`zCredentials`, `pick(zOtpVerificationBody, ['code'])`), so no limit is
-copied. The file's first import is `@/shared/utils/validation` (see below). `useSchemaForm`
+copied. The file's first import is `@/services/validation` (see below). `useSchemaForm`
 returns `values` (the reactive object `v-model` binds), `error(name)`, `errorText(name)`
 (translated, for a field's `error` prop), `touch(name)`, `submit(handler)`, `submitting`,
 `submitted`, `valid`, `unmapped`, `serverErrors` and `reset()`; call it in `setup`, it reads the
@@ -446,21 +447,19 @@ meaning "remove the number", and keeps the rule itself). A checkbox carries its 
 field no `label`.
 <!-- @server-end -->
 
-**zod, its facade and the CSP.** `shared/utils/validation.ts` is the one file that imports `zod`: the
-app builds and runs every schema through its functions (`text`, `number`, `flag`, `object`, `field`,
-`pick`, `either`, `validate`, `isValid`, `parse`) and no file calls a method on a schema, the
-generated ones included. zod 4 probes `new Function('')` when a schema is built, a violation of the
+**zod, its facade and the CSP.** `services/validation.ts` is the one file that imports `zod`: the
+app builds and runs every schema through its functions (`text`, `object`, `field`, `pick`,
+`either`, `validate`, `parse`, ...) and no file calls a method on a schema, the generated ones included. zod 4 probes `new Function('')` when a schema is built, a violation of the
 deployed `script-src 'self'`; the facade calls `z.config({ jitless: true })` as it loads. `main.ts`
 imports it, and so must every module that imports `@/services/generated/zod.gen` at run time, as its
-first import (the build splits shared code into chunks, so `main.ts` alone is not enough). A new
-`*.form.ts` begins `import '@/shared/utils/validation'`; `tests/unit/validation-first.spec.ts` fails
+first import. A new
+`*.form.ts` begins `import '@/services/validation'`; `tests/unit/validation-first.spec.ts` fails
 the module that does not.
 
-**External libraries sit behind a facade.** An external library is imported only by its facade, and
-lint refuses it elsewhere: `zod` by `shared/utils/validation.ts`, `reka-ui` by `shared/components/`
-(the kit), `lucide-vue-next` by `shared/components/icons.ts`; with `pwa`, the service worker
-library (`virtual:pwa-register`, `workbox-window`) by `store/app-update.store.ts`. The framework and its
-official ecosystem (`vue`, `vue-router`, `pinia`, `vue-i18n`) and the generated code are exempt.
+**External libraries sit behind one file.** Lint refuses a library outside it: `zod` by the facade
+`services/validation.ts` (one file wrapping a library, flat in `services/`), `reka-ui` by `shared/components/`, `lucide-vue-next` by `shared/components/icons.ts`;
+with `pwa`, `virtual:pwa-register` and `workbox-window` by `store/app-update.store.ts`. A library
+wrapped as a component or store stays there. The framework's ecosystem (`vue`, `vue-router`, `pinia`, `vue-i18n`) and generated code are exempt.
 
 ## Styling
 
@@ -580,8 +579,8 @@ awaited the call shows the outcome.
   `errors.unexpected`. `errorMessageKey(code)` returns the key, `errors.unknown` for anything else;
   a code added to the contract fails the build in `core/config/error-copy.ts` until it is listed, and
   a spec compares the list with `en.json`.
-- **Failure rejects.** The client is configured with `throwOnError: true` and each facade call
-  repeats it, so a facade returns the call's `data` and a failure rejects with the `ApiError`. The
+- **Failure rejects.** The client is configured with `throwOnError: true` and each service call
+  repeats it, so a service returns the call's `data` and a failure rejects with the `ApiError`. The
   awaiting store method catches it and toasts through the copy table. A store toasts once per
   failure, reads included, and keeps the `ApiError` in `error` for the page.
 - **Interceptors.** `core/config/api-client.ts` sets the client's `fetch` to
@@ -643,10 +642,10 @@ with one (`scripts/scaffold.mjs`).
 <!-- @server-start -->
 - **The API is the one boundary a test fakes.** `stubApi({ 'GET /api/post': Response.json([...]) })`
   (`src/testing/stub-api.ts`) replaces the global `fetch`, keyed `METHOD /path`; unlisted calls
-  answer 404. A facade is tested through it, with the real generated client behind.
-- **A store** is tested on a fresh `createPinia()` with either `stubApi` (the real facade and
-  client behind it, as `auth.store.spec.ts`) or `vi.spyOn` on one facade method (as a store spec of
-  the recipe), never a module mock of a facade (the one `vi.mock` in a store spec
+  answer 404. A service is tested through it, with the real generated client behind.
+- **A store** is tested on a fresh `createPinia()` with either `stubApi` (the real service and
+  client behind it, as `auth.store.spec.ts`) or `vi.spyOn` on one service method (as a store spec of
+  the recipe), never a module mock of a service (the one `vi.mock` in a store spec
   replaces the virtual `virtual:pwa-register/vue` module, in `app-update.store.spec.ts`); **a
   page** with
   `renderWithApp(Page, { route, initialState })` (`src/testing/render.ts`): a testing Pinia
@@ -783,13 +782,13 @@ false`, `RATE_LIMIT_SCALE=100`) and then `bun run build && bun run preview`: the
 - **Service worker (the `pwa` flag).** `vite-plugin-pwa` (`registerType: 'prompt'`) emits the
   manifest, `sw.js`, `registerSW.js` and `workbox-*.js` into `dist/`; the worker registers in
   production only. It precaches the shell, never answers an `/api/` navigation with it, and caches
-  no API response. A page module adds a URL to `runtimeCaching` in `vite.config.ts` only for a public
+  no API response. A page folder adds a URL to `runtimeCaching` in `vite.config.ts` only for a public
   read that carries no session or personal data; never `/api/**`.
 <!-- @server-end -->
 <!-- @noserver-start -->
 - **Service worker (the `pwa` flag).** `vite-plugin-pwa` (`registerType: 'prompt'`) emits the
   manifest, `sw.js`, `registerSW.js` and `workbox-*.js` into `dist/`; the worker registers in
-  production only. It precaches the shell. A page module adds a URL to `runtimeCaching` in `vite.config.ts`
+  production only. It precaches the shell. A page folder adds a URL to `runtimeCaching` in `vite.config.ts`
   only for a public read that carries no session or personal data.
 <!-- @noserver-end -->
 - **How an update reaches the user.** `store/app-update.store.ts` holds `needRefresh` and

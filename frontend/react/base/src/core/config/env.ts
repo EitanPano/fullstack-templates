@@ -1,4 +1,4 @@
-import { object, parse, text } from '@/shared/utils/validation'
+import { object, parse, text } from '@/services/validation'
 
 // The only file that reads import.meta.env. Vite compiles every VITE_* variable into the
 // bundle, so a value declared here is public: never a secret. The API needs no entry: it is // @server

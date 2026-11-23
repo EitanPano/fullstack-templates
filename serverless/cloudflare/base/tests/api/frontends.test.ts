@@ -400,7 +400,7 @@ describe('the admin namespace', () => {
   })
 })
 
-// A handler mounted in the admin sub-app, as a product's first admin module would be: it runs only
+// A handler mounted in the admin sub-app, as a product's first admin entity would be: it runs only
 // for a caller the gate (and, beside an admin frontend, the host rule) admits.
 let adminHandlerCalls = 0
 adminRoutes.get(

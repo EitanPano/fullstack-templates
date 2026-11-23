@@ -1,5 +1,5 @@
-// service.ts belongs: every query for the user module and nothing else; it is private to the
-// module (only its controller.ts imports it) and one of the few files that import the store
+// service.ts belongs: every query for the user entity and nothing else; it is private to the
+// entity (only its controller.ts imports it) and one of the few files that import the store
 // (services/db.ts). It does not belong: business rules, response shaping or events
 // (controller.ts).
 //

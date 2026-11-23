@@ -33,7 +33,7 @@ What holds for the whole repository (versions, definition of done) is in the rep
 - `src/components/islands/<name>/`: React islands, only with the `islands` flag (see Islands).
 <!-- @islands-end -->
 - `src/services/`: the data and library layer. `validation.ts` is the one file that names `zod`;
-  `theme.ts` is the facade over the browser's storage and colour-scheme query.
+  `theme.ts` wraps the browser's storage and colour-scheme query.
 <!-- @server-start -->
 - `src/services/generated/` is the client the `contract` command writes from the server's
   `openapi.json` (types, a fetch client, the flat SDK and zod schemas); `api-client.ts` is its
@@ -161,7 +161,8 @@ this is the recipe, file by file, test first.
 7. `tests/e2e/<name>.spec.ts`: the journey on `phone`, with data named uniquely per run and removed
    through the API afterwards; `screens.spec` covers the screen itself.
 <!-- @server-end -->
-8. This file and the README's Features: say what the page does.
+8. The README's Features, and one change-log line that cites the plan in this package's
+   `.doc/architecture.md`: say what the page does.
 
 Nothing private is rendered at build time: a page for a signed-in visitor is a static shell that
 fetches and shows a skeleton until it settles. A static page cannot be gated; the API does that.
@@ -368,7 +369,7 @@ the build.
   `screens.spec` (every nav route and the 404 page, both themes, axe WCAG A and AA, no horizontal
   scroll, one `h1`, no policy violation, screenshots in `test-results/screens/`) and `smoke.spec`
   (the index page, the 404 page and its status; with a server also the API from the page: health
-  with a request id, a static page with none, the JSON 404, the reference module's
+  with a request id, a static page with none, the JSON 404, the reference entity's
   create and list). Helpers: `tests/e2e/support.ts`. A journey names its data uniquely per run and
   removes it through the API.
 - Tests first: write the failing test, see it red, then the code; each behaviour has a happy path

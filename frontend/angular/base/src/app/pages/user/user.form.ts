@@ -2,7 +2,7 @@ import { inject } from '@angular/core'
 import { NonNullableFormBuilder } from '@angular/forms'
 
 import { zUpdateMeBody } from '@app/services/generated/zod.gen'
-import { either, field, literal, object } from '@app/shared/utils/validation'
+import { either, field, literal, object } from '@app/services/validation'
 import { schemaValidator } from '@app/shared/validators/schema.validator'
 
 // The profile form. The one field the contract lets an account change is its phone number

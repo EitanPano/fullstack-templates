@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1 — 2026-11-24
+
+The generated client, its unit test and the smoke test follow the server's sample rename (`/api/module` → `/api/entity`,
+[ADR 0018](../../docs/adr/0018-entity-term-and-service-facades.md)); `AGENTS.md` says "the reference entity", and "facade" only for a file that wraps a library (`theme.ts` wraps the browser's storage).
+
+`AGENTS.md › Adding a feature` step 8 no longer tells a task to edit `AGENTS.md` ([ADR 0019](../../docs/adr/0019-package-docs.md)): it is the README's Features and a change-log line in this package's `.doc/architecture.md`. A project generated earlier changes the line "This file and the README's Features: say what the page does." by hand.
+
 ## 1.1.0 — 2026-11-22
 
 The second (or only) frontend at any directory ([ADR 0015](../../docs/adr/0015-several-frontends-by-directory.md),

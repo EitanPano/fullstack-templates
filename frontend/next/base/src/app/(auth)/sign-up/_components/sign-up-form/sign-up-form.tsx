@@ -17,7 +17,7 @@ import { PasswordField } from '@/shared/components/form/password-field'
 import { TextField } from '@/shared/components/form/text-field'
 import { FormActions } from '@/shared/components/form/form-actions/form-actions'
 import { toastError } from '@/shared/components/toaster/toaster'
-import { formResolver } from '@/shared/utils/validation'
+import { formResolver } from '@/services/validation'
 
 // A taken email comes back as an error on the email field (the action maps the 409 there), so
 // only outcomes without a field (the rate limit, an outage) are toasts.

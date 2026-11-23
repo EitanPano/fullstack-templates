@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.0.0 — 2026-11-24
+
+### Changed (breaking)
+
+- The architecture unit is an entity, not a module ([ADR 0018](../../docs/adr/0018-entity-term-and-service-facades.md) E1-E3): `api/<name>/` is "an entity", `api/admin/<name>/` an admin entity, the heading `Adding a module` is `Adding an entity`, and the import-linter contract names, comments, docstrings and tests say entity. Contract keys are unchanged.
+- The sample is named `entity`. Directories `api/module/` → `api/entity/` and `models/module/` → `models/entity/`; test file `tests/test_module.py` → `tests/test_entity.py`; route `/api/module` → `/api/entity` (tag `module` → `entity`, error message `module not found` → `entity not found`); with Postgres, table `module` → `entity` and index `module_created_at_id_idx` → `entity_created_at_id_idx` (`0001-init.sql` edited in place).
+- Identifiers, case kept: `ModuleRecord` → `EntityRecord`, `ModuleStatus` → `EntityStatus`, `ModuleLimits` → `EntityLimits`, `MODULE_LIMITS` → `ENTITY_LIMITS`, `PublicModule`, `CreateModuleInput`, `UpdateModuleInput` → `PublicEntity`, `CreateEntityInput`, `UpdateEntityInput`; schema `Module`, `ModulePage`, `CreateModuleBody`, `UpdateModuleBody` → `Entity`, `EntityPage`, `CreateEntityBody`, `UpdateEntityBody` (also the OpenAPI component names); `create_module`, `find_module_by_id`, `update_module`, `delete_module`, `get_module`, `list_module` / `list_modules` → `create_entity`, `find_entity_by_id`, `update_entity`, `delete_entity`, `get_entity`, `list_entity` / `list_entities`; `module_id` → `entity_id`, `module_router` → `entity_router`, `_ModuleRow` → `_EntityRow`; event `module.created` → `entity.created`, `MODULE_CREATED` → `ENTITY_CREATED`, `ModuleCreated` → `EntityCreated`; `MODULES` in `api/admin/routes.py` → `ENTITIES`.
+- Migration for a project generated earlier: rename the directories, the test file and the identifiers above, or keep the old names (they are only a sample); with Postgres add a migration that renames the table and the index; regenerate `openapi.json` and the frontend's client.
+- The role-change line in `AGENTS.md` names the role list in this package's `.doc/architecture.md` instead of "this file" ([ADR 0019](../../docs/adr/0019-package-docs.md)). A project generated earlier changes "the tests that use the role; this file." by hand.
+
 ## 2.2.0 — 2026-11-22
 
 ### Added

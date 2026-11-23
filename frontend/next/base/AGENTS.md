@@ -25,10 +25,10 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
 - `layout/app-account-menu` (async: it reads the session, so it sits in `Suspense` with
   `app-account-menu-skeleton`), `app-sign-out-item`, `app-auth-loading` (the auth screens' loading shape).
 <!-- @server:auth-end -->
-- `services/`: facades of libraries with I/O, and the data layer: every API call of an entity is a function of `services/<noun>.ts`, the only importer of the generated client's functions. <!-- @server -->
+- `services/`: library facades and the data layer: every API call of an entity is a function of `services/<noun>.ts`, the only importer of the generated client's functions. <!-- @server -->
   `client.ts` (`createApi`, `createRequestApi`), `call.ts` (`call`, `DEFAULT_COPY`), <!-- @server -->
   `generated/` (Hey API output: types, SDK, fetch client, zod; committed, lint-ignored). <!-- @server -->
-- `services/`: facades of libraries with I/O, and the data layer: reads per entity. Empty until a server arrives (see Adding a feature). <!-- @noserver -->
+- `services/`: library facades; reads per entity arrive with a server (see Adding a feature). <!-- @noserver -->
 <!-- @server:auth-start -->
 - `services/auth.ts` (`login`, `signup`, `logout`, `refresh`), `services/user.ts` (`getMe`, one
   `GET /api/user/me` per request for the session and the page; `getProfile`, the profile page's read).
@@ -55,10 +55,9 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
   `components/form/`: `form`, `field-frame`, `use-field`, `action-form`, the `*-field` bindings
   (`text`, `textarea`, `number`, `select`, `checkbox`, `password`, `date-time`) and the form
   controls (`input`, `textarea`, `checkbox`, `radio-group`, `select`, `switch`, `label`, `form-actions`). Only `confirm-dialog`, `error-state`, `toaster` and the `form/` bindings are
-  Client Components. `utils/`: `cn`, `date`, `initials`,
-  `validation` (the one file that imports zod: the functions every schema is built and run
-  with, and the message map that words the common failures).
+  Client Components.
 <!-- @server:auth-start -->
+- `shared/utils/initials.ts`.
 - `shared/components/auth-card/auth-card.tsx` (`AuthCard`).
 <!-- @server:auth-end -->
 - `core/`: glue below the pages; `shared/` never imports it. `actions/`: `safe-action.ts` (`action`)
@@ -79,13 +78,14 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
 | A read from the API                                       | `services/<noun>.ts`                                 | <!-- @server -->
 | A read of the product's data                              | `services/<noun>.ts`                                 | <!-- @noserver -->
 | A mutation                                                | `actions/<noun>/<noun>.ts`                           |
-| A validation rule `validation` has no function for        | a named function in `shared/utils/validation.ts`     |
+| A validation rule `validation` has no function for        | a named function in `services/validation.ts`         |
 | A route, its layout, loading and error                    | `app/(group)/…`, its sheet beside it                 |
 | A section of one route, or the form that runs a mutation  | `app/<route>/_components/<name>/<name>.tsx` + `.scss`|
 | A component a layout or several routes use                | `layout/app-<name>/app-<name>.tsx` + `.scss`         |
 | State shared across routes (client-only)                  | `store/`                                             |
 | A primitive (button, dialog), a pattern, a form control   | `shared/components/<name>/<name>.tsx` + `.scss`, `form/` |
-| A pure helper, a date or formatting facade                | `shared/utils/`                                      |
+| A pure helper                                             | `shared/utils/`                                      |
+| A library facade                                          | `services/<name>.ts`                                 |
 | A navigation entry                                        | `app/nav.ts`                                         |
 
 **Import rules** (`eslint-plugin-boundaries`; each lint message names the layer to use instead):
@@ -106,7 +106,8 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
 Also lint-enforced:
 
 - Only `app/` imports `app/`; a `_components/` file only from the folder that holds it and the folders below it.
-- A `'use client'` file imports no value from `services/` (types are fine): it calls a Server Action
+- A facade is a `services/` file the lint config lists: it imports its library and
+  `models/` only, and every layer imports it, `shared/` and `core/config` too. A `'use client'` file imports no other value from `services/` (types are fine): it calls a Server Action
   from `actions/` or receives the data as props.
 <!-- @server-start -->
 - The generated client's functions are imported only by `services/`: an action or `core/` calls
@@ -120,15 +121,15 @@ Also lint-enforced:
   `./<stem>.scss`; only `app/layout.tsx` and `app/global-error.tsx` load the global tree.
 - An external library is imported only by its facade, in the app's own names; lint refuses it
   anywhere else, so a library switch is that file: `zod` and `@hookform/resolvers` by
-  `shared/utils/validation.ts` (`text`, `number`, `email`, `url`, `isoDateTime`, `literal`, `object`,
+  `services/validation.ts` (`text`, `number`, `email`, `url`, `isoDateTime`, `literal`, `object`,
   `extend`, `field`, `optional`, `withDefault`, `check`, `transform`, `pipe`, `validate`, `isValid`,
   `parse`, `formResolver`; types `Input`, `Output`; no method is called on a schema, the generated
-  ones included), `lucide-react` by `shared/components/icons.ts`, `sonner` by
+  ones included; the message map), `lucide-react` by `shared/components/icons.ts`, `sonner` by
   `shared/components/toaster/toaster.tsx` (`Toaster`, `toastError`), `next-themes` by
   `shared/components/theme/theme.tsx` (`ThemeProvider`, `useAppTheme`), `next-safe-action` by
   `core/actions/safe-action.ts` and `field-errors.ts` (the server) and `form/action-form/action-form.ts`
-  (`useServerAction`, `useActionForm`), `clsx` by `shared/utils/cn.ts`, `date-fns` and
-  `@date-fns/tz` by `shared/utils/date.ts`; `radix-ui` only under `shared/components/` and
+  (`useServerAction`, `useActionForm`), `clsx` by `services/cn.ts`, `date-fns` and
+  `@date-fns/tz` by `services/date.ts`; `radix-ui` only under `shared/components/` and
   `react-hook-form` only under `shared/components/form/`. The framework (`next`, `react`) is exempt.
 - `boundaries/no-unknown-files` is on: a file in a directory no layer claims (`src/lib/`,
   `src/hooks/`) is an error; `src/styles/**` and the tests are exempt.
@@ -161,10 +162,10 @@ everything else in them already exists in the template.
 
 <!-- @server-start -->
 3. The model, `models/post/type.ts`: the contract's types re-exported; the form schema is
-   `actions/post/post.form.ts` (`extend` of `@/shared/utils/validation`
+   `actions/post/post.form.ts` (`extend` of `@/services/validation`
    over the generated request schema) and the copy table `actions/post/post.copy.ts`.
 <!-- @server-end -->
-3. The model, `models/post/type.ts`: the types; the form schema `actions/post/post.form.ts` (built with `@/shared/utils/validation`), the copy `actions/post/post.copy.ts`. <!-- @noserver -->
+3. The model, `models/post/type.ts`: the types; the form schema `actions/post/post.form.ts` (built with `@/services/validation`), the copy `actions/post/post.copy.ts`. <!-- @noserver -->
 4. A read is a function of `services/post.ts` (Reads has the rules):
 
    ```ts
@@ -342,7 +343,7 @@ An action is `action.inputSchema(schema).action(handler)`, and the handler ends 
 
 ### Forms
 
-React Hook Form with `formResolver` (from `@/shared/utils/validation`), wired by
+React Hook Form with `formResolver` (from `@/services/validation`), wired by
 `useActionForm` (from `@/shared/components/form/action-form/action-form`).
 
 <!-- @server-start -->
@@ -371,7 +372,7 @@ React Hook Form with `formResolver` (from `@/shared/utils/validation`), wired by
 
 ### Dates
 
-`shared/utils/date.ts` (`date-fns` v4 with `@date-fns/tz`) converts between an instant and a wall
+`services/date.ts` (`date-fns` v4 with `@date-fns/tz`) converts between an instant and a wall
 time in a named zone; nothing reads the machine's zone. `wallTimeToInstant` refuses a time inside a
 daylight-saving gap and takes the earlier instant for an ambiguous one; `dayKey`, `formatDate` and
 `formatDateTime` work in the zone. A form holds an instant (ISO with `Z`); `DateTimeField` takes the zone.
@@ -410,8 +411,8 @@ expiry fields). The browser never talks to the API and never holds a token in Ja
 - **Renaming the roles.** The roles are `user` and `admin`. A product that renames them changes the
   role type guard in `core/auth/session.ts` (another role reads as signed out), every
   `requireRole(...)` and `roleAction(...)` call, the role-gated group, the unit tests that use a
-  role, and this file, after the server's roles and the `contract` command. A role-gated route also
-  needs a setup in the e2e screens list (Tests).
+  role, and the role list in this package's `.doc/architecture.md`, after the server's roles and the
+  `contract` command. A role-gated route also needs a setup in the e2e screens list (Tests).
 - `AppAccountMenu` is the account menu a product places in its header; the template renders it
   nowhere, and the profile page carries Sign out. The email is in the menu, never header text.
 
@@ -434,7 +435,7 @@ expiry fields). The browser never talks to the API and never holds a token in Ja
   Never write `@layer` in a page or component sheet. `toaster/toaster.scss` is the one kit sheet with
   `!important`: Sonner's stylesheet is unlayered, and an important declaration in a layer beats it.
 - **Classes.** BEM (`.button--primary`, `.page-header__title`) composed with `cn` from
-  `@/shared/utils/cn`. A block's name is unique across the app: a loaded sheet stays in the
+  `@/services/cn`. A block's name is unique across the app: a loaded sheet stays in the
   document after a navigation, so two blocks with one name collide.
 - **Tokens.** The generator writes the brand's light and dark colour blocks, `--radius` and
   `color-scheme` into `themes/brand.css` under `:root` and `[data-theme='dark']`: plain CSS, since

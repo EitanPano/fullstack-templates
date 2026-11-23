@@ -10,7 +10,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 
 // Lints one snippet per rule through the real eslint.config.mjs. The snippets run in a throwaway
 // project of fixture files (every file a snippet imports, plus files the later tasks add), because
-// the boundary rule classifies a dependency by the file it resolves to; the page modules are invented
+// the boundary rule classifies a dependency by the file it resolves to; the page folders are invented
 // here, so adding a real one never breaks the test and a rule that names a file the tree does not
 // hold yet is testable. Type-aware linting cannot read virtual files, so the one override turns
 // it off; every other rule stays on.
@@ -31,6 +31,7 @@ const FILES = [
   'src/store/loading.store.ts',
   'src/store/theme.store.ts',
   'src/services/post.service.ts',
+  'src/services/api-error.ts',
   'src/services/generated/client.gen.ts',
   'src/services/generated/index.ts',
   'src/services/generated/sdk.gen.ts',
@@ -52,7 +53,7 @@ const FILES = [
   'src/core/interceptors/loading.interceptor.ts',
   'src/shared/components/base-button/base-button.vue',
   'src/shared/utils/time.ts',
-  'src/shared/utils/validation.ts',
+  'src/services/validation.ts',
   'src/shared/validators/schema-form.ts',
   'src/shared/components/icons.ts',
   'src/store/app-update.store.ts',
@@ -164,7 +165,7 @@ type Allowed = [row: string, file: string, code: string]
 
 // One violation per row of the layer table and per restriction listed under it.
 const violations: Violation[] = [
-  // app/: wiring above everything; a page module only through its routes file.
+  // app/: wiring above everything; a page folder only through its routes file.
   [
     'app → services',
     'src/app/x.ts',
@@ -180,7 +181,7 @@ const violations: Violation[] = [
     'only a *.spec.ts imports testing/',
   ],
   [
-    'app → page module file',
+    'app → page folder file',
     'src/app/x.ts',
     "import '@/pages/post/post-page/post-page.vue'",
     BOUNDARY,
@@ -211,7 +212,7 @@ const violations: Violation[] = [
     'layout/ imports core/config',
   ],
   [
-    'layout → page module',
+    'layout → page folder',
     'src/layout/x.ts',
     "import '@/pages/post/post.routes'",
     BOUNDARY,
@@ -238,7 +239,7 @@ const violations: Violation[] = [
     BOUNDARY,
     'layout/ imports core/config',
   ],
-  // pages/<m>/*.vue: store, shared, models, core/config, core/providers, core/guards.
+  // pages/<name>/*.vue: store, shared, models, core/config, core/providers, core/guards.
   [
     'page → services',
     PAGE,
@@ -276,20 +277,20 @@ const violations: Violation[] = [
     'only a *.spec.ts imports testing/',
   ],
   [
-    'page module → other page module',
+    'page folder → other page folder',
     PAGE,
     "import '@/pages/other/other-page/other-page.vue'",
     BOUNDARY,
-    'a page module never imports another page module',
+    'a page folder never imports another one',
   ],
   [
-    'page module → other page module (relative path)',
+    'page folder → other page folder (relative path)',
     PAGE,
     "import '../../other/other-page/other-page.vue'",
     BOUNDARY,
-    'a page module never imports another page module',
+    'a page folder never imports another one',
   ],
-  // pages/<m>/<name>/ beside a *-page: shared, models.
+  // pages/<name>/<component>/ beside a *-page: shared, models.
   [
     'component → store',
     COMPONENT,
@@ -304,22 +305,22 @@ const violations: Violation[] = [
     BOUNDARY,
     'a page component imports shared/ and models/ only',
   ],
-  // pages/<m>/*.routes.ts: core/guards and its own page module.
+  // pages/<name>/*.routes.ts: core/guards and its own page folder.
   [
     'routes → store',
     ROUTES,
     "import '@/store/theme.store'",
     BOUNDARY,
-    'a *.routes.ts imports core/guards and its own page module only',
+    'a *.routes.ts imports core/guards and its own page folder only',
   ],
   [
     'routes → shared',
     ROUTES,
     "import '@/shared/utils/time'",
     BOUNDARY,
-    'a *.routes.ts imports core/guards and its own page module only',
+    'a *.routes.ts imports core/guards and its own page folder only',
   ],
-  // pages/<m>/*.form.ts: shared/validators, models, generated zod.
+  // pages/<name>/*.form.ts: shared/validators, models, generated zod.
   [
     'form → services',
     FORM,
@@ -357,7 +358,7 @@ const violations: Violation[] = [
     'store/ imports store/, services/',
   ],
   [
-    'store → page module',
+    'store → page folder',
     'src/store/x.ts',
     "import '@/pages/post/post.routes'",
     BOUNDARY,
@@ -408,7 +409,7 @@ const violations: Violation[] = [
     'core wiring (guards, initializers',
   ],
   [
-    'core/initializers → page module',
+    'core/initializers → page folder',
     'src/core/initializers/x.ts',
     "import '@/pages/post/post.routes'",
     BOUNDARY,
@@ -544,7 +545,63 @@ const violations: Violation[] = [
     'shared/ is product-agnostic',
   ],
   [
-    'shared → page module',
+    'shared → an entity service (not a facade)',
+    'src/shared/utils/x.ts',
+    "import '@/services/post.service'",
+    BOUNDARY,
+    'shared/ is product-agnostic',
+  ],
+  [
+    'a facade → core/config',
+    'src/services/validation.ts',
+    "import '@/core/config/env'",
+    BOUNDARY,
+    'a facade imports its library and models/ types only',
+  ],
+  [
+    'a facade → models (value)',
+    'src/services/validation.ts',
+    "import '@/models/post/interface'",
+    BOUNDARY,
+    'a facade imports its library and models/ types only: use import type',
+  ],
+  [
+    'a facade → an entity service (alias)',
+    'src/services/validation.ts',
+    "import '@/services/post.service'",
+    IMPORTS,
+    'a facade imports no other file of services/',
+  ],
+  [
+    'a facade → an entity service (relative)',
+    'src/services/validation.ts',
+    "import './post.service'",
+    IMPORTS,
+    'a facade imports no other file of services/',
+  ],
+  [
+    'a facade → api-error (alias)',
+    'src/services/validation.ts',
+    "import '@/services/api-error'",
+    IMPORTS,
+    'a facade imports no other file of services/',
+  ],
+  [
+    'a facade → api-error (relative)',
+    'src/services/validation.ts',
+    "import './api-error'",
+    IMPORTS,
+    'a facade imports no other file of services/',
+  ],
+  [
+    'a facade → generated (type)',
+    'src/services/validation.ts',
+    TYPES,
+    BOUNDARY,
+    'a facade imports its library and models/ types only',
+  ],
+  [
+    'shared → page folder',
     'src/shared/components/x.ts',
     "import '@/pages/post/post.routes'",
     BOUNDARY,
@@ -623,21 +680,21 @@ const violations: Violation[] = [
     'src/store/x.ts',
     "await fetch('/api/health')",
     SYNTAX,
-    'call the API through a facade in services/',
+    'call the API through a service in services/',
   ],
   [
     'globalThis.fetch( in the client config',
     'src/core/config/api-client.ts',
     "await globalThis.fetch('/api/health')",
     SYNTAX,
-    'call the API through a facade in services/',
+    'call the API through a service in services/',
   ],
   [
     'fetch( in the loading wrapper',
     LOADING_WRAPPER,
     "await fetch('/api/health')",
     SYNTAX,
-    'call the API through a facade in services/',
+    'call the API through a service in services/',
   ],
   [
     'import.meta in a store',
@@ -709,14 +766,14 @@ const violations: Violation[] = [
     FORM,
     "import { z } from 'zod'; void z",
     IMPORTS,
-    'zod is imported only by shared/utils/validation.ts',
+    'zod is imported only by services/validation.ts',
   ],
   [
     'zod in a store',
     'src/store/x.ts',
     "import * as z from 'zod'; void z",
     IMPORTS,
-    'zod is imported only by shared/utils/validation.ts',
+    'zod is imported only by services/validation.ts',
   ],
   [
     'reka-ui in layout/',
@@ -784,11 +841,11 @@ const allowed: Allowed[] = [
     'src/app/x.ts',
     "import '@/layout/app-theme-toggle/app-theme-toggle.vue'; import '@/store/theme.store'; import '@/shared/utils/time'; import '@/models/nav/interface'; import '@/core/config/env'; import '@/core/guards/auth.guard'",
   ],
-  ['app → a page module *.routes.ts', 'src/app/x.ts', "import '@/pages/post/post.routes'"],
+  ['app → a page folder *.routes.ts', 'src/app/x.ts', "import '@/pages/post/post.routes'"],
   [
     'main → app, core, shared, models',
     'src/main.ts',
-    "import '@/app/plugins'; import '@/core/config/env'; import '@/shared/utils/time'; import '@/models/nav/interface'",
+    "import '@/app/plugins'; import '@/core/config/env'; import '@/shared/utils/time'; import '@/models/nav/interface'; import '@/services/validation'",
   ],
   [
     'layout → core/config, core/providers, store, shared, models',
@@ -821,7 +878,7 @@ const allowed: Allowed[] = [
   [
     'form → shared/validators, models, generated zod',
     FORM,
-    `${ZOD}; import '@/shared/validators/schema-form'; import '@/shared/utils/validation'; import '@/models/post/interface'`,
+    `${ZOD}; import '@/shared/validators/schema-form'; import '@/services/validation'; import '@/models/post/interface'`,
   ],
   [
     'store → store, services, models, core/providers, core/config',
@@ -947,8 +1004,14 @@ const allowed: Allowed[] = [
 <style lang="scss" src="./x.scss"></style>`,
   ],
   [
-    'zod in shared/utils/validation.ts',
-    'src/shared/utils/validation.ts',
+    'a facade → models (import type)',
+    'src/services/validation.ts',
+    "import type { Post } from '@/models/post/interface'",
+  ],
+  ['shared → a services/ facade', 'src/shared/components/x.ts', "import '@/services/validation'"],
+  [
+    'zod in services/validation.ts',
+    'src/services/validation.ts',
     "import { z } from 'zod'; void z",
   ],
   [
@@ -975,7 +1038,7 @@ const allowed: Allowed[] = [
 // The first lint loads the whole config (type-aware presets, plugins), which can take seconds.
 describe('lint rules', { timeout: 60_000 }, () => {
   // The allowed cases pass vacuously if the rule stopped firing, so pin one known violation.
-  it('still reports exactly one boundaries message for shared → page module', async () => {
+  it('still reports exactly one boundaries message for shared → page folder', async () => {
     const found = await messagesFor(
       'src/shared/components/x.ts',
       "import '@/pages/post/post.routes'",

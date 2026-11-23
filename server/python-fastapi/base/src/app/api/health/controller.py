@@ -7,7 +7,7 @@ from app.config.constants import VERSION
 from app.infra.dependency import Resource, health_check
 from app.services.utils import clock
 
-# A controller holds the module's logic in its HTTP handlers, one per endpoint, named after the
+# A controller holds the entity's logic in its HTTP handlers, one per endpoint, named after the
 # operation. Health owns no data, so it has no service.py: liveness reads the process, readiness
 # pings every dependency (infra/dependency.py).
 _started_at = clock.now()

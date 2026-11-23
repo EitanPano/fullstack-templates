@@ -4,7 +4,7 @@ The cursor is opaque to clients: the data layer decides what it encodes (typical
 sort key and id) and `decode_cursor` checks what comes back against a model, so a client cannot
 make the query read anything it did not write.
 
-A module declares its page as a concrete subclass (`class ModulePage(Page[Module])`): its name is
+An entity declares its page as a concrete subclass (`class EntityPage(Page[Entity])`): its name is
 the contract component (listed in `app/openapi.py`), and no generic name reaches the contract.
 """
 

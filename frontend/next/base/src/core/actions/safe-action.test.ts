@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { ActionError } from '@/core/actions/action-error'
 import { action, GENERIC_ERROR, handleServerError } from '@/core/actions/safe-action'
-import { object, text } from '@/shared/utils/validation'
+import { object, text } from '@/services/validation'
 
 afterEach(() => {
   vi.restoreAllMocks()

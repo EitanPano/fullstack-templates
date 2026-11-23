@@ -34,16 +34,16 @@ from pydantic import JsonValue, TypeAdapter
 
 type Json = dict[str, JsonValue]
 
-# The models that are contract components, by name. A module adds the names of its own here.
+# The models that are contract components, by name. An entity adds the names of its own here.
 COMPONENTS: Final = frozenset(
     {
         "HealthResponse",
         "Readiness",
         "ErrorBody",
-        "Module",
-        "ModulePage",
-        "CreateModuleBody",
-        "UpdateModuleBody",
+        "Entity",
+        "EntityPage",
+        "CreateEntityBody",
+        "UpdateEntityBody",
         "AuthSession",  # @auth
         "PublicUser",  # @auth
         "AuthTokens",  # @auth

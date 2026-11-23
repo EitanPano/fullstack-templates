@@ -1,7 +1,7 @@
 // helpers.ts belongs: the three ways a test reaches the server. `send` posts a request to the
 // Worker's own entry (server/index.ts), through the real routing and the root middleware.
 // `through` runs one handler built in the test in a fresh root app, for what no route exercises (a
-// probe route that throws, a production environment). `mounted` mounts one module's router alone
+// probe route that throws, a production environment). `mounted` mounts one entity's router alone
 // in a fresh root app. Both take the bindings to run with and collect what the code gave to
 // waitUntil. It does not belong: assertions about one endpoint.
 import { env, exports } from 'cloudflare:workers'
@@ -37,8 +37,8 @@ export async function json<T = unknown>(response: Response): Promise<T> {
   return (await response.json()) as T
 }
 
-export async function createModule(name: string): Promise<{ id: string; name: string }> {
-  return json(await send('/api/module', { method: 'POST', body: { name } }))
+export async function createEntity(name: string): Promise<{ id: string; name: string }> {
+  return json(await send('/api/entity', { method: 'POST', body: { name } }))
 }
 
 // The promises the code gave to waitUntil in this call; await them to see their effects.
@@ -73,7 +73,7 @@ export function served(path: string, sent: Reach = {}): Reached {
   return run(workerApp, path, sent)
 }
 
-// One module's router, mounted alone at `base` under the root middleware.
+// One entity's router, mounted alone at `base` under the root middleware.
 export function mounted(routes: Hono<AppEnv>, base: string) {
   return (path: string, sent: Reach = {}): Reached => {
     const app = rootApp()

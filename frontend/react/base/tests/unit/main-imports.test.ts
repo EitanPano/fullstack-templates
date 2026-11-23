@@ -12,7 +12,7 @@ describe('main.tsx', () => {
   const imports = [...source.matchAll(/^import .*$/gm)].map((match) => match[0])
 
   it('imports the validation facade before anything else', () => {
-    expect(imports[0]).toBe("import '@/shared/utils/validation'")
+    expect(imports[0]).toBe("import '@/services/validation'")
   })
 
   it('reloads the page when a chunk is gone after a redeploy', () => {
@@ -33,7 +33,7 @@ describe('main.tsx', () => {
 
   it('imports the validation facade, then the font, then the stylesheets', () => {
     expect(imports.slice(0, 4)).toEqual([
-      "import '@/shared/utils/validation'",
+      "import '@/services/validation'",
       "import '@fontsource-variable/inter'",
       "import '@/styles/themes/brand.css'",
       "import '@/styles/styles.scss'",

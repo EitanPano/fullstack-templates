@@ -10,7 +10,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 
 // Lints one snippet per rule through the real eslint.config.mjs. The snippets run in a throwaway
 // project that holds the files they import, because the boundary rule classifies a dependency by
-// the file it resolves to (an import that resolves to nothing is never reported); the page modules are
+// the file it resolves to (an import that resolves to nothing is never reported); the page folders are
 // invented here, so adding a real one never breaks the test. Type-aware linting cannot read
 // virtual files, so the one override turns it off.
 const config = fileURLToPath(new URL('../../eslint.config.mjs', import.meta.url))
@@ -47,7 +47,7 @@ const FILES = [
   'src/app/core/errors/global-error-handler.ts',
   'src/app/shared/components/button/button.component.ts',
   'src/app/shared/utils/time.ts',
-  'src/app/shared/utils/validation.ts',
+  'src/app/services/validation.ts',
   'src/app/shared/validators/schema.validator.ts',
   'src/app/models/post/interface.ts',
 ]
@@ -94,13 +94,13 @@ const PAGE = 'src/app/pages/post/post-list/x.ts'
 const COMPONENT = 'src/app/pages/post/post-list/post-badge/x.ts'
 const ROUTES = 'src/app/pages/post/x.routes.ts'
 const FORM = 'src/app/pages/post/x.form.ts'
-const CROSS = 'a page module never imports another page module'
+const CROSS = 'a page folder never imports another page folder'
 const GENERATED = 'the generated client is imported only by services/'
 
 type Violation = [rule: string, file: string, code: string, ruleId: string, message: string]
 
 const violations: Violation[] = [
-  // app/ wires the layers; a page is reached through its module routes only, services through a store.
+  // app/ wires the layers; a page is reached through its page folder routes only, services through a store.
   [
     'app → services',
     'src/app/app.config.ts',
@@ -113,7 +113,7 @@ const violations: Violation[] = [
     'src/app/app.routes.ts',
     "import '@app/pages/post/post-list/post-list.component'",
     BOUNDARY,
-    'import a page only through its module *.routes.ts',
+    'import a page only through its page folder *.routes.ts',
   ],
   [
     'layout → services',
@@ -129,7 +129,7 @@ const violations: Violation[] = [
     BOUNDARY,
     'layout/ imports core/',
   ],
-  // Pages inject stores, never services; a page module never reaches into another page module.
+  // Pages inject stores, never services; a page folder never reaches into another page folder.
   [
     'page → services',
     PAGE,
@@ -145,13 +145,13 @@ const violations: Violation[] = [
     'a page imports store/',
   ],
   [
-    'page → other module component',
+    'page → other page folder component',
     PAGE,
     "import '@app/pages/other/other-page/other-card/other-card.component'",
     BOUNDARY,
     CROSS,
   ],
-  ['page → other module form', PAGE, "import '@app/pages/other/other.form'", BOUNDARY, CROSS],
+  ['page → other page folder form', PAGE, "import '@app/pages/other/other.form'", BOUNDARY, CROSS],
   [
     'component → store',
     COMPONENT,
@@ -167,7 +167,7 @@ const violations: Violation[] = [
     'a page component is presentational',
   ],
   [
-    'routes → other module page',
+    'routes → other page folder page',
     ROUTES,
     "import '@app/pages/other/other-page/other-page.component'",
     BOUNDARY,
@@ -178,21 +178,21 @@ const violations: Violation[] = [
     ROUTES,
     "import '@app/store/post.store'",
     BOUNDARY,
-    'a module routes file imports core/guards and its own pages only',
+    'a page folder routes file imports core/guards and its own pages only',
   ],
   [
-    'routes → its own module form',
+    'routes → its own page folder form',
     ROUTES,
     "import '@app/pages/post/post.form'",
     BOUNDARY,
-    'a module routes file imports core/guards and its own pages only',
+    'a page folder routes file imports core/guards and its own pages only',
   ],
   [
-    'routes → its own module component',
+    'routes → its own page folder component',
     ROUTES,
     "import '@app/pages/post/post-list/post-badge/post-badge.component'",
     BOUNDARY,
-    'a module routes file imports core/guards and its own pages only',
+    'a page folder routes file imports core/guards and its own pages only',
   ],
   [
     'form → its own page',
@@ -294,11 +294,39 @@ const violations: Violation[] = [
     'shared/ is product-agnostic',
   ],
   [
-    'shared → page module',
+    'shared → page folder',
     'src/app/shared/validators/x.ts',
     "import '@app/pages/post/post.routes'",
     BOUNDARY,
     'shared/ is product-agnostic',
+  ],
+  [
+    'shared → an entity service',
+    'src/app/shared/utils/x.ts',
+    "import '@app/services/post.service'",
+    BOUNDARY,
+    'shared/ is product-agnostic',
+  ],
+  [
+    'a facade → core/config',
+    'src/app/services/validation.ts',
+    "import '@app/core/config/constants'",
+    BOUNDARY,
+    'a services/ facade wraps one library',
+  ],
+  [
+    'a facade → another file of services/',
+    'src/app/services/validation.ts',
+    "import '@app/services/post.service'",
+    RESTRICTED,
+    'a services/ facade imports no other file of services/',
+  ],
+  [
+    'a facade → a models/ value',
+    'src/app/services/validation.ts',
+    "import '@app/models/post/interface'",
+    BOUNDARY,
+    'models/ types only',
   ],
   [
     'models → store',
@@ -361,48 +389,48 @@ const violations: Violation[] = [
     "import { HttpClient } from '@angular/common/http'",
     RESTRICTED,
     'HttpClient is imported only in services/',
-  ],  [
+  ],
+  [
     'zod in a page',
     PAGE,
     "import * as z from 'zod'",
     RESTRICTED,
-    'zod is imported only by shared/utils/validation.ts',
+    'zod is imported only by services/validation.ts',
   ],
   [
     'zod in a form',
     FORM,
     "import * as z from 'zod'",
     RESTRICTED,
-    'zod is imported only by shared/utils/validation.ts',
+    'zod is imported only by services/validation.ts',
   ],
   [
     'zod in services/ (outside the generated folder)',
     'src/app/services/x.ts',
     "import * as z from 'zod'",
     RESTRICTED,
-    'zod is imported only by shared/utils/validation.ts',
+    'zod is imported only by services/validation.ts',
   ],
   [
     'zod in shared/validators/',
     'src/app/shared/validators/x.ts',
     "import * as z from 'zod'",
     RESTRICTED,
-    'zod is imported only by shared/utils/validation.ts',
+    'zod is imported only by services/validation.ts',
   ],
   [
-    'form → shared/utils other than validation',
+    'form → shared/utils (a form takes a facade, not a util)',
     FORM,
     "import '@app/shared/utils/time'",
     BOUNDARY,
     'a *.form.ts imports',
   ],
-
 ]
 
 // A folder no layer claims is refused, so the old homes cannot come back unnoticed.
 const unknown: [what: string, file: string][] = [
   ['src/app/components/', 'src/app/components/x.ts'],
-  ['src/app/features/<module>/', 'src/app/features/post/x.ts'],
+  ['src/app/features/<name>/', 'src/app/features/post/x.ts'],
   ['a component outside layout/, shared/ and pages/', 'src/app/widgets/x.ts'],
 ]
 
@@ -416,7 +444,7 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     BOUNDARY,
   ],
   [
-    'app → module routes (the lazy import)',
+    'app → page folder routes (the lazy import)',
     'src/app/app.routes.ts',
     "import('@app/pages/post/post.routes')",
     BOUNDARY,
@@ -434,7 +462,7 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   ['page → core/config', PAGE, "import '@app/core/config/constants'", BOUNDARY],
   ['page → core/providers', PAGE, "import '@app/core/providers/storage.service'", BOUNDARY],
   ['page → its own component folder', PAGE, "import './post-badge/post-badge.component'", BOUNDARY],
-  ['page → its own module form', PAGE, "import '@app/pages/post/post.form'", BOUNDARY],
+  ['page → its own page folder form', PAGE, "import '@app/pages/post/post.form'", BOUNDARY],
   [
     'component → shared',
     COMPONENT,
@@ -450,7 +478,7 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     BOUNDARY,
   ],
   ['form → shared/validators', FORM, "import '@app/shared/validators/schema.validator'", BOUNDARY],
-  ['form → shared/utils/validation', FORM, "import '@app/shared/utils/validation'", BOUNDARY],
+  ['form → services/validation', FORM, "import '@app/services/validation'", BOUNDARY],
   ['form → models', FORM, "import '@app/models/post/interface'", BOUNDARY],
   ['form → generated zod schemas', FORM, "import '@app/services/generated/zod.gen'", BOUNDARY],
   ['store → services', 'src/app/store/x.ts', "import '@app/services/post.service'", BOUNDARY],
@@ -520,6 +548,24 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
     "import '@app/shared/validators/schema.validator'",
     BOUNDARY,
   ],
+  [
+    'a facade → models/ (import type)',
+    'src/app/services/validation.ts',
+    "import type { x } from '@app/models/post/interface'",
+    BOUNDARY,
+  ],
+  [
+    'models → a services/ facade',
+    'src/app/models/post/x.ts',
+    "import '@app/services/validation'",
+    BOUNDARY,
+  ],
+  [
+    'shared → a services/ facade',
+    'src/app/shared/utils/x.ts',
+    "import '@app/services/validation'",
+    BOUNDARY,
+  ],
   ['shared → models', 'src/app/shared/utils/x.ts', "import '@app/models/post/interface'", BOUNDARY],
   [
     'models → generated types (import type)',
@@ -567,7 +613,7 @@ const allowed: [what: string, file: string, code: string, ruleId: string][] = [
   // @i18n-end
   [
     'zod in the validation facade',
-    'src/app/shared/utils/validation.ts',
+    'src/app/services/validation.ts',
     "import * as z from 'zod'",
     RESTRICTED,
   ],

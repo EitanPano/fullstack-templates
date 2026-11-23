@@ -1,8 +1,8 @@
 import { AbstractControl, FormArray, FormGroup } from '@angular/forms'
 import type { ValidationErrors, ValidatorFn } from '@angular/forms'
 
-import { validate } from '@app/shared/utils/validation'
-import type { Issue, Schema } from '@app/shared/utils/validation'
+import { validate } from '@app/services/validation'
+import type { Issue, Schema } from '@app/services/validation'
 
 type Params = Record<string, string | number>
 

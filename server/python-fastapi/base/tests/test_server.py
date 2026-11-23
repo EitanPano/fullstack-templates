@@ -263,11 +263,11 @@ class TestRouting:
         assert "location" not in res.headers
         assert res.json()["error"]["code"] == "not_found"
 
-    async def test_still_answers_not_found_for_a_path_no_module_owns(
+    async def test_still_answers_not_found_for_a_path_no_entity_owns(
         self, client: httpx.AsyncClient
     ) -> None:
         """Row: Unknown path."""
-        res = await client.get("/api/no-such-module")
+        res = await client.get("/api/no-such-entity")
 
         assert res.status_code == 404
         assert res.json()["error"]["code"] == "not_found"

@@ -1,5 +1,5 @@
 // Typed access to the event bus. Add an event by adding a key to `Events`; publish from a
-// controller after its write (api/module/ is the example); a reaction is a file in
+// controller after its write (api/entity/ is the example); a reaction is a file in
 // `infra/subscribers/` listed in `infra/pubsub.ts`. `publish` returns once the handlers are scheduled, not finished: a
 // reaction is detached from the publisher by construction, and a failing or slow one never
 // reaches it. A test (or shutdown) that needs the reaction's effect awaits `drain()`.
@@ -7,7 +7,7 @@ import { pubsub } from '../infra/pubsub'
 
 export type Events = {
   'user.signedup': { userId: string } // @auth
-  'module.created': { moduleId: string }
+  'entity.created': { entityId: string }
 }
 
 export type Topic = keyof Events
