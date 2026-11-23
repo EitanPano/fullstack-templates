@@ -1,7 +1,7 @@
 # ADR 0017: Another frontend template beside the Worker
 
-Status: draft, for the owner's review at the `dev` → `main` merge; built on the owner's word of
-2026-11-23 ("do option A") after the pairing failed its gates. The rows marked ▲ are the
+Status: accepted under the owner's word of 2026-11-23 ("merge it", released as `v1.16.0`); built
+on the owner's word of 2026-11-23 ("do option A") after the pairing failed its gates. The rows marked ▲ are the
 session's. Amends [ADR 0015](0015-several-frontends-by-directory.md) F1 ("each must use the
 stack's own frontend template") and builds on
 [ADR 0016](0016-one-worker-with-static-assets.md) W3. Catalog release after `v1.15.0`:
