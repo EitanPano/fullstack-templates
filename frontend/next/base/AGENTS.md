@@ -411,8 +411,8 @@ expiry fields). The browser never talks to the API and never holds a token in Ja
 - **Renaming the roles.** The roles are `user` and `admin`. A product that renames them changes the
   role type guard in `core/auth/session.ts` (another role reads as signed out), every
   `requireRole(...)` and `roleAction(...)` call, the role-gated group, the unit tests that use a
-  role, and this file, after the server's roles and the `contract` command. A role-gated route also
-  needs a setup in the e2e screens list (Tests).
+  role, and the role list in this package's `.doc/architecture.md`, after the server's roles and the
+  `contract` command. A role-gated route also needs a setup in the e2e screens list (Tests).
 - `AppAccountMenu` is the account menu a product places in its header; the template renders it
   nowhere, and the profile page carries Sign out. The email is in the menu, never header text.
 

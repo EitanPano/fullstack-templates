@@ -351,7 +351,8 @@ invalid or expired token.
   (`models/user/enum.ts`) and the `role` column or check in the migrations; the `requireRole(...)` and
   `assertRole(...)` gates in `api/user/` and `api/entity/`; the seed or first-staff path that calls
   `setUserRole`; the summaries that say "admin" (`schema.ts` of both entities); the tests that use the
-  role; this file. The frontend's role type guard and gates follow (its `AGENTS.md`).
+  role; the role list in this package's `.doc/architecture.md`. The frontend's role type guard and
+  gates follow (its `AGENTS.md`).
 <!-- @auth-end -->
 <!-- @noauth-start -->
 ## Authentication

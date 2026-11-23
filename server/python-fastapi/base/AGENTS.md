@@ -432,8 +432,8 @@ changes only by plan.
   `api/user/controller.py` and the `role` column or check in the migrations; the `require_role(...)`
   and `_assert_role(...)` gates in `api/user/` and `api/entity/`; the seed or first-staff path that
   calls `set_user_role`; the summaries that say "admin" (`routes.py` of both entities, and so
-  `openapi.json`); the tests that use the role; this file. The frontend's role type guard and gates
-  follow (its `AGENTS.md`).
+  `openapi.json`); the tests that use the role; the role list in this package's
+  `.doc/architecture.md`. The frontend's role type guard and gates follow (its `AGENTS.md`).
 - Gates: `middleware/auth.py` (`authenticate` never rejects, `require_auth` answers 401,
   `require_caller` gives a handler the caller) and `middleware/role.py` (`require_role`) are
   dependencies in a route's `dependencies=[...]`; they read the token only through

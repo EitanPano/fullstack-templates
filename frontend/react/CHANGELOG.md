@@ -4,6 +4,8 @@
 
 The generated client follows the server's sample rename: `/api/module` is `/api/entity`, `getApiModule*`, `postApiModule`, `patchApiModuleById` and `deleteApiModuleById` are `getApiEntity*`, `postApiEntity`, `patchApiEntityById` and `deleteApiEntityById`, and `Module`, `ModulePage`, `CreateModuleBody`, `UpdateModuleBody` are `Entity`, `EntityPage`, `CreateEntityBody`, `UpdateEntityBody`. Re-run `bun run api:types` after the server moves. The agents file says "entity" for the server's noun (`services/<entity>.api.ts`) and "page folder" for a directory under `pages/` (`pages/<name>/`, `<name>.routes.tsx`, `<name>.form.ts`); the lint messages follow. No behaviour change.
 
+The role-change line in `AGENTS.md` names the role list in this package's `.doc/architecture.md` instead of "this file" ([ADR 0019](../../docs/adr/0019-package-docs.md)). A project generated earlier changes "and this file, after the server's roles" by hand.
+
 ### Breaking
 
 A file that wraps one npm package is a facade and lives flat in `services/` (ADR 0018). Paths are under `src/`; each test moves with its file, and imports change from `@/shared/utils/<name>` to `@/services/<name>`.

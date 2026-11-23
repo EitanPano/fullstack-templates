@@ -161,7 +161,8 @@ this is the recipe, file by file, test first.
 7. `tests/e2e/<name>.spec.ts`: the journey on `phone`, with data named uniquely per run and removed
    through the API afterwards; `screens.spec` covers the screen itself.
 <!-- @server-end -->
-8. This file and the README's Features: say what the page does.
+8. The README's Features, and one change-log line that cites the plan in this package's
+   `.doc/architecture.md`: say what the page does.
 
 Nothing private is rendered at build time: a page for a signed-in visitor is a static shell that
 fetches and shows a skeleton until it settles. A static page cannot be gated; the API does that.

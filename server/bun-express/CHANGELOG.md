@@ -12,6 +12,7 @@
   - the OpenAPI components `Module` → `Entity`, `ModulePage` → `EntityPage` (and `CreateModuleBody`, `UpdateModuleBody`);
   - the identifiers, case kept: `ModuleRecord` → `EntityRecord`, `ModuleStatus` → `EntityStatus`, `PublicModule` → `PublicEntity`, `CreateModuleInput` → `CreateEntityInput`, `UpdateModuleInput` → `UpdateEntityInput`, `MODULE_LIMITS` → `ENTITY_LIMITS`, `moduleRoutes` → `entityRoutes`, `registerModule` → `registerEntity`, `ModuleIdParams` → `EntityIdParams`, `ListModuleQuery` → `ListEntityQuery`, `listModuleRequest` → `listEntityRequest` (and `get`, `create`, `update`, `delete` alike), the handlers `listModule`, `getModule`, `createModule`, `updateModule`, `deleteModule` → the `Entity` spelling, the service functions `listModules` → `listEntities`, `findModuleById` → `findEntityById`, `createModule`, `updateModule`, `deleteModule`, and the row type `ModuleRow` → `EntityRow`.
   - With `postgres`: the first migration creates the table `entity` and the index `entity_created_at_id_idx` (edited in place). A database that applied the old `0001-init.sql` keeps `module` and `module_created_at_id_idx` until a new migration renames them (`alter table module rename to entity`, `alter index module_created_at_id_idx rename to entity_created_at_id_idx`).
+- The role-change line in `AGENTS.md` names the role list in this package's `.doc/architecture.md` instead of "this file" ([ADR 0019](../../docs/adr/0019-package-docs.md)). A project generated earlier changes "role; this file. The frontend's role type guard" by hand.
 
 ## 3.2.0 — 2026-11-22
 
