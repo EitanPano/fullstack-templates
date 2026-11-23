@@ -1,6 +1,6 @@
 # Changelog
 
-## 7.0.0 — 2026-11-23
+## 7.0.0 — 2026-11-24
 
 The generated client follows the server's sample rename: `/api/module` is `/api/entity`, `getApiModule*`, `postApiModule`, `patchApiModuleById` and `deleteApiModuleById` are `getApiEntity*`, `postApiEntity`, `patchApiEntityById` and `deleteApiEntityById`, and `Module`, `ModulePage`, `CreateModuleBody`, `UpdateModuleBody` are `Entity`, `EntityPage`, `CreateEntityBody`, `UpdateEntityBody`. Re-run `bun run api:types` after the server moves. The agents file says "entity" for the server's noun (`services/<entity>.api.ts`) and "page folder" for a directory under `pages/` (`pages/<name>/`, `<name>.routes.tsx`, `<name>.form.ts`); the lint messages follow. No behaviour change.
 

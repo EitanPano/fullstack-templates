@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.0.0 — 2026-11-23
+## 3.0.0 — 2026-11-24
 
 The architecture unit is an entity, not a module ([ADR 0018](../../docs/adr/0018-entity-term-and-service-facades.md)
 E1 to E3), and the sample a developer copies is named `entity`. The Worker's behaviour is the same;
