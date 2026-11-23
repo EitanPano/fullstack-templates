@@ -200,7 +200,10 @@ describe('start', () => {
 })
 // @nofrontends-end
 // @frontends-start
-const dirs = (JSON.parse('__FRONTENDS__') as { dir: string }[]).map((frontend) => frontend.dir)
+const listed = JSON.parse('__FRONTENDS__') as { dir: string; fallback?: string }[]
+const dirs = listed.map((frontend) => frontend.dir)
+// A single-page frontend answers a page path its build lacks with its shell, not its 404 page.
+const shellOf = new Map(listed.flatMap((f) => (f.fallback ? [[f.dir, f.fallback] as const] : [])))
 const [first = '', second = ''] = dirs
 const hostOf = (dir: string) => `${dir}.localhost`
 
@@ -239,6 +242,10 @@ function build(folder: string, dir: string): string {
   mkdirSync(out)
   writeFileSync(path.join(out, 'index.html'), html(`Home of ${dir}`))
   writeFileSync(path.join(out, '404.html'), html(`Missing page of ${dir}`))
+  const shell = shellOf.get(dir)
+  if (shell !== undefined && shell !== 'index.html') {
+    writeFileSync(path.join(out, shell), html(`Shell of ${dir}`))
+  }
   if (dir === first) {
     writeFileSync(path.join(out, 'plain.html'), html('Plain page', false))
     writeFileSync(path.join(out, '_headers'), '/plain\n  X-Fixture-Rule: from-the-build\n')
@@ -307,12 +314,22 @@ describe('start with several frontends', () => {
   })
 
   it('answers the 404 page of the frontend’s own folder, with status 404 and no request id', async () => {
-    for (const dir of dirs) {
+    for (const dir of dirs.filter((d) => !shellOf.has(d))) {
       const res = await get(pair, '/no-such-page', hostOf(dir))
 
       expect(res.status).toBe(404)
       expect(res.text).toContain(`Missing page of ${dir}`)
       expect(res.headers['x-request-id']).toBeUndefined()
+    }
+  })
+
+  it.runIf(shellOf.size > 0)('answers a single-page frontend’s unknown page with its shell', async () => {
+    for (const dir of shellOf.keys()) {
+      const res = await get(pair, '/no-such-page', hostOf(dir))
+
+      expect(res.status).toBe(200)
+      expect(res.text).toContain(shellOf.get(dir) === 'index.html' ? `Home of ${dir}` : `Shell of ${dir}`)
+      expect(res.headers['cache-control']).toBe('no-cache')
     }
   })
 

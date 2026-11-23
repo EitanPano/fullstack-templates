@@ -62,8 +62,10 @@ export function listCases(catalog: Catalog): GenerationCase[] {
         template,
         name: entry.name,
         stack: entry.stack ?? null,
+        // A frontend case's own package is its first listed frontend; any other case's is its stack entry.
         packageDir: entry.stack
-          ? (listedDirs(entry.frontends)[0] ?? stackDir(catalog, entry.stack, template))
+          ? ((template.manifest.kind === 'frontend' ? listedDirs(entry.frontends)[0] : undefined) ??
+            stackDir(catalog, entry.stack, template))
           : null,
         serverDir: isApiKind(template.manifest.kind) ? null : serverDirOf(catalog, entry.stack),
         serverFlags: entry.server?.flags ?? {},

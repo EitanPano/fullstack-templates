@@ -253,7 +253,8 @@ holds `serverless/other/` is left alone.
   in its stack runs the frontend's `check` and, with `--e2e`, `testE2e` (its config starts the API
   from the placeholders); the runner starts no service and runs no `migrate`, and it skips the
   serverless package's own gates (log line `SKIP serverless/<id>: its own cases run its gates`):
-  run `serverless/<id>/default` and each flag's case for those. A frontend case sets the API's flags
+  run `serverless/<id>/default` and each flag's case for those; a serverless case may list a stack's
+  frontends (`two-templates`), its own flags staying on its package. A frontend case sets the API's flags
   with `server: { flags }`.
 - **Gitignore.** Its manifest lists `[node, cloudflare]`; `shared/gitignore/cloudflare.gitignore`
   holds `.wrangler/`, the local variables file, `.astro/`, `dist/` and `.e2e-state/`.
@@ -718,7 +719,10 @@ the lockfiles is still to be configured.
   fields for a server's flags, the `e2eDb` command, the provider's `e2e` URL); v1.4.1 adds the case
   field `brand`; v1.5.0 and v1.5.1 add none; v1.11.0 widens `onlyWhen` (a bare `server` key, an
   object form) without a bump.
-- This release is `v1.16.0`, a minor: a stack's `stack.yaml` may list further frontend templates
+- This release is `v1.16.1`, a patch: `serverless/cloudflare` 2.1.1 (two tests fixed beside a
+  single-page frontend) and its case `two-templates`; a tool change (a serverless case may list a
+  stack's frontends).
+  Before it, `v1.16.0`, a minor: a stack's `stack.yaml` may list further frontend templates
   under `frontends:`, and `astro-cloudflare` takes `frontend/angular` as one of several frontends
   ([ADR 0017](docs/adr/0017-another-frontend-template-beside-a-worker.md)): `serverless/cloudflare`
   2.1.0 (a single-page fallback), `frontend/angular` 4.2.0 (beside a serverless API);

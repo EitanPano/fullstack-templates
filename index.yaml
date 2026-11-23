@@ -33,7 +33,7 @@ templates:
   - id: cloudflare
     kind: serverless
     path: serverless/cloudflare
-    version: 2.1.0
+    version: 2.1.1
     summary: "One Cloudflare Worker with static assets, routed by Hono: D1 through Drizzle, zod schemas and the OpenAPI contract from them, one error envelope, tests in workerd; serves a frontend's build on one origin"
   - id: astro
     kind: frontend
