@@ -25,6 +25,7 @@ http:
   health: /
 static:
   out: dist
+  fallback: index.html
 gitignore: [node]
 agents: AGENTS.md
 defaultStack: mini-spa

@@ -195,7 +195,7 @@
       },
       "propertyNames": {
         "not": {
-          "enum": ["server", "single", "frontend", "frontends", "database", "cache", "messaging"]
+          "enum": ["server", "single", "frontend", "frontends", "serverless", "database", "cache", "messaging"]
         }
       }
     },
@@ -381,6 +381,11 @@
       "properties": {
         "out": {
           "$ref": "#/$defs/relativePath"
+        },
+        "fallback": {
+          "description": "A single-page app: the file, relative to out, that the Worker answers for a page path the build has no file for (ADR 0017 D3). One file name, no slash.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9]+$"
         }
       }
     }

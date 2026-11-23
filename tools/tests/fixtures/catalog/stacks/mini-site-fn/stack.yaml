@@ -1,6 +1,8 @@
 schemaVersion: 1
 id: mini-site-fn
 summary: Mini site and functions
+frontends:
+  - frontend/mini-spa
 packages:
   - template: serverless/mini-fn
     dir: serverless/mini-fn
