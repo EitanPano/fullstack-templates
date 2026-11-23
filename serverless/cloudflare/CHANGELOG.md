@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.1.0 — 2026-11-23
+
+A single-page frontend beside the Worker ([ADR 0017](../../docs/adr/0017-another-frontend-template-beside-a-worker.md) D3).
+Nothing changes for a plan whose frontends declare no `fallback`.
+
+- `server/middleware/frontend-host.ts` (several frontends): when the assets answer 404 to a GET or
+  HEAD on a host whose frontend declares a `fallback` (read from the generated `__FRONTENDS__`
+  list) and the path's last segment has no dot, the Worker answers that file from the frontend's
+  folder with 200 and `cache-control: no-cache`. A path with a dot stays 404, other methods are as
+  before, the encoded-separator and unknown-host refusals still come first, and the assets'
+  redirect of the file to its folder is followed once inside the Worker.
+- `tests/api/frontends.test.ts`: the deep link, the missing file, a POST, the other frontend's host
+  and the encoded separator; they run only in a plan with a single-page frontend.
+- Content-Security-Policy of such a frontend: `assemble` serves a page without a policy meta with the
+  fixed header line alone under `/<dir>/*` and warns ("served without a script policy"). Angular's
+  `index.html` carries one since `frontend/angular` 4.2.0 (`script-src 'self'; script-src-attr 'none'`
+  beside this Worker), so the warning no longer shows for it.
+
 ## 2.0.0 — 2026-11-22
 
 One Cloudflare Worker with static assets, routed by Hono, in place of Pages Functions

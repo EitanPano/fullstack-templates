@@ -17,6 +17,15 @@
       "type": "string",
       "pattern": "^[^\\r\\n]+$"
     },
+    "frontends": {
+      "type": "array",
+      "description": "Further frontend templates the stack has been run with beside its own, taken only as one of several frontends (ADR 0017).",
+      "items": {
+        "type": "string",
+        "pattern": "^frontend/[a-z][a-z0-9-]*$"
+      },
+      "uniqueItems": true
+    },
     "packages": {
       "type": "array",
       "minItems": 1,

@@ -709,7 +709,7 @@ describe('loadCatalog: frontend agents headings', () => {
 describe('loadCatalog: the static field and the reserved single', () => {
   test('keeps static on a frontend', () => {
     const manifest = loadCatalog(FIXTURE).templates.get('frontend/mini-spa')?.manifest
-    expect(manifest?.static).toEqual({ out: 'dist' })
+    expect(manifest?.static).toEqual({ out: 'dist', fallback: 'index.html' })
   })
 
   test('refuses static on a server template, naming it', () => {

@@ -154,6 +154,10 @@ function frontendValues(plan: GenerationPlan, pkg: PackagePlan): Record<string, 
     dir: frontend.dir,
     path: path.posix.relative(pkg.dir, frontend.dir),
     out: frontend.template.manifest.static?.out,
+    // Only a single-page frontend has one; an entry without it is as it was before (ADR 0017 D3).
+    ...(frontend.template.manifest.static?.fallback === undefined
+      ? {}
+      : { fallback: frontend.template.manifest.static.fallback }),
     port: frontend.port,
   }))
   const first = listed[0]

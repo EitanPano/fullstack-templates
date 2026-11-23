@@ -1,6 +1,13 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from '@playwright/test' // @noserver:serverless
+import { expect } from '@playwright/test' // @server:serverless
 
-import { expectNoAxeViolations, expectNoHorizontalOverflow, expectTouchTargets } from './support'
+import { expectNoAxeViolations, expectNoHorizontalOverflow, expectTouchTargets } from './support' // @noserver:serverless
+import { // @server:serverless
+  expectNoAxeViolations, // @server:serverless
+  expectNoHorizontalOverflow, // @server:serverless
+  expectTouchTargets, // @server:serverless
+  test, // @server:serverless
+} from './support' // @server:serverless
 
 // The template's whole shell is the skip link and the one main; the 404 is the screen these tests
 // measure, because it holds a real control and exists whatever the product adds.
@@ -147,6 +154,9 @@ test('the theme script is served as JavaScript and the page raises no CSP violat
   expect(response.status()).toBe(200)
   expect(response.headers()['content-type']).toMatch(/javascript/)
 
+  // Beside the Worker the page's policy meta is enforced: a refused script also logs a console error. // @server:serverless
+  const consoleErrors: string[] = [] // @server:serverless
+  page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()) }) // @server:serverless
   await page.addInitScript(() => {
     const violations: string[] = []
     Object.assign(window, { cspViolations: violations })
@@ -161,4 +171,5 @@ test('the theme script is served as JavaScript and the page raises no CSP violat
     () => (window as unknown as { cspViolations: string[] }).cspViolations,
   )
   expect(violations).toEqual([])
+  expect(consoleErrors.filter((text) => /content security policy/i.test(text))).toEqual([]) // @server:serverless
 })
