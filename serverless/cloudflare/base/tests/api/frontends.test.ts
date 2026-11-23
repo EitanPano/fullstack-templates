@@ -266,10 +266,11 @@ describe.runIf(spa !== undefined)('a single-page frontend’s deep links', () =>
     expect(paths(a.seen).every((path) => path.startsWith(`/${otherDir}/`))).toBe(true)
   })
 
+  // A whole `%2e%2e` segment is no case here: `new URL` resolves it as `..` (`/%2e%2e/x` is `/x`).
   it('still refuses an encoded separator before the assets are asked', async () => {
     const a = assets(files())
 
-    for (const path of ['/..%2fx', `/..%2f${otherDir}/`, '/some%2froute', '/a%5cb', '/%2e%2e/x']) {
+    for (const path of ['/..%2fx', `/..%2f${otherDir}/`, '/some%2froute', '/a%5cb', '/%2e%2e%2fx']) {
       const res = await served(path, { host: hostOf(spaDir), bindings: a.bindings })
       expect(res.status, path).toBe(404)
       expect((await json<Envelope>(res)).error.code, path).toBe('not_found')

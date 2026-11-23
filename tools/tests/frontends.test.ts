@@ -649,6 +649,24 @@ describe('cases', () => {
       admin: { flags: { islands: true } },
     })
   })
+  test('a serverless case may list frontends of any template; its own flags stay on its package', () => {
+    const root = copyFixture('catalog')
+    const file = path.join(root, `${FN}/tests/cases.yaml`)
+    const yaml = [
+      '  - name: two',
+      '    stack: mini-site-fn',
+      '    frontends: ["site=frontend/mini-site", "admin=frontend/mini-spa"]',
+      '',
+    ].join('\n')
+    writeFileSync(file, readFileSync(file, 'utf8') + yaml)
+    const found = listCases(loadCatalog(root)).find((c) => c.id === `${FN}/two`)!
+    expect(found.packageDir).toBe(FN)
+    expect(Object.keys(requestFor(found, 'out').answers?.packages ?? {})).toEqual([FN])
+    writeFileSync(file, readFileSync(file, 'utf8').replace('frontend/mini-spa', FN))
+    expect(() => loadCatalog(root)).toThrow(
+      /frontend "admin" with serverless\/mini-fn, which is no frontend/,
+    )
+  })
   test('refuses a packages entry that the case flags or server settings would overwrite', () => {
     const entry = (dir: string) =>
       ['    packages:', `      ${dir}:`, '        flags:', '          islands: true', ''].join('\n')

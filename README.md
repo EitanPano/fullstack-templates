@@ -32,7 +32,7 @@ template finds the same shape.
 | --- | --- | --- | --- | --- | --- |
 | `bun-express` | server | 3.2.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
 | `python-fastapi` | server | 2.2.0 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
-| `cloudflare` | serverless | 2.1.0 | jobs | — | One Cloudflare Worker with static assets, routed by Hono: D1 through Drizzle, zod schemas and the OpenAPI contract from them, one error envelope, tests in workerd; serves a frontend's build on one origin |
+| `cloudflare` | serverless | 2.1.1 | jobs | — | One Cloudflare Worker with static assets, routed by Hono: D1 through Drizzle, zod schemas and the OpenAPI contract from them, one error envelope, tests in workerd; serves a frontend's build on one origin |
 | `angular` | frontend | 4.2.0 | i18n, pwa | — | Angular 22 single-page app on standalone components and signals, @ngrx/signals stores, co-located SCSS on a global token tree and Hey API's Angular client, with Transloco and the service worker behind flags |
 | `astro` | frontend | 1.1.0 | islands | — | Astro 7 static site: pages and an Astro kit on co-located SCSS over a global token tree, a hashed Content-Security-Policy with no unsafe-inline, a typed client generated from the server's contract, React islands behind a flag; ships no image |
 | `next` | frontend | 4.0.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
@@ -223,6 +223,8 @@ stack; production does not refuse its credentials if you export them.
   further frontend templates, [ADR 0017](docs/adr/0017-another-frontend-template-beside-a-worker.md));
   `serverless/cloudflare` 2.1.0 serves a single-page shell for an unknown page path,
   `frontend/angular` 4.2.0.
+- v1.16.1: `serverless/cloudflare` 2.1.1, its tests fixed beside a single-page frontend and a
+  case that runs them.
 - Next: mongodb, redis, and a worker with rabbitmq.
 
 The design is in [ADR 0001](docs/adr/0001-catalog-architecture.md).
