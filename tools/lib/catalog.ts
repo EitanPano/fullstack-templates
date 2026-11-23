@@ -747,16 +747,18 @@ function checkFrontendSettings(
     }
   }
   const seen = new Set<string>()
+  // In a frontend case the first frontend takes the case's own flags, so it is the case's
+  // template; in any other case (a Worker beside its frontends) each entry is only a frontend.
+  const ownFirst = template.manifest.kind === 'frontend'
   for (const [index, entry] of frontends.entries()) {
     const at = entry.indexOf('=')
     const [dir, used] = [entry.slice(0, at), entry.slice(at + 1)]
-    // The first frontend takes the case's own flags, so it is the case's template. A later one
-    // may be another frontend template (ADR 0017); the plan's rules decide whether it fits.
-    if (index === 0 && used !== template.path) {
+    // Another may be another frontend template (ADR 0017); the plan's rules decide whether it fits.
+    if (ownFirst && index === 0 && used !== template.path) {
       problems.push(
         `${where} lists frontend "${dir}" with ${used}, but the case is for ${template.path}`,
       )
-    } else if (index > 0 && templates.get(used)?.manifest.kind !== 'frontend') {
+    } else if ((index > 0 || !ownFirst) && templates.get(used)?.manifest.kind !== 'frontend') {
       problems.push(`${where} lists frontend "${dir}" with ${used}, which is no frontend template`)
     }
     if (seen.has(dir)) problems.push(`${where} lists frontend dir "${dir}" twice`)
@@ -768,7 +770,9 @@ function checkFrontendSettings(
   }
   // requestFor writes the case's own `flags:` and `server:` under these dirs, over a packages entry.
   const ownDir =
-    frontends.length > 0 ? frontends[0]!.slice(0, frontends[0]!.indexOf('=')) : undefined
+    ownFirst && frontends.length > 0
+      ? frontends[0]!.slice(0, frontends[0]!.indexOf('='))
+      : undefined
   const primary =
     ownDir ?? stack.manifest.packages.find((entry) => entry.template === template.path)?.dir
   const apiEntry = stack.manifest.packages.find((entry) =>
