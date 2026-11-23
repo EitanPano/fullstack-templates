@@ -6,7 +6,7 @@ import adminRoutes from '../src/api/admin/routes'
 import { signAccess } from '../src/services/security/jwt' // @auth
 import { app } from '../src/server'
 
-// A throwaway module mounted in the namespace, for this file only: the template ships none.
+// A throwaway entity mounted in the namespace, for this file only: the template ships none.
 const probe = Router()
 let handled = 0
 probe.get('/', (_req, res) => {
@@ -57,8 +57,8 @@ describe('/api/admin with accounts', () => {
   })
 
   // The body parser runs app-wide, before the gate: a malformed body is refused there, with the
-  // validation envelope and no route-specific detail, and never reaches the module.
-  it('refuses an anonymous POST with a malformed JSON body before the module runs', async () => {
+  // validation envelope and no route-specific detail, and never reaches the entity.
+  it('refuses an anonymous POST with a malformed JSON body before the entity runs', async () => {
     handled = 0
     const res = await request(app)
       .post('/api/admin/probe')
@@ -70,7 +70,7 @@ describe('/api/admin with accounts', () => {
     expect(handled).toBe(0)
   })
 
-  it('lets an admin reach a module mounted in the namespace', async () => {
+  it('lets an admin reach an entity mounted in the namespace', async () => {
     const res = await request(app)
       .get('/api/admin/probe')
       .set('Authorization', await bearer('admin'))
@@ -93,7 +93,7 @@ describe('/api/admin with accounts', () => {
 // @auth-end
 // @noauth-start
 describe('/api/admin without accounts', () => {
-  it('refuses every admin path with 403, mounted module or not', async () => {
+  it('refuses every admin path with 403, mounted entity or not', async () => {
     for (const path of ['/api/admin/probe', '/api/admin/nothing-here']) {
       const res = await request(app).get(path)
       const body = res.body as ErrorBody
@@ -111,7 +111,7 @@ describe('/api/admin without accounts', () => {
     expect((res.body as ErrorBody).error.code).toBe('forbidden')
   })
 
-  it('refuses a POST with a malformed JSON body before the module runs (the app-wide parser answers)', async () => {
+  it('refuses a POST with a malformed JSON body before the entity runs (the app-wide parser answers)', async () => {
     handled = 0
     const res = await request(app)
       .post('/api/admin/probe')
@@ -123,7 +123,7 @@ describe('/api/admin without accounts', () => {
     expect(handled).toBe(0)
   })
 
-  it('refuses a well-formed POST with 403 and never runs the module', async () => {
+  it('refuses a well-formed POST with 403 and never runs the entity', async () => {
     handled = 0
     const res = await request(app).post('/api/admin/probe').send({ a: 1 })
 

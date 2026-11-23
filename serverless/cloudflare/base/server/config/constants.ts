@@ -7,9 +7,9 @@ export const MAX_BODY_BYTES = 1_048_576
 // One entry per limiter, named for what it limits and by what. `bun run test` and an e2e run
 // raise every limit with RATE_LIMIT_SCALE; production keeps 1.
 export const RATE_LIMITS = {
-  createModulePerIp: { limit: 30, window: '15m' },
-  updateModulePerIp: { limit: 30, window: '15m' },
-  deleteModulePerIp: { limit: 30, window: '15m' },
+  createEntityPerIp: { limit: 30, window: '15m' },
+  updateEntityPerIp: { limit: 30, window: '15m' },
+  deleteEntityPerIp: { limit: 30, window: '15m' },
 } as const
 
 // Expired counter rows are deleted opportunistically: one request in RATE_LIMIT_CLEANUP_SAMPLE

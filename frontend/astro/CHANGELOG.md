@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1 — 2026-11-23
+
+The generated client, its unit test and the smoke test follow the server's sample rename (`/api/module` → `/api/entity`,
+[ADR 0018](../../docs/adr/0018-entity-term-and-service-facades.md)); `AGENTS.md` says "the reference entity".
+
 ## 1.1.0 — 2026-11-22
 
 The second (or only) frontend at any directory ([ADR 0015](../../docs/adr/0015-several-frontends-by-directory.md),

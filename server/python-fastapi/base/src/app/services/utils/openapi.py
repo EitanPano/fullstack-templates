@@ -1,4 +1,4 @@
-"""Helpers for a module's routes, so every endpoint documents its responses the same way."""
+"""Helpers for an entity's routes, so every endpoint documents its responses the same way."""
 
 from typing import Final
 

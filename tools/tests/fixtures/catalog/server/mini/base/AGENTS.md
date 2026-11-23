@@ -4,7 +4,7 @@ Project __PROJECT_NAME__.
 
 Accounts are off. <!-- @noauth -->
 
-## Adding a module
+## Adding an entity
 
 ## Adding the data layer
 

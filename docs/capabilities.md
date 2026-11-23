@@ -193,7 +193,7 @@ smoke was skipped. CI passes it, which is where the images are built.
 ## Database
 
 For a server: a `Resource` connected at boot, pinged by readiness and closed on shutdown;
-one data-access file per module; a separate test database; migrations or indexes shipped with the
+one data-access file per entity; a separate test database; migrations or indexes shipped with the
 change that needs them. Migrations are applied by the derived one-shot migrate service on
 `docker compose --profile app up`, before the server starts, and by the package's `migrate`
 command in development; the server never migrates on boot. For a worker: the same client, no HTTP. These are the harness's

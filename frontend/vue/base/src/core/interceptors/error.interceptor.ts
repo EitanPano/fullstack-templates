@@ -28,7 +28,7 @@ function fieldErrorsOf(details: unknown): Record<string, string[]> | undefined {
 }
 
 // The generated client's error interceptor (registered by http.provider.ts): the parsed body of a
-// failed response, or what a thrown fetch threw, becomes the ApiError a facade call rejects with.
+// failed response, or what a thrown fetch threw, becomes the ApiError a service call rejects with.
 // The server's `message` and `details` are dropped; the UI words errors from its own copy table.
 export function errorInterceptor(error: unknown, response: Response | undefined): ApiError {
   if (response === undefined) {

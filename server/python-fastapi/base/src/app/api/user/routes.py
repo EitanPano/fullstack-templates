@@ -1,4 +1,4 @@
-"""routes.py belongs: the user module's router. Each endpoint is one `add_api_route`: the handler,
+"""routes.py belongs: the user entity's router. Each endpoint is one `add_api_route`: the handler,
 the status and response model, the error responses, the summary, and the gates (dependencies, in
 declaration order, before body validation errors are raised); the gates are built once above the
 table. FastAPI validates from the handler's signature, so there is no validation step to mount.

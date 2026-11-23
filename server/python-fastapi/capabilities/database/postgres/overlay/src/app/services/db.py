@@ -1,6 +1,6 @@
 """The seam: the active database. A file seam, not a type seam: the engine's connection type shows
-through here (`Executor`), so a module's `service.py` is written against it. Only a module's
-`service.py` (and `model.py`) and `services/` and `infra/` files import this; a module's `routes`,
+through here (`Executor`), so an entity's `service.py` is written against it. Only an entity's
+`service.py` (and `model.py`) and `services/` and `infra/` files import this; an entity's `routes`,
 `controller` and `schema` never do (an import-linter contract).
 
 `get_db()` hands out a connection from the pool in `infra/postgres.py` for the length of a block;

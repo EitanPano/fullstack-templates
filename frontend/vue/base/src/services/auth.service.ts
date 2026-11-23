@@ -15,7 +15,7 @@ import {
   postApiAuthSignup,
 } from './generated/sdk.gen'
 
-// The facade over the auth module of the generated SDK. The session itself lives in HttpOnly
+// The service over the auth entity of the generated SDK. The session itself lives in HttpOnly
 // cookies the server sets, so no call here reads or keeps a token. The refresh wrapper
 // (core/interceptors/auth.interceptor.ts) skips the refresh for login, signup, refresh and the
 // two OTP calls by their URL. `refresh` is here for the contract's completeness: the wrapper

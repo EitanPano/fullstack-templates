@@ -2,14 +2,14 @@
 // reads here, so a failure is always the same 400 envelope naming the part and the fields.
 // It does not belong: business rules (controller.ts) or response shaping.
 //
-// Every module copies this pattern; the same object (declared in schema.ts) is passed to both
+// Every entity copies this pattern; the same object (declared in schema.ts) is passed to both
 // calls so the handler's types follow the schemas:
 //
-//   export const createModuleRequest = { body: CreateModuleBody } // schema.ts
-//   const validateCreate = validate(createModuleRequest) // routes.ts
-//   router.post('/', requireAuth, validateCreate, createModule) // @auth
-//   router.post('/', validateCreate, createModule) // @noauth
-//   const { body } = readInput(res, createModuleRequest) // controller.ts, in the handler
+//   export const createEntityRequest = { body: CreateEntityBody } // schema.ts
+//   const validateCreate = validate(createEntityRequest) // routes.ts
+//   router.post('/', requireAuth, validateCreate, createEntity) // @auth
+//   router.post('/', validateCreate, createEntity) // @noauth
+//   const { body } = readInput(res, createEntityRequest) // controller.ts, in the handler
 //
 // Mount it after any rate limiter and before the handler: a 429 should not wait for parsing,
 // and a handler never sees unparsed input. readInput is an explicit helper rather than a

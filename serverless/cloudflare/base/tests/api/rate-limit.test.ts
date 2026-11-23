@@ -5,7 +5,7 @@ import { RATE_LIMITS } from '../../server/config/constants'
 import { handle, json as jsonResponse } from '../../server/middleware/handler'
 import { byIp, rateLimit } from '../../server/middleware/rate-limit'
 import { sha256 } from '../../server/services/security/crypto'
-import { createModule, json, send, settle, through } from './helpers'
+import { createEntity, json, send, settle, through } from './helpers'
 
 type Envelope = { error: { code: string; message: string }; requestId: string }
 
@@ -207,33 +207,33 @@ describe('rateLimit', () => {
   })
 })
 
-describe('POST /api/module through the real routing', () => {
-  it('is limited per address by RATE_LIMITS.createModulePerIp', async () => {
-    const { limit } = RATE_LIMITS.createModulePerIp
+describe('POST /api/entity through the real routing', () => {
+  it('is limited per address by RATE_LIMITS.createEntityPerIp', async () => {
+    const { limit } = RATE_LIMITS.createEntityPerIp
     for (let i = 0; i < limit; i++) {
-      const res = await send('/api/module', { method: 'POST', body: { name: `m${i}` } })
+      const res = await send('/api/entity', { method: 'POST', body: { name: `m${i}` } })
       expect(res.status).toBe(201)
     }
-    const limited = await send('/api/module', { method: 'POST', body: { name: 'one too many' } })
+    const limited = await send('/api/entity', { method: 'POST', body: { name: 'one too many' } })
     expect(limited.status).toBe(429)
     expect(limited.headers.get('retry-after')).toBeTruthy()
     // A read is not limited.
-    expect((await send('/api/module')).status).toBe(200)
+    expect((await send('/api/entity')).status).toBe(200)
   })
 
   it('limits PATCH and DELETE per address, each with its own counter', async () => {
-    const created = await createModule('limited')
-    const path = `/api/module/${created.id}`
+    const created = await createEntity('limited')
+    const path = `/api/entity/${created.id}`
 
     const patched: number[] = []
-    for (let i = 0; i <= RATE_LIMITS.updateModulePerIp.limit; i++) {
+    for (let i = 0; i <= RATE_LIMITS.updateEntityPerIp.limit; i++) {
       patched.push((await send(path, { method: 'PATCH', body: { name: `n${i}` } })).status)
     }
     expect(patched.slice(0, -1).every((status) => status === 200)).toBe(true)
     expect(patched.at(-1)).toBe(429)
 
     const deleted: number[] = []
-    for (let i = 0; i <= RATE_LIMITS.deleteModulePerIp.limit; i++) {
+    for (let i = 0; i <= RATE_LIMITS.deleteEntityPerIp.limit; i++) {
       deleted.push((await send(path, { method: 'DELETE' })).status)
     }
     expect(deleted.slice(0, -1).includes(429)).toBe(false)

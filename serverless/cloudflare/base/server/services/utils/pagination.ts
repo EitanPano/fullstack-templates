@@ -2,7 +2,7 @@
 // schemas (`?cursor=&limit=` in, `{ items, nextCursor }` out), the opaque cursor and the page
 // slice. The cursor is opaque to clients; the data layer decides what it encodes (typically the
 // last row's sort key and id).
-// It does not belong: a module's own sort order (its service.ts).
+// It does not belong: an entity's own sort order (its service.ts).
 import type { ZodType } from 'zod'
 
 import { base64UrlToText, textToBase64Url } from './encoding'

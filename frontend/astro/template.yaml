@@ -2,7 +2,7 @@ schemaVersion: 1
 id: astro
 kind: frontend
 name: Astro static site
-version: 1.1.0
+version: 1.1.1
 summary: "Astro 7 static site: pages and an Astro kit on co-located SCSS over a global token tree, a hashed Content-Security-Policy with no unsafe-inline, a typed client generated from the server's contract, React islands behind a flag; ships no image"
 runtime: { language: typescript, platform: node, minVersion: "24" }
 tools:

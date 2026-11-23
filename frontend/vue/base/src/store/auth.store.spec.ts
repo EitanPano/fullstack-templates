@@ -227,7 +227,7 @@ describe('useAuthStore', () => {
 
     it('logs a cause that is no ApiError and shows errors.unknown', async () => {
       const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-      vi.spyOn(authService, 'login').mockRejectedValue(new Error('bug in the facade'))
+      vi.spyOn(authService, 'login').mockRejectedValue(new Error('bug in the service'))
       const store = useAuthStore()
 
       await store.login(CREDENTIALS)

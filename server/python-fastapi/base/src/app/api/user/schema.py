@@ -1,4 +1,4 @@
-"""schema.py belongs: the user module's contract, the pydantic models that validate requests, type
+"""schema.py belongs: the user entity's contract, the pydantic models that validate requests, type
 responses and produce `openapi.json`. It is the leaf of the directory: routes and controller import
 it, it imports only `models/` and `services/utils/`. Each model is a contract component only when
 its name is listed in `app/openapi.py` (`COMPONENTS`); the endpoints themselves are documented from

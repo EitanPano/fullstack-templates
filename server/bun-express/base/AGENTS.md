@@ -46,13 +46,13 @@ reviewer reads it explicitly.
 ```
 index.ts            env → connect dependencies → listen → shutdown; imported by nothing
 server.ts           builds and exports `app`; never listens
-openapi.ts          builds the OpenAPI document from every module's schema.ts; `--write` emits it
+openapi.ts          builds the OpenAPI document from every entity's schema.ts; `--write` emits it
 config/             env.ts · constants.ts · cors.ts · routes.ts
-api/<name>/         routes · controller · schema; service only when the module has data
-                    (health, auth, user, module: the commented reference) <!-- @auth -->
-                    (health, module: the commented reference) <!-- @noauth -->
+api/<name>/         routes · controller · schema; service only when the entity has data
+                    (health, auth, user, entity: the commented reference) <!-- @auth -->
+                    (health, entity: the commented reference) <!-- @noauth -->
                     (model.ts: reserved, for an engine that defines storage in code)
-api/admin/          the admin namespace: routes.ts (gate, mounts) · <name>/ modules
+api/admin/          the admin namespace: routes.ts (gate, mounts) · <name>/ entities
 models/<name>/      interface.ts · type.ts · enum.ts · constants.ts
 <!-- @auth-start -->
 middleware/         auth · role · validate · rate-limit · error-handler · not-found ·
@@ -90,9 +90,9 @@ infra/              dependency.ts · postgres.ts · memory.ts · scheduler.ts ·
   from `infra/dependency.ts` (drain, close every resource, exit; 10 s cap) and warns once
   per defaulted secret.
 - `server.ts` builds and exports `app`, nothing else: security and cross-cutting middleware
-  first, then `registerRoutes(app)` from `config/routes.ts` mounts every module under `/api`,
+  first, then `registerRoutes(app)` from `config/routes.ts` mounts every entity under `/api`,
   then `notFound` and `errorHandler` last. Tests import `app` and never start infra.
-- `openapi.ts` builds the OpenAPI document from its `registrations` list, one module's
+- `openapi.ts` builds the OpenAPI document from its `registrations` list, one entity's
   `register<Name>` (from its `schema.ts`) per line in mount order; `bun run openapi` writes
   `openapi.json`.
 - `config/`: `env.ts` is the only reader of `process.env` (zod, fails fast; production
@@ -107,37 +107,37 @@ infra/              dependency.ts · postgres.ts · memory.ts · scheduler.ts ·
   `cors.ts` builds the CORS options. `routes.ts` is the
 <!-- @noauth-end -->
   mount table: `registerRoutes(app)`, one `app.use('/api/<name>', <name>Routes)` line per
-  module, with any mount-wide middleware between the path and the router.
-- `api/<name>/`: one directory per module, singular name, mounted at `/api/<name>`. A module
+  entity, with any mount-wide middleware between the path and the router.
+- `api/<name>/`: one directory per entity, singular name, mounted at `/api/<name>`. An entity
 <!-- @auth-start -->
-  is a resource (`user`) or a capability (`auth`, `health`). A module has the files it needs:
+  is a resource (`user`) or a capability (`auth`, `health`). An entity has the files it needs:
   `service.ts` only with data of its own (`health` and `auth` have none).
 <!-- @auth-end -->
 <!-- @noauth-start -->
-  is a resource or a capability (`health`). A module has the files it needs: `service.ts`
+  is a resource or a capability (`health`). An entity has the files it needs: `service.ts`
   only with data of its own (`health` has none).
 <!-- @noauth-end -->
   - `schema.ts`: zod request and response schemas, the request parts each endpoint validates
-    (`<operation>Request`, e.g. `{ params: ModuleIdParams, body: UpdateModuleBody }`) and
-    their OpenAPI registration. The leaf of the module.
-  - `routes.ts`: the module's Express `Router`, default-exported. The middleware (rate
+    (`<operation>Request`, e.g. `{ params: EntityIdParams, body: UpdateEntityBody }`) and
+    their OpenAPI registration. The leaf of the entity.
+  - `routes.ts`: the entity's Express `Router`, default-exported. The middleware (rate
     limiters, `validate(<operation>Request)`, role gates) is built once as named constants,
     then each endpoint is one line: `router.<method>(path, ...middleware, <operation>)`.
     No inline handlers, no logic.
-  - `controller.ts`: the module's business logic and its only door. Two kinds of export:
+  - `controller.ts`: the entity's business logic and its only door. Two kinds of export:
     - Handlers: one `(req, res)` function per endpoint, named after its operation with no
-      suffix (`createModule`, `getMe`, `login`), holding that endpoint's
+      suffix (`createEntity`, `getMe`, `login`), holding that endpoint's
       logic. It reads the parsed input with `readInput(res, <operation>Request)`, applies
       the rules (throwing `AppError`), reads and writes through its own `service.ts`, maps
       records to response shapes, publishes events, calls providers, owns transactions when
-      the engine has them, and sends the status and body. `api/module/` is the example.
+      the engine has them, and sends the status and body. `api/entity/` is the example.
 <!-- @auth-start -->
       Auth handlers also set or clear cookies: cookies are transport, so they belong to the
       handler.
 <!-- @auth-end -->
-    - Rules: logic another module's controller, a job, a subscriber or a script needs is
+    - Rules: logic another entity's controller, a job, a subscriber or a script needs is
       exported as a typed function with no `req`, no `res` and no status code; a handler
-      that needs the same logic calls it. A module exports none until something outside it
+      that needs the same logic calls it. An entity exports none until something outside it
 <!-- @auth-start -->
       needs one: `api/user/` exports the ones auth and the welcome subscriber call
       (`getCallerUser(caller)`, `getActiveUser(id)`, `findUserByEmail(email)`, …). A rule
@@ -147,8 +147,8 @@ infra/              dependency.ts · postgres.ts · memory.ts · scheduler.ts ·
 <!-- @noauth-start -->
       needs one. A rule never takes a handler's name, since both are exports of one file.
 <!-- @noauth-end -->
-  - `service.ts` (and `model.ts`): every query for the module and nothing else, private to
-    it: only its own controller imports it. The only module files that import
+  - `service.ts` (and `model.ts`): every query for the entity and nothing else, private to
+    it: only its own controller imports it. The only entity files that import
     `services/db.ts` or `services/cache.ts`.
 - `models/<name>/`: an entity's TypeScript types, shared by every layer. `interface.ts` the
   stored record, `type.ts` the public shape, the create and update inputs and derived
@@ -157,14 +157,14 @@ infra/              dependency.ts · postgres.ts · memory.ts · scheduler.ts ·
   validator: a schema for a shape declared in `models/` is written `satisfies
   z.ZodType<T>` and never re-exports a `z.infer` alias; shapes that exist only for HTTP
   (params, query, credentials) live in `schema.ts` with their `z.infer` type. `models/`
-  (plural, types) and `model.ts` (singular, in a module, the engine's storage mapping that
+  (plural, types) and `model.ts` (singular, in an entity, the engine's storage mapping that
   satisfies `models/<name>/interface.ts`) are different things.
 <!-- @auth-start -->
-  A capability module whose types other layers share still gets a `models/` directory:
+  A capability entity whose types other layers share still gets a `models/` directory:
   `models/auth/` holds `Caller`, `AuthTokens` and `OtpPurpose`.
 <!-- @auth-end -->
 <!-- @noauth-start -->
-  A capability module whose types other layers share still gets a `models/` directory.
+  A capability entity whose types other layers share still gets a `models/` directory.
 <!-- @noauth-end -->
 <!-- @auth-start -->
 - `middleware/`: request handling an endpoint or every request needs. `auth.ts` resolves the
@@ -178,12 +178,12 @@ infra/              dependency.ts · postgres.ts · memory.ts · scheduler.ts ·
   `res.locals`. `static.ts` serves a built SPA when `STATIC_DIR` is set (see Deployment).
 <!-- @noauth-end -->
 <!-- @auth-start -->
-- `services/`: stateful or I/O capabilities shared by modules: the stores' seams, events,
+- `services/`: stateful or I/O capabilities shared by entities: the stores' seams, events,
   logging, sessions, `security/` (tokens, cookies, hashing, OTP), `communicate/` (channels,
   providers, message templates), and `utils/` (pure, stateless, no I/O).
 <!-- @auth-end -->
 <!-- @noauth-start -->
-- `services/`: stateful or I/O capabilities shared by modules: the stores' seams, events,
+- `services/`: stateful or I/O capabilities shared by entities: the stores' seams, events,
   logging, `security/` (hashing, encryption), `communicate/` (channels, providers, message
   templates), and `utils/` (pure, stateless, no I/O).
 <!-- @noauth-end -->
@@ -208,20 +208,20 @@ infra/              dependency.ts · postgres.ts · memory.ts · scheduler.ts ·
 
 | You are adding… | It goes in | Shape |
 | --- | --- | --- |
-| A resource or capability with endpoints | `api/<name>/` | copy `api/module/`, rename `module`, `Module`, `MODULE`; one line in `config/routes.ts` and one in `openapi.ts` |
-| An entity's types | `models/<name>/` | copy `models/module/` |
+| A resource or capability with endpoints | `api/<name>/` | copy `api/entity/`, rename `entity`, `Entity`, `ENTITY`; one line in `config/routes.ts` and one in `openapi.ts` |
+| An entity's types | `models/<name>/` | copy `models/entity/` |
 | A limit on an entity's field | `models/<name>/constants.ts` | lengths, ranges, defaults of the data |
 | A policy constant | `config/constants.ts` | durations, attempts, windows, cookie and header names | <!-- @auth -->
 | A policy constant | `config/constants.ts` | durations, attempts, windows, header names | <!-- @noauth -->
 | A request or response shape | `api/<name>/schema.ts` | zod; `satisfies` the `models/` type; OpenAPI registration |
-| An endpoint | `api/<name>/routes.ts` + `controller.ts` | one `router.<method>` line; one handler named after the operation (`createModule`); its `<operation>Request` in `schema.ts` |
-| A business rule, an event to publish, a call to another service | `api/<name>/controller.ts` | in the endpoint's handler; an exported rule once something outside the module needs it; throws `AppError` |
-| A rule composing other modules | `api/<name>/controller.ts` | `api/auth/` is the example | <!-- @auth -->
-| A rule composing other modules | `api/<name>/controller.ts` | calls each module's `controller.ts` | <!-- @noauth -->
-| A query | `api/<name>/service.ts` | `services/db.ts`, `services/cache.ts`; private to the module | <!-- @nodatabase -->
-| A query | `api/<name>/service.ts` | SQL through `getDb()`; an optional last `db: Executor = getDb()` parameter; private to the module | <!-- @database:postgres -->
-| A change to the tables or indexes | `infra/migrations/NNNN-<topic>.sql` | the next number, never an edit to an applied file; then `bun run db:migrate`; update the module's `service.ts` and its row mapping | <!-- @database:postgres -->
-| Something another module needs | `api/<name>/controller.ts` | an exported rule; the only cross-module import |
+| An endpoint | `api/<name>/routes.ts` + `controller.ts` | one `router.<method>` line; one handler named after the operation (`createEntity`); its `<operation>Request` in `schema.ts` |
+| A business rule, an event to publish, a call to another service | `api/<name>/controller.ts` | in the endpoint's handler; an exported rule once something outside the entity needs it; throws `AppError` |
+| A rule composing other entities | `api/<name>/controller.ts` | `api/auth/` is the example | <!-- @auth -->
+| A rule composing other entities | `api/<name>/controller.ts` | calls each entity's `controller.ts` | <!-- @noauth -->
+| A query | `api/<name>/service.ts` | `services/db.ts`, `services/cache.ts`; private to the entity | <!-- @nodatabase -->
+| A query | `api/<name>/service.ts` | SQL through `getDb()`; an optional last `db: Executor = getDb()` parameter; private to the entity | <!-- @database:postgres -->
+| A change to the tables or indexes | `infra/migrations/NNNN-<topic>.sql` | the next number, never an edit to an applied file; then `bun run db:migrate`; update the entity's `service.ts` and its row mapping | <!-- @database:postgres -->
+| Something another entity needs | `api/<name>/controller.ts` | an exported rule; the only cross-entity import |
 | Shared behaviour with state or I/O | `services/<name>.ts` | sessions, cache, events, logging | <!-- @auth -->
 | Shared behaviour with state or I/O | `services/<name>.ts` | cache, events, logging | <!-- @noauth -->
 | A vendor SDK wrapper | `services/<vendor>.ts` | thin; key from `config/env.ts`; the SDK is imported only here |
@@ -231,7 +231,7 @@ infra/              dependency.ts · postgres.ts · memory.ts · scheduler.ts ·
 | A way to reach a person | `services/communicate/<channel>.ts` | `Provider` type, console provider, env selection |
 | A real provider for a channel | `services/<vendor>.ts` + a case in the channel file | `MAIL_PROVIDER=<vendor>` selects it |
 | A message's wording | `services/communicate/templates/<name>.ts` | pure function → `{ subject?, text }` |
-| Request handling endpoints share | `middleware/<name>.ts` | mounted in `routes.ts`, in `config/routes.ts` for a whole module, or `server.ts` when cross-cutting |
+| Request handling endpoints share | `middleware/<name>.ts` | mounted in `routes.ts`, in `config/routes.ts` for a whole entity, or `server.ts` when cross-cutting |
 | A live connection (database, cache, queue) | `infra/<store>.ts` | a `Resource` in `dependencies`; reached through `services/db.ts`, `cache.ts`, `event.ts` |
 | A background job | `infra/jobs/<name>.ts` | `{ name, schedule, run }`; listed in `infra/scheduler.ts` |
 | An event | `services/event.ts` | add it to the event map; `publish` from a controller; handlers run detached, tests await `drain()` |
@@ -246,7 +246,7 @@ infra/              dependency.ts · postgres.ts · memory.ts · scheduler.ts ·
 `config/routes.ts → api/<name>/routes.ts → middleware → controller.ts (handler, and any
 rule it shares) → service.ts → services/db.ts → infra/<store>.ts`. A `routes.ts` holds
 nothing but the middleware chain and the handler per endpoint. A handler holds its
-endpoint's logic; it reaches its own data only through its `service.ts` and other modules
+endpoint's logic; it reaches its own data only through its `service.ts` and other entities
 only through their `controller.ts` rules.
 
 ## Import direction
@@ -256,8 +256,8 @@ The leaves: `models/**` imports only `models/**`; `config/constants.ts` imports 
 
 | File | May import | Never |
 | --- | --- | --- |
-| `config/routes.ts` | every module's `api/<m>/routes.ts`, `middleware/` | anything else |
-| `openapi.ts` | every module's `api/<m>/schema.ts`, `services/utils/` | anything else |
+| `config/routes.ts` | every entity's `api/<m>/routes.ts`, `middleware/` | anything else |
+| `openapi.ts` | every entity's `api/<m>/schema.ts`, `services/utils/` | anything else |
 | `services/utils/**` | `models/`, `config/constants.ts`, `config/env.ts`, `services/utils/` | `infra/`, other `services/`, `api/`, `middleware/` |
 | `services/db.ts`, `services/cache.ts` | `infra/memory.ts` (later the engine), `services/logger.ts`, `services/utils/`, `config/` (not `routes.ts`), `models/` | `api/`, `middleware/` | <!-- @nodatabase -->
 | `services/db.ts`, `services/cache.ts` | `infra/postgres.ts` (`db.ts`), `infra/memory.ts` (`cache.ts`), `services/logger.ts`, `services/utils/`, `config/` (not `routes.ts`), `models/` | `api/`, `middleware/` | <!-- @database:postgres -->
@@ -267,17 +267,17 @@ The leaves: `models/**` imports only `models/**`; `config/constants.ts` imports 
 | `infra/**` | `infra/**`, `services/logger.ts`, `services/utils/`, `services/db.ts`, `services/cache.ts`, `services/session.ts`, `services/event.ts`, `config/` (not `routes.ts`), `models/` | `middleware/`, `server.ts`, `index.ts`, `api/` | <!-- @auth -->
 | `infra/**` | `infra/**`, `services/logger.ts`, `services/utils/`, `services/db.ts`, `services/cache.ts`, `services/event.ts`, `config/` (not `routes.ts`), `models/` | `middleware/`, `server.ts`, `index.ts`, `api/` | <!-- @noauth -->
 | `infra/jobs/**`, `infra/subscribers/**`, `infra/scripts/**` | the row above, `api/<m>/controller.ts` (its rules), types from `api/<m>/schema.ts`, any `services/**`; scripts also `api/<m>/model.ts` | `api/<m>/routes.ts`, `service.ts` |
-| `api/<m>/schema.ts` | `services/utils/`, `models/`, `config/constants.ts`, another module's `schema.ts` | everything else |
-| `api/<m>/routes.ts` | own `controller.ts` and `schema.ts`, `middleware/`, `services/utils/`, `models/`, `config/constants.ts` | own `service.ts`, `model.ts`; other `services/`, `infra/`; any other module |
-| `api/<m>/controller.ts` | own `service.ts` and `schema.ts`, other modules' `controller.ts` and `schema.ts`, `express`, `middleware/`, `services/**` except `services/db.ts`, `services/cache.ts`; `models/`, `config/` (not `routes.ts`), `infra/dependency.ts` | any `routes.ts` or `model.ts`; another module's `service.ts` |
-| `api/<m>/service.ts`, `model.ts` | `services/db.ts`, `services/cache.ts`, `services/logger.ts`, `services/utils/`, `models/`, `config/constants.ts`, own `model.ts` | `express`, `routes.ts`, `controller.ts`, `schema.ts`, `services/event.ts`; any other module |
+| `api/<m>/schema.ts` | `services/utils/`, `models/`, `config/constants.ts`, another entity's `schema.ts` | everything else |
+| `api/<m>/routes.ts` | own `controller.ts` and `schema.ts`, `middleware/`, `services/utils/`, `models/`, `config/constants.ts` | own `service.ts`, `model.ts`; other `services/`, `infra/`; any other entity |
+| `api/<m>/controller.ts` | own `service.ts` and `schema.ts`, other entities' `controller.ts` and `schema.ts`, `express`, `middleware/`, `services/**` except `services/db.ts`, `services/cache.ts`; `models/`, `config/` (not `routes.ts`), `infra/dependency.ts` | any `routes.ts` or `model.ts`; another entity's `service.ts` |
+| `api/<m>/service.ts`, `model.ts` | `services/db.ts`, `services/cache.ts`, `services/logger.ts`, `services/utils/`, `models/`, `config/constants.ts`, own `model.ts` | `express`, `routes.ts`, `controller.ts`, `schema.ts`, `services/event.ts`; any other entity |
 | `server.ts` | `middleware/`, `config/` (incl. `routes.ts`), `openapi.ts`, `services/logger.ts` | `api/` directly, `infra/` |
 | `index.ts` | `config/env.ts`, `infra/dependency.ts`, `services/logger.ts`, `server.ts` | |
 
 - `config/routes.ts` is imported only by `server.ts` and tests; the other three `config/`
   files are open to every layer the table allows.
 - `infra/dependency.ts` may be imported by anything except `models/`, `config/` and
-  `services/utils/`; the health module reads `healthCheck` and `dependencies` as values,
+  `services/utils/`; the health entity reads `healthCheck` and `dependencies` as values,
   the rest import its types.
 <!-- @nodatabase-start -->
 - `infra/memory.ts` (later `infra/<engine>.ts`, `infra/redis.ts`) is imported only by
@@ -290,35 +290,35 @@ The leaves: `models/**` imports only `models/**`; `config/constants.ts` imports 
   `cache.ts` imports `memory.ts`; `infra/pubsub.ts` only by `services/event.ts` and
   `infra/**`.
 <!-- @database:postgres-end -->
-- A module reaches a store only through its `service.ts` and `model.ts`; ESLint refuses
+- An entity reaches a store only through its `service.ts` and `model.ts`; ESLint refuses
   `services/db.ts` and `services/cache.ts` in `routes.ts`, `controller.ts` and `schema.ts`.
   A file in `services/` may use them directly.
-- Across modules: another module's `schema.ts` is imported as a type anywhere, as a value
+- Across entities: another entity's `schema.ts` is imported as a type anywhere, as a value
 <!-- @auth-start -->
   only by `controller.ts` and `schema.ts`; behaviour crosses only through `controller.ts`,
-  and a module's `service.ts` is never imported from outside it. A rule forwards the caller
-  it received. A cross-module flow is not atomic: each rule call is its own unit of work; a
-  flow that must be atomic lives in one module.
+  and an entity's `service.ts` is never imported from outside it. A rule forwards the caller
+  it received. A cross-entity flow is not atomic: each rule call is its own unit of work; a
+  flow that must be atomic lives in one entity.
 <!-- @auth-end -->
 <!-- @noauth-start -->
   only by `controller.ts` and `schema.ts`; behaviour crosses only through `controller.ts`,
-  and a module's `service.ts` is never imported from outside it. A cross-module flow is not
+  and an entity's `service.ts` is never imported from outside it. A cross-entity flow is not
   atomic: each rule call is its own unit of work; a flow that must be atomic lives in one
-  module.
+  entity.
 <!-- @noauth-end -->
 - Nothing imports `index.ts`; only `index.ts` and tests import `server.ts`.
 - Review rules, also not lintable: a vendor SDK package is imported only by its
-  `services/<vendor>.ts`; a `routes.ts` holds no logic; another module, a job or a script
+  `services/<vendor>.ts`; a `routes.ts` holds no logic; another entity, a job or a script
   calls a controller's rules, never its handlers.
 
 ESLint enforces the import rules: the leaves, the table's allowed and forbidden imports per
 file, and the named import rules, except that it cannot tell a type import from a value import
 <!-- @auth-start -->
 of `infra/dependency.ts`. The behaviour statements (a rule forwards the caller, a
-cross-module flow is not atomic) and the review rules are review rules.
+cross-entity flow is not atomic) and the review rules are review rules.
 <!-- @auth-end -->
 <!-- @noauth-start -->
-of `infra/dependency.ts`. The behaviour statement (a cross-module flow is not atomic) and the
+of `infra/dependency.ts`. The behaviour statement (a cross-entity flow is not atomic) and the
 review rules are review rules.
 <!-- @noauth-end -->
 
@@ -330,8 +330,8 @@ client, token, OTP and verification model is recorded in the project's architect
 (Auth) and changes only by plan. The verify functions in `security/jwt.ts` return `null` for an
 invalid or expired token.
 
-- Where rules live. Every module's rules live in its `controller.ts`. A capability module
-  whose rules only compose other modules and services has no `service.ts`, and its
+- Where rules live. Every entity's rules live in its `controller.ts`. A capability entity
+  whose rules only compose other entities and services has no `service.ts`, and its
   controller holds the composition; `api/auth/` is the shipped example. Rules about user
   data (a blocked account, a phone already in use) stay in the user controller; credential
   rules (verifying a password, what a blocked account learns, and when) are auth's.
@@ -341,24 +341,24 @@ invalid or expired token.
 - Authorization. `requireAuth` and `requireRole` in `routes.ts` are declarative and fail
   fast; the handler checks the role again, so an endpoint mounted without its gate fails
   closed. A rule that takes a caller acts only on that caller's own account
-  (`getCallerUser`), so a cross-module call cannot reach further than the route would.
-  Operations only other modules, jobs or scripts
+  (`getCallerUser`), so a cross-entity call cannot reach further than the route would.
+  Operations only other entities, jobs or scripts
   call take no caller and are named system operations: `createUser`, `findUserByEmail`,
   `findUserByTarget`, `getActiveUser`, `markVerified`, `setUserRole`. There is no admin
   bootstrap: the seed script calls `setUserRole`.
 - **Renaming the roles.** The template's roles are `user` and `admin`. A product that renames them
   changes these together, then runs `openapi` and the frontend's `contract`: the `UserRole` enum
   (`models/user/enum.ts`) and the `role` column or check in the migrations; the `requireRole(...)` and
-  `assertRole(...)` gates in `api/user/` and `api/module/`; the seed or first-staff path that calls
-  `setUserRole`; the summaries that say "admin" (`schema.ts` of both modules); the tests that use the
+  `assertRole(...)` gates in `api/user/` and `api/entity/`; the seed or first-staff path that calls
+  `setUserRole`; the summaries that say "admin" (`schema.ts` of both entities); the tests that use the
   role; this file. The frontend's role type guard and gates follow (its `AGENTS.md`).
 <!-- @auth-end -->
 <!-- @noauth-start -->
 ## Authentication
 
 This scaffold was generated with the `auth` flag off (recorded as Auth: none in
-the project's architecture record): every endpoint is public and no module takes a caller.
-Adding authentication later is a planned change, not a patch to one module.
+the project's architecture record): every endpoint is public and no entity takes a caller.
+Adding authentication later is a planned change, not a patch to one entity.
 <!-- @noauth-end -->
 
 ## The engine seam
@@ -366,10 +366,10 @@ Adding authentication later is a planned change, not a patch to one module.
 <!-- @nodatabase-start -->
 `services/db.ts` and `services/cache.ts` are file seams, not type seams: each exports the
 active store, and the type changes with the engine. The data-layer task rewrites `db.ts`,
-every module's `service.ts` and `services/session.ts`, adds `infra/<engine>.ts` and <!-- @auth -->
+every entity's `service.ts` and `services/session.ts`, adds `infra/<engine>.ts` and <!-- @auth -->
 `infra/scripts/migrate.ts`, and adds the engine resource to `dependencies`; `memory` leaves <!-- @auth -->
 it only when the cache task has moved `services/cache.ts` to its own store. The cache task <!-- @auth -->
-every module's `service.ts`, adds `infra/<engine>.ts` and `infra/scripts/migrate.ts`, and <!-- @noauth -->
+every entity's `service.ts`, adds `infra/<engine>.ts` and `infra/scripts/migrate.ts`, and <!-- @noauth -->
 adds the engine resource to `dependencies`; `memory` leaves it only when the cache task has <!-- @noauth -->
 moved `services/cache.ts` to its own store. The cache task <!-- @noauth -->
 rewrites `cache.ts`, adds `infra/redis.ts` and gives `infra/pubsub.ts` its adapter
@@ -384,15 +384,15 @@ active store, and the type changes with the engine. Here `services/db.ts` export
   after a close.
 - `Executor`: `SQL | TransactionSQL`, the client or an open transaction.
 
-Only a module's `service.ts` (and `model.ts`) and the files of `services/` and `infra/`
+Only an entity's `service.ts` (and `model.ts`) and the files of `services/` and `infra/`
 import it; ESLint refuses it in `routes.ts`, `controller.ts` and `schema.ts`. Every query
-function in a module's `service.ts` takes an optional last parameter, `db: Executor = getDb()`.
+function in an entity's `service.ts` takes an optional last parameter, `db: Executor = getDb()`.
 Without it the query takes its own connection from the pool; with it the query runs on the
-handle given. A controller cannot import `services/db.ts`, so a module that must write two
+handle given. A controller cannot import `services/db.ts`, so an entity that must write two
 things together exports `withTransaction(work)` from its `service.ts`: the controller opens
 it and passes the handle it receives to each query as the last argument. A service function
-never opens a transaction, and a transaction never spans modules. The helper is the same in
-every module (`api/module/service.ts` has it until that module is dropped):
+never opens a transaction, and a transaction never spans entities. The helper is the same in
+every entity (`api/entity/service.ts` has it until that entity is dropped):
 
 ```ts
 export function withTransaction<T>(work: (tx: Executor) => Promise<T>): Promise<T> {
@@ -415,7 +415,7 @@ the records do.
 The layer map is language-neutral on purpose: the Python and .NET server templates mirror
 the same directories and rules.
 
-## Adding a module
+## Adding an entity
 
 Work in this order, test first.
 
@@ -423,16 +423,16 @@ Work in this order, test first.
 2. `schema.ts`: zod schemas that `satisfies` the `models/` types, one `<operation>Request`
    object per endpoint (only the parts it reads) and `register<Name>`.
 3. `tests/<name>.test.ts` (see Tests), red.
-4. `service.ts`, only when the module has data (`findModuleById`, `listModules`).
-5. `controller.ts`: one handler per endpoint, then the exported rules other modules need.
+4. `service.ts`, only when the entity has data (`findEntityById`, `listEntities`).
+5. `controller.ts`: one handler per endpoint, then the exported rules other entities need.
 6. `routes.ts`: middleware as named constants, then one `router.<method>` line per endpoint.
 7. One line in `config/routes.ts` and one in `openapi.ts`; `bun run openapi`, then
    `bun run check`.
 
-Start by copying `api/module/` and `models/module/`, renaming in directories, files,
-identifiers, comments and constants: `module` to `<name>`, `Module` to `<Name>`, `MODULE` to
-`<NAME>`. Drop the reference module (both directories, its lines in `config/routes.ts` and
-`openapi.ts`, `tests/module.test.ts`) once a real one exists (copy your first module for the next one).
+Start by copying `api/entity/` and `models/entity/`, renaming in directories, files,
+identifiers, comments and constants: `entity` to `<name>`, `Entity` to `<Name>`, `ENTITY` to
+`<NAME>`. Drop the reference entity (both directories, its lines in `config/routes.ts` and
+`openapi.ts`, `tests/entity.test.ts`) once a real one exists (copy your first entity for the next one).
 
 - One request object, two readers: `validate(<operation>Request)` in `routes.ts` and
   `readInput(res, <operation>Request)` in the handler, so the types follow the schemas.
@@ -448,9 +448,9 @@ identifiers, comments and constants: `module` to `<name>`, `Module` to `<Name>`,
 - Every list endpoint paginates with `PageQuery` and `pageOf` from
   `services/utils/pagination.ts`: `?cursor=&limit=` in, `{ items, nextCursor }` out. The
   service fetches `limit + 1` rows and `toPage` slices; the cursor is opaque to clients.
-- Another module is reached only through its exported controller rules, never its `service.ts`.
-- A module with data ships its table in a migration (see Adding the data layer), and its <!-- @database:postgres -->
-  `service.ts` is written like `api/module/service.ts`: a row type, one `toRecord` mapping, <!-- @database:postgres -->
+- Another entity is reached only through its exported controller rules, never its `service.ts`.
+- An entity with data ships its table in a migration (see Adding the data layer), and its <!-- @database:postgres -->
+  `service.ts` is written like `api/entity/service.ts`: a row type, one `toRecord` mapping, <!-- @database:postgres -->
   an optional last `db: Executor` parameter on every query. <!-- @database:postgres -->
 - Paths are singular (`/api/post`, `/api/post/:id`), bodies are JSON only. Statuses: 200
   read and update, 201 create (the created resource), 204 delete (no body), 400 validation,
@@ -458,7 +458,7 @@ identifiers, comments and constants: `module` to `<name>`, `Module` to `<Name>`,
   401 unauthenticated, 403 forbidden,
 <!-- @auth-end -->
   404 missing, 409 conflict.
-- Admin endpoints live in `api/admin/<name>/`, a module like any other, at `/api/admin/<name>`
+- Admin endpoints live in `api/admin/<name>/`, an entity like any other, at `/api/admin/<name>`
   (`admin` is a namespace, not an entity); mount its router in `api/admin/routes.ts`.
 <!-- @auth-start -->
   That file runs `requireRole('admin')` first, so a route cannot ship without the gate.
@@ -467,7 +467,7 @@ identifiers, comments and constants: `module` to `<name>`, `Module` to `<Name>`,
   That file's gate refuses every request (403) until the product replaces it with its own.
 <!-- @noauth-end -->
 
-`api/module/` is the worked example.
+`api/entity/` is the worked example.
 
 ## Adding the data layer
 
@@ -480,8 +480,8 @@ delivers:
    cache task has replaced `services/cache.ts`, whose TTL sweep starts in its `connect()`); no
    connecting at import, since `bun run check` imports `app` without Docker.
 2. `services/db.ts` rewritten to export the engine client (its type changes).
-3. Every module's `service.ts` rewritten against it, signatures unchanged. <!-- @noauth -->
-3. Every module's `service.ts` and `services/session.ts`, signatures unchanged. <!-- @auth -->
+3. Every entity's `service.ts` rewritten against it, signatures unchanged. <!-- @noauth -->
+3. Every entity's `service.ts` and `services/session.ts`, signatures unchanged. <!-- @auth -->
 4. `model.ts` where the engine defines storage in code, held to `models/<name>/interface.ts`.
 5. `infra/scripts/migrate.ts` and a `db:migrate` script in `package.json`.
 6. `DATABASE_URL` in `config/env.ts` and `.env.example`; the engine's Compose service at the
@@ -490,10 +490,10 @@ delivers:
 
 Every engine: a record has a string `id` and `createdAt` and `updatedAt` set on every write;
 an unreachable store surfaces as `AppError('upstream_unavailable')`; a transaction belongs to
-one module's controller and never spans modules. For an SQL engine every query function in a
-module's `service.ts` takes the client or an open transaction as an optional last argument
+one entity's controller and never spans entities. For an SQL engine every query function in a
+entity's `service.ts` takes the client or an open transaction as an optional last argument
 (one `Executor` type covers both, defaulting to the client). A controller cannot import
-`services/db.ts`, so the module's `service.ts` exports a `withTransaction` helper; the
+`services/db.ts`, so the entity's `service.ts` exports a `withTransaction` helper; the
 controller opens it and passes the handle to each query. Every field a query filters or sorts on is
 indexed, including the `(createdAt, id)` pair behind cursor pagination; a change to the
 stored shape ships its migration or index definition in the same task. Dropping or resetting
@@ -527,8 +527,8 @@ The data layer is in place: this project was generated with `database/postgres`.
 - `infra/postgres.ts`: the `Resource` over Bun's built-in `SQL` (a pool; nothing connects at
   import), in `dependencies` beside `memory`, which stays as the cache until the cache task.
 - `services/db.ts`: the seam (`getDb()`, `Executor`; see The engine seam).
-- Every module's `service.ts` in SQL. `api/module/service.ts` is the reference until it is dropped,
-  then your first module is: a row type, one `toRecord` mapping from snake_case columns to the camelCase record, `withTransaction`,
+- Every entity's `service.ts` in SQL. `api/entity/service.ts` is the reference until it is dropped,
+  then your first entity is: a row type, one `toRecord` mapping from snake_case columns to the camelCase record, `withTransaction`,
   and cursor pagination over `(created_at, id)`. `model.ts` stays unused. <!-- @noauth -->
   and cursor pagination over `(created_at, id)`. `api/user/service.ts` and <!-- @auth -->
   `services/session.ts` are in SQL too. `model.ts` stays unused. <!-- @auth -->
@@ -539,7 +539,7 @@ The data layer is in place: this project was generated with `database/postgres`.
   (below).
 
 Every record has a `text` `id` the application generates, and `created_at` and `updated_at`
-set on every write. A transaction belongs to one module's controller and never spans modules.
+set on every write. A transaction belongs to one entity's controller and never spans entities.
 Dropping or resetting a database is a human's job.
 
 Changing the data model, in this order:
@@ -554,12 +554,12 @@ Changing the data model, in this order:
    timestamps are `timestamptz`.
 4. An index ships with the migration that needs it: every column a query filters or sorts on,
    including the `(created_at, id)` pair behind cursor pagination.
-5. Update the module's `service.ts`, its row type and `toRecord`, and
+5. Update the entity's `service.ts`, its row type and `toRecord`, and
    `models/<name>/interface.ts`.
 6. `bun run db:migrate`, then `bun run test:db`, then `bun run check`.
 
-The `module` table in `0001-init.sql` belongs to the reference module. Drop it with a new
-migration once the module is removed, unless no database has applied `0001-init.sql` yet.
+The `entity` table in `0001-init.sql` belongs to the reference entity. Drop it with a new
+migration once the entity is removed, unless no database has applied `0001-init.sql` yet.
 
 Commands:
 
@@ -623,7 +623,7 @@ returns their count. Time comes from the caller, never from `now()` in SQL. <!--
 `user.email` has a unique index (the controller lower-cases it); `user.phone` is unique only <!-- @auth -->
 among verified phones (a partial unique index where `phone_verified_at is not null`). <!-- @auth -->
 `session` is indexed on `user_id` and `expires_at` and has no foreign key to `"user"`: <!-- @auth -->
-modules stay independent. <!-- @auth -->
+entities stay independent. <!-- @auth -->
 
 The cache is its own task: `services/cache.ts` over `infra/redis.ts` (a `Resource`), same
 helpers; keys prefixed, always with a TTL; `incr` sets the TTL on the first increment only;
@@ -675,7 +675,7 @@ A gated endpoint also tests its 401 and, where it checks a role, its 403. <!-- @
 ## Tests
 
 - `bun test` with supertest against `app` from `server.ts`, never `index.ts` and never live
-  infrastructure. One `tests/<name>.test.ts` per module; the rest mirror `src/`
+  infrastructure. One `tests/<name>.test.ts` per entity; the rest mirror `src/`
   (`tests/middleware/`, `tests/services/`, `tests/infra/`, `tests/db/`).
 - Time is driven with `setSystemTime`. An event's effect is asserted after `await drain()`.
   `beforeEach` resets the store with `resetStore()`.

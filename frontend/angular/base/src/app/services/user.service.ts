@@ -4,7 +4,7 @@ import type { PublicUser, UpdateMeBody } from '@app/models/user/type'
 
 import { getApiUserMe, patchApiUserMe } from './generated/sdk.gen'
 
-// The facade over the signed-in account: read it, change its phone number.
+// The service over the signed-in account: read it, change its phone number.
 @Injectable({ providedIn: 'root' })
 export class UserService {
   async me(): Promise<PublicUser> {

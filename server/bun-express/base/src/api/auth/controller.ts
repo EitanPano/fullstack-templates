@@ -1,4 +1,4 @@
-// controller.ts belongs: the auth module's logic and its HTTP handlers, one per endpoint, named
+// controller.ts belongs: the auth entity's logic and its HTTP handlers, one per endpoint, named
 // after its operation (`login`). Auth owns no data, so it has no service.ts: the rules of a flow
 // (which sessions to create, which checks come before a code is consumed) live in its handlers
 // and nowhere else, and the data stays behind the user controller and services/session.ts. Each

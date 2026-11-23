@@ -1,5 +1,5 @@
 """The admin namespace: one gate on `/api/admin`, first, whatever is mounted in it. The template
-ships no admin module, so a throwaway router is mounted for the test only."""
+ships no admin entity, so a throwaway router is mounted for the test only."""
 
 import pytest
 from fastapi import APIRouter
@@ -18,7 +18,7 @@ class _Body(BaseModel):
     name: str
 
 
-# What the throwaway module's handlers were asked to do: nothing may reach them past the gate.
+# What the throwaway entity's handlers were asked to do: nothing may reach them past the gate.
 reached: list[str] = []
 MALFORMED = b'{"name":'
 JSON = {"content-type": "application/json"}
@@ -39,7 +39,7 @@ def probe(monkeypatch: pytest.MonkeyPatch) -> None:
 
     reached.clear()
 
-    monkeypatch.setattr(admin, "MODULES", [("/probe", router)])
+    monkeypatch.setattr(admin, "ENTITIES", [("/probe", router)])
 
 
 # @auth-start
@@ -68,7 +68,7 @@ class TestAdminNamespace:
         assert response.status_code == 403
         assert error_of(response).code == "forbidden"
 
-    async def test_lets_an_admin_reach_a_module_mounted_in_it(self) -> None:
+    async def test_lets_an_admin_reach_an_entity_mounted_in_it(self) -> None:
         async with http_client(create_app()) as client:
             response = await client.get(PATHS[0], headers=_bearer(UserRole.admin))
 
@@ -99,7 +99,7 @@ class TestAdminNamespace:
         assert response.status_code == 401
         assert reached == []
 
-    async def test_refuses_a_malformed_json_body_before_the_module_runs(self) -> None:
+    async def test_refuses_a_malformed_json_body_before_the_entity_runs(self) -> None:
         async with http_client(create_app()) as client:
             response = await client.post(PATHS[0], content=MALFORMED, headers=JSON)
 
@@ -144,7 +144,7 @@ class TestAdminNamespace:
         assert response.status_code == 403
         assert reached == []
 
-    async def test_refuses_a_malformed_json_body_before_the_module_runs(self) -> None:
+    async def test_refuses_a_malformed_json_body_before_the_entity_runs(self) -> None:
         async with http_client(create_app()) as client:
             response = await client.post(PATHS[0], content=MALFORMED, headers=JSON)
 

@@ -2,7 +2,7 @@
 -- `bun run db:migrate` (src/infra/scripts/migrate.ts). Each file runs once, with its record in
 -- `schema_migration`, in one transaction; a file that has been applied is never edited, a
 -- change is a new file with the next number.
-create table module (
+create table entity (
   id text primary key,
   name text not null,
   status text not null,
@@ -11,7 +11,7 @@ create table module (
 );
 
 -- The list endpoint pages by (created_at, id).
-create index module_created_at_id_idx on module (created_at, id);
+create index entity_created_at_id_idx on entity (created_at, id);
 
 -- @auth-start
 -- `user` is a reserved word, so the table is quoted wherever it is named.
@@ -38,7 +38,7 @@ create unique index user_verified_phone_idx on "user" (phone) where phone_verifi
 -- The list endpoint pages by (created_at, id).
 create index user_created_at_id_idx on "user" (created_at, id);
 
--- No foreign key to "user": modules stay independent of each other, and the session suites
+-- No foreign key to "user": entities stay independent of each other, and the session suites
 -- create sessions for user ids that have no row.
 create table session (
   id text primary key,

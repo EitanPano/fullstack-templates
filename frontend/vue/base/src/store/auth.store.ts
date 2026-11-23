@@ -31,7 +31,7 @@ function isUnauthenticated(cause: unknown): boolean {
 // `validation_failed`, which the page puts on its fields.
 //
 // The refresh itself is not here: core/interceptors/auth.interceptor.ts does it (this store
-// reaches the client through a facade, so the wrapper cannot import it) and tells the app through
+// reaches the client through a service, so the wrapper cannot import it) and tells the app through
 // `sessionLost`; core/initializers/session.initializer.ts calls `forget()`.
 export const useAuthStore = defineStore('auth', () => {
   const request = useRequestStatus()

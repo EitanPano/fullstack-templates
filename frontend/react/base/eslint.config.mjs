@@ -187,7 +187,7 @@ const NETWORK = [
     selector:
       "CallExpression[callee.name='fetch'], CallExpression[callee.object.name='globalThis'][callee.property.name='fetch'], CallExpression[callee.object.name='window'][callee.property.name='fetch']",
     message:
-      'call the API through a services/<module>.api.ts endpoint (the generated SDK behind call), not fetch',
+      'call the API through a services/<entity>.api.ts endpoint (the generated SDK behind call), not fetch',
   },
 ]
 // Configuration is read in one place; Vite exposes it as import.meta.env.
@@ -211,7 +211,7 @@ const restrictSyntax = (...selectors) => ({
 
 // Only services/ calls the generated runtime; a type is welcome anywhere.
 const RUNTIME_MESSAGE =
-  'only services/ imports the generated runtime: add an endpoint in services/<module>.api.ts and use its hook (a type goes through models/)'
+  'only services/ imports the generated runtime: add an endpoint in services/<entity>.api.ts and use its hook (a type goes through models/)'
 const RUNTIME_GROUP = [
   '@/services/generated',
   '@/services/generated/**',

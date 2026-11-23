@@ -101,13 +101,13 @@
           "dependencies"
         ]
       },
-      "ModulePage": {
+      "EntityPage": {
         "type": "object",
         "properties": {
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Module"
+              "$ref": "#/components/schemas/Entity"
             }
           },
           "nextCursor": {
@@ -122,7 +122,7 @@
           "nextCursor"
         ]
       },
-      "Module": {
+      "Entity": {
         "type": "object",
         "properties": {
           "id": {
@@ -155,7 +155,7 @@
           "updatedAt"
         ]
       },
-      "CreateModuleBody": {
+      "CreateEntityBody": {
         "type": "object",
         "properties": {
           "name": {
@@ -168,7 +168,7 @@
           "name"
         ]
       },
-      "UpdateModuleBody": {
+      "UpdateEntityBody": {
         "type": "object",
         "properties": {
           "name": {
@@ -259,12 +259,12 @@
         }
       }
     },
-    "/api/module": {
+    "/api/entity": {
       "get": {
         "tags": [
-          "module"
+          "entity"
         ],
-        "summary": "List modules",
+        "summary": "List entities",
         "parameters": [
           {
             "schema": {
@@ -288,11 +288,11 @@
         ],
         "responses": {
           "200": {
-            "description": "A page of modules",
+            "description": "A page of entities",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ModulePage"
+                  "$ref": "#/components/schemas/EntityPage"
                 }
               }
             }
@@ -321,25 +321,25 @@
       },
       "post": {
         "tags": [
-          "module"
+          "entity"
         ],
-        "summary": "Create a module",
+        "summary": "Create an entity",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateModuleBody"
+                "$ref": "#/components/schemas/CreateEntityBody"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "The created module",
+            "description": "The created entity",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Module"
+                  "$ref": "#/components/schemas/Entity"
                 }
               }
             }
@@ -387,12 +387,12 @@
         }
       }
     },
-    "/api/module/{id}": {
+    "/api/entity/{id}": {
       "get": {
         "tags": [
-          "module"
+          "entity"
         ],
-        "summary": "Get a module",
+        "summary": "Get an entity",
         "parameters": [
           {
             "schema": {
@@ -406,11 +406,11 @@
         ],
         "responses": {
           "200": {
-            "description": "The module",
+            "description": "The entity",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Module"
+                  "$ref": "#/components/schemas/Entity"
                 }
               }
             }
@@ -449,9 +449,9 @@
       },
       "patch": {
         "tags": [
-          "module"
+          "entity"
         ],
-        "summary": "Update a module",
+        "summary": "Update an entity",
         "parameters": [
           {
             "schema": {
@@ -467,18 +467,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateModuleBody"
+                "$ref": "#/components/schemas/UpdateEntityBody"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "The updated module",
+            "description": "The updated entity",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Module"
+                  "$ref": "#/components/schemas/Entity"
                 }
               }
             }
@@ -537,9 +537,9 @@
       },
       "delete": {
         "tags": [
-          "module"
+          "entity"
         ],
-        "summary": "Delete a module",
+        "summary": "Delete an entity",
         "parameters": [
           {
             "schema": {

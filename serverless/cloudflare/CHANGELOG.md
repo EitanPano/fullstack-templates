@@ -1,5 +1,29 @@
 # Changelog
 
+## 3.0.0 — 2026-11-23
+
+The architecture unit is an entity, not a module ([ADR 0018](../../docs/adr/0018-entity-term-and-service-facades.md)
+E1 to E3), and the sample a developer copies is named `entity`. The Worker's behaviour is the same;
+the reference route, table and identifiers are renamed. A project renames its own copy by hand:
+
+- Directories: `server/api/module/` → `server/api/entity/`, `server/models/module/` →
+  `server/models/entity/`; test file `tests/api/module.test.ts` → `tests/api/entity.test.ts`.
+- Route: `/api/module`, `/api/module/{id}` → `/api/entity`, `/api/entity/{id}`; the OpenAPI tag
+  `module` → `entity`, the 404 message `module not found` → `entity not found` and the components `Module`, `ModulePage` → `Entity`, `EntityPage`
+  (regenerate `openapi.json` with `bun run openapi`).
+- Table `module` → `entity` and index `module_created_at_id_idx` → `entity_created_at_id_idx`:
+  `0000_init.sql` and `migrations/meta/` are regenerated in the template. A project that already
+  applied the old migration writes its own rename migration instead.
+- Identifiers, case kept: `ModuleRecord`, `PublicModule`, `ModuleStatus`, `MODULE_LIMITS`,
+  `moduleTable`, `moduleRoutes`, `registerModule`, `createModule`, `listModules`, `findModuleById`
+  and the `*ModuleRequest` schemas become `EntityRecord`, `PublicEntity`, `EntityStatus`,
+  `ENTITY_LIMITS`, `entityTable`, `entityRoutes`, `registerEntity`, `createEntity`, `listEntities`,
+  `findEntityById` and `*EntityRequest`. The rate-limit keys `createModulePerIp`, `updateModulePerIp`,
+  `deleteModulePerIp` become `createEntityPerIp`, `updateEntityPerIp`, `deleteEntityPerIp`.
+- Prose: `AGENTS.md › Adding a module` is `Adding an entity`; the lint messages and the layer map
+  say "entity" (`api/<entity>/`, `api/admin/<entity>/`, "cross-entity"). The lint tests assert the
+  new messages.
+
 ## 2.1.1 — 2026-11-23
 
 Tests only; the Worker is unchanged. Beside a single-page frontend two tests failed in a generated

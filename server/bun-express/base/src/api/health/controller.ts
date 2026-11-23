@@ -5,7 +5,7 @@ import type { Request, RequestHandler, Response } from 'express'
 import { healthCheck, type Resource } from '../../infra/dependency'
 import type { HealthResponse, Readiness } from './schema'
 
-// A controller holds the module's logic in its HTTP handlers, one per endpoint, named after the
+// A controller holds the entity's logic in its HTTP handlers, one per endpoint, named after the
 // operation. Health owns no data, so it has no service.ts: liveness reads the process, readiness
 // pings every dependency (infra/dependency.ts).
 const startedAt = Date.now()

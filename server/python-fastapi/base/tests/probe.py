@@ -1,5 +1,5 @@
-"""A throwaway app shaped like the real one, for the tests that pin what every module relies on
-(the envelope, the `AppError` mapping, the body limits) without depending on a module.
+"""A throwaway app shaped like the real one, for the tests that pin what every entity relies on
+(the envelope, the `AppError` mapping, the body limits) without depending on an entity.
 
 It is the real `create_app()`, so every middleware is in place, with a few routes added.
 """

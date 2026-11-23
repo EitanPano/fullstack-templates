@@ -1,4 +1,4 @@
-"""service.py belongs: every query for the user module and nothing else; it is private to this
+"""service.py belongs: every query for the user entity and nothing else; it is private to this
 directory (only its `controller.py` imports it) and one of the few files that import the store
 (`services/db.py`). It does not belong: business rules, response shaping or events
 (`controller.py`).

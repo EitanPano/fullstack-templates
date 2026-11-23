@@ -1,4 +1,4 @@
-"""service.py belongs: every query for the user module and nothing else; it is private to this
+"""service.py belongs: every query for the user entity and nothing else; it is private to this
 directory (only its `controller.py` imports it) and one of the few files that import the database
 (`services/db.py`). It does not belong: business rules, response shaping or events
 (`controller.py`).
@@ -6,7 +6,7 @@ directory (only its `controller.py` imports it) and one of the few files that im
 This is the Postgres variant: the bodies are SQL against the "user" table
 (`infra/migrations/0001-init.sql`) and the signatures are the memory variant's, plus an optional
 last `db` keyword so a query can join a transaction a controller opened. This file has no
-`with_transaction`: the reference is `api/module/service.py`, and a module adds its own when a rule
+`with_transaction`: the reference is `api/entity/service.py`, and an entity adds its own when a rule
 needs one. The list is ordered by (created_at, id) and the cursor carries the last row's pair.
 
 A second insert of an email (or of a verified phone) violates a unique index; the error handler

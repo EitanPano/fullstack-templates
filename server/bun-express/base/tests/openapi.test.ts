@@ -33,7 +33,7 @@ describe('openapi.json', () => {
     expect(doc.components?.schemas?.Readiness).toBeDefined()
   })
 
-  it('registers at least one path for every module in the list', () => {
+  it('registers at least one path for every entity in the list', () => {
     for (const register of registrations) {
       const registry = new OpenAPIRegistry()
       register(registry)
@@ -43,8 +43,8 @@ describe('openapi.json', () => {
   })
 
   // The registration list lives in openapi.ts and the mount table in config/routes.ts: this is
-  // what keeps a documented module from being left unmounted.
-  it('mounts every documented module under /api: its first registered route is reachable', async () => {
+  // what keeps a documented entity from being left unmounted.
+  it('mounts every documented entity under /api: its first registered route is reachable', async () => {
     for (const register of registrations) {
       const registry = new OpenAPIRegistry()
       register(registry)
@@ -59,8 +59,8 @@ describe('openapi.json', () => {
     }
   })
 
-  it('still answers not_found for a path no module owns', async () => {
-    const res = await request(app).get('/api/no-such-module')
+  it('still answers not_found for a path no entity owns', async () => {
+    const res = await request(app).get('/api/no-such-entity')
 
     expect(res.status).toBe(404)
     expect(res.body).toMatchObject({ error: { code: 'not_found' } })

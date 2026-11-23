@@ -3,10 +3,10 @@
 // read here too, capped at MAX_BODY_BYTES. It does not belong: business rules (the controller)
 // or response shaping.
 //
-// The schemas live in api/<module>/schema.ts and the same object goes to both calls:
+// The schemas live in api/<entity>/schema.ts and the same object goes to both calls:
 //
-//   export const onRequestPost = handle(validate(createModuleRequest), createModule) // route file
-//   const { body } = readInput(ctx, createModuleRequest) // controller
+//   export const onRequestPost = handle(validate(createEntityRequest), createEntity) // route file
+//   const { body } = readInput(ctx, createEntityRequest) // controller
 //
 // Put it after any rate limit and before the controller: a 429 should not wait for parsing, and a
 // controller never sees unparsed input.

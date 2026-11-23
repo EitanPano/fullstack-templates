@@ -1,5 +1,5 @@
-// schema.ts belongs: the user module's zod request and response schemas and their OpenAPI
-// registration. It is the leaf of the module. It does not belong: business rules, data access
+// schema.ts belongs: the user entity's zod request and response schemas and their OpenAPI
+// registration. It is the leaf of the entity. It does not belong: business rules, data access
 // or anything that touches Express. The TypeScript shapes live in models/user/type.ts; each
 // schema here is checked against its type with `satisfies`, so the two cannot drift apart.
 import type { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi'

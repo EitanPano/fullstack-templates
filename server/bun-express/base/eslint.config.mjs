@@ -9,27 +9,27 @@ import tseslint from 'typescript-eslint'
 // config/routes.ts is imported by server.ts only and imports routes.ts and middleware/ only;
 // openapi.ts imports schema.ts; infra/dependency.ts is open except to the leaves; stores
 // (infra/ files other than dependency.ts and pubsub.ts) are reached through services/db.ts and
-// cache.ts, the bus through services/event.ts; only a module's service.ts and model.ts touch
+// cache.ts, the bus through services/event.ts; only an entity's service.ts and model.ts touch
 // db.ts or cache.ts, and they never publish: a controller does. Per layer, the table's "may
 // import" lists are deny zones for everything else (routes, controller, schema,
 // service/model, middleware, services, infra, server.ts, openapi.ts, index.ts). infra/
 // imports api/ only in jobs/, subscribers/ and scripts/, and there only controllers, schemas
 // (type-only) and, in scripts, model.ts. Nothing imports index.ts; only index.ts imports
 // server.ts; only config/routes.ts imports a routes.ts (api/admin/routes.ts, the admin
-// namespace's router, imports its modules'). Cross-module imports are the regex blocks below:
-// a module's controller.ts is its only door; an api/admin/<module>/ is a module like any other.
+// namespace's router, imports its entities'). Cross-entity imports are the regex blocks below:
+// an entity's controller.ts is its only door; an api/admin/<entity>/ is an entity like any other.
 // Not enforced (review): a vendor SDK package is imported only by its services/<vendor>.ts;
 // a routes.ts holds nothing but the middleware chain and the handler per endpoint; another
-// module or a job calls a controller's exported rules, never a handler; a rule forwards the // @auth
-// caller; a cross-module flow is not atomic. // @auth
-// module or a job calls a controller's exported rules, never a handler; a cross-module flow // @noauth
+// entity or a job calls a controller's exported rules, never a handler; a rule forwards the // @auth
+// caller; a cross-entity flow is not atomic. // @auth
+// entity or a job calls a controller's exported rules, never a handler; a cross-entity flow // @noauth
 // is not atomic. // @noauth
 // src() turns a trailing `.ts` into `.{ts,mts}`, so every single-file pattern ends in a brace
 // and is recognised as a glob on Windows (a pattern with a single `*` or `!(…)` and no brace
 // is not), which also keeps `from` from mixing globs and plain paths. A directory pattern
 // ends in `**` and carries no extension: it matches every file below it.
 const src = (p) => `./src/${p.replace(/\.ts$/, '.{ts,mts}')}`
-const moduleFile = (names) => src(`api/**/${names}.ts`)
+const entityFile = (names) => src(`api/**/${names}.ts`)
 
 // Every group of src/ files, so a rule can say "everything except".
 const g = {
@@ -137,10 +137,10 @@ const layering = [
       g.index,
       g.openapi,
       configExcept('routes'),
-      moduleFile('!(routes)'),
+      entityFile('!(routes)'),
     ],
     message:
-      'config/routes.ts imports every module routes.ts (and middleware/ for a mount-wide gate) and nothing else',
+      'config/routes.ts imports every entity routes.ts (and middleware/ for a mount-wide gate) and nothing else',
   },
   {
     target: [
@@ -178,7 +178,7 @@ const layering = [
   // The store seams
   {
     target: [
-      moduleFile('{routes,controller,schema}'),
+      entityFile('{routes,controller,schema}'),
       g.middleware,
       g.server,
       g.index,
@@ -186,11 +186,11 @@ const layering = [
     ],
     from: src('services/db.ts'),
     message:
-      'only a module service.ts and model.ts (and services/) use services/db.ts: a routes.ts, controller, schema, middleware or entry never touches a store',
+      'only an entity service.ts and model.ts (and services/) use services/db.ts: a routes.ts, controller, schema, middleware or entry never touches a store',
   },
   {
     target: [
-      moduleFile('{routes,controller,schema}'),
+      entityFile('{routes,controller,schema}'),
       src('middleware/!(rate-limit).ts'),
       g.server,
       g.index,
@@ -198,10 +198,10 @@ const layering = [
     ],
     from: src('services/cache.ts'),
     message:
-      'only a module service.ts and model.ts (and services/, and middleware/rate-limit.ts) use services/cache.ts',
+      'only an entity service.ts and model.ts (and services/, and middleware/rate-limit.ts) use services/cache.ts',
   },
   {
-    target: moduleFile('{routes,service,model}'),
+    target: entityFile('{routes,service,model}'),
     from: src('services/event.ts'),
     message: 'a routes.ts, service.ts or model.ts never publishes events: a controller does',
   },
@@ -255,23 +255,23 @@ const layering = [
       'services/ outside the db, cache and event seams reaches infra/ through infra/dependency.ts only',
   },
 
-  // Inside a module: what each file may import
+  // Inside an entity: what each file may import
   {
-    target: moduleFile('schema'),
+    target: entityFile('schema'),
     from: [
-      moduleFile('{routes,controller,service,model}'),
+      entityFile('{routes,controller,service,model}'),
       g.middleware,
       g.infra,
       ...servicesExcept({ dirs: ['utils'] }),
       configExcept('constants'),
     ],
     message:
-      "schema.ts is the leaf of a module: it imports services/utils/, models/, config/constants.ts and another module's schema.ts only",
+      "schema.ts is the leaf of an entity: it imports services/utils/, models/, config/constants.ts and another entity's schema.ts only",
   },
   {
-    target: moduleFile('routes'),
+    target: entityFile('routes'),
     from: [
-      moduleFile('{service,model}'),
+      entityFile('{service,model}'),
       ...servicesExcept({ dirs: ['utils'] }),
       g.infra,
       configExcept('constants'),
@@ -280,9 +280,9 @@ const layering = [
       'a routes.ts wires middleware to its handlers: it imports its controller and schema, middleware/, services/utils/, models/ and config/constants.ts only',
   },
   {
-    target: moduleFile('controller'),
+    target: entityFile('controller'),
     from: [
-      moduleFile('{routes,model}'),
+      entityFile('{routes,model}'),
       ...infraExcept({ files: ['dependency'] }),
       src('config/routes.ts'),
     ],
@@ -290,16 +290,16 @@ const layering = [
       'a controller holds the rules and the handlers: it reaches data through its own service.ts and never imports a routes.ts, a model.ts, config/routes.ts or infra/ (except dependency.ts)',
   },
   {
-    target: moduleFile('{service,model}'),
+    target: entityFile('{service,model}'),
     from: [
-      moduleFile('{routes,controller,schema}'),
+      entityFile('{routes,controller,schema}'),
       g.middleware,
       g.infra,
       ...servicesExcept({ files: ['logger', 'db', 'cache'], dirs: ['utils'] }),
       configExcept('constants'),
     ],
     message:
-      'service.ts (and model.ts) is the data layer at the bottom of a module: it imports services/db.ts, services/cache.ts, services/logger.ts, services/utils/, models/ and config/constants.ts only',
+      'service.ts (and model.ts) is the data layer at the bottom of an entity: it imports services/db.ts, services/cache.ts, services/logger.ts, services/utils/, models/ and config/constants.ts only',
   },
 
   // api/ is reached from above only
@@ -321,13 +321,13 @@ const layering = [
   },
   {
     target: src('infra/{jobs,subscribers,scripts}/**'),
-    from: moduleFile('{routes,service}'),
+    from: entityFile('{routes,service}'),
     message:
-      'jobs, subscribers and scripts reach a module through its controller.ts and schema.ts (scripts also model.ts)',
+      'jobs, subscribers and scripts reach an entity through its controller.ts and schema.ts (scripts also model.ts)',
   },
   {
     target: src('infra/{jobs,subscribers}/**'),
-    from: moduleFile('model'),
+    from: entityFile('model'),
     message: 'only infra/scripts/ imports a model.ts: jobs and subscribers use controllers',
   },
   {
@@ -351,7 +351,7 @@ const layering = [
 
   // Entry points
   {
-    // api/admin/routes.ts, the namespace's router, mounts the admin modules' own routes.ts.
+    // api/admin/routes.ts, the namespace's router, mounts the admin entities' own routes.ts.
     target: [
       g.models,
       src('api/!(admin)/**'),
@@ -365,9 +365,9 @@ const layering = [
       g.server,
       g.index,
     ],
-    from: moduleFile('routes'),
+    from: entityFile('routes'),
     message:
-      'only config/routes.ts imports a routes.ts (api/admin/routes.ts, the admin modules of its namespace)',
+      'only config/routes.ts imports a routes.ts (api/admin/routes.ts, the admin entities of its namespace)',
   },
   {
     target: g.server,
@@ -378,14 +378,14 @@ const layering = [
   {
     target: g.openapi,
     from: [
-      moduleFile('!(schema)'),
+      entityFile('!(schema)'),
       g.infra,
       g.middleware,
       g.models,
       ...servicesExcept({ dirs: ['utils'] }),
       g.config,
     ],
-    message: "openapi.ts imports every module's schema.ts and services/utils/ only",
+    message: "openapi.ts imports every entity's schema.ts and services/utils/ only",
   },
   {
     target: g.index,
@@ -413,19 +413,19 @@ const layering = [
   },
 ]
 
-// Cross-module imports. A path of the form ../<module>/... is another module. The default
-// block refuses all of it except a type-only import of the other module's schema.ts (a type
+// Cross-entity imports. A path of the form ../<entity>/... is another entity. The default
+// block refuses all of it except a type-only import of the other entity's schema.ts (a type
 // carries no behaviour). Two blocks widen that for the files that may cross: controller.ts
-// (the other module's controller, and its schema as a value) and schema.ts (the other
-// module's schema as a value, to embed its entity). A third keeps HTTP out of the data layer.
+// (the other entity's controller, and its schema as a value) and schema.ts (the other
+// entity's schema as a value, to embed it). A third keeps HTTP out of the data layer.
 // A later flat-config block replaces the rule for the files it matches, so each block states
 // its whole policy.
-const otherModule = '^\\.\\./[^./][^/]*/'
+const otherEntity = '^\\.\\./[^./][^/]*/'
 // A trailing .ts or .mts must not slip past an anchored name.
 const end = '(\\.m?ts)?$'
-// An api/admin/<module>/ file sits one directory deeper: a sibling admin module is
-// ../<module>/ (otherModule above) and an entity module is ../../<module>/.
-const entityModule = '^\\.\\./\\.\\./[^./][^/]*/'
+// An api/admin/<entity>/ file sits one directory deeper: a sibling admin entity is
+// ../<entity>/ (otherEntity above) and a top-level entity is ../../<entity>/.
+const topLevelEntity = '^\\.\\./\\.\\./[^./][^/]*/'
 
 export default tseslint.config(
   { ignores: ['node_modules/', 'openapi.json'] },
@@ -471,15 +471,15 @@ export default tseslint.config(
         {
           patterns: [
             {
-              regex: `${otherModule}(?!schema${end})`,
+              regex: `${otherEntity}(?!schema${end})`,
               message:
-                "a module's behaviour is reached through its controller.ts, and only a controller.ts imports it; only controller.ts and schema.ts import another module's schema.ts as a value",
+                "an entity's behaviour is reached through its controller.ts, and only a controller.ts imports it; only controller.ts and schema.ts import another entity's schema.ts as a value",
             },
             {
-              regex: `${otherModule}schema${end}`,
+              regex: `${otherEntity}schema${end}`,
               allowTypeImports: true,
               message:
-                "another module's schema.ts is a type-only import here; only controller.ts and schema.ts import it as a value",
+                "another entity's schema.ts is a type-only import here; only controller.ts and schema.ts import it as a value",
             },
           ],
         },
@@ -494,9 +494,9 @@ export default tseslint.config(
         {
           patterns: [
             {
-              regex: `${otherModule}(?!(controller|schema)${end})`,
+              regex: `${otherEntity}(?!(controller|schema)${end})`,
               message:
-                "a controller crosses a module boundary through the other module's controller.ts (and its schema.ts), never its service.ts",
+                "a controller crosses an entity boundary through the other entity's controller.ts (and its schema.ts), never its service.ts",
             },
           ],
         },
@@ -518,9 +518,9 @@ export default tseslint.config(
           ],
           patterns: [
             {
-              regex: `${otherModule}`,
+              regex: `${otherEntity}`,
               message:
-                "the data layer never crosses a module boundary: a controller calls the other module's controller",
+                "the data layer never crosses an entity boundary: a controller calls the other entity's controller",
             },
           ],
         },
@@ -535,17 +535,17 @@ export default tseslint.config(
         {
           patterns: [
             {
-              regex: `${otherModule}(?!schema${end})`,
+              regex: `${otherEntity}(?!schema${end})`,
               message:
-                "a schema imports another module's schema.ts (to embed its entity) and nothing else of it",
+                "a schema imports another entity's schema.ts (to embed it) and nothing else of it",
             },
           ],
         },
       ],
     },
   },
-  // api/admin/<module>/: the same policy as above, with an entity module two levels up counted
-  // as another module too. Each block restates its whole policy.
+  // api/admin/<entity>/: the same policy as above, with a top-level entity two levels up counted
+  // as another entity too. Each block restates its whole policy.
   {
     files: ['src/api/admin/*/**'],
     rules: {
@@ -554,23 +554,23 @@ export default tseslint.config(
         {
           patterns: [
             {
-              regex: `${otherModule}(?!schema${end})`,
+              regex: `${otherEntity}(?!schema${end})`,
               message:
-                "a module's behaviour is reached through its controller.ts, and only a controller.ts imports it; only controller.ts and schema.ts import another module's schema.ts as a value",
+                "an entity's behaviour is reached through its controller.ts, and only a controller.ts imports it; only controller.ts and schema.ts import another entity's schema.ts as a value",
             },
             {
-              regex: `${otherModule}schema${end}`,
+              regex: `${otherEntity}schema${end}`,
               allowTypeImports: true,
               message:
-                "another module's schema.ts is a type-only import here; only controller.ts and schema.ts import it as a value",
+                "another entity's schema.ts is a type-only import here; only controller.ts and schema.ts import it as a value",
             },
             {
-              regex: `${entityModule}(?!schema${end})`,
+              regex: `${topLevelEntity}(?!schema${end})`,
               message:
-                "an admin module reaches an entity's behaviour through that entity's controller.ts, and only a controller.ts imports it; only controller.ts and schema.ts import an entity's schema.ts as a value",
+                "an admin entity reaches a top-level entity's behaviour through that entity's controller.ts, and only a controller.ts imports it; only controller.ts and schema.ts import a top-level entity's schema.ts as a value",
             },
             {
-              regex: `${entityModule}schema${end}`,
+              regex: `${topLevelEntity}schema${end}`,
               allowTypeImports: true,
               message:
                 "an entity's schema.ts is a type-only import here; only controller.ts and schema.ts import it as a value",
@@ -588,12 +588,12 @@ export default tseslint.config(
         {
           patterns: [
             {
-              regex: `${otherModule}(?!(controller|schema)${end})`,
+              regex: `${otherEntity}(?!(controller|schema)${end})`,
               message:
-                "a controller crosses a module boundary through the other module's controller.ts (and its schema.ts), never its service.ts",
+                "a controller crosses an entity boundary through the other entity's controller.ts (and its schema.ts), never its service.ts",
             },
             {
-              regex: `${entityModule}(?!(controller|schema)${end})`,
+              regex: `${topLevelEntity}(?!(controller|schema)${end})`,
               message:
                 "an admin controller reaches an entity's data through that entity's controller.ts (and its schema.ts), never its service.ts",
             },
@@ -617,14 +617,14 @@ export default tseslint.config(
           ],
           patterns: [
             {
-              regex: `${otherModule}`,
+              regex: `${otherEntity}`,
               message:
-                "the data layer never crosses a module boundary: a controller calls the other module's controller",
+                "the data layer never crosses an entity boundary: a controller calls the other entity's controller",
             },
             {
-              regex: `${entityModule}`,
+              regex: `${topLevelEntity}`,
               message:
-                "the data layer never crosses a module boundary: a controller calls the entity's controller",
+                "the data layer never crosses an entity boundary: a controller calls the entity's controller",
             },
           ],
         },
@@ -639,12 +639,12 @@ export default tseslint.config(
         {
           patterns: [
             {
-              regex: `${otherModule}(?!schema${end})`,
+              regex: `${otherEntity}(?!schema${end})`,
               message:
-                "a schema imports another module's schema.ts (to embed its entity) and nothing else of it",
+                "a schema imports another entity's schema.ts (to embed it) and nothing else of it",
             },
             {
-              regex: `${entityModule}(?!schema${end})`,
+              regex: `${topLevelEntity}(?!schema${end})`,
               message:
                 "a schema imports an entity's schema.ts (to embed it) and nothing else of it",
             },
@@ -664,7 +664,7 @@ export default tseslint.config(
               regex: `^(\\.\\./)+api/[^/]+/schema${end}`,
               allowTypeImports: true,
               message:
-                "a module's schema.ts is a type-only import in jobs, subscribers and scripts",
+                "an entity's schema.ts is a type-only import in jobs, subscribers and scripts",
             },
           ],
         },

@@ -1,5 +1,5 @@
-// tables.ts belongs: the tables the platform layers own and no module does: the rate-limit
-// counters. A module keeps its table in its own model.ts.
+// tables.ts belongs: the tables the platform layers own and no entity does: the rate-limit
+// counters. An entity keeps its table in its own model.ts.
 // It does not belong: queries (the middleware that uses a table writes its own statement).
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 

@@ -8,7 +8,7 @@ import tseslint from 'typescript-eslint'
 import vueParser from 'vue-eslint-parser'
 
 // The layer map (AGENTS.md › Layers): app → layout, pages → core, store, services → shared,
-// models; layout/ and pages/<module>/ never import each other. Every import the layers forbid is a
+// models; layout/ and pages/<name>/ never import each other. Every import the layers forbid is a
 // `boundaries/dependencies` error whose message names the layer to use. tests/unit/eslint-boundaries.spec.ts lints one violation and one allowed case
 // per rule through this file, so a rule that stops firing fails the suite.
 //
@@ -55,7 +55,7 @@ const policies = [
     from: { element: { type: 'app' } },
     disallow: { to: { element: { type: 'page' } } },
     message:
-      'app/ imports a page module only through its *.routes.ts: the pages are loaded by the route (lazy), never by app/',
+      'app/ imports a page folder only through its *.routes.ts: the pages are loaded by the route (lazy), never by app/',
   },
   {
     from: { element: { type: 'app' } },
@@ -95,7 +95,7 @@ const policies = [
       'layout/ imports core/config, core/providers, store/, shared/ and models/ only: compose pages in app/routes.ts and read data through a store',
   },
   {
-    // A page screen (<name>-page/<name>-page.vue) and the module's plain .ts files; a component of
+    // A page screen (<name>-page/<name>-page.vue) and the page folder's plain .ts files; a component of
     // the page sits beside it and has the stricter rule below.
     from: {
       element: {
@@ -119,7 +119,7 @@ const policies = [
       },
     },
     message:
-      'a page reads a store, never services/: add a facade method and a store method first (a page imports store/, shared/, models/, core/config, core/providers, core/guards and its own page module only)',
+      'a page reads a store, never services/: add a service method and a store method first (a page imports store/, shared/, models/, core/config, core/providers, core/guards and its own page folder only)',
   },
   {
     from: {
@@ -133,7 +133,7 @@ const policies = [
     from: { element: { type: 'page', fileInternalPath: '*.routes.ts' } },
     disallow: { to: { element: { type: except('page', 'core-guards', 'testing') } } },
     message:
-      'a *.routes.ts imports core/guards and its own page module only: the route table is composed in app/routes.ts',
+      'a *.routes.ts imports core/guards and its own page folder only: the route table is composed in app/routes.ts',
   },
   {
     // A form schema extends the generated request schema (limits are never copied) and reaches
@@ -160,7 +160,7 @@ const policies = [
       },
     },
     message:
-      'a page module never imports another page module: lift the shared part to shared/ (product-agnostic) or models/ (a noun), or compose both in app/',
+      'a page folder never imports another one: lift the shared part to shared/ (product-agnostic) or models/ (a noun), or compose both in app/',
   },
   {
     from: { element: { type: 'store' } },
@@ -224,7 +224,7 @@ const policies = [
     from: { element: { type: 'shared' } },
     disallow: { to: { element: { type: except('shared', 'models', 'testing') } } },
     message:
-      'shared/ is product-agnostic: it imports shared/ and models/ only. Move the code to core/, a page module or services/, or pass it in as props',
+      'shared/ is product-agnostic: it imports shared/ and models/ only. Move the code to core/, a page folder or services/, or pass it in as props',
   },
   {
     from: { element: { type: 'models' } },
@@ -271,7 +271,7 @@ const NETWORK = [
     selector:
       "CallExpression[callee.name='fetch'], CallExpression[callee.object.name='globalThis'][callee.property.name='fetch'], CallExpression[callee.object.name='window'][callee.property.name='fetch']",
     message:
-      'call the API through a facade in services/ (the generated SDK behind it), not fetch: only core/interceptors/auth.interceptor.ts calls fetch',
+      'call the API through a service in services/ (the generated SDK behind it), not fetch: only core/interceptors/auth.interceptor.ts calls fetch',
   },
 ]
 // Configuration is read in one place; Vite exposes it as import.meta.env.
@@ -287,7 +287,7 @@ const restrictSyntax = (...selectors) => ({
 
 // Only the data layer calls the generated runtime; a type is welcome in the layers below the UI.
 const RUNTIME_MESSAGE =
-  'only services/ and core/interceptors/http.provider.ts import the generated runtime: add a facade method in services/<module>.service.ts and call it from a store (a type goes through models/)'
+  'only services/ and core/interceptors/http.provider.ts import the generated runtime: add a service method in services/<entity>.service.ts and call it from a store (a type goes through models/)'
 const STYLE_MESSAGE =
   'main.ts imports the global styles; a page or component carries a sibling .scss through <style lang="scss" src="./<stem>.scss"></style>'
 const GENERATED_GROUP = {

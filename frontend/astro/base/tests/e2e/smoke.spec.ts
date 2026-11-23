@@ -48,29 +48,29 @@ test('an unknown /api path is the JSON 404 envelope', async ({ request }) => {
   expect(await api.json()).toMatchObject({ error: { code: 'not_found' } })
 })
 
-// The reference module through `fetch` from the page's own context, under the page's policy
+// The reference entity through `fetch` from the page's own context, under the page's policy
 // (connect-src 'self'). The data carries a name unique to this run and is removed afterwards.
-test('the reference module creates and lists from the page context', async ({ page }) => {
+test('the reference entity creates and lists from the page context', async ({ page }) => {
   await page.goto('/')
   const name = `e2e-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 
-  const result = await page.evaluate(async (moduleName) => {
-    const created = await fetch('/api/module', {
+  const result = await page.evaluate(async (entityName) => {
+    const created = await fetch('/api/entity', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: moduleName }),
+      body: JSON.stringify({ name: entityName }),
     })
     const item = (await created.json()) as { id: string; name: string }
     try {
-      const listed = await fetch('/api/module?limit=100')
+      const listed = await fetch('/api/entity?limit=100')
       const body = (await listed.json()) as { items: { id: string; name: string }[] }
       return {
         createdStatus: created.status,
         listedStatus: listed.status,
-        found: body.items.some((entry) => entry.id === item.id && entry.name === moduleName),
+        found: body.items.some((entry) => entry.id === item.id && entry.name === entityName),
       }
     } finally {
-      await fetch(`/api/module/${item.id}`, { method: 'DELETE' })
+      await fetch(`/api/entity/${item.id}`, { method: 'DELETE' })
     }
   }, name)
 

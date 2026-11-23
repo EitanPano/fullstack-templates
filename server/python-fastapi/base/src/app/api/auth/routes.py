@@ -1,4 +1,4 @@
-"""routes.py belongs: the auth module's router. Each endpoint is one `add_api_route`: the handler,
+"""routes.py belongs: the auth entity's router. Each endpoint is one `add_api_route`: the handler,
 the status and response model, the error responses, the summary, and the gates (dependencies, in
 declaration order, before body validation errors are raised): its rate limiters, then the auth
 gate. The gates are built once above the table.

@@ -1,4 +1,4 @@
-// routes.ts belongs: the auth module's router. Each endpoint is one line: its rate limiters, the
+// routes.ts belongs: the auth entity's router. Each endpoint is one line: its rate limiters, the
 // auth middleware, validation, then the controller's handler; the middleware is built once
 // above the table. It does not belong: request handling (controller.ts).
 import { Router } from 'express'

@@ -18,7 +18,7 @@ describe('installInterceptors', () => {
     installInterceptors()
   })
 
-  it('makes a facade call reject with the ApiError of an envelope', async () => {
+  it('makes a service call reject with the ApiError of an envelope', async () => {
     stubApi({
       'GET /api/health': Response.json(
         { error: { code: 'not_found', message: 'x' }, requestId: 'r-7' },

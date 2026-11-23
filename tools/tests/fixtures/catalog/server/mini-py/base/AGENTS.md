@@ -1,6 +1,6 @@
 # Mini Python server
 
-## Adding a module
+## Adding an entity
 
 ## Adding the data layer
 
