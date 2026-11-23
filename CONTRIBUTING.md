@@ -718,7 +718,13 @@ the lockfiles is still to be configured.
   fields for a server's flags, the `e2eDb` command, the provider's `e2e` URL); v1.4.1 adds the case
   field `brand`; v1.5.0 and v1.5.1 add none; v1.11.0 widens `onlyWhen` (a bare `server` key, an
   object form) without a bump.
-- This release is `v1.15.0`, a minor: several frontends in one plan, each in its own directory
+- This release is `v1.16.0`, a minor: a stack's `stack.yaml` may list further frontend templates
+  under `frontends:`, and `astro-cloudflare` takes `frontend/angular` as one of several frontends
+  ([ADR 0017](docs/adr/0017-another-frontend-template-beside-a-worker.md)): `serverless/cloudflare`
+  2.1.0 (a single-page fallback), `frontend/angular` 4.2.0 (beside a serverless API);
+  `schemaVersion` 1 (the optional fields `frontends` in a stack and `static.fallback` in a
+  template); a tool change (the `server:serverless` selection).
+  Before it, `v1.15.0`, a minor: several frontends in one plan, each in its own directory
   ([ADR 0015](docs/adr/0015-several-frontends-by-directory.md)), and one Worker with static assets
   in place of Pages Functions ([ADR 0016](docs/adr/0016-one-worker-with-static-assets.md)):
   `serverless/cloudflare` 2.0.0, `frontend/astro` 1.1.0, and the admin namespace in

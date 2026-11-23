@@ -219,6 +219,10 @@ stack; production does not refuse its credentials if you export them.
   Cloudflare Worker with static assets in place of Pages Functions (`serverless/cloudflare` 2.0.0,
   `frontend/astro` 1.1.0, [ADR 0016](docs/adr/0016-one-worker-with-static-assets.md)); an admin
   namespace in `server/bun-express` 3.2.0 and `server/python-fastapi` 2.2.0.
+- v1.16.0: an Angular single-page frontend beside the Astro site on the one Worker (a stack lists
+  further frontend templates, [ADR 0017](docs/adr/0017-another-frontend-template-beside-a-worker.md));
+  `serverless/cloudflare` 2.1.0 serves a single-page shell for an unknown page path,
+  `frontend/angular` 4.2.0.
 - Next: mongodb, redis, and a worker with rabbitmq.
 
 The design is in [ADR 0001](docs/adr/0001-catalog-architecture.md).
