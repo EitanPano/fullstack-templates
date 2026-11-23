@@ -121,7 +121,10 @@ Checklist, under `<kind>/<id>/` (for example `server/bun-express`):
   covers `.venv`, `__pycache__` and the tool caches; a `.gitignore` fragment for the language
   goes in `shared/gitignore/` and is named in the manifest's `gitignore`.
 - **The agents file** must have the headings the harness cites: "Adding an entity", "Adding the
-  data layer", "Errors" and "Tests". `validate` fails without them.
+  data layer", "Errors" and "Tests". `validate` fails without them. No step in it tells a task to
+  edit the package's `AGENTS.md`: product facts go to this package's `.doc/` (ADR 0019). In template
+  text a bare `.doc/…` is the repository's root folder; the package's own is written "this
+  package's `.doc/…`".
 - **Where the gates run.** A raw `base/` that carries capability markers does not pass its own
   `check`: the marked lines import modules that only an overlay provides, and both variants of a
   marked line sit in the file until the generator picks one. This holds for `bun-express` and

@@ -4,6 +4,8 @@
 
 The generated client follows the server's sample rename: `/api/module` is `/api/entity`, `getApiModule*`, `postApiModule`, `patchApiModuleById` and `deleteApiModuleById` are `getApiEntity*`, `postApiEntity`, `patchApiEntityById` and `deleteApiEntityById`, and `Module`, `ModulePage`, `CreateModuleBody`, `UpdateModuleBody` are `Entity`, `EntityPage`, `CreateEntityBody`, `UpdateEntityBody`. Re-run `bun run api:types` after the server moves. No behaviour change.
 
+The role-change line in `AGENTS.md` names the role list in this package's `.doc/architecture.md` instead of "this file" ([ADR 0019](../../docs/adr/0019-package-docs.md)). A project generated earlier changes "and this file, after the server's roles and the `contract` command" by hand.
+
 ### Breaking
 
 - Library facades move into `services/` (ADR 0018): `shared/utils/validation.ts` → `services/validation.ts`, `shared/utils/date.ts` → `services/date.ts`, `shared/utils/cn.ts` → `services/cn.ts`, tests with them. A project generated from 4.x keeps `shared/utils/`; to adopt this, move the three files (and their tests) and change the imports to `@/services/validation`, `@/services/date` and `@/services/cn`. `shared/utils/` keeps only helpers that import no library (`initials.ts`).

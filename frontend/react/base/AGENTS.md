@@ -480,8 +480,9 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
   No staff page ships.
 - **Renaming the roles.** The roles are `user` and `admin`. A product that renames them changes
   `isUser` in `shared/utils/is-user.ts` and `ROLES` in `models/user/constant.ts` (another role reads as signed out), every `requireRole(...)` call,
-  the role-gated group, the unit tests that use a role, and this file, after the server's roles
-  and the `contract` command. A role-gated route also needs a setup in the e2e screens list.
+  the role-gated group, the unit tests that use a role, and the role list in this package's
+  `.doc/architecture.md`, after the server's roles and the `contract` command. A role-gated route
+  also needs a setup in the e2e screens list.
 
 <!-- @server:auth-end -->
 

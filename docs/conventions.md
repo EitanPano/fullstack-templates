@@ -186,7 +186,9 @@ that enforces them, and where an addition goes. The rationale is in
     `Adding a feature` the recipe for a new entity, file by file. The recipe is documentation, as
     the server's `Adding an entity` is; a template never ships placeholder code, nor an example
     screen: the index route is one `h1` and one line of copy. `validate` checks the five headings;
-    the layer map is not a checked heading.
+    the layer map is not a checked heading. No step in the file tells a task to edit it: product
+    facts go to this package's `.doc/` ([ADR 0019](adr/0019-package-docs.md)), and a bare `.doc/…`
+    in template text is the repository's root folder.
 
 **E2E** (ADR 0004, U4; amended). Playwright serves the production build and starts the server
 fresh with `reuseExistingServer: false`, `RATE_LIMIT_SCALE=100` and the server's `start` command.
