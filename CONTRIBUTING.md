@@ -46,7 +46,8 @@ bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] 
 - `generate` builds a project from a stack, from one template with `--template`, or from a plan with
   several frontends: each `--frontend <dir>=<template>` adds one beside a `serverless` API (refused
   beside a `server` package). With a stack the listed frontends replace the stack's frontend member
-  and use its template. `--skip-post-generate` leaves out install, contract and format; `--keep-staging` keeps the
+  and use its template, or a template its `stack.yaml` lists under `frontends` when the request holds
+  more than one frontend (ADR 0017). `--skip-post-generate` leaves out install, contract and format; `--keep-staging` keeps the
   working directory for inspection.
 - The brand options (and `answers.brand`) apply to a frontend; `tools/lib/theme.ts` builds the OKLCH
   tokens and fails, naming the pair, when a seed cannot pass the contrast checks. A server-only
@@ -370,7 +371,8 @@ Markers are written in the file's own comment syntax (`//`, `--` in `.sql`, `#` 
   server selected (`server:auth`, `server:database`), all off when the frontend is generated alone.
   A template's `onlyWhen: { "server:auth": [paths] }` keeps those files only while it is on;
   `validate` dry-runs a frontend with each server selection on and off. A frontend manifest cannot
-  declare a flag named `auth`, so `--flag auth=...` still means the server's.
+  declare a flag named `auth`, so `--flag auth=...` still means the server's. `server:serverless` is
+  one more fact, on when the plan's API is a `serverless` package (a flag cannot be named `serverless`).
   The bare key `server` keeps its files only when the plan has a server package. A value is a path
   list or an object `{ onlyPaths, dependencies: { remove }, scripts: { remove } }` (at least one key):
   `onlyWhen: { server: { onlyPaths: ["src/api"], dependencies: { remove: ["@hey-api/openapi-ts"] },
