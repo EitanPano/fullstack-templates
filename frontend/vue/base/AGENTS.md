@@ -8,7 +8,7 @@ The layer map of this package. Commands are in `package.json`; the contract code
 **`src/`**
 
 - `main.ts`: imports the font, `styles/themes/brand.css`, `styles/styles.scss` and
-  `shared/utils/validation`, creates the app, calls `installPlugins(app)` and mounts in its
+  `services/validation`, creates the app, calls `installPlugins(app)` and mounts in its
   `.then` (the saved language loads before the first render). It installs
   `core/initializers/preload-error`: one reload per 30 s on `vite:preloadError` (a chunk the new
   build no longer has), then the error surfaces.
@@ -17,8 +17,7 @@ The layer map of this package. Commands are in `package.json`; the contract code
   `has-role` directive and `ROLES_KEY`, the session and PWA initializers), `routes.ts` (the main
   layout, one lazy `*.routes.ts` per page folder, the catch-all last; the auth layout and its
   routes with auth), `router.ts` (sets `document.title` from
-  `meta.titleKey`) and `nav.ts` (the one navigation table, read by `screens.spec` and by the navigation a product
-  builds; `NavEntry` lives in `models/nav/`).
+  `meta.titleKey`) and `nav.ts` (the one navigation table, read by `screens.spec`; `NavEntry` lives in `models/nav/`).
 - `core/`: singletons wired once in `app/plugins.ts`, never imported by `shared/`.
   `config/` (`env.ts` the only reader of `import.meta`, `constants.ts` with the `STORAGE_KEYS`,
   `api-client.ts` the generator's `runtimeConfigPath`), `interceptors/`, `guards/`,
@@ -63,6 +62,7 @@ The layer map of this package. Commands are in `package.json`; the contract code
 - `services/`: one service per entity over the generated SDK; `generated/` is the Hey API
   output (types, the fetch client, the flat SDK, zod; committed, lint-ignored).
 <!-- @server-end -->
+- `services/<name>.ts`: a facade (`validation.ts`).
 - `shared/`: product-agnostic. `components/` (the `base-*` primitives that wrap the browser
   controls once, and the patterns, each a folder of its name with its `.scss` and spec beside it;
   the form controls, `form-field` and `form-actions` in `components/form/`; the four controls
@@ -91,6 +91,7 @@ Write the files by hand, copying the nearest sibling.
 | A form                                      | `pages/<name>/<name>.form.ts`                            |
 | An app-wide component (a header, a menu)    | `layout/app-<name>/app-<name>.vue` + `app-<name>.scss`   |
 | A primitive (button, input, dialog)         | `shared/components/base-<name>/base-<name>.vue`          |
+| A library facade                            | `services/<name>.ts`                                     |
 | A reusable pattern or composable            | `shared/`                                                |
 | A guard, interceptor, initializer, provider | `core/`                                                  |
 | A navigation entry                          | `app/nav.ts`                                             |
@@ -117,14 +118,15 @@ the alias `@/*` (`src/*`); imports inside one page folder stay relative. Specs s
 | `pages/<name>/` screens (`*-page.vue` and any other `.ts` beside them, not `*.routes.ts` or `*.form.ts`) | store, shared, models, `core/config`, `core/providers`, `core/guards` (the unsaved-changes composable), its own page folder's components and `*.form.ts` |
 | `pages/<name>/` components (a `.vue` that is not a `*-page.vue`)                                         | shared, models                                                                                                                                           |
 | `pages/<name>/*.routes.ts`                                                                               | `core/guards`, its own page folder's pages                                                                                                               |
-| `pages/<name>/*.form.ts`                                                                                 | `shared/validators`, `shared/utils/validation`, models, the generated zod schemas (`@/services/generated/zod.gen`)                                       |
+| `pages/<name>/*.form.ts`                                                                                 | `shared/validators`, the `services/validation.ts` facade, models, the generated zod schemas (`@/services/generated/zod.gen`)                             |
 | `store/`                                                                                                 | store, services, models, `core/providers`, `core/config`, `core/i18n` (the language store applies the locale)                                            |
 | `services/`                                                                                              | models, `core/config`, `services/generated`                                                                                                              |
+| a facade (`services/validation.ts`)                                                                      | its library and models; every layer may import one                                                                                                       |
 | `core/guards`, `core/initializers`, `core/interceptors/error.interceptor.ts`, `http.provider.ts`         | store, services, core, shared, models (they are the wiring); `http.provider.ts` alone imports the generated client                                       |
 | `core/interceptors/loading.interceptor.ts`                                                               | `core/config`, `core/providers`, models and `store/loading.store.ts`                                                                                     |
 | `core/interceptors/auth.interceptor.ts`                                                                  | `core/config`, `core/providers`, models: a leaf, never `store/`, `services/` or another interceptor                                                      |
 | `core/config`, `core/providers`, `core/i18n`, `core/errors`                                              | each other, shared, models; `core/config/api-client.ts` alone also the two fetch wrappers                                                                |
-| `shared/`                                                                                                | shared, models                                                                                                                                           |
+| `shared/`                                                                                                | shared, models, the facades                                                                                                                              |
 | `models/`                                                                                                | models; the generated types and zod schemas with `import type` only                                                                                      |
 | `testing/`                                                                                               | anything; nothing outside a `*.spec.ts` imports it                                                                                                       |
 
@@ -147,10 +149,9 @@ the alias `@/*` (`src/*`); imports inside one page folder stay relative. Specs s
   `tests/unit/styles-tree.spec.ts` refuses `scoped` and a block with a body), no `style` attribute
   (`vue/no-static-inline-styles`, and the scan also reads bound ones), no `.css` or `.scss` import
   outside `main.ts`.
-- A file in a directory no layer claims is an error (`boundaries/no-unknown-files`), and so is importing one (`boundaries/no-unknown-dependencies`). The boundary
-  rule is silent on an import it cannot resolve, so `eslint-import-resolver-typescript` reads the
-  `@/*` alias from `tsconfig.app.json` and resolves `.vue` imports; keep the setting when the
-  config changes.
+- A file in a directory no layer claims is an error (`boundaries/no-unknown-files`), and so is importing one (`boundaries/no-unknown-dependencies`). `eslint-import-resolver-typescript`
+  reads the `@/*` alias from `tsconfig.app.json` and resolves `.vue` imports (an unresolved import is
+  silent): keep it.
 
 `tests/unit/eslint-boundaries.spec.ts` lints one violation and one allowed case per rule, through
 the real `eslint.config.mjs`. A new rule gets a case there.
@@ -426,7 +427,7 @@ discarded, and a guarded deep link lands on sign-in with `next`.
 (`loginForm()`, `signupForm()` with `match('password', 'confirm')` as its rule, `otpForm()`),
 each `useSchemaForm(schema, initial, rules?)` (`shared/validators/schema-form.ts`) over the generated
 request schema (`zCredentials`, `pick(zOtpVerificationBody, ['code'])`), so no limit is
-copied. The file's first import is `@/shared/utils/validation` (see below). `useSchemaForm`
+copied. The file's first import is `@/services/validation` (see below). `useSchemaForm`
 returns `values` (the reactive object `v-model` binds), `error(name)`, `errorText(name)`
 (translated, for a field's `error` prop), `touch(name)`, `submit(handler)`, `submitting`,
 `submitted`, `valid`, `unmapped`, `serverErrors` and `reset()`; call it in `setup`, it reads the
@@ -446,21 +447,19 @@ meaning "remove the number", and keeps the rule itself). A checkbox carries its 
 field no `label`.
 <!-- @server-end -->
 
-**zod, its facade and the CSP.** `shared/utils/validation.ts` is the one file that imports `zod`: the
-app builds and runs every schema through its functions (`text`, `number`, `flag`, `object`, `field`,
-`pick`, `either`, `validate`, `isValid`, `parse`) and no file calls a method on a schema, the
-generated ones included. zod 4 probes `new Function('')` when a schema is built, a violation of the
+**zod, its facade and the CSP.** `services/validation.ts` is the one file that imports `zod`: the
+app builds and runs every schema through its functions (`text`, `object`, `field`, `pick`,
+`either`, `validate`, `parse`, ...) and no file calls a method on a schema, the generated ones included. zod 4 probes `new Function('')` when a schema is built, a violation of the
 deployed `script-src 'self'`; the facade calls `z.config({ jitless: true })` as it loads. `main.ts`
 imports it, and so must every module that imports `@/services/generated/zod.gen` at run time, as its
-first import (the build splits shared code into chunks, so `main.ts` alone is not enough). A new
-`*.form.ts` begins `import '@/shared/utils/validation'`; `tests/unit/validation-first.spec.ts` fails
+first import. A new
+`*.form.ts` begins `import '@/services/validation'`; `tests/unit/validation-first.spec.ts` fails
 the module that does not.
 
-**External libraries sit behind a facade.** An external library is imported only by its facade, and
-lint refuses it elsewhere: `zod` by `shared/utils/validation.ts`, `reka-ui` by `shared/components/`
-(the kit), `lucide-vue-next` by `shared/components/icons.ts`; with `pwa`, the service worker
-library (`virtual:pwa-register`, `workbox-window`) by `store/app-update.store.ts`. The framework and its
-official ecosystem (`vue`, `vue-router`, `pinia`, `vue-i18n`) and the generated code are exempt.
+**External libraries sit behind one file.** Lint refuses a library outside it: `zod` by the facade
+`services/validation.ts` (one file wrapping a library, flat in `services/`), `reka-ui` by `shared/components/`, `lucide-vue-next` by `shared/components/icons.ts`;
+with `pwa`, `virtual:pwa-register` and `workbox-window` by `store/app-update.store.ts`. A library
+wrapped as a component or store stays there. The framework's ecosystem (`vue`, `vue-router`, `pinia`, `vue-i18n`) and generated code are exempt.
 
 ## Styling
 

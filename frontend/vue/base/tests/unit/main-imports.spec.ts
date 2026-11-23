@@ -29,7 +29,7 @@ describe('main.ts', () => {
   })
 
   it('configures the validation library before the app, and so before any schema is built', () => {
-    const zod = imports.indexOf("import '@/shared/utils/validation'")
+    const zod = imports.indexOf("import '@/services/validation'")
     const app = imports.findIndex((line) => line.includes('@/app/App.vue'))
 
     expect(zod).toBeGreaterThan(-1)

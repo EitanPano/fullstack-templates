@@ -6,7 +6,7 @@ import {
   formatDateTime,
   instantToWallTime,
   wallTimeToInstant,
-} from '@/shared/utils/date'
+} from '@/services/date'
 
 // Europe/London changes on 2026-03-29 (01:00 GMT jumps to 02:00 BST) and on 2026-10-25 (02:00 BST
 // falls back to 01:00 GMT), so one zone covers a gap, an ambiguous hour and the plain case.

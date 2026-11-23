@@ -1,7 +1,7 @@
 import { Avatar as AvatarPrimitive } from 'radix-ui'
 import type { ComponentProps } from 'react'
 
-import { cn } from '@/shared/utils/cn'
+import { cn } from '@/services/cn'
 import './avatar.scss'
 
 export function Avatar({

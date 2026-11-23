@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import BaseInput from '@/shared/components/form/base-input.vue'
 import FormField from '@/shared/components/form/form-field/form-field.vue'
-import { object, text } from '@/shared/utils/validation'
+import { object, text } from '@/services/validation'
 import { renderWithApp } from '@/testing/render'
 
 import { match } from './match'

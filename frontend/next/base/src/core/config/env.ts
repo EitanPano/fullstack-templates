@@ -11,7 +11,7 @@ import {
   transform,
   url,
   // @server-end
-} from '@/shared/utils/validation'
+} from '@/services/validation'
 
 // The only file that reads process.env. Importing it from a Client Component fails at build
 // time (`server-only`), which is the point: browser-visible values are NEXT_PUBLIC_* and

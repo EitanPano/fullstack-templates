@@ -3,7 +3,7 @@ import { Dialog as SheetPrimitive } from 'radix-ui'
 import type { ComponentProps } from 'react'
 
 import { Button } from '@/shared/components/button/button'
-import { cn } from '@/shared/utils/cn'
+import { cn } from '@/services/cn'
 import './sheet.scss'
 
 export const Sheet = SheetPrimitive.Root

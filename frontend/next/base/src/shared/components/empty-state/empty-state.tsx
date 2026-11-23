@@ -1,7 +1,7 @@
 import type { IconComponent } from '@/shared/components/icons'
 import type { ReactNode } from 'react'
 
-import { cn } from '@/shared/utils/cn'
+import { cn } from '@/services/cn'
 import './empty-state.scss'
 
 // What a list or section shows when there is nothing to show yet, with the next step.

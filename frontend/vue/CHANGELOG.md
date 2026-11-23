@@ -7,6 +7,7 @@ The server templates name their sample `entity` ([ADR 0018](../../docs/adr/0018-
 ### Breaking
 
 - `src/services/generated/` is regenerated from the renamed contract: `/api/module` is `/api/entity`; `getApiModule`, `getApiModuleById`, `postApiModule`, `patchApiModuleById` and `deleteApiModuleById` are `getApiEntity`, `getApiEntityById`, `postApiEntity`, `patchApiEntityById` and `deleteApiEntityById`; `Module`, `ModulePage`, `CreateModuleBody` and `UpdateModuleBody` (and their `z` schemas) are `Entity`, `EntityPage`, `CreateEntityBody` and `UpdateEntityBody`. A project generated before regenerates its client with `contract` against a 5.x server.
+- `shared/utils/validation.ts` (and its spec) is `services/validation.ts`: the file that wraps `zod` is a facade, flat in `services/`. Lint adds a facade tier: every layer may import a listed facade, `shared/` and `core/config` included; a facade imports `zod` and `models/` types only, and no other file of `services/`; `shared/` still cannot import an entity's service. Imports of `@/shared/utils/validation` become `@/services/validation`; `tests/unit/main-imports.spec.ts`, `validation-first.spec.ts` and `eslint-boundaries.spec.ts` name the new path, and the last gains three cases. A project generated before moves the file and edits its imports.
 
 ### Changed
 

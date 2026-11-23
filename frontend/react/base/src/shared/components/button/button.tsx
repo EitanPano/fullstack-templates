@@ -1,7 +1,7 @@
 import { Slot } from 'radix-ui'
 import type { ComponentProps } from 'react'
 
-import { cn } from '@/shared/utils/cn'
+import { cn } from '@/services/cn'
 import './button.scss'
 
 type ButtonProps = ComponentProps<'button'> & {

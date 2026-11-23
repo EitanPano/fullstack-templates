@@ -33,7 +33,7 @@ What holds for the whole repository (versions, definition of done) is in the rep
 - `src/components/islands/<name>/`: React islands, only with the `islands` flag (see Islands).
 <!-- @islands-end -->
 - `src/services/`: the data and library layer. `validation.ts` is the one file that names `zod`;
-  `theme.ts` is the facade over the browser's storage and colour-scheme query.
+  `theme.ts` wraps the browser's storage and colour-scheme query.
 <!-- @server-start -->
 - `src/services/generated/` is the client the `contract` command writes from the server's
   `openapi.json` (types, a fetch client, the flat SDK and zod schemas); `api-client.ts` is its

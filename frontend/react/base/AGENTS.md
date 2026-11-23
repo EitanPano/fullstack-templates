@@ -3,7 +3,7 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
 
 **`src/`**
 
-- `main.tsx`: the entry. Imports `shared/utils/validation` first (the validation library is configured before any
+- `main.tsx`: the entry. Imports `services/validation` first (the validation library is configured before any
   schema is built), then the font, `styles/themes/brand.css` and `styles/styles.scss`; creates the
   one store, dispatches `themeRestored`, builds the router from `createRoutes(store)` and renders
   it inside `AppProviders`. Nothing else.
@@ -66,10 +66,10 @@ a wrong role).
 
 <!-- @server:auth-end -->
 
-- `services/`: the data layer, the only importer of the generated runtime. `api.ts` (the one <!-- @server -->
+- `services/`: the data layer, the only importer of the generated runtime, and the facades. `api.ts` (the one <!-- @server -->
   `createApi`, its `tagTypes`), `call.ts` (`call`, `DEFAULT_COPY`), `refetchIfRejected` in `api.ts`, <!-- @server -->
   `generated/` (Hey API output; committed, never edited). <!-- @server -->
-- `services/`: the data layer. Empty until a server arrives (see Adding a feature). <!-- @noserver -->
+- `services/`: the facades `cn`, `date`, `validation`; the data layer arrives with a server. <!-- @noserver -->
 
 <!-- @server:auth-start -->
 
@@ -85,11 +85,10 @@ a wrong role).
   `textarea`, `label`, `checkbox`, `radio-group`, `switch`, `select`, `form-actions`), the `*-field` bindings
   (`text`, `textarea`, `number`, `select`, `checkbox`, `password`, `date-time`), `report-failure`. <!-- @server -->
   (`text`, `textarea`, `number`, `select`, `checkbox`, `password`, `date-time`). <!-- @noserver -->
-  `hooks/`: `useMediaQuery`, `useOnlineStatus` (both on `useSyncExternalStore`) and
-  `useDebouncedValue`; no template file calls them, they are for the product's shell and its first
-  search box. Hooks
+  `hooks/`: `useMediaQuery`, `useOnlineStatus` and
+  `useDebouncedValue`; no template file calls them. Hooks
   over the store stay in `store/hooks.ts`; `src/hooks/` is an unknown file.
-  `utils/`: `cn`, `date`, `storage` (`localStorage` that never throws), `validation`.
+  `utils/`: `storage` (`localStorage` that never throws).
 
 <!-- @server:auth-start -->
 
@@ -134,7 +133,8 @@ a wrong role).
 | An app-wide component (a menu, the header)    | `layout/app-<name>/app-<name>.tsx` + `app-<name>.scss` beside it   |
 | A pattern (`Page`, `EmptyState`, …)           | `shared/components/`                                               |
 | A form control or field binding               | `shared/components/form/`                                          |
-| A formatting or date helper                   | `shared/utils/`                                                    |
+| A library facade                              | `services/<name>.ts`                                               |
+| A helper over no library                      | `shared/utils/`                                                    |
 | A product-agnostic hook                       | `shared/hooks/use-<name>.ts` + its test                            |
 | A hook a page and an app-wide component share | `store/use-<name>.ts`: pages never import `layout/`                |
 | A route guard (with the server's auth)        | `core/auth/guards.ts`                                              |
@@ -143,7 +143,7 @@ a wrong role).
 | A stylesheet                                  | beside its component or page, imported last by it                  |
 
 **Import rules** (`eslint-plugin-boundaries`; each lint message names the layer to use instead). A
-page never imports another page; `shared/` never imports `core/`, `store/` or `services/`.
+page never imports another page; `shared/` never imports `core/`, `store/` or `services/` but a facade.
 
 | From                                                     | May import                                                                         |
 | -------------------------------------------------------- | ---------------------------------------------------------------------------------- |
@@ -154,6 +154,7 @@ page never imports another page; `shared/` never imports `core/`, `store/` or `s
 | `pages/<name>/*.form.ts`                                 | shared, models, the generated zod schemas (`@/services/generated/zod.gen`)         | <!-- @server -->
 | `store/`                                                 | services (reducer, middleware, matchers), `core/theme`, `core/config`, models      |
 | `services/`                                              | `services/generated`, `core/config`, `core/auth` (not the guards), models          |
+| a facade (`cn`, `date`, `validation`)                    | its library, `models/` types; every layer may import it                            |
 | `core/auth/guards.ts` (the `guards` files category)      | store, services, `core/config`, `core/auth`, models (the wiring)                   |
 | `core/config`, `core/auth/session-hint.ts`, `core/theme` | shared, models, and each other (the leaves; never the guards or the runtime)       |
 | `shared/` (with `shared/hooks/`)                         | shared, models                                                                     |
@@ -161,13 +162,13 @@ page never imports another page; `shared/` never imports `core/`, `store/` or `s
 | `testing/`                                               | anything; nothing outside `*.test.ts(x)` imports it (tests are boundaries-ignored) |
 
 - **Libraries.** An external library is imported only by its facade: `zod` and
-  `@hookform/resolvers` by `shared/utils/validation.ts` (named functions: `text`, `object`,
+  `@hookform/resolvers` by `services/validation.ts` (named functions: `text`, `object`,
   `check`, `validate`, `formResolver`; no method is called on a schema elsewhere), `lucide-react`
   by `shared/components/icons.ts`, `sonner` by `shared/components/toaster/toaster.tsx`
   (`showErrorToast`, `showWarningToast`, `showSuccessToast`; the store may import it),
   `react-hook-form` by `shared/components/form/` (pages use `useSchemaForm`), `radix-ui` by
-  `shared/components/`, `clsx` by `shared/utils/cn.ts`, `date-fns` and `@date-fns/tz` by
-  `shared/utils/date.ts`. Lint refuses the rest. React, React Router, Redux Toolkit and React
+  `shared/components/`, `clsx` by `services/cn.ts`, `date-fns` and `@date-fns/tz` by
+  `services/date.ts`. Lint refuses the rest. React, React Router, Redux Toolkit and React
   Redux are the architecture and are imported freely.
 
 Also lint-enforced:
@@ -218,9 +219,8 @@ The data flows one way: **component -> RTK Query hook (`services/<entity>.api.ts
 generated SDK -> fetch client**. A component never calls `fetch` or the SDK; a one-off request
 needs an endpoint first. For a new entity (the noun, by its `.doc/glossary.md` name; `post`
 below). In the blocks, `Post`, `PostRow`, `PostList`, `getApiPost`, `patchApiPostById`, the `'Post'` tag
-and the `postApi` hooks are the example feature's own names: they exist once the server has the
-endpoint, `bun run api:types` has regenerated the client and `models/post/type.ts` exists. Everything
-else in the blocks already exists in the template.
+and the `postApi` hooks are the example's own names, which exist once the endpoint, the regenerated client and
+`models/post/type.ts` do; the rest already exists.
 
 1. **Glossary and contract.** Name the noun and the actions in `.doc/glossary.md`. If the contract
    changed, run `bun run api:types`: `src/services/generated/` is regenerated and committed.
@@ -424,7 +424,7 @@ React Hook Form (behind `useSchemaForm`) and the mutation hook; `SignInForm` is 
 
 ### Dates
 
-`shared/utils/date.ts` (`date-fns` v4 with `@date-fns/tz`) converts between an instant and a wall
+`services/date.ts` (`date-fns` v4 with `@date-fns/tz`) converts between an instant and a wall
 time in a named zone; nothing reads the machine's zone. `wallTimeToInstant` refuses a time inside a
 daylight-saving gap and takes the earlier instant for an ambiguous one; `dayKey` names the day in
 the zone; `formatDate` and `formatDateTime` format in it. A form holds an instant (ISO with `Z`);
@@ -495,7 +495,7 @@ The API sets its tokens as HttpOnly cookies on the page's own origin; the page n
   `@use`s `setup/...` only and is never layered, so its rules win over the global ones. A partial
   two sibling files share (`form/controls.scss`: `input.tsx`, `textarea.tsx`) is imported by each. A
   component renders BEM classes (`.button--primary`, `.page-header__title`) composed with `cn` from
-  `@/shared/utils/cn`. `main.tsx` imports Inter, `themes/brand.css`, then `styles.scss`.
+  `@/services/cn`. `main.tsx` imports Inter, `themes/brand.css`, then `styles.scss`.
   `tests/unit/styles-tree.test.ts` enforces it: `src/styles/` holds only the global tree, every
   sheet has its owner, the owner's import is last, imports are siblings, no `style` attribute,
   `layout/` entries carry `app-`, and the global partials hold only `@use`, comments and the

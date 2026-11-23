@@ -1,5 +1,5 @@
 // First, so the validation library is configured (jitless, our messages) before any schema is built.
-import '@/shared/utils/validation'
+import '@/services/validation'
 import '@fontsource-variable/inter'
 import '@/styles/themes/brand.css'
 import '@/styles/styles.scss'
