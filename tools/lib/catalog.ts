@@ -68,10 +68,14 @@ export function defaultDir(manifest: Pick<TemplateManifest, 'kind' | 'id'>): str
 // `server:<name>`.
 export const SERVER_PREFIX = 'server:'
 
+// The reserved fact a frontend reads as `server:serverless`: the plan's API is a serverless package
+// (ADR 0017 D4). No flag of a server can carry the name.
+export const SERVERLESS_FACT = 'serverless'
+
 // Every name any server or serverless template of the catalog declares, so a marker in a frontend
 // resolves whichever API the stack brings (and is off for the ones it does not).
 export function serverSelectionNames(templates: Iterable<LoadedTemplate>): string[] {
-  const names = new Set<string>()
+  const names = new Set<string>([SERVERLESS_FACT])
   for (const { manifest } of templates) {
     if (!isApiKind(manifest.kind)) continue
     for (const flag of Object.keys(manifest.flags ?? {})) names.add(flag)
@@ -180,7 +184,7 @@ export interface TemplateManifest {
   // Frontend only: false when the template ships no image (no compose.yaml, no deploy mode).
   docker?: boolean
   // Frontend only: the directory the build writes, which the server serves in the single mode.
-  static?: { out: string }
+  static?: { out: string; fallback?: string }
 }
 
 export interface StackManifest {
@@ -188,6 +192,8 @@ export interface StackManifest {
   id: string
   summary: string
   packages: Array<{ template: string; dir: string }>
+  // Further frontend templates the stack has been run with beside its own (ADR 0017 D1).
+  frontends?: string[]
 }
 
 export interface CatalogIndex {
@@ -714,8 +720,8 @@ function checkServerSettings(
 }
 
 // A stack case may list its frontends and set flags on further packages (ADR 0015 F1). The
-// frontends must be this template's, the directories the plan's, and the flags declared by the
-// template of the package they land on.
+// first frontend must be this template's and the others frontend templates (ADR 0017), the
+// directories the plan's, and the flags declared by the template of the package they land on.
 function checkFrontendSettings(
   template: LoadedTemplate,
   testCase: CasesFile['cases'][number],
@@ -741,13 +747,17 @@ function checkFrontendSettings(
     }
   }
   const seen = new Set<string>()
-  for (const entry of frontends) {
+  for (const [index, entry] of frontends.entries()) {
     const at = entry.indexOf('=')
     const [dir, used] = [entry.slice(0, at), entry.slice(at + 1)]
-    if (used !== template.path) {
+    // The first frontend takes the case's own flags, so it is the case's template. A later one
+    // may be another frontend template (ADR 0017); the plan's rules decide whether it fits.
+    if (index === 0 && used !== template.path) {
       problems.push(
         `${where} lists frontend "${dir}" with ${used}, but the case is for ${template.path}`,
       )
+    } else if (index > 0 && templates.get(used)?.manifest.kind !== 'frontend') {
+      problems.push(`${where} lists frontend "${dir}" with ${used}, which is no frontend template`)
     }
     if (seen.has(dir)) problems.push(`${where} lists frontend dir "${dir}" twice`)
     seen.add(dir)
@@ -905,6 +915,16 @@ function checkCrossReferences(
       }
       if (dirs.has(pkg.dir)) problems.push(`${stack.path}: package dir "${pkg.dir}" is used twice`)
       dirs.add(pkg.dir)
+    }
+    for (const listed of stack.manifest.frontends ?? []) {
+      const loaded = templates.get(listed)
+      if (loaded === undefined) {
+        problems.push(`${stack.path}: frontends lists "${listed}", which is not a loaded template`)
+      } else if (loaded.manifest.kind !== 'frontend') {
+        problems.push(
+          `${stack.path}: frontends lists "${listed}", which is a ${loaded.manifest.kind}, not a frontend`,
+        )
+      }
     }
   }
 }

@@ -6,3 +6,6 @@ packages:
     dir: serverless/cloudflare
   - template: frontend/astro
     dir: frontend
+# Run beside the Worker as one of several frontends, never alone (ADR 0017).
+frontends:
+  - frontend/angular

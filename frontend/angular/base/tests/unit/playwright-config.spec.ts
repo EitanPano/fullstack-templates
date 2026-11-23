@@ -22,7 +22,8 @@ describe('playwright.config.ts', () => {
     // A CI variable exported empty must not become the origin ('' would start servers on no URL).
     const config = await load({ E2E_BASE_URL: '   ', E2E_DATABASE_URL: 'postgres://u:p@h/app_e2e' })
 
-    expect(config.use?.baseURL).toMatch(/^http:\/\/127\.0\.0\.1:\S+$/)
+    expect(config.use?.baseURL).toMatch(/^http:\/\/127\.0\.0\.1:\S+$/) // @noserver:serverless
+    expect(config.use?.baseURL).toMatch(/^http:\/\/__PACKAGE_DIR__\.localhost:\S+$/) // @server:serverless
     expect(config.webServer).toBeDefined()
   })
 
@@ -60,7 +61,12 @@ describe('playwright.config.ts', () => {
     expect(servers.length).toBeGreaterThanOrEqual(1)
     for (const server of servers) expect(server.reuseExistingServer).toBe(false)
     const app = servers.at(-1)
-    expect(app?.command).toBe('bun run build && node scripts/e2e-static.mjs')
+    expect(app?.command).toBe('bun run build && node scripts/e2e-static.mjs') // @noserver:serverless
+    // Beside the Worker one server builds this app, then runs the Worker's chain for this frontend. // @server:serverless
+    expect(servers).toHaveLength(1) // @server:serverless
+    expect(app?.command).toBe( // @server:serverless
+      'bun run build && cd ../__SERVER_DIR__ && __SERVER_E2E_DB_COMMAND__ && __SERVER_START_COMMAND__ --only __PACKAGE_DIR__', // @server:serverless
+    ) // @server:serverless
     expect(app?.timeout).toBe(300_000)
   })
 })

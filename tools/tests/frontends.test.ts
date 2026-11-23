@@ -5,7 +5,7 @@ import { describe, expect, test } from 'bun:test'
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { parse } from 'yaml'
-import { loadCatalog } from '../lib/catalog'
+import { loadCatalog, serverSelectionNames } from '../lib/catalog'
 import { listCases, requestFor } from '../lib/cases'
 import { dryRunMarkers } from '../lib/dry-run'
 import { generate, packagePlaceholders } from '../lib/generate'
@@ -105,13 +105,74 @@ describe('the request', () => {
       /stack mini-site-fn has no frontend member/,
     )
   })
-  test("each frontend must use the stack's own frontend template", () => {
+  test('a template the stack lists is taken as one of several frontends', () => {
+    const plan = resolveRequest(
+      catalog,
+      request({ frontends: [pair('site'), pair('admin', 'frontend/mini-spa')] }),
+    )
+    expect(plan.packages.map((p) => [p.dir, p.template.path])).toEqual([
+      [FN, FN],
+      ['site', SITE],
+      ['admin', 'frontend/mini-spa'],
+    ])
+    expect(pkgOf(plan, 'admin').serverDir).toBe(FN)
+    // Each keeps its own template's port: nothing collides, so nothing moves.
+    expect([pkgOf(plan, 'site').port, pkgOf(plan, 'admin').port]).toEqual([4321, 5173])
+    // The stack's own template need not be present, only two frontends.
+    const spas = resolveRequest(
+      catalog,
+      request({
+        frontends: [pair('app', 'frontend/mini-spa'), pair('admin', 'frontend/mini-spa')],
+      }),
+    )
+    expect(spas.frontends.map((p) => p.dir)).toEqual(['app', 'admin'])
+  })
+  test('a listed template alone beside the API is refused, with the reason', () => {
+    expect(() =>
+      resolveRequest(catalog, request({ frontends: [pair('admin', 'frontend/mini-spa')] })),
+    ).toThrow(
+      /stack mini-site-fn takes frontend.mini-site, frontend.mini-spa.*--frontend admin lists frontend.mini-spa.*only as one of several frontends/,
+    )
+  })
+  test('a template the stack does not list is refused, even with a static build', () => {
     expect(() =>
       resolveRequest(
         catalog,
         request({ frontends: [pair('site'), pair('app', 'frontend/mini-ui')] }),
       ),
-    ).toThrow(/stack mini-site-fn.*frontend\/mini-site.*frontend\/mini-ui/)
+    ).toThrow(
+      /stack mini-site-fn takes frontend.mini-site, frontend.mini-spa.*--frontend app lists frontend.mini-ui.*lists no such template/,
+    )
+  })
+  test('a stack that lists none keeps to its own frontend template', () => {
+    expect(() =>
+      resolveRequest(
+        catalog,
+        request({
+          stack: 'mini',
+          frontends: [pair('site', 'frontend/mini-ui'), pair('app', 'frontend/mini-spa')],
+        }),
+      ),
+    ).toThrow(
+      /stack mini takes frontend.mini-ui.*--frontend app lists frontend.mini-spa.*lists no such template/,
+    )
+  })
+  test('the stack file lists only loaded frontend templates', () => {
+    const edit = (replacement: string) => {
+      const root = copyFixture('catalog')
+      const file = path.join(root, 'stacks', 'mini-site-fn', 'stack.yaml')
+      writeFileSync(file, readFileSync(file, 'utf8').replace('frontend/mini-spa', replacement))
+      return () => loadCatalog(root)
+    }
+    expect(edit('frontend/nope')).toThrow(/mini-site-fn.*frontends lists "frontend.nope"/)
+    expect(edit('frontend/mini-spa')).not.toThrow()
+    const root = copyFixture('catalog')
+    const file = path.join(root, 'stacks', 'mini-site-fn', 'stack.yaml')
+    writeFileSync(
+      file,
+      readFileSync(file, 'utf8').replace('frontend/mini-spa', 'serverless/mini-fn'),
+    )
+    expect(() => loadCatalog(root)).toThrow()
   })
   test('without --frontend a stack keeps its frontend at its own dir', () => {
     const plan = resolveRequest(catalog, request({ frontends: undefined }))
@@ -375,6 +436,52 @@ describe('ports', () => {
   })
 })
 
+describe('server:serverless', () => {
+  test('is on for a frontend beside a serverless API, off beside a server and alone', () => {
+    const beside = resolveRequest(catalog, request())
+    expect(pkgOf(beside, 'site').selections['server:serverless']).toBe(true)
+    const server = resolveRequest(
+      catalog,
+      request({ stack: 'mini', frontends: [pair('site', 'frontend/mini-ui')] }),
+    )
+    expect(pkgOf(server, 'site').selections['server:serverless']).toBe(false)
+    const alone = resolveRequest(catalog, { ...base, out: tempDir(), template: 'frontend/mini-ui' })
+    expect(pkgOf(alone, 'frontend').selections['server:serverless']).toBe(false)
+  })
+  test('is a marker name every catalog knows, and a generated file follows the plan', () => {
+    expect(serverSelectionNames(catalog.templates.values())).toContain('serverless')
+    const root = copyFixture('catalog')
+    const line = [
+      'export const kind = 1 // @server:serverless',
+      'export const kind = 2 // @noserver:serverless',
+      '',
+    ].join('\n')
+    writeFileSync(path.join(root, 'frontend', 'mini-ui', 'base', 'src', 'kind.ts'), line)
+    writeFileSync(path.join(root, 'frontend', 'mini-site', 'base', 'src', 'kind.ts'), line)
+    const loaded = loadCatalog(root)
+    expect(
+      dryRunMarkers(loaded.templates.get('frontend/mini-ui')!, ['auth', 'database', 'serverless']),
+    ).toEqual([])
+    const beside = tempDir()
+    generate(loaded, resolveRequest(loaded, request({ out: beside })))
+    expect(read(beside, 'site/src/kind.ts').trim()).toBe('export const kind = 1')
+    const withServer = tempDir()
+    generate(
+      loaded,
+      resolveRequest(loaded, request({ out: withServer, stack: 'mini', frontends: undefined })),
+    )
+    expect(read(withServer, 'frontend/src/kind.ts').trim()).toBe('export const kind = 2')
+  })
+  test('no server flag can take the name', () => {
+    const flag = { summary: 'x', default: true }
+    const manifest = parse(
+      readFileSync(path.join(FIXTURE, 'server', 'mini', 'template.yaml'), 'utf8'),
+    )
+    manifest.flags = { ...manifest.flags, serverless: flag }
+    expect(validateAgainst('template', manifest).length).toBeGreaterThan(0)
+  })
+})
+
 describe('__FRONTENDS__', () => {
   test('is a compact JSON list in request order, safe in a single-quoted string', () => {
     const plan = resolveRequest(catalog, request())
@@ -394,6 +501,19 @@ describe('__FRONTENDS__', () => {
     expect(packagePlaceholders(alone, pkgOf(alone, FN)).FRONTENDS).toBe('[]')
     const plan = resolveRequest(catalog, request())
     expect(Object.keys(packagePlaceholders(plan, pkgOf(plan, 'site')))).not.toContain('FRONTENDS')
+  })
+  test('an entry carries the fallback its template declares, and none without one', () => {
+    const plan = resolveRequest(
+      catalog,
+      request({ frontends: [pair('site'), pair('admin', 'frontend/mini-spa')] }),
+    )
+    const raw = packagePlaceholders(plan, pkgOf(plan, FN)).FRONTENDS as string
+    expect(raw).not.toMatch(/['\\\n ]/)
+    expect(JSON.parse(raw)).toEqual([
+      { dir: 'site', path: '../../site', out: 'dist', port: 4321 },
+      { dir: 'admin', path: '../../admin', out: 'dist', fallback: 'index.html', port: 5173 },
+    ])
+    expect(raw).toContain('{"dir":"site","path":"../../site","out":"dist","port":4321}')
   })
   test('one frontend gives a list of one', () => {
     const plan = resolveRequest(catalog, request({ frontends: undefined }))
@@ -601,6 +721,11 @@ describe('cases', () => {
       'lists another template',
       '  - name: two\n    stack: mini-site-fn\n    frontends: ["a=frontend/mini-ui"]\n',
       /case "two" lists frontend "a" with frontend\/mini-ui, but the case is for frontend\/mini-site/,
+    ],
+    [
+      'lists a later template that is no frontend',
+      '  - name: two\n    stack: mini-site-fn\n    frontends: ["a=frontend/mini-site", "b=serverless/mini-fn"]\n',
+      /case "two" lists frontend "b" with serverless\/mini-fn, which is no frontend template/,
     ],
     [
       'repeats a dir',

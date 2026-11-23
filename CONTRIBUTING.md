@@ -46,7 +46,8 @@ bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] 
 - `generate` builds a project from a stack, from one template with `--template`, or from a plan with
   several frontends: each `--frontend <dir>=<template>` adds one beside a `serverless` API (refused
   beside a `server` package). With a stack the listed frontends replace the stack's frontend member
-  and use its template. `--skip-post-generate` leaves out install, contract and format; `--keep-staging` keeps the
+  and use its template, or a template its `stack.yaml` lists under `frontends` when the request holds
+  more than one frontend (ADR 0017). `--skip-post-generate` leaves out install, contract and format; `--keep-staging` keeps the
   working directory for inspection.
 - The brand options (and `answers.brand`) apply to a frontend; `tools/lib/theme.ts` builds the OKLCH
   tokens and fails, naming the pair, when a seed cannot pass the contrast checks. A server-only
@@ -370,7 +371,8 @@ Markers are written in the file's own comment syntax (`//`, `--` in `.sql`, `#` 
   server selected (`server:auth`, `server:database`), all off when the frontend is generated alone.
   A template's `onlyWhen: { "server:auth": [paths] }` keeps those files only while it is on;
   `validate` dry-runs a frontend with each server selection on and off. A frontend manifest cannot
-  declare a flag named `auth`, so `--flag auth=...` still means the server's.
+  declare a flag named `auth`, so `--flag auth=...` still means the server's. `server:serverless` is
+  one more fact, on when the plan's API is a `serverless` package (a flag cannot be named `serverless`).
   The bare key `server` keeps its files only when the plan has a server package. A value is a path
   list or an object `{ onlyPaths, dependencies: { remove }, scripts: { remove } }` (at least one key):
   `onlyWhen: { server: { onlyPaths: ["src/api"], dependencies: { remove: ["@hey-api/openapi-ts"] },
@@ -716,7 +718,13 @@ the lockfiles is still to be configured.
   fields for a server's flags, the `e2eDb` command, the provider's `e2e` URL); v1.4.1 adds the case
   field `brand`; v1.5.0 and v1.5.1 add none; v1.11.0 widens `onlyWhen` (a bare `server` key, an
   object form) without a bump.
-- This release is `v1.15.0`, a minor: several frontends in one plan, each in its own directory
+- This release is `v1.16.0`, a minor: a stack's `stack.yaml` may list further frontend templates
+  under `frontends:`, and `astro-cloudflare` takes `frontend/angular` as one of several frontends
+  ([ADR 0017](docs/adr/0017-another-frontend-template-beside-a-worker.md)): `serverless/cloudflare`
+  2.1.0 (a single-page fallback), `frontend/angular` 4.2.0 (beside a serverless API);
+  `schemaVersion` 1 (the optional fields `frontends` in a stack and `static.fallback` in a
+  template); a tool change (the `server:serverless` selection).
+  Before it, `v1.15.0`, a minor: several frontends in one plan, each in its own directory
   ([ADR 0015](docs/adr/0015-several-frontends-by-directory.md)), and one Worker with static assets
   in place of Pages Functions ([ADR 0016](docs/adr/0016-one-worker-with-static-assets.md)):
   `serverless/cloudflare` 2.0.0, `frontend/astro` 1.1.0, and the admin namespace in

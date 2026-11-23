@@ -31,7 +31,8 @@ function assets(files: Record<string, string> = {}, redirects: Record<string, st
 
 // @frontends-start
 const paths = (seen: Request[]) => seen.map((request) => new URL(request.url).pathname)
-const dirs = (JSON.parse('__FRONTENDS__') as { dir: string }[]).map((frontend) => frontend.dir)
+const listed = JSON.parse('__FRONTENDS__') as { dir: string; fallback?: string }[]
+const dirs = listed.map((frontend) => frontend.dir)
 const [first = '', second = ''] = dirs
 const hostOf = (dir: string) => `${dir}.localhost`
 const pages = Object.fromEntries(
@@ -179,6 +180,100 @@ describe('pages, one host per frontend', () => {
     expect(res.status).toBe(500)
     expect((await json<Envelope>(res)).error.code).toBe('internal')
     expect(res.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(a.seen).toEqual([])
+  })
+})
+
+// A single-page frontend (a `fallback` in its template) answers a deep link with its shell. Only a
+// plan that holds one runs these; the other frontend's host must never get the shell.
+const spa = listed.find((frontend) => frontend.fallback !== undefined)
+const spaDir = spa?.dir ?? ''
+const shell = spa?.fallback ?? ''
+const otherDir = dirs.find((dir) => dir !== spaDir) ?? ''
+
+describe.runIf(spa !== undefined)('a single-page frontend’s deep links', () => {
+  const files = () => ({ ...pages, [`/${spaDir}/${shell}`]: `shell of ${spaDir}`, [`/${spaDir}/app.js`]: 'script' })
+
+  it('answers a page path the build has no file for with the shell, 200 and no-cache', async () => {
+    const a = assets(files())
+
+    for (const path of ['/some/route', '/some/route/', '/deep/er/still/1']) {
+      const res = await served(path, { host: hostOf(spaDir), bindings: a.bindings })
+      expect(res.status, path).toBe(200)
+      expect(await res.text(), path).toBe(`shell of ${spaDir}`)
+      expect(res.headers.get('cache-control'), path).toBe('no-cache')
+    }
+    const head = await served('/some/route', { host: hostOf(spaDir), method: 'HEAD', bindings: a.bindings })
+    expect(head.status).toBe(200)
+    expect(await head.text()).toBe('')
+  })
+
+  it('follows the assets’ redirect of the shell file to its folder and shows no Location', async () => {
+    const a = assets(
+      { ...pages, [`/${spaDir}/`]: `shell of ${spaDir}` },
+      { [`/${spaDir}/${shell}`]: `/${spaDir}/` },
+    )
+    const res = await served('/some/route', { host: hostOf(spaDir), bindings: a.bindings })
+
+    expect(res.status).toBe(200)
+    expect(await res.text()).toBe(`shell of ${spaDir}`)
+    expect(res.headers.get('location')).toBeNull()
+  })
+
+  it('keeps a real page and a file the build has as they are', async () => {
+    const a = assets(files())
+    const home = await served('/', { host: hostOf(spaDir), bindings: a.bindings })
+    expect(await home.text()).toBe(`page of ${spaDir}`)
+    const script = await served('/app.js', { host: hostOf(spaDir), bindings: a.bindings })
+    expect(await script.text()).toBe('script')
+    expect(script.headers.get('cache-control')).not.toBe('no-cache')
+  })
+
+  it('keeps a missing file a 404, never the shell', async () => {
+    const a = assets(files())
+
+    for (const path of ['/missing.js', '/assets/x.css', '/some/route.html', '/.well-known/x.json']) {
+      const res = await served(path, { host: hostOf(spaDir), bindings: a.bindings })
+      expect(res.status, path).toBe(404)
+      expect(await res.text(), path).toBe('missing page')
+    }
+  })
+
+  it('answers a method other than GET and HEAD with what the assets say, not the shell', async () => {
+    const a = assets(files())
+
+    for (const method of ['POST', 'PUT', 'DELETE']) {
+      const res = await served('/some/route', { host: hostOf(spaDir), method, bindings: a.bindings })
+      expect(await res.text(), method).not.toContain('shell of')
+      expect(res.status, method).toBe(404)
+    }
+  })
+
+  it('is a 404 when the build holds no shell', async () => {
+    const a = assets(pages)
+    const res = await served('/some/route', { host: hostOf(spaDir), bindings: a.bindings })
+
+    expect(res.status).toBe(404)
+  })
+
+  it('never gives the shell to another frontend’s host', async () => {
+    const a = assets(files())
+    if (otherDir === '') return
+    const res = await served('/some/route', { host: hostOf(otherDir), bindings: a.bindings })
+
+    expect(res.status).toBe(404)
+    expect(await res.text()).toBe('missing page')
+    expect(paths(a.seen).every((path) => path.startsWith(`/${otherDir}/`))).toBe(true)
+  })
+
+  it('still refuses an encoded separator before the assets are asked', async () => {
+    const a = assets(files())
+
+    for (const path of ['/..%2fx', `/..%2f${otherDir}/`, '/some%2froute', '/a%5cb', '/%2e%2e/x']) {
+      const res = await served(path, { host: hostOf(spaDir), bindings: a.bindings })
+      expect(res.status, path).toBe(404)
+      expect((await json<Envelope>(res)).error.code, path).toBe('not_found')
+    }
     expect(a.seen).toEqual([])
   })
 })

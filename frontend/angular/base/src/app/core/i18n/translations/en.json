@@ -40,6 +40,7 @@
     "unauthenticated": "Your session has expired. Sign in again.",
     "forbidden": "You do not have access to this.",
     "not_found": "We could not find that.",
+    "method_not_allowed": "That action is not supported here.",
     "conflict": "That conflicts with something that already exists.",
     "payload_too_large": "That is too large to send.",
     "unsupported_media_type": "That kind of file is not supported.",

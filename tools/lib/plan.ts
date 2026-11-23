@@ -2,6 +2,7 @@ import {
   CAPABILITY_KINDS,
   DEPLOY_MODES,
   SERVER_PREFIX,
+  SERVERLESS_FACT,
   defaultDir,
   serverSelectionNames,
   type Catalog,
@@ -150,17 +151,30 @@ function frontendMembers(catalog: Catalog, requested: FrontendRequest[]): Member
 }
 
 // The listed frontends take the place of the stack's frontend member; the other members keep
-// their places.
-function replaceStackFrontends(stackId: string, members: Member[], listed: Member[]): Member[] {
+// their places. A listed template is the stack's own or one its stack.yaml names under
+// `frontends:` (ADR 0017 D1), and another template is taken only as one of several frontends
+// (D2): alone beside the API it would be a stack nobody has run.
+function replaceStackFrontends(
+  stackId: string,
+  stackFrontends: readonly string[],
+  members: Member[],
+  listed: Member[],
+): Member[] {
   const isFrontend = (m: Member) => m.template.manifest.kind === 'frontend'
   const own = [...new Set(members.filter(isFrontend).map((m) => m.template.path))]
   if (own.length === 0) {
     throw new PlanError(`stack ${stackId} has no frontend member, so --frontend cannot apply`)
   }
   for (const item of listed) {
-    if (!own.includes(item.template.path)) {
+    if (own.includes(item.template.path)) continue
+    const takes = [...own, ...stackFrontends].join(', ')
+    const said = `stack ${stackId} takes ${takes} for a frontend, but --frontend ${item.dir} lists ${item.template.path}`
+    if (!stackFrontends.includes(item.template.path)) {
+      throw new PlanError(`${said}: the stack lists no such template under frontends`)
+    }
+    if (listed.length < 2) {
       throw new PlanError(
-        `stack ${stackId} uses ${own.join(', ')} for its frontend, but --frontend ${item.dir} lists ${item.template.path}`,
+        `${said}: it is taken only as one of several frontends, and this request lists one`,
       )
     }
   }
@@ -204,7 +218,10 @@ function resolveMembers(
       return { dir: entry.dir, template }
     })
     return {
-      members: listed.length === 0 ? members : replaceStackFrontends(input.stack, members, listed),
+      members:
+        listed.length === 0
+          ? members
+          : replaceStackFrontends(input.stack, stack.manifest.frontends ?? [], members, listed),
       stackId: input.stack,
     }
   }
@@ -435,6 +452,8 @@ function serverFactsFor(
   for (const name of serverSelectionNames(catalog.templates.values())) facts[name] = false
   for (const [name, on] of Object.entries(server?.flags ?? {})) facts[name] = on
   for (const kind of Object.keys(server?.capabilities ?? {})) facts[kind] = true
+  // The reserved fact: the plan's API is a serverless package (ADR 0017 D4).
+  facts[SERVERLESS_FACT] = server?.template.manifest.kind === 'serverless'
   return facts
 }
 

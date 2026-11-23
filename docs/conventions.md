@@ -91,7 +91,7 @@ request and the agents file's five server headings.
   Worker each later (controllers async, plain data across a module boundary).
 - Its own placeholders for the frontends in the plan: `__FRONTEND_PATH__` and `__FRONTEND_OUT__`
   (the first frontend's directory path and `static.out`), `__FRONTENDS__` (a JSON list of
-  `{dir,path,out,port}`, `[]` with no frontend) and `__FRONTEND_HOSTS__` (the local host map, empty
+  `{dir,path,out,port}`, plus `fallback` for a single-page frontend, `[]` with no frontend) and `__FRONTEND_HOSTS__` (the local host map, empty
   then), with the `frontend` and `frontends` selections (`@frontend` / `@nofrontend`,
   `@frontends`); a line that uses `__FRONTEND_PATH__` or `__FRONTEND_OUT__` with no frontend fails
   generation.
@@ -104,7 +104,11 @@ request and the agents file's five server headings.
 **Frontend**
 
 A plan may hold several frontends beside a `serverless` API, each in its own directory
-([ADR 0015](adr/0015-several-frontends-by-directory.md)). The generator accepts any valid
+([ADR 0015](adr/0015-several-frontends-by-directory.md)). Each uses the stack's own frontend
+template, or one the stack's `stack.yaml` lists under `frontends`, taken only as one of several
+([ADR 0017](adr/0017-another-frontend-template-beside-a-worker.md); `astro-cloudflare` lists
+`frontend/angular`). A single-page template declares `static: { out, fallback }`: the Worker
+answers a page path its build has no file for with that file. The generator accepts any valid
 directory; the harness holds a new project's frontends to these four types:
 
 | Directory | What it is | Search | Sign-in |

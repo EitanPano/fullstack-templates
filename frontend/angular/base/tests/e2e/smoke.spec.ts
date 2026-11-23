@@ -1,6 +1,8 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from '@playwright/test' // @noserver:serverless
+import { expect } from '@playwright/test' // @server:serverless
 
-import { expectNoAxeViolations } from './support'
+import { expectNoAxeViolations } from './support' // @noserver:serverless
+import { expectNoAxeViolations, test } from './support' // @server:serverless
 
 test('the index route is one h1 inside main and passes the axe scan', async ({ page }) => {
   await page.goto('/')

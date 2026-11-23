@@ -429,6 +429,7 @@ describe('cross-package selections', () => {
       frontends: false,
       'server:auth': true,
       'server:database': false,
+      'server:serverless': false,
     })
   })
 
@@ -464,6 +465,7 @@ describe('cross-package selections', () => {
       frontends: false,
       'server:auth': false,
       'server:database': false,
+      'server:serverless': false,
     })
   })
 

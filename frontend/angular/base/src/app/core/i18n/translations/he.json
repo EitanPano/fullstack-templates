@@ -40,6 +40,7 @@
     "unauthenticated": "פג תוקף ההתחברות. התחברו מחדש.",
     "forbidden": "אין לכם הרשאה לכך.",
     "not_found": "לא מצאנו את מה שחיפשתם.",
+    "method_not_allowed": "הפעולה הזו אינה נתמכת כאן.",
     "conflict": "הפעולה מתנגשת עם משהו שכבר קיים.",
     "payload_too_large": "הקובץ גדול מדי לשליחה.",
     "unsupported_media_type": "סוג הקובץ אינו נתמך.",

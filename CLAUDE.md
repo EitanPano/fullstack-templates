@@ -80,7 +80,7 @@ bun tools/generate.ts --stack next-bun-express --out ../my-app --name my-app \
   [--skip-post-generate] [--keep-staging]
 bun tools/generate.ts --template server/python-fastapi --out ../api --name api   # one package
 bun tools/generate.ts --stack astro-cloudflare --out ../x --name x \
-  --frontend site=frontend/astro --frontend admin=frontend/astro   # several frontends (serverless API only)
+  --frontend site=frontend/astro --frontend admin=frontend/angular   # several frontends (serverless API only); a template other than the stack's own must be listed in its stack.yaml `frontends`
 bun tools/test-generated.ts --list                                    # case ids: <kind>/<id>/<case>
 bun tools/test-generated.ts --case server/bun-express/default          # generate, run its check
 bun tools/test-generated.ts --case server/bun-express/postgres --with-services   # Docker: migrate, check, testDb
@@ -158,7 +158,7 @@ catalog with `skipPostGenerate`. The `*-cli.test.ts` files spawn the entry scrip
   one. Two selections are reserved and cannot be flag names: `server` (the plan has a server) and
   `single` (the plan deploys as one image; never true without a server). A `serverless` package also
   has `frontend` (the plan has a frontend), reserved too, and a `serverless` package counts as the
-  plan's `server` for a frontend's selections. `frontends` (the plan holds more than one frontend) is
+  plan's `server` for a frontend's selections; a frontend also reads `server:serverless` (the plan's API is a `serverless` package), reserved too so no flag can carry the name. `frontends` (the plan holds more than one frontend) is
   reserved for `serverless` and `frontend` packages. Every extension
   `markers.ts` gives a comment syntax is a text file by construction (`placeholders.ts` derives its
   list from it), and a unit test pins that. A file of any other type is copied untouched: if it
@@ -227,7 +227,7 @@ spa: "service:<dir>" }`, which needs **Docker Compose 2.35.0 or later**. `docker
 
 A `serverless` API (`serverless/cloudflare`, ADRs 0014 and 0016) has no deploy mode and no Compose
 file, and a frontend with `docker: false` (`frontend/astro`) joins a plan alone or beside it, never
-beside a `server`; beside a `serverless` API a plan may hold several frontends (ADR 0015); `docs/conventions.md › Serverless` is its contract.
+beside a `server`; beside a `serverless` API a plan may hold several frontends (ADR 0015), each the stack's own template or, as one of several, one its `stack.yaml` lists under `frontends` (ADR 0017: `astro-cloudflare` lists `frontend/angular`); `docs/conventions.md › Serverless` is its contract.
 
 The two server templates are kept behaviourally parallel on purpose: same endpoints, error codes,
 flags, cases and overlay shape. ADR 0002 has the table of intentional deviations; check it before
