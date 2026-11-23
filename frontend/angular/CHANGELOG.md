@@ -1,6 +1,6 @@
 # Changelog
 
-## 5.0.0 — 2026-11-23
+## 5.0.0 — 2026-11-24
 
 The server's sample is renamed from `module` to `entity` ([ADR 0018](../../docs/adr/0018-entity-term-and-service-facades.md) E2, E4); the generated client follows it. Needs a server with the `/api/entity` sample.
 

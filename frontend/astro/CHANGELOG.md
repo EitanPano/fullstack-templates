@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.1 — 2026-11-23
+## 1.1.1 — 2026-11-24
 
 The generated client, its unit test and the smoke test follow the server's sample rename (`/api/module` → `/api/entity`,
 [ADR 0018](../../docs/adr/0018-entity-term-and-service-facades.md)); `AGENTS.md` says "the reference entity", and "facade" only for a file that wraps a library (`theme.ts` wraps the browser's storage).

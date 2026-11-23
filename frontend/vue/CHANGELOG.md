@@ -1,6 +1,6 @@
 # Changelog
 
-## 5.0.0 — 2026-11-23
+## 5.0.0 — 2026-11-24
 
 The server templates name their sample `entity` ([ADR 0018](../../docs/adr/0018-entity-term-and-service-facades.md)), and the generated client follows. Markup, copy, routes and behaviour are unchanged.
 

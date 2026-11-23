@@ -1,6 +1,6 @@
 # Changelog
 
-## 5.0.0 — 2026-11-23
+## 5.0.0 — 2026-11-24
 
 The generated client follows the server's sample rename: `/api/module` is `/api/entity`, `getApiModule*`, `postApiModule`, `patchApiModuleById` and `deleteApiModuleById` are `getApiEntity*`, `postApiEntity`, `patchApiEntityById` and `deleteApiEntityById`, and `Module`, `ModulePage`, `CreateModuleBody`, `UpdateModuleBody` are `Entity`, `EntityPage`, `CreateEntityBody`, `UpdateEntityBody`. Re-run `bun run api:types` after the server moves. No behaviour change.
 

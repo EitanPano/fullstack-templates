@@ -225,6 +225,13 @@ stack; production does not refuse its credentials if you export them.
   `frontend/angular` 4.2.0.
 - v1.16.1: `serverless/cloudflare` 2.1.1, its tests fixed beside a single-page frontend and a
   case that runs them.
+- v1.17.0: the architecture unit and the sample a developer copies are named `entity`
+  (`api/entity/`, `/api/entity`), and a file that wraps a library is a facade in `services/` with
+  a lint tier of its own ([ADR 0018](docs/adr/0018-entity-term-and-service-facades.md)):
+  `server/bun-express` 4.0.0, `server/python-fastapi` 3.0.0, `serverless/cloudflare` 3.0.0,
+  `frontend/react` 7.0.0, `frontend/next` 5.0.0, `frontend/vue` 5.0.0, `frontend/angular` 5.0.0,
+  `frontend/astro` 1.1.1. A package's `AGENTS.md` is the template's: no step tells a task to edit
+  it ([ADR 0019](docs/adr/0019-package-docs.md)).
 - Next: mongodb, redis, and a worker with rabbitmq.
 
 The design is in [ADR 0001](docs/adr/0001-catalog-architecture.md).

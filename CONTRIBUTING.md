@@ -722,7 +722,15 @@ the lockfiles is still to be configured.
   fields for a server's flags, the `e2eDb` command, the provider's `e2e` URL); v1.4.1 adds the case
   field `brand`; v1.5.0 and v1.5.1 add none; v1.11.0 widens `onlyWhen` (a bare `server` key, an
   object form) without a bump.
-- This release is `v1.16.1`, a patch: `serverless/cloudflare` 2.1.1 (two tests fixed beside a
+- This release is `v1.17.0`, a minor with seven template majors: the architecture unit and the
+  sample are named `entity`, and a library facade lives in `services/`
+  ([ADR 0018](docs/adr/0018-entity-term-and-service-facades.md)): `server/bun-express` 4.0.0,
+  `server/python-fastapi` 3.0.0, `serverless/cloudflare` 3.0.0, `frontend/react` 7.0.0,
+  `frontend/next` 5.0.0, `frontend/vue` 5.0.0, `frontend/angular` 5.0.0, and `frontend/astro`
+  1.1.1; no step in a template edits the package's `AGENTS.md`
+  ([ADR 0019](docs/adr/0019-package-docs.md)); `schemaVersion` 1; a tool change (the checked
+  server heading is `Adding an entity`).
+  Before it, `v1.16.1`, a patch: `serverless/cloudflare` 2.1.1 (two tests fixed beside a
   single-page frontend) and its case `two-templates`; a tool change (a serverless case may list a
   stack's frontends).
   Before it, `v1.16.0`, a minor: a stack's `stack.yaml` may list further frontend templates
