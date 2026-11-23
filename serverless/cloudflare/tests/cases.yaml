@@ -5,3 +5,10 @@ cases:
   # The jobs flag on: the cron trigger and the scheduled cleanup in the one Worker, and its tests.
   - name: jobs
     flags: { jobs: true }
+  # The Worker's own gates beside a single-page frontend (ADR 0017): the Astro `site` and an
+  # Angular `admin`, so the deep-link and shell tests run.
+  - name: two-templates
+    stack: astro-cloudflare
+    frontends: ["site=frontend/astro", "admin=frontend/angular"]
+    packages:
+      admin: { flags: { i18n: false, pwa: false } }

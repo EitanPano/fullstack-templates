@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.1.1 — 2026-11-23
+
+Tests only; the Worker is unchanged. Beside a single-page frontend two tests failed in a generated
+project: no case had run the Worker's own gates with one.
+
+- `tests/unit/start.test.ts`: a frontend with a `fallback` answers an unknown page with its shell
+  (200, `no-cache`), not its 404 page; the 404 check covers the other frontends.
+- `tests/api/frontends.test.ts`: `/%2e%2e/x` leaves the encoded-separator list, since `new URL`
+  resolves a whole `%2e%2e` segment (`/x`, inside the host's folder); `/%2e%2e%2fx` takes its place.
+- Case `two-templates`: the Worker's gates beside the Astro `site` and an Angular `admin`.
+
 ## 2.1.0 — 2026-11-23
 
 A single-page frontend beside the Worker ([ADR 0017](../../docs/adr/0017-another-frontend-template-beside-a-worker.md) D3).
