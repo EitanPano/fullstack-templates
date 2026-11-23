@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { DateTimeField } from '@/shared/components/form/date-time-field/date-time-field'
 import { Form } from '@/shared/components/form/form'
-import { formResolver, isoDateTime, object, type Input, type Output } from '@/shared/utils/validation'
+import { formResolver, isoDateTime, object, type Input, type Output } from '@/services/validation'
 
 // The form holds an instant (an ISO string with Z, what the API takes); the control shows and
 // accepts wall time in the zone it is given. Europe/London changes on 2026-03-29 and 2026-10-25.

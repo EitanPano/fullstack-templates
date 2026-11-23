@@ -1,8 +1,8 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { validate } from '@/shared/utils/validation'
-import type { Issue, Output, Schema } from '@/shared/utils/validation'
+import { validate } from '@/services/validation'
+import type { Issue, Output, Schema } from '@/services/validation'
 
 export type FieldError = {
   messageKey: string

@@ -15,11 +15,11 @@ The layer map of this package. Commands are in `package.json`.
   No business logic here.
   - `core/`: singletons wired once in `app.config.ts`, never imported by `shared/`.
 <!-- @server-start -->
-    `config/` (`constants.ts` with the `STORAGE_KEYS`, `api-client.ts` the generated client's
+    `config/` (`constants.ts`, `api-client.ts` the generated client's
     configuration, `api-client.provider.ts` its provider, `app-config.token.ts`, `http-context.ts`),
 <!-- @server-end -->
 <!-- @noserver-start -->
-    `config/` (`constants.ts` with the `STORAGE_KEYS`, `app-config.token.ts`, `http-context.ts`),
+    `config/` (`constants.ts`, `app-config.token.ts`, `http-context.ts`),
 <!-- @noserver-end -->
     `interceptors/`, `guards/`, `initializers/`, `providers/` (storage, logger, notification,
     theme, network, loading, install-prompt and app-update, the last two with the `pwa` flag;
@@ -30,8 +30,7 @@ The layer map of this package. Commands are in `package.json`.
   - `layout/app-<name>/`: the app-wide components, one folder each with
     `app-<name>.component.ts`, `.html`, `.scss` and `.spec.ts`: the two layouts (`app-main-layout`,
     `app-auth-layout`) and the components the product places in its own chrome, such as
-    `app-theme-toggle` (see The shell). The class carries `App` (`AppThemeToggleComponent`), the
-    selector is written out (`app-theme-toggle`). A component goes here when the product's shell
+    `app-theme-toggle` (see The shell). A component goes here when the product's shell
     composes it or it reads the store, the theme or the session; a reusable control or pattern goes
     to `shared/components/`.
   - `pages/<name>/`: one entity or screen group, flat. `<name>.routes.ts`,
@@ -52,11 +51,11 @@ The layer map of this package. Commands are in `package.json`.
   - `store/`: `@ngrx/signals` stores, one per noun.
 <!-- @noserver-end -->
 <!-- @server-start -->
-  - `services/`: one service per entity over the generated SDK; `generated/` is the Hey API
+  - `services/`: one service per entity over the generated SDK, and the library facades (`validation.ts`); `generated/` is the Hey API
     output (types, zod, the Angular client, the flat SDK; committed, lint-ignored).
 <!-- @server-end -->
 <!-- @noserver-start -->
-  - `services/`: one service per entity; the folder arrives with a server.
+  - `services/`: library facades (`validation.ts`); a service per entity arrives with a server.
 <!-- @noserver-end -->
   - `shared/`: product-agnostic. `components/` (the browser controls wrapped once, the form controls in `components/form/`), `directives/`,
     `pipes/`, `validators/`, `utils/`, `i18n/`.
@@ -94,6 +93,7 @@ copying the nearest sibling.
 | A form                                      | `app/pages/<name>/<name>.form.ts`                  |
 | An app-wide component (header, menu)        | `app/layout/app-<name>/`                           |
 | A reusable control, pattern or pipe         | `app/shared/`                                      |
+| A library facade                            | `app/services/<name>.ts`                           |
 | A guard, interceptor, initializer, provider | `app/core/`                                        |
 | A navigation entry                          | `app/nav.ts`                                       |
 | A component's or page's style               | a sibling `<stem>.component.scss` under `styleUrl` |
@@ -102,7 +102,7 @@ copying the nearest sibling.
 **Naming.** Files follow the Angular style guide before v20, not the suffix-less one:
 `*.component.ts` with its template in an external `*.component.html` and its styles in a sibling
 `*.component.scss` under `styleUrl` (never an inline `styles:`), `*.service.ts`, `*.store.ts`, `*.guard.ts`, `*.interceptor.ts`, `*.pipe.ts`,
-`*.directive.ts`. The class carries the suffix (`AppComponent`, `LoginComponent`); a class in `layout/` also
+`*.directive.ts`. The class carries the suffix; a class in `layout/` also
 carries `App` (`AppMainLayoutComponent`) while its selector and folder read `app-main-layout`.
 Cross-layer imports use the alias `@app/*` (`src/app/*`); imports inside one page folder or one
 directory stay relative.
@@ -117,10 +117,10 @@ directory stay relative.
 | `pages/<name>/<page>/<component>/`                          | shared, models                                                                                         |
 | `pages/<name>/*.routes.ts`                                  | `core/guards`, its own pages                                                                           |
 <!-- @server-start -->
-| `pages/<name>/*.form.ts`                                    | `shared/validators`, `shared/utils/validation`, models, the generated zod schemas                      |
+| `pages/<name>/*.form.ts`                                    | `shared/validators`, facades, models, the generated zod schemas                                        |
 <!-- @server-end -->
 <!-- @noserver-start -->
-| `pages/<name>/*.form.ts`                                    | `shared/validators`, `shared/utils/validation`, models                                                 |
+| `pages/<name>/*.form.ts`                                    | `shared/validators`, facades, models                                                                   |
 <!-- @noserver-end -->
 | `store/`                                                    | services, models, `core/providers`, `core/config`                                                      |
 <!-- @server-start -->
@@ -129,6 +129,7 @@ directory stay relative.
 | `core/guards`, `core/interceptors`, `core/initializers`     | store, services, core, shared, models (they are the wiring)                                            |
 | `core/config`, `core/providers`, `core/i18n`, `core/errors` | each other, shared, models                                                                             |
 | `shared/`                                                   | shared, models                                                                                         |
+| `services/<name>.ts`, a facade                              | models; every layer may import it                                                                      |
 <!-- @server-start -->
 | `models/`                                                   | models; the generated types with `import type` only                                                    |
 <!-- @server-end -->
@@ -148,7 +149,7 @@ directory stay relative.
 - `@angular/common/http` is imported only in `services/`, `core/interceptors/` and `core/config/`
   (`no-restricted-imports`). The generated client's runtime is imported only in `services/`, and by
   `core/config/api-client.provider.ts`, which hands it the `HttpClient`; `models/` and `core/config/`
-  take its types with `import type`. `api-client.ts` (the generator's `runtimeConfigPath`) imports
+  take its types with `import type`. `api-client.ts` imports
   types only, because the generated client imports that file back.
 <!-- @server-end -->
 <!-- @noserver-start -->
@@ -162,14 +163,12 @@ directory stay relative.
 
 `tests/unit/eslint-boundaries.spec.ts` lints one violation and one allowed case per rule, in a
 throwaway project built from the real `eslint.config.mjs`. A new rule gets a case there.
-`boundaries/no-unknown-files` is on: a file outside every layer in the table (a stray
-`src/app/widgets/` folder) is an error; `main.ts`, `src/environments/` and the specs are
+`boundaries/no-unknown-files` is on: a file outside every layer in the table is an error; `main.ts`, `src/environments/` and the specs are
 boundaries-ignored. The page layers are two levels deep (`pages/<name>/<page>/`), so a page folder's own
 `*.routes.ts` and `*.form.ts` are matched by their rows, not read as pages.
 
 <!-- @server-start -->
-The API is always reached at relative `/api` on the page's own origin (see Deployment), so the
-bundle carries no API URL.
+The API is always reached at relative `/api` on the page's own origin (see Deployment).
 
 <!-- @server-end -->
 ## Adding a feature
@@ -460,7 +459,7 @@ basics;`), then setup, themes, basics; the rules of those six global partials si
 <!-- @noserver-start -->
   light, dark and system. The product places it once, in its header (The shell).
 <!-- @noserver-end -->
-- **External libraries.** An external library is imported only by its facade: zod by `shared/utils/validation.ts` (`text`, `number`, `object`, `field`, `pick`, `either`, `check`, `validate` and the `Schema` types); call no method on a schema anywhere else, the generated `zod.gen` schemas and specs included. Lint refuses the import elsewhere. The framework, rxjs, Transloco (`core/i18n/`) and NgRx Signals (`store/`) are the architecture and need no facade.
+- **External libraries.** An npm package is imported only by its facade, a file directly in `services/` that lint names: zod by `services/validation.ts` (`text`, `number`, `object`, `field`, `pick`, `either`, `check`, `validate`, the `Schema` types). A facade imports `models/` types only; call no method on a schema elsewhere, the generated `zod.gen` schemas and specs included. Lint refuses the import elsewhere. The framework, rxjs, Transloco (`core/i18n/`) and NgRx Signals (`store/`) need no facade.
 - **Copy.** Every user-visible string in a template goes through the `t` pipe
   (`{{ 'notFound.title' | t }}`) with its key in `core/i18n/translations/en.json`, nested by area,
   `{{param}}` for values, and the same key in `he.json` when the `i18n` flag is on. Code asks

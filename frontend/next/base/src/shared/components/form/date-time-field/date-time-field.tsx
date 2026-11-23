@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useController, useFormContext } from 'react-hook-form'
 
 import { Input } from '@/shared/components/form/input'
-import { instantToWallTime, wallTimeToInstant } from '@/shared/utils/date'
+import { instantToWallTime, wallTimeToInstant } from '@/services/date'
 
 import { FieldFrame } from '../field-frame/field-frame'
 import type { FieldProps } from '../text-field'
@@ -15,7 +15,7 @@ const GAP = "That time doesn't exist on that day: the clocks change. Pick anothe
 // A date and time in a named zone. The form value is an instant (an ISO string with `Z`, what
 // the API takes); the control shows and accepts wall time in `timeZone`, never the browser's.
 // A time the zone skips is refused here and leaves the value empty, so the form cannot submit
-// it; one it shows twice takes the earlier instant (shared/utils/date.ts).
+// it; one it shows twice takes the earlier instant (services/date.ts).
 export function DateTimeField({
   name,
   label,

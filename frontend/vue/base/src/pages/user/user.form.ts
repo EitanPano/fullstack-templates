@@ -1,6 +1,6 @@
-import '@/shared/utils/validation'
+import '@/services/validation'
 import { zUpdateMeBody } from '@/services/generated/zod.gen'
-import { either, field, literal, object } from '@/shared/utils/validation'
+import { either, field, literal, object } from '@/services/validation'
 import { useSchemaForm } from '@/shared/validators/schema-form'
 
 // The profile form. The one field the contract lets an account change is its phone number

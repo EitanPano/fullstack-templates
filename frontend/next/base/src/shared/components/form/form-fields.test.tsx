@@ -21,7 +21,7 @@ import {
   text,
   type Input,
   type Output,
-} from '@/shared/utils/validation'
+} from '@/services/validation'
 
 const schema = object({
   email: pipe(text(), email()),

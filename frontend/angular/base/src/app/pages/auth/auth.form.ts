@@ -2,7 +2,7 @@ import { inject } from '@angular/core'
 import { NonNullableFormBuilder } from '@angular/forms'
 
 import { zCredentials, zOtpVerificationBody } from '@app/services/generated/zod.gen'
-import { pick } from '@app/shared/utils/validation'
+import { pick } from '@app/services/validation'
 import { match } from '@app/shared/validators/match'
 import { schemaValidator } from '@app/shared/validators/schema.validator'
 

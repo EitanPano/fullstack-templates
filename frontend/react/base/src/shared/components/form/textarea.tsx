@@ -1,6 +1,6 @@
 import type { ComponentProps } from 'react'
 
-import { cn } from '@/shared/utils/cn'
+import { cn } from '@/services/cn'
 import './controls.scss'
 
 export function Textarea({ className, ...props }: ComponentProps<'textarea'>) {

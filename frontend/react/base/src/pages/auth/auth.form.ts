@@ -7,7 +7,7 @@ import {
   isValid,
   text,
   type Input,
-} from '@/shared/utils/validation'
+} from '@/services/validation'
 
 // The form schemas extend the generated request schemas, so the limits (password length, email
 // size) come from the server's contract and are never copied. The generated email carries no

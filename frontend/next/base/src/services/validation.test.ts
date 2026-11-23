@@ -16,7 +16,7 @@ import {
   validate,
   withDefault,
   type Schema,
-} from '@/shared/utils/validation'
+} from '@/services/validation'
 
 const messages = (schema: Schema, value: unknown) => {
   const result = validate(schema, value)

@@ -16,7 +16,7 @@ import {
   validate,
   withDefault,
   type Schema,
-} from '@/shared/utils/validation'
+} from '@/services/validation'
 
 const messages = (schema: Schema, value: unknown) => {
   const result = validate(schema, value)
@@ -108,7 +108,7 @@ describe('the library in the browser', () => {
         },
       }),
     )
-    const fresh = await import('@/shared/utils/validation')
+    const fresh = await import('@/services/validation')
 
     expect(fresh.isValid(fresh.object({ name: fresh.text() }), { name: 'Ada' })).toBe(true)
     expect(probes).toEqual([])

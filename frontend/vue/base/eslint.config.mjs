@@ -33,12 +33,10 @@ const ALL = [
   'testing',
 ]
 const except = (...types) => ALL.filter((type) => !types.includes(type))
-const SHARED_BEYOND_VALIDATORS = [
-  'components/**',
-  'composables/**',
-  'directives/**',
-  'utils/!(validation).ts',
-]
+// A facade: a file directly in services/ that the lint config names as the one importer of a
+// library. Every layer may import it; it imports its library and models/ only.
+const FACADE_FILES = ['src/services/validation.ts']
+const SHARED_BEYOND_VALIDATORS = ['components/**', 'composables/**', 'directives/**', 'utils/**']
 
 const GENERATED_MESSAGE =
   "read the contract's types through models/<noun>/; only services/ and core/interceptors/http.provider.ts import the generated runtime, and store/, core/ and models/ may import its types"
@@ -141,13 +139,13 @@ const policies = [
     from: { element: { type: 'page', fileInternalPath: '*.form.ts' } },
     disallow: { to: { element: { type: except('page', 'shared', 'models', 'testing') } } },
     message:
-      'a *.form.ts imports shared/validators, shared/utils/validation, models/ and the generated zod schemas only: keep the form schema pure',
+      'a *.form.ts imports shared/validators, the services/ facades, models/ and the generated zod schemas only: keep the form schema pure',
   },
   {
     from: { element: { type: 'page', fileInternalPath: '*.form.ts' } },
     disallow: { to: { element: { type: 'shared', fileInternalPath: SHARED_BEYOND_VALIDATORS } } },
     message:
-      'a *.form.ts imports shared/validators, shared/utils/validation, models/ and the generated zod schemas only: keep the form schema pure',
+      'a *.form.ts imports shared/validators, the services/ facades, models/ and the generated zod schemas only: keep the form schema pure',
   },
   {
     from: { element: { type: 'page' } },
@@ -260,6 +258,27 @@ const policies = [
     disallow: { to: { element: { type: 'testing' } } },
     message: 'only a *.spec.ts imports testing/: it holds test helpers and is never bundled',
   },
+  {
+    // The facade tier: every layer may import a facade, the exceptions above included.
+    from: { element: { type: except('testing') } },
+    allow: { to: { file: { categories: 'facade' } } },
+  },
+  {
+    from: { file: { categories: 'entry' } },
+    allow: { to: { file: { categories: 'facade' } } },
+  },
+  {
+    from: { file: { categories: 'facade' } },
+    disallow: { to: { element: { type: [...except('models', 'testing'), 'services-generated'] } } },
+    message:
+      'a facade imports its library and models/ types only: keep the wrapper free of the app',
+  },
+  {
+    from: { file: { categories: 'facade' } },
+    dependency: { kind: 'value' },
+    disallow: { to: { element: { type: 'models' } } },
+    message: 'a facade imports its library and models/ types only: use import type',
+  },
 ]
 
 const RAW_CONTROLS = ['button', 'input', 'select', 'textarea'].map((element) => ({
@@ -302,6 +321,11 @@ const GENERATED_GROUP = {
   allowTypeImports: true,
   message: RUNTIME_MESSAGE,
 }
+// The boundary policies do not judge two files of one element, so a facade's siblings are named here.
+const FACADE_GROUP = {
+  group: ['./*', '../*', '@/services/*'],
+  message: 'a facade imports no other file of services/: it wraps one library',
+}
 const STYLE_GROUP = { group: ['**/*.css', '**/*.scss'], message: STYLE_MESSAGE }
 // An external library is imported by its facade only; each facade file lifts its own entry
 // (restrictImportsAllowing). Generated code keeps its imports (src/services/generated is ignored);
@@ -310,7 +334,7 @@ const LIBRARIES = {
   validation: {
     group: ['zod', 'zod/*'],
     message:
-      'zod is imported only by shared/utils/validation.ts: use its functions (text, object, validate, ...)',
+      'zod is imported only by services/validation.ts: use its functions (text, object, validate, ...)',
   },
   primitives: {
     group: ['reka-ui', 'reka-ui/*'],
@@ -411,6 +435,7 @@ export default defineConfig([
       'boundaries/ignore': ['src/**/*.spec.ts', 'src/styles/**', 'src/vite-env.d.ts'],
       'boundaries/files': [
         { pattern: 'src/main.ts', category: 'entry' },
+        { pattern: FACADE_FILES, category: 'facade' },
         {
           pattern: 'src/core/interceptors/{auth,loading}.interceptor.ts',
           category: 'fetch-wrapper',
@@ -473,11 +498,6 @@ export default defineConfig([
     rules: restrictImportsAllowing(['primitives', 'icons'], GENERATED_GROUP, STYLE_GROUP),
   },
   {
-    // The one file that names the validation library.
-    files: ['src/shared/utils/validation.ts'],
-    rules: restrictImportsAllowing(['validation'], GENERATED_GROUP, STYLE_GROUP),
-  },
-  {
     // The one file that registers the service worker.
     files: ['src/store/app-update.store.ts'],
     rules: restrictImportsAllowing(['pwa'], GENERATED_GROUP, STYLE_GROUP),
@@ -491,6 +511,11 @@ export default defineConfig([
     // The data layer: the one place the generated runtime is imported.
     files: ['src/services/**'],
     rules: restrictImports(STYLE_GROUP),
+  },
+  {
+    // The one file that names the validation library (after services/**, which it narrows).
+    files: FACADE_FILES,
+    rules: restrictImportsAllowing(['validation'], GENERATED_GROUP, STYLE_GROUP, FACADE_GROUP),
   },
   {
     // The generated client is configured by registering the error interceptor on it.

@@ -1,7 +1,7 @@
 import { Separator as SeparatorPrimitive } from 'radix-ui'
 import type { ComponentProps } from 'react'
 
-import { cn } from '@/shared/utils/cn'
+import { cn } from '@/services/cn'
 import './separator.scss'
 
 // Decorative unless told otherwise, so a screen reader skips it.

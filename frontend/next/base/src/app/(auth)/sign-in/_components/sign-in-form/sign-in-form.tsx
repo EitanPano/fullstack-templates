@@ -17,7 +17,7 @@ import { PasswordField } from '@/shared/components/form/password-field'
 import { TextField } from '@/shared/components/form/text-field'
 import { FormActions } from '@/shared/components/form/form-actions/form-actions'
 import { toastError } from '@/shared/components/toaster/toaster'
-import { formResolver } from '@/shared/utils/validation'
+import { formResolver } from '@/services/validation'
 
 // The form recipe: the action's result lands in the form (field errors on their fields, through
 // the adapter) or in a toast (the outcome: refused, rate limited, unreachable). A success

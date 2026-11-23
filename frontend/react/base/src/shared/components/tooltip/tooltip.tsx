@@ -1,7 +1,7 @@
 import { Tooltip as TooltipPrimitive } from 'radix-ui'
 import type { ComponentProps } from 'react'
 
-import { cn } from '@/shared/utils/cn'
+import { cn } from '@/services/cn'
 import './tooltip.scss'
 
 export const TooltipProvider = TooltipPrimitive.Provider

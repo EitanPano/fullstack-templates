@@ -17,7 +17,11 @@ import tseslint from 'typescript-eslint'
 // `app` (the files directly in src/app), `page-routes` and `page-form` (beside the page folders in
 // src/app/pages/<name>/). `components` is the app-wide folder (the shells and what they compose);
 // `page` is a page folder and `page-components` a page folder's own presentational pieces.
-const FILE_LAYERS = ['app', 'page-routes', 'page-form']
+// `service-facade` is a file directly in services/ that wraps one library (FACADES, the same
+// list that names the library's one importer below); every layer may import it. The plugin skips
+// an import inside one element, so the facade block at the end bars the rest of services/.
+const FACADES = ['validation']
+const FILE_LAYERS = ['app', 'page-routes', 'page-form', 'service-facade']
 const SHARED = ['shared', 'shared-validators']
 const CORE_WIRING = ['core-guards', 'core-interceptors', 'core-initializers']
 const CORE_LEAVES = ['core-config', 'core-providers', 'core-i18n', 'core-errors']
@@ -30,6 +34,7 @@ const LAYERS = [
   'store',
   'services',
   'services-generated',
+  'service-facade',
   ...CORE,
   ...SHARED,
   'models',
@@ -100,7 +105,7 @@ const policies = [
   ...row(
     'page-form',
     [sel(['shared-validators', 'models'])],
-    'a *.form.ts imports shared/validators, shared/utils/validation, models/ and the generated zod schemas (services/generated/zod.gen) only',
+    'a *.form.ts imports shared/validators, a services/ facade, models/ and the generated zod schemas (services/generated/zod.gen) only',
   ),
   ...row(
     'store',
@@ -168,12 +173,25 @@ const policies = [
     allow: { to: sel('services-generated', { fileInternalPath: 'zod.gen.ts' }) },
   },
   {
-    from: sel('page-form'),
-    allow: { to: sel('shared', { fileInternalPath: 'utils/validation.ts' }) },
-  },
-  {
     from: sel('services'),
     allow: { to: sel('services-generated') },
+  },
+  // The facade tier: a facade imports models/ types only, no other facade, and every other layer
+  // may import one. These come last because the last matching policy decides.
+  {
+    from: sel('service-facade'),
+    disallow: { to: sel(LAYERS) },
+    message:
+      'a services/ facade wraps one library and imports models/ types only: keep core/config, services/ and the rest out of it',
+  },
+  {
+    from: sel('service-facade'),
+    dependency: { kind: 'type' },
+    allow: { to: sel('models') },
+  },
+  {
+    from: sel(LAYERS.filter((name) => name !== 'service-facade')),
+    allow: { to: sel('service-facade') },
   },
 ]
 
@@ -191,7 +209,7 @@ const VALIDATION_LIBRARY = [
   {
     name: 'zod',
     message:
-      'zod is imported only by shared/utils/validation.ts: build and run schemas through its functions',
+      'zod is imported only by services/validation.ts: build and run schemas through its functions',
   },
 ]
 
@@ -252,6 +270,10 @@ export default defineConfig([
         { pattern: 'src/app/*.ts', category: 'app' },
         { pattern: 'src/app/pages/*/*.routes.ts', category: 'page-routes', capture: ['feature'] },
         { pattern: 'src/app/pages/*/*.form.ts', category: 'page-form', capture: ['feature'] },
+        {
+          pattern: FACADES.map((name) => `src/app/services/${name}.ts`),
+          category: 'service-facade',
+        },
       ],
       'boundaries/elements': [
         { type: 'layout', pattern: 'src/app/layout', partialMatch: false },
@@ -264,7 +286,7 @@ export default defineConfig([
           capture: ['feature'],
         },
         // A page folder, pages/<name>/<page>: two levels, so the page folder's own *.routes.ts and
-        // *.form.ts (file categories above) are not also read as pages.
+        // *.form.ts (file categories in the settings) are not also read as pages.
         {
           type: 'page',
           pattern: 'src/app/pages/*/*',
@@ -304,9 +326,23 @@ export default defineConfig([
     rules: { 'no-restricted-imports': ['error', { paths: VALIDATION_LIBRARY }] },
   },
   {
-    // The validation facade is the one file that names the library.
-    files: ['src/app/shared/utils/validation.ts'],
-    rules: { 'no-restricted-imports': 'off' },
+    // A facade is the one file that names its library, and imports no other file of services/.
+    files: FACADES.map((name) => `src/app/services/${name}.ts`),
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: HTTP,
+          patterns: [
+            {
+              group: ['./*', '../*', '@app/services', '@app/services/*'],
+              message:
+                'a services/ facade imports no other file of services/: it wraps one library',
+            },
+          ],
+        },
+      ],
+    },
   },
   {
     files: ['**/*.mjs', '**/*.mts', '*.config.ts'],

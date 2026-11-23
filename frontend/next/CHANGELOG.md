@@ -4,6 +4,11 @@
 
 The generated client follows the server's sample rename: `/api/module` is `/api/entity`, `getApiModule*`, `postApiModule`, `patchApiModuleById` and `deleteApiModuleById` are `getApiEntity*`, `postApiEntity`, `patchApiEntityById` and `deleteApiEntityById`, and `Module`, `ModulePage`, `CreateModuleBody`, `UpdateModuleBody` are `Entity`, `EntityPage`, `CreateEntityBody`, `UpdateEntityBody`. Re-run `bun run api:types` after the server moves. No behaviour change.
 
+### Breaking
+
+- Library facades move into `services/` (ADR 0018): `shared/utils/validation.ts` → `services/validation.ts`, `shared/utils/date.ts` → `services/date.ts`, `shared/utils/cn.ts` → `services/cn.ts`, tests with them. A project generated from 4.x keeps `shared/utils/`; to adopt this, move the three files (and their tests) and change the imports to `@/services/validation`, `@/services/date` and `@/services/cn`. `shared/utils/` keeps only helpers that import no library (`initials.ts`).
+- The facade tier: a file in `services/` that `eslint.config.mjs` lists (`FACADES`) as one library's importer is imported by every layer, `shared/` and `core/config` included, and imports its library and the types of `models/` only, never another file of `services/` (a `no-restricted-imports` block on the facade files). Any other `services/` file keeps its rule. `client-server-import` takes the list, so a Client Component may import a facade. `eslint-boundaries.test.ts` gains the cases for it.
+
 ## 4.0.0 — 2026-11-12
 
 The layer names of the single-page templates, and their styling system (ADR 0012). `app/` stays as the pages layer, and `widget/`, `feature/`, `entity/` and the Feature-Sliced `shared/` give way to `layout/`, `services/`, `actions/`, `store/`, `models/`, `shared/`, `core/` and `styles/`; Tailwind and the copied shadcn primitives give way to React's kit on a global SCSS tree in cascade layers, with a sibling `.scss` beside every page and component. A project generated from 3.x keeps its tree; there is no migration tool.

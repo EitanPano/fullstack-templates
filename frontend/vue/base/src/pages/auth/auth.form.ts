@@ -1,7 +1,7 @@
-import '@/shared/utils/validation'
+import '@/services/validation'
 import { zCredentials, zOtpVerificationBody } from '@/services/generated/zod.gen'
 import { match } from '@/shared/validators/match'
-import { pick } from '@/shared/utils/validation'
+import { pick } from '@/services/validation'
 import { useSchemaForm } from '@/shared/validators/schema-form'
 
 // The auth forms, with every rule taken from the generated zod request schema (the server's

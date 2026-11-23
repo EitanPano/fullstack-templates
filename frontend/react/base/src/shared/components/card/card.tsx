@@ -1,6 +1,6 @@
 import type { ComponentProps } from 'react'
 
-import { cn } from '@/shared/utils/cn'
+import { cn } from '@/services/cn'
 import './card.scss'
 
 export function Card({ className, ...props }: ComponentProps<'div'>) {

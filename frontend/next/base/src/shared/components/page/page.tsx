@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactNode } from 'react'
 
-import { cn } from '@/shared/utils/cn'
+import { cn } from '@/services/cn'
 import './page.scss'
 
 // The page container inside main (width, gutters, padding) and its rhythm: one gap.

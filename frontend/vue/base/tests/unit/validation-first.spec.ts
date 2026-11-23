@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 // chunk's own body. The validation facade turns zod's eval probe off as it loads, so a module that
 // builds a schema at load (anything that imports the generated schemas) must import the facade
 // itself, as its first import, so it runs first in whatever chunk they share (see
-// src/shared/utils/validation.ts).
+// src/services/validation.ts).
 function sources(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name)
@@ -61,7 +61,7 @@ describe('modules that build schemas', () => {
     for (const path of builders) {
       const first = /^import .*$/m.exec(readFileSync(path, 'utf8'))?.[0]
 
-      expect(first, path).toBe("import '@/shared/utils/validation'")
+      expect(first, path).toBe("import '@/services/validation'")
     }
   })
 })
