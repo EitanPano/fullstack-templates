@@ -6,8 +6,8 @@ from app.services.utils.openapi import error_responses, json_response
 
 # The router: one add_api_route per endpoint, naming the handler, the status and response model,
 # the error responses, the summary and the gates (dependencies). The handler holds the logic. A
-# collection endpoint's path is "", not "/": with redirect_slashes off, "/" under the /api/<module>
-# prefix would serve and document /api/<module>/.
+# collection endpoint's path is "", not "/": with redirect_slashes off, "/" under the /api/<entity>
+# prefix would serve and document /api/<entity>/.
 router = APIRouter()
 
 router.add_api_route(

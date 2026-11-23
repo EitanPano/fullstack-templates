@@ -1,6 +1,6 @@
-"""schema.py belongs: the auth module's contract, the pydantic models that validate requests, type
+"""schema.py belongs: the auth entity's contract, the pydantic models that validate requests, type
 responses and produce `openapi.json`. It is the leaf of the directory: routes and controller import
-it, it imports only `models/`, `services/utils/` and another module's schema (the user's, to embed
+it, it imports only `models/`, `services/utils/` and another entity's schema (the user's, to embed
 it). Each model is a contract component only when its name is listed in `app/openapi.py`
 (`COMPONENTS`); the endpoints themselves are documented from `routes.py`.
 It does not belong: business rules (they live in `controller.py`, auth owns no data), anything that

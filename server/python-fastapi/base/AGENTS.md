@@ -95,12 +95,12 @@ src/app/
   server.py           `create_app()` and `app`; builds the app, never listens, attaches no infra
   openapi.py          builds, shapes and caches the contract; `--write` emits openapi.json
   config/             env.py · constants.py · cors.py · routes.py
-  api/<name>/         routes · controller · schema; service only when the module has data
+  api/<name>/         routes · controller · schema; service only when the entity has data
                       (model.py: reserved, for an engine that defines storage in code)
-  api/admin/          the admin namespace: routes.py (gate, mounts) · <name>/ modules
+  api/admin/          the admin namespace: routes.py (gate, mounts) · <name>/ entities
 <!-- @auth-start -->
-                      (health, auth, user, module: the commented reference)
-  models/<name>/      interface · type · enums · constants (auth, session, user, module)
+                      (health, auth, user, entity: the commented reference)
+  models/<name>/      interface · type · enums · constants (auth, session, user, entity)
   middleware/         request_id · request_log · security_headers · cors · proxy · body_limit ·
                       error_handler · not_found · head · static_files · context
                       asgi (helpers the ASGI middleware share)
@@ -109,8 +109,8 @@ src/app/
     security/         crypto · jwt · cookies · otp
 <!-- @auth-end -->
 <!-- @noauth-start -->
-                      (health, module: the commented reference)
-  models/<name>/      interface · type · enums · constants (module)
+                      (health, entity: the commented reference)
+  models/<name>/      interface · type · enums · constants (entity)
   middleware/         request_id · request_log · security_headers · cors · proxy · body_limit ·
                       error_handler · not_found · head · static_files · context
                       asgi (helpers the ASGI middleware share)
@@ -141,7 +141,7 @@ openapi.json          the committed contract, written by the `contract` command
   drain; the lifespan disconnects every resource in reverse order (10 s cap on the drain).
 - `server.py` builds and exports `app` through `create_app()`, nothing else: the middleware, the
   exception handlers, then `register_routes(app)` from `config/routes.py`, which mounts every
-  module under `/api`. Tests import `app` and never start infra.
+  entity under `/api`. Tests import `app` and never start infra.
 - `openapi.py` builds the OpenAPI document from the mounted routers (FastAPI derives the paths),
   shapes it to the contract the frontend consumes, and caches it. `COMPONENTS` lists the models
   that are contract components. The `contract` command writes `openapi.json`.
@@ -157,38 +157,38 @@ openapi.json          the committed contract, written by the `contract` command
   durations, attempts, rate-limit windows (`RATE_LIMITS`).
 <!-- @noauth-end -->
   `cors.py` builds the CORS options. `routes.py` is the mount table: `register_routes(app)`, one
-  `app.include_router(<name>_router, prefix="/api/<name>")` line per module.
-- `api/<name>/`: one directory per module, singular name, mounted at `/api/<name>`. A module
+  `app.include_router(<name>_router, prefix="/api/<name>")` line per entity.
+- `api/<name>/`: one directory per entity, singular name, mounted at `/api/<name>`. An entity
 <!-- @auth-start -->
-  is a resource (`user`) or a capability (`auth`, `health`). A module has the files it needs:
+  is a resource (`user`) or a capability (`auth`, `health`). An entity has the files it needs:
   `service.py` only with data of its own (`health` and `auth` have none).
 <!-- @auth-end -->
 <!-- @noauth-start -->
-  is a resource or a capability (`health`). A module has the files it needs: `service.py` only
+  is a resource or a capability (`health`). An entity has the files it needs: `service.py` only
   with data of its own (`health` has none).
 <!-- @noauth-end -->
   - `schema.py`: pydantic request and response models and the path and query parameter types
-    (`ModuleId`, `PageQuery`). Each model derives from `RequestModel`, `QueryModel` or
-    `ResponseModel` (`services/utils/api_model.py`). The leaf of the module.
-  - `routes.py`: the module's `router: APIRouter`. The gates (a rate limiter, and with accounts
+    (`EntityId`, `PageQuery`). Each model derives from `RequestModel`, `QueryModel` or
+    `ResponseModel` (`services/utils/api_model.py`). The leaf of the entity.
+  - `routes.py`: the entity's `router: APIRouter`. The gates (a rate limiter, and with accounts
     the authentication and role gates) are built once as named constants above the table, then
     each endpoint is one `router.add_api_route(path, handler, ...)` naming the handler, the
     status and response model, the error responses (`error_responses(...)`), the summary and the
     gates as `dependencies=[Depends(...)]`. No inline handlers, no logic.
-  - `controller.py`: the module's business logic and its only door. Two kinds of export:
+  - `controller.py`: the entity's business logic and its only door. Two kinds of export:
     - Handlers: one `async` function per endpoint, named after its operation with no suffix
-      (`create_module`, `get_module`), holding that endpoint's logic. FastAPI validates its
+      (`create_entity`, `get_entity`), holding that endpoint's logic. FastAPI validates its
       parameters from the signature; it applies the rules (raising `AppError`), reads and writes
       through its own `service.py`, maps records to response models, publishes events, calls
       providers, owns transactions when the engine has them, and returns the response model (or a
-      bare `Response` for a 204). `api/module/` is the example.
+      bare `Response` for a 204). `api/entity/` is the example.
 <!-- @auth-start -->
       Auth handlers also set or clear cookies: cookies are transport, so they belong to the
       handler, which declares a `response: Response` parameter.
 <!-- @auth-end -->
-    - Rules: logic another module's controller, a job, a subscriber or a script needs is
+    - Rules: logic another entity's controller, a job, a subscriber or a script needs is
       exported as a typed function with no request, no response and no status code; a handler
-      that needs the same logic calls it. A module exports none until something outside it
+      that needs the same logic calls it. An entity exports none until something outside it
 <!-- @auth-start -->
       needs one: `api/user/` exports the ones auth and the welcome subscriber call
       (`get_caller_user(caller)`, `get_active_user(user_id)`, `find_user_by_email(email)`, ...).
@@ -198,22 +198,22 @@ openapi.json          the committed contract, written by the `contract` command
 <!-- @noauth-start -->
       needs one. A rule never takes a handler's name, since both are exports of one file.
 <!-- @noauth-end -->
-  - `service.py` (and `model.py`): every query for the module and nothing else, private to it:
-    only its own controller imports it. The only module files that import `services/db.py` or
+  - `service.py` (and `model.py`): every query for the entity and nothing else, private to it:
+    only its own controller imports it. The only entity files that import `services/db.py` or
     `services/cache.py`.
 - `models/<name>/`: an entity's types, shared by every layer, and importing nothing but other
   `models/`, not even pydantic. `interface.py` the stored record (a frozen dataclass), `type.py`
   the public shape, the create and update inputs and derived types, `enums.py` closed value sets
   (`StrEnum`), `constants.py` limits of the data itself. A directory has the files it needs. The
   wire shape is the pydantic model in `schema.py`; the controller maps between the two. `models/`
-  (plural, types) and `model.py` (singular, in a module, the engine's storage mapping) are
+  (plural, types) and `model.py` (singular, in an entity, the engine's storage mapping) are
   different things.
 <!-- @auth-start -->
-  A capability module whose types other layers share still gets a `models/` directory:
+  A capability entity whose types other layers share still gets a `models/` directory:
   `models/auth/` holds `Caller`, `AuthTokens` and `OtpPurpose`.
 <!-- @auth-end -->
 <!-- @noauth-start -->
-  A capability module whose types other layers share still gets a `models/` directory.
+  A capability entity whose types other layers share still gets a `models/` directory.
 <!-- @noauth-end -->
 <!-- @auth-start -->
 - `middleware/`: request handling an endpoint or every request needs. The ASGI middleware
@@ -232,13 +232,13 @@ openapi.json          the committed contract, written by the `contract` command
   (see Deployment).
 <!-- @noauth-end -->
 <!-- @auth-start -->
-- `services/`: stateful or I/O capabilities shared by modules: the stores' seams (`db.py`,
+- `services/`: stateful or I/O capabilities shared by entities: the stores' seams (`db.py`,
   `cache.py`), events, logging, sessions, `security/` (tokens, cookies, hashing, OTP),
   `communicate/` (channels, providers, message templates), and `utils/` (pure, stateless, no
   I/O).
 <!-- @auth-end -->
 <!-- @noauth-start -->
-- `services/`: stateful or I/O capabilities shared by modules: the stores' seams (`db.py`,
+- `services/`: stateful or I/O capabilities shared by entities: the stores' seams (`db.py`,
   `cache.py`), events, logging, `security/` (hashing, encryption), `communicate/` (channels,
   providers), and `utils/` (pure, stateless, no I/O).
 <!-- @noauth-end -->
@@ -271,20 +271,20 @@ openapi.json          the committed contract, written by the `contract` command
 
 | You are adding... | It goes in | Shape |
 | --- | --- | --- |
-| A resource or capability with endpoints | `api/<name>/` | copy `api/module/`, rename `module`, `Module`, `MODULE`; one line in `config/routes.py` and the component names in `COMPONENTS` in `openapi.py` |
-| An entity's types | `models/<name>/` | copy `models/module/` |
+| A resource or capability with endpoints | `api/<name>/` | copy `api/entity/`, rename `entity`, `Entity`, `ENTITY`; one line in `config/routes.py` and the component names in `COMPONENTS` in `openapi.py` |
+| An entity's types | `models/<name>/` | copy `models/entity/` |
 | A limit on an entity's field | `models/<name>/constants.py` | lengths, ranges, defaults of the data |
 | A policy constant | `config/constants.py` | durations, attempts, windows, cookie and header names | <!-- @auth -->
 | A policy constant | `config/constants.py` | durations, attempts, windows | <!-- @noauth -->
 | A request or response shape | `api/<name>/schema.py` | a `RequestModel`, `QueryModel` or `ResponseModel`; a contract component only when named in `COMPONENTS` |
-| An endpoint | `api/<name>/routes.py` + `controller.py` | one `router.add_api_route(...)`; one handler named after the operation (`create_module`); its input types in `schema.py` |
-| A business rule, an event to publish, a call to another service | `api/<name>/controller.py` | in the endpoint's handler; an exported rule once something outside the module needs it; raises `AppError` |
-| A rule composing other modules | `api/<name>/controller.py` | `api/auth/` is the example | <!-- @auth -->
-| A rule composing other modules | `api/<name>/controller.py` | calls each module's `controller.py` | <!-- @noauth -->
-| A query | `api/<name>/service.py` | `get_db()` from `services/db.py`, `services/cache.py`; private to the module | <!-- @nodatabase -->
-| A query | `api/<name>/service.py` | SQL through `fetch_one`, `fetch_all` and `execute` from `services/db.py`; an optional last `db` keyword; private to the module | <!-- @database:postgres -->
-| A change to the tables or indexes | `infra/migrations/NNNN-<topic>.sql` | the next number, never an edit to an applied file; then `uv run poe migrate`; update the module's `service.py` and its row mapping | <!-- @database:postgres -->
-| Something another module needs | `api/<name>/controller.py` | an exported rule; the only cross-module import |
+| An endpoint | `api/<name>/routes.py` + `controller.py` | one `router.add_api_route(...)`; one handler named after the operation (`create_entity`); its input types in `schema.py` |
+| A business rule, an event to publish, a call to another service | `api/<name>/controller.py` | in the endpoint's handler; an exported rule once something outside the entity needs it; raises `AppError` |
+| A rule composing other entities | `api/<name>/controller.py` | `api/auth/` is the example | <!-- @auth -->
+| A rule composing other entities | `api/<name>/controller.py` | calls each entity's `controller.py` | <!-- @noauth -->
+| A query | `api/<name>/service.py` | `get_db()` from `services/db.py`, `services/cache.py`; private to the entity | <!-- @nodatabase -->
+| A query | `api/<name>/service.py` | SQL through `fetch_one`, `fetch_all` and `execute` from `services/db.py`; an optional last `db` keyword; private to the entity | <!-- @database:postgres -->
+| A change to the tables or indexes | `infra/migrations/NNNN-<topic>.sql` | the next number, never an edit to an applied file; then `uv run poe migrate`; update the entity's `service.py` and its row mapping | <!-- @database:postgres -->
+| Something another entity needs | `api/<name>/controller.py` | an exported rule; the only cross-entity import |
 | Shared behaviour with state or I/O | `services/<name>.py` | sessions, cache, events, logging | <!-- @auth -->
 | Shared behaviour with state or I/O | `services/<name>.py` | cache, events, logging | <!-- @noauth -->
 | A vendor SDK wrapper | `services/<vendor>.py` | thin; key from `config/env.py`; the SDK is imported only here |
@@ -320,7 +320,7 @@ gates and the handler per endpoint. The gates are FastAPI dependencies in declar
 run before the body's validation errors are raised, so a gate refuses a malformed request first.
 Validation comes from the handler's signature: FastAPI validates, and
 `middleware/error_handler.py` shapes the failure into the 400 envelope. A handler holds its
-endpoint's logic; it reaches its own data only through its `service.py` and other modules only
+endpoint's logic; it reaches its own data only through its `service.py` and other entities only
 through their `controller.py` rules.
 
 The middleware are pure ASGI, never `BaseHTTPMiddleware`. `server.py` adds them inner first, so the
@@ -339,15 +339,15 @@ or infra file joins the list.
 
 | Contract | What it enforces |
 | --- | --- |
-| `layers: entry, server, routes, modules, middleware, services, config` | the overall direction: `main`, `server`, `config/routes`, `api`, `middleware`, `services`, `config/cors`, then the `config` leaves; a lower layer never imports a higher one |
+| `layers: entry, server, routes, entities, middleware, services, config` | the overall direction: `main`, `server`, `config/routes`, `api`, `middleware`, `services`, `config/cors`, then the `config` leaves; a lower layer never imports a higher one |
 | `models import models only` | `models/` imports nothing else of the app |
 | `config constants and env import nothing from the app` | `config/constants.py` and `config/env.py` are leaves |
 | `config constants does not import env` | `constants.py` never imports `env.py` |
 | `config env does not import constants` | `env.py` never imports `constants.py` |
 | `config cors imports config env only` | `cors.py` imports `config/env.py` and nothing else of the app |
 | `services utils is pure` | `services/utils/` imports no `api`, `middleware`, `infra`, `logger`, `server`, `main`, `openapi`, `config/cors` or `config/routes` |
-| `config routes imports module routes only` | `config/routes.py` imports each module's `routes.py` and no other module file |
-| `only config routes imports a module routes` | nothing but `config/routes.py` imports a `routes.py` |
+| `config routes imports entity routes only` | `config/routes.py` imports each entity's `routes.py` and no other entity file |
+| `only config routes imports an entity routes` | nothing but `config/routes.py` imports a `routes.py` |
 | `only server imports the mount table` | nothing but `server.py` imports `config/routes.py` |
 | `config and services utils do not import infra` | `config/` and `services/utils/` never import `infra/` |
 | `services never import middleware, api, server or entry` | `services/` is below the HTTP layer |
@@ -355,28 +355,28 @@ or infra file joins the list.
 | `services reach infra through dependency, the seams reach their store` | `services/` imports `infra/dependency.py`; `db.py` imports `infra/postgres.py`, `cache.py` imports `infra/memory.py`, `event.py` imports `infra/pubsub.py`; no other infra file | <!-- @database:postgres -->
 | `db and cache seams import their store, logger, utils, config and models only` | the two seams import no bus, scheduler, other service or HTTP layer |
 | `event seam imports the bus, logger, utils, config and models only` | `services/event.py` likewise |
-| `only a module service and services use the db seam` | a module's `routes`, `controller` and `schema`, `middleware/`, `server`, `main` and `openapi` never import `services/db.py` |
-| `only a module service, services and middleware rate_limit use the cache seam` | the same files never import `services/cache.py`, except `middleware/rate_limit.py` |
+| `only an entity service and services use the db seam` | an entity's `routes`, `controller` and `schema`, `middleware/`, `server`, `main` and `openapi` never import `services/db.py` |
+| `only an entity service, services and middleware rate_limit use the cache seam` | the same files never import `services/cache.py`, except `middleware/rate_limit.py` |
 | `a routes, service or model never publishes events: a controller does` | none of them imports `services/event.py` |
-| `middleware never imports api, infra, server or entry` | `middleware/` is below the modules |
+| `middleware never imports api, infra, server or entry` | `middleware/` is below the entities |
 | `infra never imports middleware, server or entry` | `infra/` is below the HTTP layer |
-| `infra stores, bus, scheduler, dependency and loop import no api` | `dependency.py`, `loop.py`, the stores, the bus and the scheduler import no module |
+| `infra stores, bus, scheduler, dependency and loop import no api` | `dependency.py`, `loop.py`, the stores, the bus and the scheduler import no entity |
 | `infra files import logger, db, cache, event and utils only` | the same files import no other service |
-| `jobs and subscribers reach a module through its controller only` | `infra/jobs/` and `infra/subscribers/` import a module's `controller` and `schema`, never its `routes`, `service` or `model`; the two packages exist in every variant (empty without `auth`), so a first job is linted from the start |
-| `schema is the leaf of a module` | `schema.py` imports `models/`, `services/utils/` and `config/constants.py`, and a schema of another module |
-| `routes wire gates to handlers` | `routes.py` imports its own `controller` and `schema`, `middleware/`, `models/`, `services/utils/` and `config/constants.py`; never `service`, `model`, any `services/` module but `utils/`, `infra/` or `config/env.py` |
+| `jobs and subscribers reach an entity through its controller only` | `infra/jobs/` and `infra/subscribers/` import an entity's `controller` and `schema`, never its `routes`, `service` or `model`; the two packages exist in every variant (empty without `auth`), so a first job is linted from the start |
+| `schema is the leaf of an entity` | `schema.py` imports `models/`, `services/utils/` and `config/constants.py`, and a schema of another entity |
+| `routes wire gates to handlers` | `routes.py` imports its own `controller` and `schema`, `middleware/`, `models/`, `services/utils/` and `config/constants.py`; never `service`, `model`, any `services/` entity but `utils/`, `infra/` or `config/env.py` |
 | `controller holds the rules and the handlers` | `controller.py` never imports a `routes`, a `model`, `infra/` (except `infra/dependency.py`) or `config/routes.py` |
-| `service is the data layer at the bottom of a module` | `service.py` and `model.py` import `services/db.py`, `services/cache.py`, `services/logger.py`, `services/utils/`, `models/` and `config/constants.py` only |
+| `service is the data layer at the bottom of an entity` | `service.py` and `model.py` import `services/db.py`, `services/cache.py`, `services/logger.py`, `services/utils/`, `models/` and `config/constants.py` only |
 | `the data layer never sees HTTP` | `service.py` and `model.py` never import `fastapi` or `starlette` |
-| `modules are independent: a controller and a schema are a module's only doors` | module privacy: a module's `service` is imported only from inside its own module; another module's `controller` and `schema` are the only allowed crossings (a controller imports a controller and a schema, a schema a schema) |
+| `entities are independent: a controller and a schema are an entity's only doors` | entity privacy: an entity's `service` is imported only from inside its own entity; another entity's `controller` and `schema` are the only allowed crossings (a controller imports a controller and a schema, a schema a schema) |
 | `server mounts config routes and imports no api or infra` | `server.py` imports no `api`, `infra`, `models`, `services/utils/` or `main` |
-| `openapi imports no module behaviour, infra or middleware` | `openapi.py` imports no `routes`, `controller`, `service`, `infra`, `middleware` or `main` |
+| `openapi imports no entity behaviour, infra or middleware` | `openapi.py` imports no `routes`, `controller`, `service`, `infra`, `middleware` or `main` |
 | `main imports config env, infra dependency, logger and server only` | `main.py` stays an entry |
 | `nothing imports the entry` | nothing imports `main.py` |
 | `only the entry imports the server (openapi does, to write the contract)` | only `main.py`, tests and `openapi.py` import `server.py` |
 
-Module privacy is one point stricter than a type-aware linter: import-linter cannot tell a
-type-only import, so a module's `routes`, `service` and `model` never import another module's
+Entity privacy is one point stricter than a type-aware linter: import-linter cannot tell a
+type-only import, so an entity's `routes`, `service` and `model` never import another entity's
 `schema`, even for a type.
 
 What import-linter cannot express stays a review rule:
@@ -385,15 +385,15 @@ What import-linter cannot express stays a review rule:
 - A rule forwards the caller it received, and a rule that takes a caller acts only on that
   caller's own data.
 <!-- @auth-end -->
-- Another module, a job, a subscriber or a script calls a controller's exported rules, never its
+- Another entity, a job, a subscriber or a script calls a controller's exported rules, never its
   handlers.
 - A `routes.py` holds nothing but the gates and the handler per endpoint: no logic.
 - A vendor SDK package is imported only by its own `services/<vendor>.py`.
-- A cross-module flow is not atomic: each rule call is its own unit of work; a flow that must be
-  atomic lives in one module.
+- A cross-entity flow is not atomic: each rule call is its own unit of work; a flow that must be
+  atomic lives in one entity.
 - A controller publishes an event, after its write. Lint refuses a `routes`, `service` or `model`
   that publishes; a gate, a `services/` file or a job that does is a review finding.
-- A script in `infra/scripts/` reaches a module only through its `controller` and `schema`; no
+- A script in `infra/scripts/` reaches an entity only through its `controller` and `schema`; no
   contract checks it.
 
 <!-- @auth-start -->
@@ -403,8 +403,8 @@ The template ships working auth (`api/auth/`, `api/user/`); a product starts fro
 token, OTP and verification model is recorded in the project's architecture record (Auth) and
 changes only by plan.
 
-- Where rules live. Every module's rules live in its `controller.py`. A capability module whose
-  rules only compose other modules and services has no `service.py`, and its controller holds the
+- Where rules live. Every entity's rules live in its `controller.py`. A capability entity whose
+  rules only compose other entities and services has no `service.py`, and its controller holds the
   composition; `api/auth/` is the shipped example. Rules about user data (a blocked account, a
   phone already in use) stay in the user controller; credential rules (verifying a password, what
   a blocked account learns, and when) are auth's.
@@ -421,8 +421,8 @@ changes only by plan.
   auth to verify. Auth never returns or logs it.
 - Authorization. `require_auth` and `require_role` in `routes.py` are declarative and fail fast;
   the handler checks the role again, so an endpoint mounted without its gate fails closed. A rule
-  that takes a caller acts only on that caller's own account (`get_caller_user`), so a cross-module
-  call cannot reach further than the route would. Operations only other modules, jobs or scripts
+  that takes a caller acts only on that caller's own account (`get_caller_user`), so a cross-entity
+  call cannot reach further than the route would. Operations only other entities, jobs or scripts
   call take no caller and are named system operations: `create_user`, `find_user_by_email`,
   `find_user_by_target`, `get_active_user`, `mark_verified`, `set_user_role`. There is no admin
   bootstrap: a seed script calls `set_user_role`.
@@ -430,8 +430,8 @@ changes only by plan.
   changes these together, then runs the `contract` command: the `UserRole` enum
   (`models/user/enums.py`), `UserRoleName` (`api/user/schema.py`), the wire mapping in
   `api/user/controller.py` and the `role` column or check in the migrations; the `require_role(...)`
-  and `_assert_role(...)` gates in `api/user/` and `api/module/`; the seed or first-staff path that
-  calls `set_user_role`; the summaries that say "admin" (`routes.py` of both modules, and so
+  and `_assert_role(...)` gates in `api/user/` and `api/entity/`; the seed or first-staff path that
+  calls `set_user_role`; the summaries that say "admin" (`routes.py` of both entities, and so
   `openapi.json`); the tests that use the role; this file. The frontend's role type guard and gates
   follow (its `AGENTS.md`).
 - Gates: `middleware/auth.py` (`authenticate` never rejects, `require_auth` answers 401,
@@ -460,8 +460,8 @@ changes only by plan.
 ## Authentication
 
 This scaffold was generated with the `auth` flag off (recorded as Auth: none in the project's
-architecture record): every endpoint is public and no module takes a caller. Adding authentication
-later is a planned change, not a patch to one module.
+architecture record): every endpoint is public and no entity takes a caller. Adding authentication
+later is a planned change, not a patch to one entity.
 <!-- @noauth-end -->
 
 ## The engine seam
@@ -490,24 +490,24 @@ store, and the type changes with the engine. Today:
   constants.
 
 <!-- @nodatabase-start -->
-The data-layer task rewrites `db.py` and every module's `service.py`, <!-- @noauth -->
-The data-layer task rewrites `db.py`, every module's `service.py` and `services/session.py`, <!-- @auth -->
+The data-layer task rewrites `db.py` and every entity's `service.py`, <!-- @noauth -->
+The data-layer task rewrites `db.py`, every entity's `service.py` and `services/session.py`, <!-- @auth -->
 adds `infra/<engine>.py` and `infra/scripts/migrate.py`, and adds the engine resource to
 `dependencies`; `memory` leaves it only when the cache task has moved `services/cache.py` to its
 own store. The cache task rewrites `cache.py`, adds `infra/redis.py` and gives `infra/pubsub.py`
 its adapter (see Adding the data layer). Until then nothing survives a restart.
 <!-- @nodatabase-end -->
 <!-- @database:postgres-start -->
-Only a module's `service.py` (and `model.py`) and the files of `services/` and `infra/` import
+Only an entity's `service.py` (and `model.py`) and the files of `services/` and `infra/` import
 `services/db.py`; import-linter refuses it in `routes.py`, `controller.py` and `schema.py`. Every
-query function in a module's `service.py` takes an optional last keyword, `db: Executor | None =
+query function in an entity's `service.py` takes an optional last keyword, `db: Executor | None =
 None`. Without it the query takes its own connection from the pool and commits when it is done;
 with it the query runs on the connection given, in whatever transaction that connection is in. A
-controller cannot import `services/db.py`, so a module that must write two things together exports
+controller cannot import `services/db.py`, so an entity that must write two things together exports
 `with_transaction(work)` from its `service.py`: the controller opens it and passes the connection
 it receives to each query as `db=`. A service function never opens a transaction, and a transaction
-never spans modules. The helper is the same in every module (`api/module/service.py` has it until
-that module is dropped):
+never spans entities. The helper is the same in every entity (`api/entity/service.py` has it until
+that entity is dropped):
 
 ```python
 async def with_transaction[T](work: Callable[[Executor], Awaitable[T]]) -> T:
@@ -536,7 +536,7 @@ the cache, the rate limits and the bus do not survive a restart or span replicas
 The layer map is language-neutral on purpose: the bun-express template mirrors the same
 directories and rules.
 
-## Adding a module
+## Adding an entity
 
 Work in this order, test first.
 
@@ -544,21 +544,21 @@ Work in this order, test first.
    `enums`, `constants`). A record is a frozen dataclass; models import no pydantic.
 2. `schema.py`: pydantic models. A request body derives from `RequestModel`, a query from
    `QueryModel`, a response from `ResponseModel`. A list's page is a concrete subclass of
-   `Page[T]` (`class ModulePage(Page[Module])`) and its query is `PageQuery`.
+   `Page[T]` (`class EntityPage(Page[Entity])`) and its query is `PageQuery`.
 3. `tests/test_<name>.py` (see Tests), red.
 <!-- @nodatabase-start -->
-4. `service.py`, only when the module has data: queries through `get_db()`, one collection per
-   entity (`find_module_by_id`, `list_modules`), and a cursor model for `decode_cursor` when the
+4. `service.py`, only when the entity has data: queries through `get_db()`, one collection per
+   entity (`find_entity_by_id`, `list_entities`), and a cursor model for `decode_cursor` when the
    list pages.
 <!-- @nodatabase-end -->
 <!-- @database:postgres-start -->
-4. `service.py`, only when the module has data: SQL through the helpers of `services/db.py`, one
+4. `service.py`, only when the entity has data: SQL through the helpers of `services/db.py`, one
    row dataclass and one `_to_record` mapping per entity, an optional last `db` keyword on every
-   query (`find_module_by_id`, `list_modules`), and a cursor model for `decode_cursor` when the
+   query (`find_entity_by_id`, `list_entities`), and a cursor model for `decode_cursor` when the
    list pages. The table and its indexes ship in a migration (see Adding the data layer).
 <!-- @database:postgres-end -->
 5. `controller.py`: one handler per endpoint (it maps the stored record to the wire and raises
-   `AppError`), publishes the event after the write, then the exported rules other modules need.
+   `AppError`), publishes the event after the write, then the exported rules other entities need.
 6. `routes.py`: `router: APIRouter` and one `router.add_api_route(...)` per endpoint, with its
    gates as `dependencies=[Depends(...)]`. A rate limit is `rate_limit(name=, limit=, window=,
    key=)` from `middleware/rate_limit.py` with the key `by_ip` (an IPv6 address by its /64
@@ -569,12 +569,12 @@ Work in this order, test first.
 7. One line in `config/routes.py`, the component names in `COMPONENTS` in `openapi.py`, then the
    `contract` command (`uv run poe contract`), then `check`.
 
-Start by copying `api/module/` and `models/module/`, renaming in directories, files, identifiers,
-comments and constants: `module` to `<name>`, `Module` to `<Name>`, `MODULE` to `<NAME>`. The
-docstring of each file says what belongs there and what does not. Drop the reference module (both
-directories, its line in `config/routes.py`, its names in `COMPONENTS`, `MODULE_CREATED` and
-`ModuleCreated` in `services/event.py`, `RATE_LIMITS.create_post_per_ip` in `config/constants.py`,
-`tests/test_module.py`) once a real one exists (copy your first module for the next one), then regenerate `openapi.json` with the `contract`
+Start by copying `api/entity/` and `models/entity/`, renaming in directories, files, identifiers,
+comments and constants: `entity` to `<name>`, `Entity` to `<Name>`, `ENTITY` to `<NAME>`. The
+docstring of each file says what belongs there and what does not. Drop the reference entity (both
+directories, its line in `config/routes.py`, its names in `COMPONENTS`, `ENTITY_CREATED` and
+`EntityCreated` in `services/event.py`, `RATE_LIMITS.create_post_per_ip` in `config/constants.py`,
+`tests/test_entity.py`) once a real one exists (copy your first entity for the next one), then regenerate `openapi.json` with the `contract`
 command.
 
 - One declaration, one validator: the handler's parameters are typed from `schema.py`, so FastAPI
@@ -592,10 +592,10 @@ command.
   `services/utils/pagination.py`: `?cursor=&limit=` in, `{ items, nextCursor }` out. The service
   fetches `limit + 1` rows and `to_page` slices; the cursor is opaque to clients and read back
   with `decode_cursor`.
-- Another module is reached only through its exported controller rules, never its `service.py`.
+- Another entity is reached only through its exported controller rules, never its `service.py`.
 <!-- @database:postgres-start -->
-- A module with data ships its table in a migration (see Adding the data layer), and its
-  `service.py` is written like `api/module/service.py`: a row dataclass, one `_to_record` mapping,
+- An entity with data ships its table in a migration (see Adding the data layer), and its
+  `service.py` is written like `api/entity/service.py`: a row dataclass, one `_to_record` mapping,
   an optional last `db` keyword on every query.
 <!-- @database:postgres-end -->
 - The wire is camelCase and Python is snake_case; the alias generator says so once. A request
@@ -618,8 +618,8 @@ command.
   401 unauthenticated, 403 forbidden,
 <!-- @auth-end -->
   404 missing, 409 conflict.
-- Admin endpoints live in `api/admin/<name>/`, a module like any other, at `/api/admin/<name>`
-  (`admin` is a namespace, not an entity); add its router to `MODULES` in `api/admin/routes.py`.
+- Admin endpoints live in `api/admin/<name>/`, an entity like any other, at `/api/admin/<name>`
+  (`admin` is a namespace, not an entity); add its router to `ENTITIES` in `api/admin/routes.py`.
 <!-- @auth-start -->
   That file runs `require_role(UserRole.admin)` first, so a route cannot ship without the gate.
 <!-- @auth-end -->
@@ -627,7 +627,7 @@ command.
   That file's gate refuses every request (403) until the product replaces it with its own.
 <!-- @noauth-end -->
 
-`api/module/` is the worked example.
+`api/entity/` is the worked example.
 
 ## Adding the data layer
 
@@ -641,8 +641,8 @@ delivers:
    whose TTL sweep starts in its `connect()`); no connecting at import, since `check` imports
    `app` without Docker.
 2. `services/db.py` rewritten to export the engine client (its type changes).
-3. Every module's `service.py` rewritten against it, signatures unchanged. <!-- @noauth -->
-3. Every module's `service.py` and `services/session.py`, signatures unchanged. <!-- @auth -->
+3. Every entity's `service.py` rewritten against it, signatures unchanged. <!-- @noauth -->
+3. Every entity's `service.py` and `services/session.py`, signatures unchanged. <!-- @auth -->
 4. `model.py` where the engine defines storage in code, held to `models/<name>/interface.py`.
 5. `infra/scripts/migrate.py` and a `migrate` task in `[tool.poe.tasks]` of `pyproject.toml`; the
    script runs its loop with `asyncio.run(main(), loop_factory=selector_loop_factory)`.
@@ -652,10 +652,10 @@ delivers:
 
 Every engine: a record has a string `id` and `created_at` and `updated_at` set on every write; an
 unreachable store surfaces as `AppError("upstream_unavailable", ...)`; a transaction belongs to one
-module's controller and never spans modules. For an SQL engine every query function in a module's
+entity's controller and never spans entities. For an SQL engine every query function in an entity's
 `service.py` takes the client or an open transaction as an optional last argument (one `Executor`
 type covers both, defaulting to the client). A controller cannot import `services/db.py`, so the
-module's `service.py` exports a `with_transaction` helper; the controller opens it and passes the
+entity's `service.py` exports a `with_transaction` helper; the controller opens it and passes the
 handle to each query. Every field a query filters or sorts on is indexed, including the
 `(created_at, id)` pair behind cursor pagination; a change to the stored shape ships its migration
 or index definition in the same task. A database driver runs on the selector loop
@@ -691,8 +691,8 @@ The data layer is in place: this project was generated with `database/postgres`.
   task.
 - `services/db.py`: the seam (`get_db()`, `Executor`, `fetch_one`, `fetch_all`, `execute`; see The
   engine seam).
-- Every module's `service.py` in SQL. `api/module/service.py` is the reference until it is dropped,
-  then your first module is: a row dataclass,
+- Every entity's `service.py` in SQL. `api/entity/service.py` is the reference until it is dropped,
+  then your first entity is: a row dataclass,
   one `_to_record` mapping from snake_case columns to the record, `with_transaction`, and cursor
   pagination over `(created_at, id)`. `model.py` stays unused. <!-- @noauth -->
   pagination over `(created_at, id)`. `api/user/service.py` and `services/session.py` are in SQL <!-- @auth -->
@@ -704,7 +704,7 @@ The data layer is in place: this project was generated with `database/postgres`.
   `docker-compose.yml` with its `db/init.sql`, and the test seam and `test-db` (below).
 
 Every record has a `text` `id` the application generates, and `created_at` and `updated_at` set on
-every write. A transaction belongs to one module's controller and never spans modules. Dropping or
+every write. A transaction belongs to one entity's controller and never spans entities. Dropping or
 resetting a database is a human's job.
 
 Changing the data model, in this order:
@@ -719,12 +719,12 @@ Changing the data model, in this order:
    timestamps are `timestamptz`.
 4. An index ships with the migration that needs it: every column a query filters or sorts on,
    including the `(created_at, id)` pair behind cursor pagination.
-5. Update the module's `service.py`, its row dataclass and `_to_record`, and
+5. Update the entity's `service.py`, its row dataclass and `_to_record`, and
    `models/<name>/interface.py`.
 6. `uv run poe migrate`, then `uv run poe test-db`, then `uv run poe check`.
 
-The `module` table in `0001-init.sql` belongs to the reference module. Drop it with a new migration
-once the module is removed, unless no database has applied `0001-init.sql` yet.
+The `entity` table in `0001-init.sql` belongs to the reference entity. Drop it with a new migration
+once the entity is removed, unless no database has applied `0001-init.sql` yet.
 
 Commands:
 
@@ -797,7 +797,7 @@ or is refused as a replay. There is no per-session lock. `revoke_session` and <!
 Time comes from the caller, never from `now()` in SQL. `user.email` has a unique index (the <!-- @auth -->
 controller lower-cases it); `user.phone` is unique only among verified phones (a partial unique <!-- @auth -->
 index where `phone_verified_at is not null`). `session` is indexed on `user_id` and `expires_at` <!-- @auth -->
-and has no foreign key to `"user"`: modules stay independent. <!-- @auth -->
+and has no foreign key to `"user"`: entities stay independent. <!-- @auth -->
 
 The cache is its own task: `services/cache.py` over `infra/redis.py` (a `Resource`), same helpers;
 keys prefixed, always with a TTL; `incr` sets the TTL on the first increment only;
@@ -864,10 +864,10 @@ A gated endpoint also tests its 401 and, where it checks a role, its 403. <!-- @
   `TestClient` is not used: its portal thread runs its own event loop. Async tests run under the
   anyio plugin (`anyio_mode = "auto"`) on the selector loop (`anyio_backend` in
   `tests/conftest.py`).
-- `tests/` mirrors `src/app/` and is a package throughout: `tests/test_<name>.py` per module, the
+- `tests/` mirrors `src/app/` and is a package throughout: `tests/test_<name>.py` per entity, the
   rest in `tests/middleware/`, `tests/services/` and `tests/infra/`. `tests/conftest.py` sets
   `APP_ENV=test` before any `app` import, because `config/env.py` reads the environment once.
-  `tests/probe.py` builds a throwaway app with extra routes for a test that pins what every module
+  `tests/probe.py` builds a throwaway app with extra routes for a test that pins what every entity
   relies on.
 - Time is moved with `time-machine` (`time_machine.travel(..., tick=False)`). An event's effect is
   asserted after `await drain()` from `services/event.py`. Each store-backed test file empties the

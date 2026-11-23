@@ -368,7 +368,7 @@ the build.
   `screens.spec` (every nav route and the 404 page, both themes, axe WCAG A and AA, no horizontal
   scroll, one `h1`, no policy violation, screenshots in `test-results/screens/`) and `smoke.spec`
   (the index page, the 404 page and its status; with a server also the API from the page: health
-  with a request id, a static page with none, the JSON 404, the reference module's
+  with a request id, a static page with none, the JSON 404, the reference entity's
   create and list). Helpers: `tests/e2e/support.ts`. A journey names its data uniquely per run and
   removes it through the API.
 - Tests first: write the failing test, see it red, then the code; each behaviour has a happy path

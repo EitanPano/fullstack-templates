@@ -39,18 +39,18 @@ describe('openapi.json', () => {
     expect(responses?.['503']).toBeDefined()
   })
 
-  it('documents the reference module with a tag and the error envelope on its failures', () => {
+  it('documents the reference entity with a tag and the error envelope on its failures', () => {
     const doc = buildOpenApiDocument()
-    const create = doc.paths?.['/api/module']?.post
+    const create = doc.paths?.['/api/entity']?.post
 
-    expect(create?.tags).toEqual(['module'])
+    expect(create?.tags).toEqual(['entity'])
     expect(create?.responses?.['400']).toBeDefined()
-    expect(doc.components?.schemas?.Module).toBeDefined()
-    expect(doc.components?.schemas?.ModulePage).toBeDefined()
-    expect(doc.paths?.['/api/module/{id}']?.delete?.responses?.['204']).toBeDefined()
+    expect(doc.components?.schemas?.Entity).toBeDefined()
+    expect(doc.components?.schemas?.EntityPage).toBeDefined()
+    expect(doc.paths?.['/api/entity/{id}']?.delete?.responses?.['204']).toBeDefined()
   })
 
-  it('registers at least one path for every module in the list', () => {
+  it('registers at least one path for every entity in the list', () => {
     expect(registrations.length).toBeGreaterThan(0)
     for (const register of registrations) {
       const registry = new OpenAPIRegistry()
@@ -78,14 +78,14 @@ describe('openapi.json', () => {
     }
   })
 
-  it('mounts the router of every module that has one', () => {
+  it('mounts the router of every entity that has one', () => {
     const source = readFileSync(path.join(root, 'server/server.ts'), 'utf8')
-    const modules = readdirSync(path.join(root, 'server/api'), { withFileTypes: true })
+    const entities = readdirSync(path.join(root, 'server/api'), { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .filter((name) => existsSync(path.join(root, 'server/api', name, 'routes.ts')))
-    expect(modules.length).toBeGreaterThan(0)
-    for (const name of modules) {
+    expect(entities.length).toBeGreaterThan(0)
+    for (const name of entities) {
       expect(source, `server.ts does not mount ${name}`).toContain(`app.route('/api/${name}'`)
     }
   })

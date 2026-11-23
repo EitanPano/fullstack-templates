@@ -614,7 +614,23 @@ describe('loadCatalog: server agents headings', () => {
     const root = copyFixture('catalog')
     writeFileSync(path.join(root, `${mini}/base/AGENTS.md`), '# Mini\n\n### Tests\n')
     const message = problems(root)
-    expect(message).toContain('"Adding a module", "Adding the data layer", "Errors"')
+    expect(message).toContain('"Adding an entity", "Adding the data layer", "Errors"')
+  })
+
+  test('refuses a server template without "Adding an entity", naming it', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${mini}/base/AGENTS.md`, (t) => t.replace('## Adding an entity\n', ''))
+    const message = problems(root)
+    expect(message).toContain(mini)
+    expect(message).toContain('"Adding an entity"')
+  })
+
+  test('the older heading "Adding a module" no longer satisfies it', () => {
+    const root = copyFixture('catalog')
+    edit(root, `${mini}/base/AGENTS.md`, (t) =>
+      t.replace('## Adding an entity\n', '## Adding a module\n'),
+    )
+    expect(problems(root)).toContain('"Adding an entity"')
   })
 
   test('matches the exact text of a heading line, not a mention or a longer title', () => {

@@ -6,7 +6,7 @@ export function isApiError(value: unknown): value is ApiError {
   )
 }
 
-// The belt for a store method that awaited a facade: an ApiError passes, a thrown fetch is a
+// The belt for a store method that awaited a service: an ApiError passes, a thrown fetch is a
 // network failure, anything else is unknown.
 export function toApiError(cause: unknown, context?: string): ApiError {
   if (isApiError(cause)) return cause

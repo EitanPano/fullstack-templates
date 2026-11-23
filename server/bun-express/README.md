@@ -30,14 +30,14 @@ Generated alone or as the `server` of the `next-bun-express` stack.
 ## Flags
 
 - `auth` (default on): accounts, sessions, JWT and OTP. Off removes the `auth` and `user`
-  modules, their middleware, models, jobs, tests and the `cookie-parser` and `jose`
+  entities, their middleware, models, jobs, tests and the `cookie-parser` and `jose`
   dependencies; every endpoint is then public.
 
 ## Capabilities
 
 - `database/postgres`: records, users and sessions in Postgres through Bun's built-in `SQL`
   client (no driver dependency). Generate with `--capability database=postgres`. The overlay
-  replaces `services/db.ts` and each module's `service.ts`, adds `infra/postgres.ts`,
+  replaces `services/db.ts` and each entity's `service.ts`, adds `infra/postgres.ts`,
   `infra/migrations/` and the migrate script, and the root `docker-compose.yml` gets the
   `database` service. Two commands are added:
 

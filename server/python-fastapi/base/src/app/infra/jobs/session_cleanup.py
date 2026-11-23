@@ -1,5 +1,5 @@
 """jobs/ belongs: a scheduled unit of work, a `Job(name, schedule, run)` listed in
-`infra/scheduler.py`. It may call a module's `controller.py` and `services/`. Overlap protection
+`infra/scheduler.py`. It may call an entity's `controller.py` and `services/`. Overlap protection
 and failure logging are the scheduler's, so `run` just does the work and lets errors propagate.
 """
 

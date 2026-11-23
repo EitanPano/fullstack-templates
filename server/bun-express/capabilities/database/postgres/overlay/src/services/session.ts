@@ -1,5 +1,5 @@
 // session.ts belongs: refresh sessions with rotation and reuse detection. It keeps its own
-// queries because it is not a module and has no service.ts. It does not belong: token
+// queries because it is not an entity and has no service.ts. It does not belong: token
 // verification (security/jwt.ts), cookies or HTTP concerns (the auth controller).
 //
 // This is the Postgres variant: the sessions live in the `session` table

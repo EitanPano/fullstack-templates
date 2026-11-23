@@ -78,7 +78,7 @@ def constant_time_equals(left: str, right: str) -> bool:
 
 # @auth-start
 
-# The user module verifies an unknown email against this hash so a login for a missing account
+# The user entity verifies an unknown email against this hash so a login for a missing account
 # costs the same time as one for a real account; timing then does not reveal which emails exist.
 # Made by the same hasher as every real hash, so the parameters, and so the cost, are the same.
 DUMMY_HASH: Final = _HASHER.hash(random_token())

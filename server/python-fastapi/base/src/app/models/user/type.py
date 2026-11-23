@@ -24,7 +24,7 @@ class PublicUser:
 
 @dataclass(frozen=True)
 class UserCredentials:
-    """The stored credential of an account, handed to auth (the module that verifies passwords)
+    """The stored credential of an account, handed to auth (the entity that verifies passwords)
     beside the public shape, never inside it, so a response built from `user` cannot carry the
     hash. `password_hash` is `None` for an account that has no password."""
 

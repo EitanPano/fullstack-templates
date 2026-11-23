@@ -779,12 +779,12 @@
         }
       }
     },
-    "/api/module": {
+    "/api/entity": {
       "get": {
         "tags": [
-          "module"
+          "entity"
         ],
-        "summary": "List modules",
+        "summary": "List entities",
         "parameters": [
           {
             "name": "cursor",
@@ -810,11 +810,11 @@
         ],
         "responses": {
           "200": {
-            "description": "A page of modules",
+            "description": "A page of entities",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ModulePage"
+                  "$ref": "#/components/schemas/EntityPage"
                 }
               }
             }
@@ -843,25 +843,25 @@
       },
       "post": {
         "tags": [
-          "module"
+          "entity"
         ],
-        "summary": "Create a module",
+        "summary": "Create an entity",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateModuleBody"
+                "$ref": "#/components/schemas/CreateEntityBody"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "The created module",
+            "description": "The created entity",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Module"
+                  "$ref": "#/components/schemas/Entity"
                 }
               }
             }
@@ -899,12 +899,12 @@
         }
       }
     },
-    "/api/module/{id}": {
+    "/api/entity/{id}": {
       "get": {
         "tags": [
-          "module"
+          "entity"
         ],
-        "summary": "Get a module",
+        "summary": "Get an entity",
         "parameters": [
           {
             "name": "id",
@@ -919,11 +919,11 @@
         ],
         "responses": {
           "200": {
-            "description": "The module",
+            "description": "The entity",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Module"
+                  "$ref": "#/components/schemas/Entity"
                 }
               }
             }
@@ -962,9 +962,9 @@
       },
       "patch": {
         "tags": [
-          "module"
+          "entity"
         ],
-        "summary": "Update a module",
+        "summary": "Update an entity",
         "parameters": [
           {
             "name": "id",
@@ -981,18 +981,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateModuleBody"
+                "$ref": "#/components/schemas/UpdateEntityBody"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "The updated module",
+            "description": "The updated entity",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Module"
+                  "$ref": "#/components/schemas/Entity"
                 }
               }
             }
@@ -1041,9 +1041,9 @@
       },
       "delete": {
         "tags": [
-          "module"
+          "entity"
         ],
-        "summary": "Delete a module (admin only)",
+        "summary": "Delete an entity (admin only)",
         "parameters": [
           {
             "name": "id",
@@ -1165,7 +1165,7 @@
         ],
         "title": "AuthTokens"
       },
-      "CreateModuleBody": {
+      "CreateEntityBody": {
         "properties": {
           "name": {
             "type": "string",
@@ -1177,7 +1177,7 @@
         "required": [
           "name"
         ],
-        "title": "CreateModuleBody"
+        "title": "CreateEntityBody"
       },
       "Credentials": {
         "properties": {
@@ -1198,6 +1198,70 @@
           "password"
         ],
         "title": "Credentials"
+      },
+      "Entity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "archived"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "Entity"
+      },
+      "EntityPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Entity"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nextcursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "title": "EntityPage"
       },
       "ErrorBody": {
         "properties": {
@@ -1279,70 +1343,6 @@
         },
         "type": "object",
         "title": "LogoutBody"
-      },
-      "Module": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "active",
-              "archived"
-            ]
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "status",
-          "createdAt",
-          "updatedAt"
-        ],
-        "title": "Module"
-      },
-      "ModulePage": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/Module"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "nextCursor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Nextcursor"
-          }
-        },
-        "type": "object",
-        "required": [
-          "items",
-          "nextCursor"
-        ],
-        "title": "ModulePage"
       },
       "OtpRequestBody": {
         "properties": {
@@ -1603,6 +1603,24 @@
         "type": "object",
         "title": "RefreshBody"
       },
+      "UpdateEntityBody": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "archived"
+            ]
+          }
+        },
+        "type": "object",
+        "title": "UpdateEntityBody"
+      },
       "UpdateMeBody": {
         "properties": {
           "phone": {
@@ -1619,24 +1637,6 @@
         },
         "type": "object",
         "title": "UpdateMeBody"
-      },
-      "UpdateModuleBody": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 1
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "active",
-              "archived"
-            ]
-          }
-        },
-        "type": "object",
-        "title": "UpdateModuleBody"
       },
       "UserPage": {
         "properties": {

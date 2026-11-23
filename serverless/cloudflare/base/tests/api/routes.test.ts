@@ -1,13 +1,13 @@
-// Each module's router answers its endpoints when mounted ALONE in a fresh app with the root
-// middleware: nothing of the entry (server.ts) or of another module is needed, so a module can be
-// served by a Worker of its own. One test per shipped module.
+// Each entity's router answers its endpoints when mounted ALONE in a fresh app with the root
+// middleware: nothing of the entry (server.ts) or of another entity is needed, so an entity can be
+// served by a Worker of its own. One test per shipped entity.
 import { describe, expect, it } from 'vitest'
 
 import healthRoutes from '../../server/api/health/routes'
-import moduleRoutes from '../../server/api/module/routes'
+import entityRoutes from '../../server/api/entity/routes'
 import { json, mounted } from './helpers'
 
-type PublicModule = { id: string; name: string; status: string }
+type PublicEntity = { id: string; name: string; status: string }
 
 describe('the health router mounted alone', () => {
   const health = mounted(healthRoutes, '/api/health')
@@ -26,36 +26,36 @@ describe('the health router mounted alone', () => {
   })
 })
 
-describe('the module router mounted alone', () => {
-  const module = mounted(moduleRoutes, '/api/module')
+describe('the entity router mounted alone', () => {
+  const entity = mounted(entityRoutes, '/api/entity')
 
   it('serves create, list, read, update and delete under the root middleware', async () => {
-    const created = await module('/api/module', { method: 'POST', body: { name: 'Alone' } })
+    const created = await entity('/api/entity', { method: 'POST', body: { name: 'Alone' } })
     expect(created.status).toBe(201)
-    const { id } = await json<PublicModule>(created)
+    const { id } = await json<PublicEntity>(created)
 
-    const listed = await json<{ items: PublicModule[] }>(await module('/api/module'))
+    const listed = await json<{ items: PublicEntity[] }>(await entity('/api/entity'))
     expect(listed.items.map((item) => item.id)).toEqual([id])
 
-    expect(await json<PublicModule>(await module(`/api/module/${id}`))).toMatchObject({ name: 'Alone' })
-    const renamed = await module(`/api/module/${id}`, { method: 'PATCH', body: { name: 'Renamed' } })
-    expect(await json<PublicModule>(renamed)).toMatchObject({ name: 'Renamed' })
-    expect((await module(`/api/module/${id}`, { method: 'DELETE' })).status).toBe(204)
-    expect((await module(`/api/module/${id}`)).status).toBe(404)
+    expect(await json<PublicEntity>(await entity(`/api/entity/${id}`))).toMatchObject({ name: 'Alone' })
+    const renamed = await entity(`/api/entity/${id}`, { method: 'PATCH', body: { name: 'Renamed' } })
+    expect(await json<PublicEntity>(renamed)).toMatchObject({ name: 'Renamed' })
+    expect((await entity(`/api/entity/${id}`, { method: 'DELETE' })).status).toBe(204)
+    expect((await entity(`/api/entity/${id}`)).status).toBe(404)
   })
 
   it('answers a failure with the envelope and a method it lacks with 405 and Allow', async () => {
-    const invalid = await module('/api/module', { method: 'POST', body: { name: '' } })
+    const invalid = await entity('/api/entity', { method: 'POST', body: { name: '' } })
     expect(invalid.status).toBe(400)
     expect(await json(invalid)).toMatchObject({
       error: { code: 'validation_failed' },
       requestId: invalid.headers.get('x-request-id'),
     })
 
-    const put = await module('/api/module', { method: 'PUT', body: {} })
+    const put = await entity('/api/entity', { method: 'PUT', body: {} })
     expect(put.status).toBe(405)
     expect(put.headers.get('allow')).toBe('GET, POST')
-    expect((await module('/api/module/x', { method: 'POST', body: {} })).headers.get('allow')).toBe(
+    expect((await entity('/api/entity/x', { method: 'POST', body: {} })).headers.get('allow')).toBe(
       'GET, PATCH, DELETE',
     )
   })

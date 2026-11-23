@@ -1,6 +1,6 @@
 """The seam: typed, JSON-encoded helpers over the key-value store. The cache task rewrites this
 file over `infra/redis.py` and gives `infra/pubsub.py` its Redis adapter; `middleware/rate_limit.py`
-is its first user (the OTP store joins it with authentication), and a module's `service.py` may
+is its first user (the OTP store joins it with authentication), and an entity's `service.py` may
 use it for cache-aside.
 
 A value is written as JSON and read back through the `TypeAdapter` of the type the caller expects,

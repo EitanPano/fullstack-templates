@@ -83,12 +83,12 @@ describe('withRefresh', () => {
     )
     const wrapped = inner({
       '/api/user/me': [unauthenticated(), Response.json({ id: 'u1' })],
-      '/api/module': [unauthenticated(), Response.json({ items: [] })],
+      '/api/entity': [unauthenticated(), Response.json({ items: [] })],
     })
     const send = withRefresh(wrapped)
 
     const first = call(send, '/api/user/me')
-    const second = call(send, '/api/module')
+    const second = call(send, '/api/entity')
     await vi.waitFor(() => {
       expect(refresh).toHaveBeenCalledOnce()
     })
@@ -203,10 +203,10 @@ describe('withRefresh', () => {
     async (status) => {
       stubRefresh(() => Response.json({ error: { code: 'x', message: 'x' } }, { status }))
       const send = withRefresh(
-        inner({ '/api/user/me': [unauthenticated()], '/api/module': [unauthenticated()] }),
+        inner({ '/api/user/me': [unauthenticated()], '/api/entity': [unauthenticated()] }),
       )
 
-      const [one, two] = await Promise.all([call(send, '/api/user/me'), call(send, '/api/module')])
+      const [one, two] = await Promise.all([call(send, '/api/user/me'), call(send, '/api/entity')])
 
       expect(one.status).toBe(401)
       expect(two.status).toBe(401)

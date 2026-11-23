@@ -341,7 +341,7 @@ const violations: Violation[] = [
     PAGE_FILE,
     "import { getApiPost } from '../../services/generated/sdk.gen'",
     IMPORTS,
-    'add an endpoint in services/<module>.api.ts',
+    'add an endpoint in services/<entity>.api.ts',
   ],
   [
     'generated sdk in a page form',
@@ -462,7 +462,7 @@ const violations: Violation[] = [
     PAGE_FILE,
     "await window.fetch('/api/post')",
     SYNTAX,
-    'call the API through a services/<module>.api.ts endpoint',
+    'call the API through a services/<entity>.api.ts endpoint',
   ],
   // Raw controls outside shared/components.
   [
@@ -499,21 +499,21 @@ const violations: Violation[] = [
     'src/services/x.ts',
     "await fetch('/api/post')",
     SYNTAX,
-    'call the API through a services/<module>.api.ts endpoint',
+    'call the API through a services/<entity>.api.ts endpoint',
   ],
   [
     'globalThis.fetch outside api-client',
     'src/core/auth/x.ts',
     "await globalThis.fetch('/api/post')",
     SYNTAX,
-    'call the API through a services/<module>.api.ts endpoint',
+    'call the API through a services/<entity>.api.ts endpoint',
   ],
   [
     'bare fetch in shared/components',
     'src/shared/components/x.tsx',
     "await fetch('/api/post')",
     SYNTAX,
-    'call the API through a services/<module>.api.ts endpoint',
+    'call the API through a services/<entity>.api.ts endpoint',
   ],
   // The one reader of import.meta.env.
   [

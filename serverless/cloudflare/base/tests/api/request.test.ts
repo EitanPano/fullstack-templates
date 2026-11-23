@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { moduleTable } from '../../server/api/module/model'
+import { entityTable } from '../../server/api/entity/model'
 import { handle, json as jsonResponse } from '../../server/middleware/handler'
 import { json, send, through } from './helpers'
 
@@ -130,8 +130,8 @@ describe('the request log', () => {
     const fail = handle(async (ctx) => {
       const row = { name: 'param-secret-5', status: 'active' as const }
       const now = new Date()
-      await ctx.db.insert(moduleTable).values({ id: 'dup', ...row, createdAt: now, updatedAt: now })
-      await ctx.db.insert(moduleTable).values({ id: 'dup', ...row, createdAt: now, updatedAt: now })
+      await ctx.db.insert(entityTable).values({ id: 'dup', ...row, createdAt: now, updatedAt: now })
+      await ctx.db.insert(entityTable).values({ id: 'dup', ...row, createdAt: now, updatedAt: now })
       return jsonResponse({})
     })
     const failed = await through(fail, '/api/thing?apiKey=qs-secret-1', {

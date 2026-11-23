@@ -7,16 +7,16 @@ import path from 'node:path'
 import { afterEach, beforeEach, expect, it } from 'bun:test'
 
 import {
-  createModule,
-  deleteModule,
-  findModuleById,
-  listModules,
-  updateModule,
+  createEntity,
+  deleteEntity,
+  findEntityById,
+  listEntities,
+  updateEntity,
   withTransaction,
-} from '../../src/api/module/service'
+} from '../../src/api/entity/service'
 import { postgres } from '../../src/infra/postgres'
 import { migrate } from '../../src/infra/scripts/migrate'
-import type { ModuleRecord } from '../../src/models/module/interface'
+import type { EntityRecord } from '../../src/models/entity/interface'
 import { getDb } from '../../src/services/db'
 import { AppError } from '../../src/services/utils/error'
 import { describeStore, resetStore } from '../store'
@@ -68,7 +68,7 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : ''
 }
 
-function moduleRecord(id: string, createdAt: Date, name = id): ModuleRecord {
+function entityRecord(id: string, createdAt: Date, name = id): EntityRecord {
   return { id, name, status: 'active', createdAt, updatedAt: createdAt }
 }
 
@@ -113,7 +113,7 @@ describeStore('the postgres resource', () => {
 
     await postgres.ping()
 
-    expect(await tableExists('module')).toBe(true)
+    expect(await tableExists('entity')).toBe(true)
   })
 })
 
@@ -164,8 +164,8 @@ describeStore('migrate', () => {
     expect(runs.flat()).toEqual([name])
   })
 
-  it('has applied the module table from the shipped migrations', async () => {
-    expect(await tableExists('module')).toBe(true)
+  it('has applied the entity table from the shipped migrations', async () => {
+    expect(await tableExists('entity')).toBe(true)
     expect(await tableExists('schema_migration')).toBe(true)
   })
 })
@@ -176,35 +176,35 @@ describeStore('withTransaction', () => {
 
     const failure = await rejection(
       withTransaction(async (tx) => {
-        await createModule(moduleRecord('rolled-back', now), tx)
+        await createEntity(entityRecord('rolled-back', now), tx)
         throw new Error('stop')
       }),
     )
 
     expect(messageOf(failure)).toBe('stop')
-    expect(await findModuleById('rolled-back')).toBeUndefined()
+    expect(await findEntityById('rolled-back')).toBeUndefined()
   })
 
   it('commits the writes of work that returns and returns its value', async () => {
     const now = new Date()
 
     const created = await withTransaction(async (tx) => {
-      await createModule(moduleRecord('one', now), tx)
-      return createModule(moduleRecord('two', now), tx)
+      await createEntity(entityRecord('one', now), tx)
+      return createEntity(entityRecord('two', now), tx)
     })
 
     expect(created.id).toBe('two')
-    expect(await findModuleById('one')).toBeDefined()
+    expect(await findEntityById('one')).toBeDefined()
   })
 })
 
-describeStore('the module service', () => {
+describeStore('the entity service', () => {
   it('round-trips a record, dates included', async () => {
     const createdAt = new Date('2026-01-02T03:04:05.678Z')
-    const record = moduleRecord('abc', createdAt, 'first')
+    const record = entityRecord('abc', createdAt, 'first')
 
-    const created = await createModule(record)
-    const found = await findModuleById('abc')
+    const created = await createEntity(record)
+    const found = await findEntityById('abc')
 
     expect(created).toEqual(record)
     expect(found).toEqual(record)
@@ -212,20 +212,20 @@ describeStore('the module service', () => {
   })
 
   it('finds nothing for an unknown id and reports whether a delete removed a row', async () => {
-    await createModule(moduleRecord('abc', new Date()))
+    await createEntity(entityRecord('abc', new Date()))
 
-    expect(await findModuleById('missing')).toBeUndefined()
-    expect(await deleteModule('missing')).toBe(false)
-    expect(await deleteModule('abc')).toBe(true)
-    expect(await findModuleById('abc')).toBeUndefined()
+    expect(await findEntityById('missing')).toBeUndefined()
+    expect(await deleteEntity('missing')).toBe(false)
+    expect(await deleteEntity('abc')).toBe(true)
+    expect(await findEntityById('abc')).toBeUndefined()
   })
 
   it('updates by id and keeps the creation time', async () => {
     const createdAt = new Date('2026-01-02T03:04:05.000Z')
-    await createModule(moduleRecord('abc', createdAt, 'before'))
+    await createEntity(entityRecord('abc', createdAt, 'before'))
     const later = new Date('2026-02-01T00:00:00.000Z')
 
-    const updated = await updateModule({
+    const updated = await updateEntity({
       id: 'abc',
       name: 'after',
       status: 'archived',
@@ -245,12 +245,12 @@ describeStore('the module service', () => {
   it('pages across a boundary of equal createdAt values without a gap or a repeat', async () => {
     const same = new Date('2026-03-04T05:06:07.000Z')
     const later = new Date('2026-03-04T05:06:08.000Z')
-    for (const id of ['d', 'a', 'c', 'b']) await createModule(moduleRecord(id, same))
-    await createModule(moduleRecord('e', later))
+    for (const id of ['d', 'a', 'c', 'b']) await createEntity(entityRecord(id, same))
+    await createEntity(entityRecord('e', later))
 
-    const first = await listModules({ cursor: undefined, limit: 2 })
-    const second = await listModules({ cursor: first.nextCursor ?? undefined, limit: 2 })
-    const third = await listModules({ cursor: second.nextCursor ?? undefined, limit: 2 })
+    const first = await listEntities({ cursor: undefined, limit: 2 })
+    const second = await listEntities({ cursor: first.nextCursor ?? undefined, limit: 2 })
+    const third = await listEntities({ cursor: second.nextCursor ?? undefined, limit: 2 })
 
     expect(first.items.map((item) => item.id)).toEqual(['a', 'b'])
     expect(second.items.map((item) => item.id)).toEqual(['c', 'd'])
@@ -259,11 +259,11 @@ describeStore('the module service', () => {
   })
 
   it('lists an empty table as an empty page and rejects an invalid cursor', async () => {
-    expect(await listModules({ cursor: undefined, limit: 5 })).toEqual({
+    expect(await listEntities({ cursor: undefined, limit: 5 })).toEqual({
       items: [],
       nextCursor: null,
     })
-    const failure = await rejection(listModules({ cursor: 'not-a-cursor', limit: 5 }))
+    const failure = await rejection(listEntities({ cursor: 'not-a-cursor', limit: 5 }))
 
     expect(failure).toBeInstanceOf(AppError)
     expect(failure instanceof AppError ? failure.code : '').toBe('validation_failed')

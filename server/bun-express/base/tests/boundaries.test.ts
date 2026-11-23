@@ -1,5 +1,5 @@
-// The api/admin/<module>/ import rules of eslint.config.mjs, proved through the real config: an
-// admin module is a module like any other, so it reaches an entity's data through that entity's
+// The api/admin/<entity>/ import rules of eslint.config.mjs, proved through the real config: an
+// admin entity is an entity like any other, so it reaches a top-level entity's data through that entity's
 // controller and nothing reaches its service. The files linted here do not exist on disk.
 import path from 'node:path'
 
@@ -27,42 +27,42 @@ async function messages(file: string, source: string): Promise<string[]> {
     .map((message) => message.message)
 }
 
-describe('api/admin/<module>/ boundaries', () => {
-  it('lets an admin module follow the module rules', async () => {
+describe('api/admin/<entity>/ boundaries', () => {
+  it('lets an admin entity follow the entity rules', async () => {
     const lead = 'src/api/admin/lead'
     expect(await messages(`${lead}/routes.ts`, './controller')).toEqual([])
     expect(await messages(`${lead}/routes.ts`, '../../../middleware/validate')).toEqual([])
     expect(await messages(`${lead}/controller.ts`, './service')).toEqual([])
-    expect(await messages(`${lead}/controller.ts`, '../../module/controller')).toEqual([])
-    expect(await messages(`${lead}/controller.ts`, '../../module/schema')).toEqual([])
+    expect(await messages(`${lead}/controller.ts`, '../../entity/controller')).toEqual([])
+    expect(await messages(`${lead}/controller.ts`, '../../entity/schema')).toEqual([])
     expect(await messages(`${lead}/service.ts`, '../../../services/db')).toEqual([])
-    expect(await messages(`${lead}/schema.ts`, '../../module/schema')).toEqual([])
+    expect(await messages(`${lead}/schema.ts`, '../../entity/schema')).toEqual([])
   })
 
-  it('lets the namespace router mount an admin module and nothing else mount one', async () => {
+  it('lets the namespace router mount an admin entity and nothing else mount one', async () => {
     expect(await messages('src/api/admin/routes.ts', './lead/routes')).toEqual([])
     expect(await messages('src/config/routes.ts', '../api/admin/routes')).toEqual([])
     expect(await messages('src/api/admin/other/routes.ts', '../lead/routes')).not.toEqual([])
-    expect(await messages('src/api/module/routes.ts', '../admin/lead/routes')).not.toEqual([])
+    expect(await messages('src/api/entity/routes.ts', '../admin/lead/routes')).not.toEqual([])
   })
 
-  it('refuses an entity module importing an admin module service', async () => {
-    const found = await messages('src/api/module/controller.ts', '../admin/lead/service')
+  it('refuses a top-level entity importing an admin entity service', async () => {
+    const found = await messages('src/api/entity/controller.ts', '../admin/lead/service')
 
     expect(found.join(' ')).toContain('service.ts')
   })
 
-  it('refuses an admin module importing an entity module service', async () => {
-    const found = await messages('src/api/admin/lead/controller.ts', '../../module/service')
+  it('refuses an admin entity importing a top-level entity service', async () => {
+    const found = await messages('src/api/admin/lead/controller.ts', '../../entity/service')
 
     expect(found.join(' ')).toContain("entity's controller.ts")
   })
 
-  it('refuses the other ways an admin module reaches into an entity or a sibling', async () => {
+  it('refuses the other ways an admin entity reaches into an entity or a sibling', async () => {
     const lead = 'src/api/admin/lead'
-    expect(await messages(`${lead}/service.ts`, '../../module/service')).not.toEqual([])
-    expect(await messages(`${lead}/routes.ts`, '../../module/controller')).not.toEqual([])
+    expect(await messages(`${lead}/service.ts`, '../../entity/service')).not.toEqual([])
+    expect(await messages(`${lead}/routes.ts`, '../../entity/controller')).not.toEqual([])
     expect(await messages(`${lead}/controller.ts`, '../other/service')).not.toEqual([])
-    expect(await messages(`${lead}/schema.ts`, '../../module/controller')).not.toEqual([])
+    expect(await messages(`${lead}/schema.ts`, '../../entity/controller')).not.toEqual([])
   })
 })

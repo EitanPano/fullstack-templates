@@ -1,5 +1,12 @@
 # Changelog
 
+## 5.0.0 — 2026-11-23
+
+The server's sample is renamed from `module` to `entity` ([ADR 0018](../../docs/adr/0018-entity-term-and-service-facades.md) E2, E4); the generated client follows it. Needs a server with the `/api/entity` sample.
+
+- `src/app/services/generated/` is regenerated: `/api/module` → `/api/entity`; `getApiModule`, `postApiModule`, `patchApiModuleById`, `deleteApiModuleById` → the `…ApiEntity…` names; `Module`, `ModulePage`, `CreateModuleBody`, `UpdateModuleBody` → `Entity`, `EntityPage`, `CreateEntityBody`, `UpdateEntityBody`.
+- Wording in `AGENTS.md` and the lint messages: `services/<entity>.service.ts` is one service per entity; a directory under `pages/` is a page folder, `pages/<name>/`.
+
 ## 4.2.0 — 2026-11-23
 
 One of several frontends beside a `serverless` API ([ADR 0017](../../docs/adr/0017-another-frontend-template-beside-a-worker.md) D3, D4).

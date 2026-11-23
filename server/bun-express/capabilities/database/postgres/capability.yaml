@@ -16,9 +16,9 @@ flags:
   auth:
     onlyPaths: [tests/db/user.test.ts]
 pins:
-  src/api/module/service.ts: a1430bdf16fe398f7cf3039969a6aa2ebef6ea29
-  src/api/user/service.ts: eef9db383831644ce6daaca31a18b34829c833c8
-  src/services/db.ts: d0cfb233b926d5658a8e49574b52793699eed9ac
-  src/services/session.ts: 9de729a225440026ca51a0867e83506e9b89375d
+  src/api/entity/service.ts: 987c4c8f0962d8c21bed816f9b0bef652fc07faf
+  src/api/user/service.ts: 6c342bdc278c3d22ea6fac786ade257a75aa0c91
+  src/services/db.ts: 4e2cf201847f7254d05d9810f959173ecbcaadb6
+  src/services/session.ts: 6d1d2e2a7bc10bbafbb84bdac50202ba3638f0d9
   tests/services/session.test.ts: 38f7d3da3f70798f180ade758d24f8b0d469aca5
   tests/store.ts: 61a48b7bf7d36c6baad539d7404ffe44acc59897

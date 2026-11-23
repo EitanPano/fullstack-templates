@@ -40,7 +40,7 @@ counts as a breaking change here:
 - `.fullstack/catalog.yaml` (schema `schemas/provenance.schema.json`): the harness's agents take
   every command and port from it and never read the catalog again. Its top-level `deploy`
   (`single` or `split`) is written only when the plan has a server and a frontend.
-- The fixed command vocabulary and the `AGENTS.md` headings ("Adding a module", "Adding the data
+- The fixed command vocabulary and the `AGENTS.md` headings ("Adding an entity", "Adding the data
   layer", "Errors", "Tests" for a server; "Adding a feature", "Styling", "Errors", "Tests" for a
   frontend; "Deployment" for both; a `serverless` package has the server's five), which the
   harness's skills cite by name.
@@ -193,7 +193,7 @@ catalog with `skipPostGenerate`. The `*-cli.test.ts` files spawn the entry scrip
   error. The server never migrates on boot; `commands.migrate` is for local development.
 - **Index and manifest agree.** `validate` fails when a template's `version` or `summary` differs
   from `index.yaml`, when a template directory is not listed, when a server's `AGENTS.md` lacks one
-  of "Adding a module", "Adding the data layer", "Errors", "Tests" and "Deployment", when a
+  of "Adding an entity", "Adding the data layer", "Errors", "Tests" and "Deployment", when a
   frontend's lacks one of "Adding a feature", "Styling", "Errors", "Tests" and "Deployment" (the
   layer map is not a checked heading), when `tests/cases.yaml` lacks `default` or a case flipping
   each flag, and when a listed provider lacks the case alone at default flags and the case with
@@ -202,8 +202,8 @@ catalog with `skipPostGenerate`. The `*-cli.test.ts` files spawn the entry scrip
 ## Architecture of the templates
 
 `docs/conventions.md` is the language-neutral contract. Every server template has the same
-directories (`config/`, `api/<module>/{routes,controller,schema,service}`, `models/`,
-`middleware/`, `services/`, `infra/`), the same request flow (`config routes -> module routes ->
+directories (`config/`, `api/<entity>/{routes,controller,schema,service}`, `models/`,
+`middleware/`, `services/`, `infra/`), the same request flow (`config routes -> entity routes ->
 gates -> controller handler -> service -> db seam -> infra store`), import direction enforced by
 the language's own tool (ESLint import zones in bun-express, import-linter contracts in
 `pyproject.toml` for python-fastapi), OpenAPI 3.1 produced from the validation schemas, one error

@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteApiModuleByIdData, DeleteApiModuleByIdErrors, DeleteApiModuleByIdResponses, GetApiHealthData, GetApiHealthErrors, GetApiHealthReadyData, GetApiHealthReadyErrors, GetApiHealthReadyResponses, GetApiHealthResponses, GetApiModuleByIdData, GetApiModuleByIdErrors, GetApiModuleByIdResponses, GetApiModuleData, GetApiModuleErrors, GetApiModuleResponses, GetApiUserByIdData, GetApiUserByIdErrors, GetApiUserByIdResponses, GetApiUserData, GetApiUserErrors, GetApiUserMeData, GetApiUserMeErrors, GetApiUserMeResponses, GetApiUserResponses, PatchApiModuleByIdData, PatchApiModuleByIdErrors, PatchApiModuleByIdResponses, PatchApiUserMeData, PatchApiUserMeErrors, PatchApiUserMeResponses, PostApiAuthLoginData, PostApiAuthLoginErrors, PostApiAuthLoginResponses, PostApiAuthLogoutData, PostApiAuthLogoutErrors, PostApiAuthLogoutResponses, PostApiAuthOtpData, PostApiAuthOtpErrors, PostApiAuthOtpResponses, PostApiAuthOtpVerificationData, PostApiAuthOtpVerificationErrors, PostApiAuthOtpVerificationResponses, PostApiAuthRefreshData, PostApiAuthRefreshErrors, PostApiAuthRefreshResponses, PostApiAuthSignupData, PostApiAuthSignupErrors, PostApiAuthSignupResponses, PostApiModuleData, PostApiModuleErrors, PostApiModuleResponses } from './types.gen';
+import type { DeleteApiEntityByIdData, DeleteApiEntityByIdErrors, DeleteApiEntityByIdResponses, GetApiEntityByIdData, GetApiEntityByIdErrors, GetApiEntityByIdResponses, GetApiEntityData, GetApiEntityErrors, GetApiEntityResponses, GetApiHealthData, GetApiHealthErrors, GetApiHealthReadyData, GetApiHealthReadyErrors, GetApiHealthReadyResponses, GetApiHealthResponses, GetApiUserByIdData, GetApiUserByIdErrors, GetApiUserByIdResponses, GetApiUserData, GetApiUserErrors, GetApiUserMeData, GetApiUserMeErrors, GetApiUserMeResponses, GetApiUserResponses, PatchApiEntityByIdData, PatchApiEntityByIdErrors, PatchApiEntityByIdResponses, PatchApiUserMeData, PatchApiUserMeErrors, PatchApiUserMeResponses, PostApiAuthLoginData, PostApiAuthLoginErrors, PostApiAuthLoginResponses, PostApiAuthLogoutData, PostApiAuthLogoutErrors, PostApiAuthLogoutResponses, PostApiAuthOtpData, PostApiAuthOtpErrors, PostApiAuthOtpResponses, PostApiAuthOtpVerificationData, PostApiAuthOtpVerificationErrors, PostApiAuthOtpVerificationResponses, PostApiAuthRefreshData, PostApiAuthRefreshErrors, PostApiAuthRefreshResponses, PostApiAuthSignupData, PostApiAuthSignupErrors, PostApiAuthSignupResponses, PostApiEntityData, PostApiEntityErrors, PostApiEntityResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -77,10 +77,10 @@ export const postApiAuthLogout = <ThrowOnError extends boolean = true>(options?:
 });
 
 /**
- * Send a one-time code (always 202 for login, whether or not the target exists)
+ * Verify a one-time code: login starts a session, verify marks the contact verified
  */
-export const postApiAuthOtp = <ThrowOnError extends boolean = true>(options?: Options<PostApiAuthOtpData, ThrowOnError>): RequestResult<PostApiAuthOtpResponses, PostApiAuthOtpErrors, ThrowOnError> => (options?.client ?? client).post<PostApiAuthOtpResponses, PostApiAuthOtpErrors, ThrowOnError>({
-    url: '/api/auth/otp',
+export const postApiAuthOtpVerification = <ThrowOnError extends boolean = true>(options?: Options<PostApiAuthOtpVerificationData, ThrowOnError>): RequestResult<PostApiAuthOtpVerificationResponses, PostApiAuthOtpVerificationErrors, ThrowOnError> => (options?.client ?? client).post<PostApiAuthOtpVerificationResponses, PostApiAuthOtpVerificationErrors, ThrowOnError>({
+    url: '/api/auth/otp/verification',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -89,10 +89,10 @@ export const postApiAuthOtp = <ThrowOnError extends boolean = true>(options?: Op
 });
 
 /**
- * Verify a one-time code: login starts a session, verify marks the contact verified
+ * Send a one-time code (always 202 for login, whether or not the target exists)
  */
-export const postApiAuthOtpVerification = <ThrowOnError extends boolean = true>(options?: Options<PostApiAuthOtpVerificationData, ThrowOnError>): RequestResult<PostApiAuthOtpVerificationResponses, PostApiAuthOtpVerificationErrors, ThrowOnError> => (options?.client ?? client).post<PostApiAuthOtpVerificationResponses, PostApiAuthOtpVerificationErrors, ThrowOnError>({
-    url: '/api/auth/otp/verification',
+export const postApiAuthOtp = <ThrowOnError extends boolean = true>(options?: Options<PostApiAuthOtpData, ThrowOnError>): RequestResult<PostApiAuthOtpResponses, PostApiAuthOtpErrors, ThrowOnError> => (options?.client ?? client).post<PostApiAuthOtpResponses, PostApiAuthOtpErrors, ThrowOnError>({
+    url: '/api/auth/otp',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -128,15 +128,15 @@ export const getApiUser = <ThrowOnError extends boolean = true>(options?: Option
 export const getApiUserById = <ThrowOnError extends boolean = true>(options: Options<GetApiUserByIdData, ThrowOnError>): RequestResult<GetApiUserByIdResponses, GetApiUserByIdErrors, ThrowOnError> => (options.client ?? client).get<GetApiUserByIdResponses, GetApiUserByIdErrors, ThrowOnError>({ url: '/api/user/{id}', ...options });
 
 /**
- * List modules
+ * List entities
  */
-export const getApiModule = <ThrowOnError extends boolean = true>(options?: Options<GetApiModuleData, ThrowOnError>): RequestResult<GetApiModuleResponses, GetApiModuleErrors, ThrowOnError> => (options?.client ?? client).get<GetApiModuleResponses, GetApiModuleErrors, ThrowOnError>({ url: '/api/module', ...options });
+export const getApiEntity = <ThrowOnError extends boolean = true>(options?: Options<GetApiEntityData, ThrowOnError>): RequestResult<GetApiEntityResponses, GetApiEntityErrors, ThrowOnError> => (options?.client ?? client).get<GetApiEntityResponses, GetApiEntityErrors, ThrowOnError>({ url: '/api/entity', ...options });
 
 /**
- * Create a module
+ * Create an entity
  */
-export const postApiModule = <ThrowOnError extends boolean = true>(options?: Options<PostApiModuleData, ThrowOnError>): RequestResult<PostApiModuleResponses, PostApiModuleErrors, ThrowOnError> => (options?.client ?? client).post<PostApiModuleResponses, PostApiModuleErrors, ThrowOnError>({
-    url: '/api/module',
+export const postApiEntity = <ThrowOnError extends boolean = true>(options?: Options<PostApiEntityData, ThrowOnError>): RequestResult<PostApiEntityResponses, PostApiEntityErrors, ThrowOnError> => (options?.client ?? client).post<PostApiEntityResponses, PostApiEntityErrors, ThrowOnError>({
+    url: '/api/entity',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -145,20 +145,20 @@ export const postApiModule = <ThrowOnError extends boolean = true>(options?: Opt
 });
 
 /**
- * Delete a module (admin only)
+ * Delete an entity (admin only)
  */
-export const deleteApiModuleById = <ThrowOnError extends boolean = true>(options: Options<DeleteApiModuleByIdData, ThrowOnError>): RequestResult<DeleteApiModuleByIdResponses, DeleteApiModuleByIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteApiModuleByIdResponses, DeleteApiModuleByIdErrors, ThrowOnError>({ url: '/api/module/{id}', ...options });
+export const deleteApiEntityById = <ThrowOnError extends boolean = true>(options: Options<DeleteApiEntityByIdData, ThrowOnError>): RequestResult<DeleteApiEntityByIdResponses, DeleteApiEntityByIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteApiEntityByIdResponses, DeleteApiEntityByIdErrors, ThrowOnError>({ url: '/api/entity/{id}', ...options });
 
 /**
- * Get a module
+ * Get an entity
  */
-export const getApiModuleById = <ThrowOnError extends boolean = true>(options: Options<GetApiModuleByIdData, ThrowOnError>): RequestResult<GetApiModuleByIdResponses, GetApiModuleByIdErrors, ThrowOnError> => (options.client ?? client).get<GetApiModuleByIdResponses, GetApiModuleByIdErrors, ThrowOnError>({ url: '/api/module/{id}', ...options });
+export const getApiEntityById = <ThrowOnError extends boolean = true>(options: Options<GetApiEntityByIdData, ThrowOnError>): RequestResult<GetApiEntityByIdResponses, GetApiEntityByIdErrors, ThrowOnError> => (options.client ?? client).get<GetApiEntityByIdResponses, GetApiEntityByIdErrors, ThrowOnError>({ url: '/api/entity/{id}', ...options });
 
 /**
- * Update a module
+ * Update an entity
  */
-export const patchApiModuleById = <ThrowOnError extends boolean = true>(options: Options<PatchApiModuleByIdData, ThrowOnError>): RequestResult<PatchApiModuleByIdResponses, PatchApiModuleByIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchApiModuleByIdResponses, PatchApiModuleByIdErrors, ThrowOnError>({
-    url: '/api/module/{id}',
+export const patchApiEntityById = <ThrowOnError extends boolean = true>(options: Options<PatchApiEntityByIdData, ThrowOnError>): RequestResult<PatchApiEntityByIdResponses, PatchApiEntityByIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchApiEntityByIdResponses, PatchApiEntityByIdErrors, ThrowOnError>({
+    url: '/api/entity/{id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',

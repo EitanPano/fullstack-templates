@@ -3,21 +3,21 @@
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client'
 import { client } from './client.gen'
 import type {
-  DeleteApiModuleByIdData,
-  DeleteApiModuleByIdErrors,
-  DeleteApiModuleByIdResponses,
+  DeleteApiEntityByIdData,
+  DeleteApiEntityByIdErrors,
+  DeleteApiEntityByIdResponses,
+  GetApiEntityByIdData,
+  GetApiEntityByIdErrors,
+  GetApiEntityByIdResponses,
+  GetApiEntityData,
+  GetApiEntityErrors,
+  GetApiEntityResponses,
   GetApiHealthData,
   GetApiHealthErrors,
   GetApiHealthReadyData,
   GetApiHealthReadyErrors,
   GetApiHealthReadyResponses,
   GetApiHealthResponses,
-  GetApiModuleByIdData,
-  GetApiModuleByIdErrors,
-  GetApiModuleByIdResponses,
-  GetApiModuleData,
-  GetApiModuleErrors,
-  GetApiModuleResponses,
   GetApiUserByIdData,
   GetApiUserByIdErrors,
   GetApiUserByIdResponses,
@@ -27,9 +27,9 @@ import type {
   GetApiUserMeErrors,
   GetApiUserMeResponses,
   GetApiUserResponses,
-  PatchApiModuleByIdData,
-  PatchApiModuleByIdErrors,
-  PatchApiModuleByIdResponses,
+  PatchApiEntityByIdData,
+  PatchApiEntityByIdErrors,
+  PatchApiEntityByIdResponses,
   PatchApiUserMeData,
   PatchApiUserMeErrors,
   PatchApiUserMeResponses,
@@ -51,9 +51,9 @@ import type {
   PostApiAuthSignupData,
   PostApiAuthSignupErrors,
   PostApiAuthSignupResponses,
-  PostApiModuleData,
-  PostApiModuleErrors,
-  PostApiModuleResponses,
+  PostApiEntityData,
+  PostApiEntityErrors,
+  PostApiEntityResponses,
 } from './types.gen'
 
 export type Options<
@@ -258,24 +258,24 @@ export const getApiUserById = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * List modules
+ * List entities
  */
-export const getApiModule = <ThrowOnError extends boolean = false>(
-  options?: Options<GetApiModuleData, ThrowOnError>,
-): RequestResult<GetApiModuleResponses, GetApiModuleErrors, ThrowOnError> =>
-  (options?.client ?? client).get<GetApiModuleResponses, GetApiModuleErrors, ThrowOnError>({
-    url: '/api/module',
+export const getApiEntity = <ThrowOnError extends boolean = false>(
+  options?: Options<GetApiEntityData, ThrowOnError>,
+): RequestResult<GetApiEntityResponses, GetApiEntityErrors, ThrowOnError> =>
+  (options?.client ?? client).get<GetApiEntityResponses, GetApiEntityErrors, ThrowOnError>({
+    url: '/api/entity',
     ...options,
   })
 
 /**
- * Create a module
+ * Create an entity
  */
-export const postApiModule = <ThrowOnError extends boolean = false>(
-  options?: Options<PostApiModuleData, ThrowOnError>,
-): RequestResult<PostApiModuleResponses, PostApiModuleErrors, ThrowOnError> =>
-  (options?.client ?? client).post<PostApiModuleResponses, PostApiModuleErrors, ThrowOnError>({
-    url: '/api/module',
+export const postApiEntity = <ThrowOnError extends boolean = false>(
+  options?: Options<PostApiEntityData, ThrowOnError>,
+): RequestResult<PostApiEntityResponses, PostApiEntityErrors, ThrowOnError> =>
+  (options?.client ?? client).post<PostApiEntityResponses, PostApiEntityErrors, ThrowOnError>({
+    url: '/api/entity',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -284,40 +284,40 @@ export const postApiModule = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Delete a module (admin only)
+ * Delete an entity (admin only)
  */
-export const deleteApiModuleById = <ThrowOnError extends boolean = false>(
-  options: Options<DeleteApiModuleByIdData, ThrowOnError>,
-): RequestResult<DeleteApiModuleByIdResponses, DeleteApiModuleByIdErrors, ThrowOnError> =>
+export const deleteApiEntityById = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteApiEntityByIdData, ThrowOnError>,
+): RequestResult<DeleteApiEntityByIdResponses, DeleteApiEntityByIdErrors, ThrowOnError> =>
   (options.client ?? client).delete<
-    DeleteApiModuleByIdResponses,
-    DeleteApiModuleByIdErrors,
+    DeleteApiEntityByIdResponses,
+    DeleteApiEntityByIdErrors,
     ThrowOnError
-  >({ url: '/api/module/{id}', ...options })
+  >({ url: '/api/entity/{id}', ...options })
 
 /**
- * Get a module
+ * Get an entity
  */
-export const getApiModuleById = <ThrowOnError extends boolean = false>(
-  options: Options<GetApiModuleByIdData, ThrowOnError>,
-): RequestResult<GetApiModuleByIdResponses, GetApiModuleByIdErrors, ThrowOnError> =>
-  (options.client ?? client).get<GetApiModuleByIdResponses, GetApiModuleByIdErrors, ThrowOnError>({
-    url: '/api/module/{id}',
+export const getApiEntityById = <ThrowOnError extends boolean = false>(
+  options: Options<GetApiEntityByIdData, ThrowOnError>,
+): RequestResult<GetApiEntityByIdResponses, GetApiEntityByIdErrors, ThrowOnError> =>
+  (options.client ?? client).get<GetApiEntityByIdResponses, GetApiEntityByIdErrors, ThrowOnError>({
+    url: '/api/entity/{id}',
     ...options,
   })
 
 /**
- * Update a module
+ * Update an entity
  */
-export const patchApiModuleById = <ThrowOnError extends boolean = false>(
-  options: Options<PatchApiModuleByIdData, ThrowOnError>,
-): RequestResult<PatchApiModuleByIdResponses, PatchApiModuleByIdErrors, ThrowOnError> =>
+export const patchApiEntityById = <ThrowOnError extends boolean = false>(
+  options: Options<PatchApiEntityByIdData, ThrowOnError>,
+): RequestResult<PatchApiEntityByIdResponses, PatchApiEntityByIdErrors, ThrowOnError> =>
   (options.client ?? client).patch<
-    PatchApiModuleByIdResponses,
-    PatchApiModuleByIdErrors,
+    PatchApiEntityByIdResponses,
+    PatchApiEntityByIdErrors,
     ThrowOnError
   >({
-    url: '/api/module/{id}',
+    url: '/api/entity/{id}',
     ...options,
     headers: {
       'Content-Type': 'application/json',

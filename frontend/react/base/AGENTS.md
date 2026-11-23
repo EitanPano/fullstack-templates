@@ -41,11 +41,11 @@ The layer map of this package. Commands are in `package.json`. <!-- @noserver --
 
 <!-- @server:auth-end -->
 
-- `pages/<module>/`: one directory per server module or screen group, named for the glossary
-  noun, flat: `<module>.routes.tsx` (`<module>Routes(store)`), the routed `<name>-page` files and the
-  module's own components beside it, each a file or, with a `.scss` or a test, a folder named for it
-  (`home-page/home-page.tsx`), when needed `<module>.form.ts` and `<module>.copy.ts`; no
-  `components/` folder. A page never imports another module. `home/` is the index route (one `h1`, no data call); `not-found/`
+- `pages/<name>/`: one directory per entity or screen group, named for the glossary
+  noun, flat: `<name>.routes.tsx` (`<name>Routes(store)`), the routed `<page>-page` files and its
+  own components beside it, each a file or, with a `.scss` or a test, a folder named for it
+  (`home-page/home-page.tsx`), when needed `<name>.form.ts` and `<name>.copy.ts`; no
+  `components/` folder. A page folder never imports another one. `home/` is the index route (one `h1`, no data call); `not-found/`
   is the `*` route, last in the main group, so a 404 keeps the layout.
 
 <!-- @server:auth-start -->
@@ -126,10 +126,10 @@ a wrong role).
 | Addition                                      | Home                                                               |
 | --------------------------------------------- | ------------------------------------------------------------------ |
 | A contract type, or a noun's constant         | `models/<entity>/type.ts`, `constant.ts`                           | <!-- @server -->
-| A read or a mutation                          | `services/<module>.api.ts` (`api.injectEndpoints`)                 | <!-- @server -->
-| A page, its components, its form schema, copy | `pages/<module>/`                                                  |
+| A read or a mutation                          | `services/<entity>.api.ts` (`api.injectEndpoints`)                 | <!-- @server -->
+| A page, its components, its form schema, copy | `pages/<name>/`                                                    |
 | State shared across pages (client-only)       | `store/<name>.slice.ts`; its side effect in `store/listeners.ts`   |
-| A route                                       | `pages/<module>/<module>.routes.tsx`, composed in `app/routes.tsx` |
+| A route                                       | `pages/<name>/<name>.routes.tsx`, composed in `app/routes.tsx`     |
 | A primitive (button, input, dialog)           | `shared/components/<name>/<name>.tsx` + `<name>.scss` beside it    |
 | An app-wide component (a menu, the header)    | `layout/app-<name>/app-<name>.tsx` + `app-<name>.scss` beside it   |
 | A pattern (`Page`, `EmptyState`, …)           | `shared/components/`                                               |
@@ -150,8 +150,8 @@ page never imports another page; `shared/` never imports `core/`, `store/` or `s
 | `app/`                                                   | layout, pages (`*.routes.tsx` only), core, store, shared, models                   |
 | `main.tsx` (the `entry` category)                        | app, store, core, shared, models                                                   |
 | `layout/`                                                | core, store, services (the hooks), shared, models; never `app/`, `pages/`          |
-| `pages/<m>/`                                             | core, store, services (the hooks), shared, models; its own module                  |
-| `pages/<m>/*.form.ts`                                    | shared, models, the generated zod schemas (`@/services/generated/zod.gen`)         | <!-- @server -->
+| `pages/<name>/`                                          | core, store, services (the hooks), shared, models; its own page folder             |
+| `pages/<name>/*.form.ts`                                 | shared, models, the generated zod schemas (`@/services/generated/zod.gen`)         | <!-- @server -->
 | `store/`                                                 | services (reducer, middleware, matchers), `core/theme`, `core/config`, models      |
 | `services/`                                              | `services/generated`, `core/config`, `core/auth` (not the guards), models          |
 | `core/auth/guards.ts` (the `guards` files category)      | store, services, `core/config`, `core/auth`, models (the wiring)                   |
@@ -214,9 +214,9 @@ slice (see State).
 
 <!-- @noserver-end -->
 <!-- @server-start -->
-The data flows one way: **component -> RTK Query hook (`services/<module>.api.ts`) -> `call` ->
+The data flows one way: **component -> RTK Query hook (`services/<entity>.api.ts`) -> `call` ->
 generated SDK -> fetch client**. A component never calls `fetch` or the SDK; a one-off request
-needs an endpoint first. For a new server module (the noun, by its `.doc/glossary.md` name; `post`
+needs an endpoint first. For a new entity (the noun, by its `.doc/glossary.md` name; `post`
 below). In the blocks, `Post`, `PostRow`, `PostList`, `getApiPost`, `patchApiPostById`, the `'Post'` tag
 and the `postApi` hooks are the example feature's own names: they exist once the server has the
 endpoint, `bun run api:types` has regenerated the client and `models/post/type.ts` exists. Everything
@@ -277,7 +277,7 @@ else in the blocks already exists in the template.
    rejected `unwrap()` reaches the group's `ErrorBoundary`.
 
 5. **Page** `pages/<noun>/<page>-page/<page>-page.tsx`: exports the page as `Component` (the `lazy`
-   contract): a `Page` with a `<title>`, a `PageHeader` and the module's components.
+   contract): a `Page` with a `<title>`, a `PageHeader` and the page folder's components.
 
    ```tsx
    // pages/post/post-page/post-page.tsx
