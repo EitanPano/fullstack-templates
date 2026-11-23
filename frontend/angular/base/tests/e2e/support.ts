@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
-import { expect, type Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test' // @noserver:serverless
+import { expect, test as base, type Page } from '@playwright/test' // @server:serverless
 
 import { STORAGE_KEYS } from '../../src/app/core/config/constants'
 
@@ -90,3 +91,22 @@ export async function screenProblems(page: Page): Promise<string[]> {
 
   return problems
 }
+// @server:serverless-start
+
+// The `test` of a spec beside the Worker. The browser opens `<dir>.localhost`, which Chromium
+// resolves itself; Node cannot, so `request` goes to 127.0.0.1 and names the page's host in the
+// host header, as the Worker maps hosts to frontends.
+export const test = base.extend({
+  request: async ({ playwright, baseURL }, use) => {
+    const url = new URL(baseURL ?? 'http://127.0.0.1')
+    const local = url.hostname.endsWith('.localhost')
+    const context = await playwright.request.newContext(
+      local
+        ? { baseURL: `${url.protocol}//127.0.0.1:${url.port}`, extraHTTPHeaders: { host: url.host } }
+        : { baseURL: url.href },
+    )
+    await use(context)
+    await context.dispose()
+  },
+})
+// @server:serverless-end

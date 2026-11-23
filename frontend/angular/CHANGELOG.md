@@ -1,5 +1,24 @@
 # Changelog
 
+## 4.2.0 — 2026-11-23
+
+One of several frontends beside a `serverless` API ([ADR 0017](../../docs/adr/0017-another-frontend-template-beside-a-worker.md) D3, D4).
+Generated beside a `server` or alone, only the two copy files below differ.
+
+- `template.yaml`: `static: { out: dist, fallback: index.html }`, so the Worker answers a deep link
+  with the shell.
+- New selection `server:serverless` (the plan's API is a `serverless` package). Beside one:
+  `models/api/constant.ts` lists `method_not_allowed`; `playwright.config.ts` tests the Worker's
+  origin `http://<dir>.localhost:<port>` (one web server: `bun run build`, then the Worker's e2e
+  database and `start --only <dir>`); `tests/e2e/support.ts` exports a `test` whose `request`
+  goes to 127.0.0.1 with the host header; `playwright-config.spec.ts` asserts that mode.
+- `src/index.html`: beside a serverless API a `<meta http-equiv="Content-Security-Policy">` with
+  `script-src 'self'; script-src-attr 'none'`, which the Worker's `assemble` accepts, so the pages are
+  not served without a script policy. The build holds no inline script (`theme-init.js` is a file,
+  `inlineCritical` is already off). `tests/e2e/shell.spec.ts` also fails on a CSP console error there.
+- `en.json`, `he.json`: `errors.method_not_allowed` in every variant (JSON has no markers); one
+  unused key beside an Express or FastAPI server.
+
 ## 4.1.0 — 2026-11-12
 
 One way for a store to call the API, one way for a form to submit, and a refresh decided by the server's answer instead of a list of URLs. No file moves; a project generated from 4.0 keeps its stores. Needs a server that sends the 401 challenge: bun-express 3.1.0 or python-fastapi 2.1.0.

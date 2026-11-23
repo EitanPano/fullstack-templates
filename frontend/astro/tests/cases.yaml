@@ -22,6 +22,17 @@ cases:
     frontends: ["site=frontend/astro", "admin=frontend/astro"]
     packages:
       admin: { flags: { islands: true } }
+  # Two frontends of two templates beside the one Worker (ADR 0017): the Astro `site` and an
+  # Angular `admin`, a single-page app the Worker serves from its own folder of dist/.
+  - name: two-templates
+    stack: astro-cloudflare
+    frontends: ["site=frontend/astro", "admin=frontend/angular"]
+    packages:
+      admin: { flags: { i18n: false, pwa: false } }
+  # The same with the Angular defaults: Transloco (English and Hebrew) and the service worker on.
+  - name: two-templates-default
+    stack: astro-cloudflare
+    frontends: ["site=frontend/astro", "admin=frontend/angular"]
   # The one frontend at a directory that is not `frontend`: it must hold with one build at the root
   # of dist/, no host map and the Worker not run for a page.
   - name: one-at-site
