@@ -1,7 +1,7 @@
 # ADR 0018: The entity term, and library facades in `services/`
 
-Status: proposed. The decisions are the owner's rulings of 2026-11-23; the rows marked ▲ are the
-session's. Amends [ADR 0012](0012-next-spa-tree-colocated-scss.md) (its `services/` line) and
+Status: accepted under the owner's word of 2026-11-24 (the release round, released as `v1.17.0`).
+The decisions are the owner's rulings of 2026-11-23; the rows marked ▲ are the session's. Amends [ADR 0012](0012-next-spa-tree-colocated-scss.md) (its `services/` line) and
 [ADR 0013](0013-owner-folder-rules-and-signup.md) F2 ("a pure utility facade is `shared/utils/`")
 and F9 (where the zod, `clsx` and `date-fns` facades live). Catalog release after `v1.16.1`: a
 major of `server/bun-express`, `server/python-fastapi`, `serverless/cloudflare`, `frontend/react`,

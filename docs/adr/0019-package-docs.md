@@ -1,8 +1,9 @@
 # ADR 0019: A package's `AGENTS.md` is the template's, its `.doc/` is the project's
 
-Status: proposed. The decisions are the owner's rulings of 2026-11-23; the rows marked ▲ are the
-session's. Catalog release after `v1.16.1`, in the round of [ADR 0018](0018-entity-term-and-service-facades.md):
-no template takes a second bump, each touched template's entry for that release gains a line.
+Status: accepted under the owner's word of 2026-11-24 (the release round, released as `v1.17.0`).
+The decisions are the owner's rulings of 2026-11-23; the rows marked ▲ are the session's. Catalog
+release after `v1.16.1`, in the round of [ADR 0018](0018-entity-term-and-service-facades.md): no
+template takes a second bump, each touched template's entry for that release gains a line.
 
 ## Context
 
