@@ -213,6 +213,29 @@ every request answers 403. A product replaces the resolver with a lookup once it
 for keys. No cookie is read in the namespace: S1 saw one browser build send a cookie despite
 `credentials: 'omit'`.
 
+2026-11-25, after the branch's security review, built in the three templates:
+
+- The global `CORS_ORIGINS` layer skips every path under `/api/sdk/`: left alone it answered the
+  namespace's preflights and added `Access-Control-Allow-Credentials`. Step 1's last sentence
+  is replaced by this.
+- Step 3 runs by address first, then by key, and a preflight is counted on the address: one
+  address cannot use up an integration's limit.
+- Every answer of the namespace is `Cache-Control: no-store` and varies on `Origin` and the key
+  header.
+- Same-origin has one strict rule: `Sec-Fetch-Site` decides when the request carries it; without
+  it, no `Origin` or one whose host is the request's own. A host that proxies the API through
+  its own origin, or a client that is not a browser, can still look same-origin: N6 stands.
+- A `frameOnly` guard narrows an entity to the frame: R1 and F3 need a part of the namespace the
+  host page cannot call (the token, the view, the click, the frame's telemetry). None ships.
+  It covers the entity's path and every path under it; the Worker's mount spells that out
+  (`/<name>/*`), and each template tests a path under a guarded entity.
+- A module's frame half reaches such an entity through `request`, a call of the frame's one
+  network door to its own origin and the namespace only. It is not telemetry and does not wait
+  for consent; its only error text is a fixed code.
+- In production an `SDK_KEYS` origin that is `http:` or loopback is refused.
+- The SDK's one global takes the suffix `Sdk` (`sdk-ads` gives `AdsSdk`), is never written over
+  a value a host already holds, and a second tag does nothing.
+
 ### N3. The one endpoint that ships
 
 ▲ `GET /api/sdk/v1/config` answers `{ enabled: boolean }`: the kill switch. A script on other

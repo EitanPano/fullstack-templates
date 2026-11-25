@@ -31,21 +31,30 @@ language-neutral core.
   endpoint an SDK calls is under `/api/sdk/v1/` and lives in `api/sdk/<entity>/`, an entity like
   any other. The namespace's `routes` mounts at `/api/sdk/v1` and applies one gate first, the same
   in every environment, in this order:
-  1. CORS for the namespace alone: the request's origin is echoed only when its key lists it,
-     with `Vary: Origin`; never `Access-Control-Allow-Credentials`; `x-sdk-key` and `content-type`
-     allowed, `Access-Control-Max-Age: 600`. A preflight carries no key, so it is answered for an
-     origin any key lists. `CORS_ORIGINS` and the rest of the API are untouched.
+  1. CORS for the namespace alone: the request's origin is echoed only when its key lists it;
+     never `Access-Control-Allow-Credentials`; `x-sdk-key` and `content-type` allowed,
+     `Access-Control-Max-Age: 600`. A preflight carries no key, so it is answered for an origin
+     any key lists, and counted on the address limit first. The global `CORS_ORIGINS` layer
+     passes every path under `/api/sdk/` through, so nothing else adds a cross-origin header
+     there; the rest of the API is unchanged.
   2. The publishable key in the `X-Sdk-Key` header, resolved to the origins it may be used from
      (403 for no key, an unknown key and an origin the key does not list). It identifies an
      integration and is not a secret.
-  3. A rate limit by key and `by_ip` (`sdkPerKey` 3000 and `sdkPerIp` 120 a minute at
-     `RATE_LIMIT_SCALE` 1; 429).
+  3. A rate limit `by_ip`, then by key (`sdkPerIp` 120 and `sdkPerKey` 3000 a minute at
+     `RATE_LIMIT_SCALE` 1; 429): a request the address limit refuses never reaches the key's
+     counter.
 
+  Every answer of the namespace carries `Cache-Control: no-store` and `Vary: Origin, X-Sdk-Key`.
   A same-origin request (the SDK's frame calls the API from the API's own origin) needs a valid
-  key only and gets no CORS header; it is one with no `Origin`, or `Sec-Fetch-Site: same-origin`,
-  or an `Origin` whose host equals the request's `Host`. No cookie is read. Within `v1` the
-  namespace only adds (an endpoint, an optional request field, a response field); a removal or a
-  change is a `v2` beside it. Errors, the request id and the log line are the server's own.
+  key only and gets no CORS header. `Sec-Fetch-Site` decides when the request has it (only
+  `same-origin` counts); without it, a request with no `Origin`, or one whose host equals the
+  request's `Host`, is same-origin. An entity only the frame calls (a token, a view, a click, the
+  frame's telemetry) is mounted behind the gate's `frameOnly` guard, which refuses what is not
+  same-origin and answers its preflight with no allow header; an entity without it is readable
+  by the host page, so it never issues or accepts anything that counts. None ships. No cookie
+  is read. Within `v1` the namespace only adds (an endpoint, an optional request field, a
+  response field); a removal or a change is a `v2` beside it. Errors, the request id and the log
+  line are the server's own.
   - `GET /api/sdk/v1/config` answers `{ enabled }` from `SDK_ENABLED` (default `true`): the kill
     switch, the one entity that ships.
   - Two routes outside the gate, outside the OpenAPI document and not JSON, from the directory
@@ -59,7 +68,8 @@ language-neutral core.
     'none'; frame-ancestors <the key's origins, or 'none'>`. No `X-Frame-Options`.
   - `SDK_KEYS` holds the default resolver's pairs, `key=origin,origin` separated by `;`; unset or
     empty refuses every request, and a malformed value stops the start naming the variable and
-    never a key. A product replaces the resolver with a lookup once it has an entity for keys.
+    never a key. Production refuses an `http:` or loopback origin. A product replaces the
+    resolver with a lookup once it has an entity for keys.
 - Request flow: `config routes → entity routes → gates → controller handler → service →
   db seam → infra store`. The gates are what the framework runs before a handler (middleware
   in Express, dependencies in FastAPI): authentication, roles, rate limits. Validation comes
@@ -138,7 +148,8 @@ request and the agents file's five server headings.
   Worker fetches it through `ASSETS` and builds the response from the body alone, so a `_headers`
   rule never reaches a served file. `SDK_KEYS` and `SDK_ENABLED` are bindings, set in `vars` per
   environment, and a malformed `SDK_KEYS` fails each request, naming the variable. A method the
-  config path lacks answers 405 with `Allow`.
+  config path lacks answers 405 with `Allow`. `assemble` fails on a missing or empty SDK build,
+  as on a missing frontend build; `start` only warns. The Worker has no global CORS layer.
 - Command rows that differ: `start` serves the assembled sites and the API once on the
   manifest's port; `testDb` is the API project in the runtime; `migrate` and `e2eDb` act on the
   platform's local database and its separate e2e state, with no service to start.

@@ -481,7 +481,8 @@ Without an sdk they are undefined, so a kept line that uses one fails the run na
 it in `@sdk`), and no other package may use one. The sdk package gets `__SERVER_DIR__`,
 `__SERVER_PORT__`, `__SERVER_START_COMMAND__`, `__SERVER_E2E_DB_COMMAND__`,
 `__SERVER_E2E_DATABASE_URL__` and `__SERVER_DEV_COMMAND__` as a frontend does, and `__SDK_GLOBAL__`:
-its directory's last segment with a leading `sdk-` dropped, in PascalCase (`sdk-ads` is `Ads`).
+its directory's last segment with a leading `sdk-` dropped, in PascalCase, plus the suffix `Sdk`
+so a host's own global is not taken (`sdk-ads` is `AdsSdk`); the name after `sdk-` starts with a letter.
 Each package's `__PORT__` is unique in the plan. A frontend's e2e
 config also gets `__SERVER_START_COMMAND__` (the server's `start` command; from a nested
 `__SERVER_DIR__` write `../__SERVER_DIR__`),
