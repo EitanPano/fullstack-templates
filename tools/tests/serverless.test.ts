@@ -163,9 +163,9 @@ describe('the loader: serverless (K2, K4)', () => {
     ],
     ['docker', 'docker: false\n', 'docker is only for frontend templates'],
   ])('refuses %s', (_name, block, message) => {
-    expect(broken(FN_TEMPLATE, (t) => t.replace('agents:', `${block}agents:`))).toContain(
-      `${FN}: ${message}`,
-    )
+    const edit = (t: string) =>
+      t.replace('onlyWhen:\n  sdk: [src/sdk-key.ts]\n', '').replace('agents:', `${block}agents:`)
+    expect(broken(FN_TEMPLATE, edit)).toContain(`${FN}: ${message}`)
   })
   test('refuses lanes as an unknown key', () => {
     const message = broken(FN_TEMPLATE, (t) =>

@@ -36,7 +36,7 @@ counts as a breaking change here:
 - `index.yaml` and the chosen `template.yaml` files: the only catalog files the bootstrap skill
   reads, to list stacks and ask about flags and capabilities.
 - The `generate.ts` command line (`--stack`, `--name`, `--flag`, `--capability`, `--deploy`,
-  `--answers`, `--catalog`, `--catalog-version`, `--frontend <dir>=<template>`, repeatable).
+  `--answers`, `--catalog`, `--catalog-version`, `--frontend <dir>=<template>`, repeatable; `--sdk <dir>=<template>`, once, with `--stack`).
 - `.fullstack/catalog.yaml` (schema `schemas/provenance.schema.json`): the harness's agents take
   every command and port from it and never read the catalog again. Its top-level `deploy`
   (`single` or `split`) is written only when the plan has a server and a frontend.
@@ -155,8 +155,8 @@ catalog with `skipPostGenerate`. The `*-cli.test.ts` files spawn the entry scrip
   blocks on their own lines (no nesting), written in the file's own comment syntax (`//`, `#`,
   `--` in `.sql`, `<!-- -->`; chosen by extension or file name in `markers.ts`). `name` is a flag
   (`auth`) or a capability: `@database` is true for any provider, `@database:postgres` for that
-  one. Two selections are reserved and cannot be flag names: `server` (the plan has a server) and
-  `single` (the plan deploys as one image; never true without a server). A `serverless` package also
+  one. Three selections are reserved and cannot be flag names: `server` (the plan has a server),
+  `single` (the plan deploys as one image; never true without a server) and `sdk` (the plan holds an sdk package, true in every package of it; ADR 0020). A `serverless` package also
   has `frontend` (the plan has a frontend), reserved too, and a `serverless` package counts as the
   plan's `server` for a frontend's selections; a frontend also reads `server:serverless` (the plan's API is a `serverless` package), reserved too so no flag can carry the name. `frontends` (the plan holds more than one frontend) is
   reserved for `serverless` and `frontend` packages. Every extension
@@ -172,7 +172,7 @@ catalog with `skipPostGenerate`. The `*-cli.test.ts` files spawn the entry scrip
   for the server's Compose fragment); a `serverless` package beside a frontend also gets
   `__FRONTEND_PATH__` and `__FRONTEND_OUT__` (the first frontend's, undefined when the plan has
   no frontend), `__FRONTENDS__` (JSON list of `{dir,path,out,port}`, `[]` then) and
-  `__FRONTEND_HOSTS__` (the local host map, empty then). Each package's `__PORT__` is unique in the plan. A declared token left in output
+  `__FRONTEND_HOSTS__` (the local host map, empty then). A `server` or `serverless` package of a plan with an sdk also gets `__SDK_DIR__`, `__SDK_PATH__` (from its own directory), `__SDK_OUT__` (the sdk's `cdn.out`) and `__SDK_PORT__`, undefined without one (wrap their lines in `@sdk`); the sdk package gets the `__SERVER_*__` tokens and `__SDK_GLOBAL__`. Each package's `__PORT__` is unique in the plan. A declared token left in output
   fails the run.
 - **Two dependency adapters.** `npm` (bun-express, next): a flag's `dependencies.remove` and a
   capability's `dependencies` and `scripts` edit `package.json`; a script name the base already

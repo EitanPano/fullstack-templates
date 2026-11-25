@@ -64,6 +64,22 @@ function runServerless(
   if (commands.testDb) run(commands.testDb, cwd)
 }
 
+// The sdk package's gates: `check`, and with --e2e its browser tests against the API it started.
+function runSdk(
+  pkg: ReturnType<typeof resolveRequest>['packages'][number],
+  out: string,
+  options: Options,
+  run: Runner,
+): void {
+  const { commands } = pkg
+  const cwd = path.join(out, pkg.dir)
+  run(commands.check, cwd)
+  if (options.e2e && commands.testE2e) {
+    if (options.installBrowsers) run(browserInstallCommand(process.platform), cwd)
+    run(commands.testE2e, cwd)
+  }
+}
+
 function runPackages(
   plan: ReturnType<typeof resolveRequest>,
   out: string,
@@ -77,6 +93,12 @@ function runPackages(
     if (pkg.template.manifest.kind === 'serverless') {
       // Beside a frontend case it is the frontend's e2e that starts it; its own gates are its own cases.
       if (pkg.template.path === caseTemplate) runServerless(pkg, out, run)
+      else log(`SKIP ${pkg.dir}: its own cases run its gates`)
+      continue
+    }
+    if (pkg.template.manifest.kind === 'sdk') {
+      // Its build and browser tests are its own cases'; beside a server case it is only present.
+      if (pkg.template.path === caseTemplate) runSdk(pkg, out, options, run)
       else log(`SKIP ${pkg.dir}: its own cases run its gates`)
       continue
     }

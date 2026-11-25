@@ -60,6 +60,16 @@ export const SERVER_PLACEHOLDERS: readonly string[] = [
   'SERVER_E2E_DATABASE_URL',
 ]
 
+// The tokens of an sdk package: the API package of a plan that holds one is given the first four,
+// the sdk package its global (ADR 0020 K3).
+export const SDK_PLACEHOLDERS: readonly string[] = [
+  'SDK_DIR',
+  'SDK_PATH',
+  'SDK_OUT',
+  'SDK_PORT',
+  'SDK_GLOBAL',
+]
+
 // The tokens the generator itself defines, beside the ones a template declares.
 export const GENERATED_PLACEHOLDERS: readonly string[] = [
   'PROJECT_NAME',
@@ -74,6 +84,7 @@ export const GENERATED_PLACEHOLDERS: readonly string[] = [
   'FRONTENDS',
   // The same package's local host map, `<dir>.localhost=<dir>` per frontend, comma-separated.
   'FRONTEND_HOSTS',
+  ...SDK_PLACEHOLDERS,
   // The brand of a frontend package (lib/brand.ts builds the values).
   'PROJECT_DISPLAY_NAME',
   'THEME_LIGHT',

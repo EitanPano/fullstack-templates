@@ -29,10 +29,12 @@ import {
   removeTree,
   retryTransient,
 } from './files'
+import { isApiKind } from './package-dir'
 import { mergeGitignore } from './gitignore'
 import { applyMarkers, commentSyntaxFor, commentSyntaxesFor, findLeftoverMarker } from './markers'
 import {
   GENERATED_PLACEHOLDERS,
+  SDK_PLACEHOLDERS,
   SERVER_PLACEHOLDERS,
   findLeftoverPlaceholder,
   isTextFile,
@@ -89,7 +91,7 @@ function e2eDatabaseUrl(plan: GenerationPlan): string {
   return ''
 }
 
-// What a frontend's e2e starts: the server without a watcher, the command that prepares its
+// What a frontend's or an sdk's e2e starts: the server without a watcher, the command that prepares its
 // browser-test database (empty without a database) and that database's URL. With a server in the
 // plan these fail closed: a guessed command or an empty URL would only fail, or hit the
 // development database, when the e2e runs. The server's own files take the conventional fallback.
@@ -98,7 +100,7 @@ function e2ePlaceholders(
   pkg: PackagePlan,
   server: PackagePlan,
 ): Record<string, string> {
-  if (pkg.template.manifest.kind !== 'frontend') {
+  if (isApiKind(pkg.template.manifest.kind)) {
     return {
       SERVER_START_COMMAND: server.commands.start ?? DEFAULT_SERVER.startCommand,
       SERVER_E2E_DB_COMMAND: server.commands.e2eDb ?? '',
@@ -141,6 +143,32 @@ function e2ePlaceholders(
     SERVER_E2E_DB_COMMAND: prepare,
     SERVER_E2E_DATABASE_URL: url,
   }
+}
+
+// The sdk's place as an API package sees it (ADR 0020 K3): its directory, the path from the
+// package's own directory, the directory its CDN build writes and its playground port. None is
+// defined without an sdk, so an unguarded use fails in sweepPlaceholders and names its file.
+function sdkValues(plan: GenerationPlan, pkg: PackagePlan): Record<string, string> {
+  const { sdk } = plan
+  if (sdk === null || !isApiKind(pkg.template.manifest.kind)) return {}
+  const port = sdk.port ?? sdk.template.manifest.http?.port
+  return {
+    SDK_DIR: sdk.dir,
+    SDK_PATH: path.posix.relative(pkg.dir, sdk.dir),
+    ...(sdk.template.manifest.cdn === undefined ? {} : { SDK_OUT: sdk.template.manifest.cdn.out }),
+    ...(port === undefined ? {} : { SDK_PORT: String(port) }),
+  }
+}
+
+// The name of the sdk's one global: its directory's last segment, a leading `sdk-` dropped, in
+// PascalCase (`sdk-ads` is `Ads`, `sdk` is `Sdk`).
+export function sdkGlobal(dir: string): string {
+  const last = dir.split('/').at(-1) ?? dir
+  const name = last.startsWith('sdk-') ? last.slice('sdk-'.length) : last
+  return name
+    .split('-')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('')
 }
 
 // The frontend's place as a serverless package sees it (ADR 0014 K4): the relative path from its
@@ -192,6 +220,8 @@ export function packagePlaceholders(
     // lines marked @single are gone before this substitution runs.
     ...(plan.frontends[0] === undefined ? {} : { FRONTEND_DIR: plan.frontends[0].dir }),
     ...frontendValues(plan, pkg),
+    ...sdkValues(plan, pkg),
+    ...(pkg.template.manifest.kind === 'sdk' ? { SDK_GLOBAL: sdkGlobal(pkg.dir) } : {}),
     PACKAGE_DIR: pkg.dir,
     PORT: http === undefined ? '' : String(pkg.port ?? http.port),
     ...serverValues,
@@ -617,6 +647,9 @@ function sweepPlaceholders(plan: GenerationPlan, staging: string): void {
   // Only a serverless package is given these, and the first two only beside a frontend (ADR 0014
   // K4, ADR 0015 F2): one that survives anywhere names its file.
   names.push('FRONTEND_PATH', 'FRONTEND_OUT', 'FRONTENDS', 'FRONTEND_HOSTS')
+  // The sdk tokens go to the API package of a plan that holds one, and __SDK_GLOBAL__ to the
+  // sdk package alone.
+  names.push(...SDK_PLACEHOLDERS)
   // Nor may the SERVER_* tokens survive a plan without a server: a kept file that uses one names
   // itself here instead of shipping an address nobody serves (ADR 0011).
   if (plan.packages.every((p) => p.serverDir === null)) names.push(...SERVER_PLACEHOLDERS)

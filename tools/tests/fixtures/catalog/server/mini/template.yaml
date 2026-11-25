@@ -31,6 +31,8 @@ contract:
 http:
   port: 4000
   health: /api/health
+onlyWhen:
+  sdk: [src/sdk-key.ts]
 gitignore: [node]
 agents: AGENTS.md
 defaultStack: mini

@@ -10,7 +10,7 @@ export class ReadmeError extends Error {
   }
 }
 
-const KIND_ORDER = ['server', 'serverless', 'frontend', 'worker']
+const KIND_ORDER = ['server', 'serverless', 'frontend', 'sdk', 'worker']
 
 // Plain code-unit order, so the committed matrix does not depend on the machine locale.
 const byId = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)

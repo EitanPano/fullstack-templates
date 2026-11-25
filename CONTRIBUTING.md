@@ -27,7 +27,7 @@ bun tools/validate.ts [--readme] [--lockfiles]
 bun tools/validate.ts --pin <template>/<kind>/<provider>
 bun tools/generate.ts --stack <id> --out <dir> --name <name> \
   [--flag k=v] [--capability k=v] [--deploy single|split] [--answers <file>] \
-  [--template <kind/id> [--dir <dir>]] [--frontend <dir>=<template> ...] \
+  [--template <kind/id> [--dir <dir>]] [--frontend <dir>=<template> ...] [--sdk <dir>=<template>] \
   [--display-name <text>] [--brand-primary <hex>] [--brand-neutral <hex>] \
   [--radius sm|md|lg] [--font system|inter] [--theme system|light|dark] \
   [--density comfortable|compact] \
@@ -47,7 +47,9 @@ bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] 
   several frontends: each `--frontend <dir>=<template>` adds one beside a `serverless` API (refused
   beside a `server` package). With a stack the listed frontends replace the stack's frontend member
   and use its template, or a template its `stack.yaml` lists under `frontends` when the request holds
-  more than one frontend (ADR 0017). `--skip-post-generate` leaves out install, contract and format; `--keep-staging` keeps the
+  more than one frontend (ADR 0017). `--sdk <dir>=<template>` adds the one sdk package of a plan beside
+  a `--stack` (refused without one, with `--template`, twice, or for a template of another kind; it is
+  never a frontend). `--skip-post-generate` leaves out install, contract and format; `--keep-staging` keeps the
   working directory for inspection.
 - The brand options (and `answers.brand`) apply to a frontend; `tools/lib/theme.ts` builds the OKLCH
   tokens and fails, naming the pair, when a seed cannot pass the contrast checks. A server-only
@@ -243,7 +245,7 @@ holds `serverless/other/` is left alone.
   has at most one `server` or `serverless` package. It may declare `contract: { produces }`,
   `http`, `migrate`, `testDb` and `e2eDb`, and it must declare `start` (a frontend's e2e runs it);
   the data engine is part of the base. `__SERVER_E2E_DATABASE_URL__` is always empty for it.
-- **What it may not have.** `compose.yaml`, `static`, `capabilities`, `onlyWhen`, `docker`, a brand
+- **What it may not have.** `compose.yaml`, `static`, `capabilities`, `onlyWhen` (but its one `sdk` key), `docker`, a brand
   case, `withApp`. Its agents file keeps the server's five headings. The plan has no deploy mode and
   writes no `docker-compose.yml`; `--deploy` fails, and `single` is false.
 - **The frontends** (ADR 0015). With a frontend in the plan it gets `__FRONTEND_PATH__` and
@@ -373,7 +375,7 @@ Markers are written in the file's own comment syntax (`//`, `--` in `.sql`, `#` 
   negates either.
 - A frontend's selections include `server:<name>` for each flag and capability kind its stack's
   server selected (`server:auth`, `server:database`), all off when the frontend is generated alone.
-  A template's `onlyWhen: { "server:auth": [paths] }` keeps those files only while it is on;
+  A template's `onlyWhen: { "server:auth": [paths] }` keeps those files only while it is on; a `server` or `serverless` template takes the one key `sdk` (a path list or the object form) for files that exist only in a plan with an sdk package;
   `validate` dry-runs a frontend with each server selection on and off. A frontend manifest cannot
   declare a flag named `auth`, so `--flag auth=...` still means the server's. `server:serverless` is
   one more fact, on when the plan's API is a `serverless` package (a flag cannot be named `serverless`).
@@ -384,7 +386,7 @@ Markers are written in the file's own comment syntax (`//`, `--` in `.sql`, `#` 
   path, dependency and script exists in `base/` and that no flag of the template removes the same
   name; the pyproject adapter refuses dependency and script removal.
 - `server` (the plan has a server package), `single` (the plan deploys as one image, which
-  needs a server), `frontend` (a `serverless` package's selection: the plan has a frontend) and
+  needs a server), `sdk` (the plan holds an sdk package, ADR 0020; true in every package of it), `frontend` (a `serverless` package's selection: the plan has a frontend) and
   `frontends` (a `serverless` or `frontend` package's: the plan holds more than one frontend) are
   reserved selections; a manifest cannot declare a flag of any of these names.
 - A name that no flag or capability declares fails validation, as does an unbalanced block
@@ -404,7 +406,7 @@ in `placeholders` (usually `__PROJECT_NAME__`); the generator also provides
 `__FRONTEND_DIR__` (the frontend's directory, for a server's Compose fragment). A `serverless`
 package beside a frontend also gets `__FRONTEND_PATH__` and `__FRONTEND_OUT__` (the first frontend's
 directory path and `static.out`), `__FRONTENDS__` (a JSON list of `{dir,path,out,port}`) and
-`__FRONTEND_HOSTS__` (the local host map); with no frontend in the plan the first two are
+`__FRONTEND_HOSTS__` (the local host map). A `server` or `serverless` package of a plan with an sdk also gets `__SDK_DIR__`, `__SDK_PATH__` (from its own directory), `__SDK_OUT__` (the sdk's `cdn.out`) and `__SDK_PORT__`; without an sdk they are undefined (wrap their lines in `@sdk`). The sdk package gets the `__SERVER_*__` tokens and `__SDK_GLOBAL__` (its directory's last segment, `sdk-` dropped, in PascalCase). With no frontend in the plan the first two are
 undefined, so a kept line that uses one fails the run naming the file (wrap it in `@frontend`),
 and the other two are `[]` and empty. Each package's `__PORT__`
 is unique in the plan. A frontend's e2e

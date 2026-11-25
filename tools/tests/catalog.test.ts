@@ -47,6 +47,7 @@ describe('loadCatalog', () => {
       'frontend/mini-site',
       'frontend/mini-spa',
       'frontend/mini-ui',
+      'sdk/mini-sdk',
       'server/mini',
       'server/mini-py',
       'serverless/mini-fn',
@@ -65,6 +66,7 @@ describe('loadCatalog', () => {
       'auth-off',
       'fake',
       'auth-off-fake',
+      'with-sdk',
     ])
   })
 
