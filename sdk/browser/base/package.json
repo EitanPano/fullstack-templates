@@ -31,7 +31,7 @@
   ],
   "scripts": {
     "api": "node scripts/api.mjs",
-    "api:types": "openapi-ts",
+    "api:types": "node scripts/contract.mjs",
     "api:update": "node scripts/api.mjs --update",
     "build": "node scripts/clean.mjs dist && tsdown",
     "build:e2e": "node scripts/clean.mjs tests/e2e/.build && tsdown --config tsdown.e2e.config.ts",

@@ -119,6 +119,8 @@ an unlisted one, a frame the page cannot read, and no `viewed` for each way of h
 `tests/consumers/` are the three files `consumers` runs against the tarball. A test is never
 deleted, skipped or focused to get a gate green.
 
+`bun run api:types` (`scripts/contract.mjs`) refuses a server whose contract has no `/api/sdk/` path, and restores `src/contract/` if its output names a path outside it.
+
 ## Deployment
 
 What the integrator adds to their policy, and nothing for styles:
