@@ -1,4 +1,4 @@
-# Agent Instructions: **PROJECT_NAME**-sdk
+# Agent Instructions: `__PROJECT_NAME__-sdk`
 
 An embeddable browser SDK. Other sites load it from a `<script>` tag or install it from npm; it
 asks the API for content, draws it in an iframe from the API's origin and reports what

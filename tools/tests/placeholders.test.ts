@@ -31,6 +31,13 @@ describe('findLeftoverPlaceholder', () => {
     expect(findLeftoverPlaceholder('x __PROJECT_NAME__', ['PROJECT_NAME'])).toBe('__PROJECT_NAME__')
     expect(findLeftoverPlaceholder('x __OTHER__', ['PROJECT_NAME'])).toBeNull()
   })
+
+  test('reports the bold spelling a Markdown formatter makes of a declared name', () => {
+    expect(findLeftoverPlaceholder('# **PROJECT_NAME**-sdk', ['PROJECT_NAME'])).toBe(
+      '**PROJECT_NAME**',
+    )
+    expect(findLeftoverPlaceholder('# **OTHER**', ['PROJECT_NAME'])).toBeNull()
+  })
 })
 
 describe('isTextFile', () => {

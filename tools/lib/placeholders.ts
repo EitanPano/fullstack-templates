@@ -129,10 +129,13 @@ export function substitutePlaceholders(
   )
 }
 
+// A Markdown formatter rewrites `__NAME__` as bold `**NAME**`, which no substitution matches, so
+// that spelling of a declared name counts as left over too.
 export function findLeftoverPlaceholder(content: string, names: readonly string[]): string | null {
   for (const name of names) {
-    const token = `__${name}__`
-    if (content.includes(token)) return token
+    for (const token of [`__${name}__`, `**${name}**`]) {
+      if (content.includes(token)) return token
+    }
   }
   return null
 }
