@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 
 import AxeBuilder from '@axe-core/playwright'
-import type { BrowserContext, Page } from '@playwright/test'
+import type { BrowserContext, Locator, Page } from '@playwright/test'
 
 import { API_LOG, GLOBAL, LOADER_URL, SDK_KEY, TELEMETRY_LINE } from './hosts'
 
@@ -297,6 +297,15 @@ export const windowNames = (page: Page): Promise<string[]> =>
 
 /** A dev runtime writes its output late: longer than a poll's default wait. */
 export const LOG_WAIT = { timeout: 15_000 }
+
+/**
+ * A click that makes its unit close is not awaited. The frame leaves the page while the browser
+ * still waits for the click to be handled, and in Chromium the protocol call then does not always
+ * answer; the close is what a test waits for.
+ */
+export function clickToClose(target: Locator): void {
+  void target.click().catch(() => undefined)
+}
 
 /** How many lines of the API's output are the default telemetry sink's, for one event. */
 export function telemetryLines(): number {

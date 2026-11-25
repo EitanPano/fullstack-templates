@@ -4,6 +4,7 @@ import { GLOBAL, LISTED_ORIGIN } from './hosts'
 import {
   apiFrame,
   callUnit,
+  clickToClose,
   eventNames,
   fixtureBlock,
   hostEvents,
@@ -148,7 +149,7 @@ test.describe('a unit', () => {
 
   test('is closed by its own frame, with the reason frame', async ({ page }) => {
     await open(page, { closable: true })
-    await unitFrame(page).getByRole('button', { name: 'Close' }).click()
+    clickToClose(unitFrame(page).getByRole('button', { name: 'Close' }))
     await expect(page.locator('iframe')).toHaveCount(0)
     expect((await hostEvents(page)).at(-1)).toEqual({
       name: 'closed',
