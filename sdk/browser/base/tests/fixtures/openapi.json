@@ -1,0 +1,46 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Example API", "version": "1.0.0" },
+  "paths": {
+    "/api/sdk/v1/config": {
+      "get": {
+        "operationId": "getSdkConfig",
+        "responses": {
+          "200": {
+            "description": "The kill switch.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SdkConfig" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/other/thing": {
+      "get": {
+        "operationId": "getOtherThing",
+        "responses": {
+          "200": {
+            "description": "Not for the SDK.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/OtherThing" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SdkConfig": {
+        "type": "object",
+        "required": ["enabled"],
+        "properties": { "enabled": { "type": "boolean" } }
+      },
+      "OtherThing": {
+        "type": "object",
+        "required": ["secretField"],
+        "properties": { "secretField": { "type": "string" } }
+      }
+    }
+  }
+}

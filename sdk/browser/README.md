@@ -1,0 +1,29 @@
+# sdk/browser
+
+An embeddable browser SDK ([ADR 0020](../../docs/adr/0020-sdk-kind.md)): other sites load it from a
+`<script>` tag or install it from npm. It reads a kill switch from the server's `/api/sdk/v1/config`,
+draws units in a sandboxed iframe from the API's origin and reports `rendered`, `viewed`, `clicked`
+and `error` to the host page. No runtime dependency; no module ships (a feature is added with the
+recipe in the package's `AGENTS.md › Adding a feature`).
+
+Generated with `--sdk <dir>=sdk/browser` beside any stack's API package. The package is not a
+frontend: no static build, no brand, no screens.
+
+## Layout
+
+- `template.yaml`: the manifest (commands, contract, playground port, `cdn.out`).
+- `base/`: the files copied into the package: `src/` (`entries`, `core`, `transport`, `contract`,
+  `protocol`, `ui`, `frame`, `modules`), `tests/` (unit, consumers, a fixture module), `scripts/`
+  (size, API report, pack lint, consumers, playground), `playground/`, `Dockerfile`, `bun.lock`,
+  the committed `src/contract/` and `etc/sdk.api.txt`.
+- `base/Dockerfile`: the `dist` target holds `dist/cdn` at `/sdk` for the server's image.
+- `compose.yaml`: a build-only service (the server's `additional_contexts` reads it).
+- `tests/cases.yaml`: the generated variants the catalog gates.
+- `CHANGELOG.md`: version history.
+
+## Commands
+
+`bun run dev` rebuilds on change and serves the host page on the package's port; `bun run check`
+runs every gate (typecheck, lint, format, unit tests, build, size budget, API report, tarball lint,
+consumers); `bun run build:e2e` builds the fixture module's three files; `bun run api:types`
+regenerates `src/contract/` from the server's contract, keeping only `/api/sdk/`.

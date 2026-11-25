@@ -38,6 +38,7 @@ template finds the same shape.
 | `next` | frontend | 5.0.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
 | `react` | frontend | 7.0.0 | — | — | Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives styled by co-located SCSS on a global token tree |
 | `vue` | frontend | 5.0.0 | i18n, pwa | — | Vite and Vue 3 single-page app: Vue Router 5, Pinia 4 setup stores over a client generated from the server's contract, Reka UI primitives styled by co-located SCSS on a global token tree, vue-i18n and the service worker behind flags |
+| `browser` | sdk | 1.0.0 | — | — | Embeddable browser SDK: a kernel with an error boundary, a kill switch and consent, one network door, units drawn in a sandboxed iframe from the API's origin, three outputs (npm ESM and CJS, a CDN loader, the frame) and size, API-report and tarball gates |
 
 | Stack | Packages | Summary |
 | --- | --- | --- |

@@ -1,0 +1,80 @@
+{
+  "name": "__PROJECT_NAME__-sdk",
+  "version": "1.0.0",
+  "description": "An embeddable browser SDK.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/index.js",
+    "dist/index.cjs",
+    "dist/index.d.ts",
+    "dist/index.d.cts",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "api": "node scripts/api.mjs",
+    "api:types": "openapi-ts",
+    "api:update": "node scripts/api.mjs --update",
+    "build": "node scripts/clean.mjs dist && tsdown",
+    "build:e2e": "node scripts/clean.mjs tests/e2e/.build && tsdown --config tsdown.e2e.config.ts",
+    "check": "bun run typecheck && bun run lint && bun run format:check && bun run test && bun run build && bun run size && bun run api && bun run pack:lint && bun run consumers",
+    "consumers": "node scripts/consumers.mjs",
+    "dev": "node scripts/playground.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "pack:lint": "node scripts/pack-lint.mjs",
+    "size": "node scripts/size.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "sdk": {
+    "sizeBudget": {
+      "dist/index.js": 10500,
+      "dist/index.cjs": 10500,
+      "dist/cdn/v1/loader.js": 6000,
+      "dist/cdn/v1/frame.js": 5500,
+      "dist/cdn/v1/frame.html": 300
+    }
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
+    "@eslint/js": "9.39.5",
+    "@hey-api/openapi-ts": "0.99.0",
+    "@microsoft/api-extractor": "7.60.1",
+    "@types/node": "24.19.2",
+    "ajv": "8.20.0",
+    "eslint": "9.39.5",
+    "jsdom": "31.0.0",
+    "prettier": "3.9.10",
+    "publint": "0.3.25",
+    "tsdown": "0.23.7",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.1",
+    "vitest": "5.1.0"
+  },
+  "packageManager": "bun@1.4.0",
+  "engines": {
+    "bun": ">=1.4.0",
+    "node": ">=24.0.0"
+  }
+}

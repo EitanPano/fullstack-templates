@@ -40,6 +40,11 @@ templates:
     path: frontend/astro
     version: 1.1.1
     summary: "Astro 7 static site: pages and an Astro kit on co-located SCSS over a global token tree, a hashed Content-Security-Policy with no unsafe-inline, a typed client generated from the server's contract, React islands behind a flag; ships no image"
+  - id: browser
+    kind: sdk
+    path: sdk/browser
+    version: 1.0.0
+    summary: "Embeddable browser SDK: a kernel with an error boundary, a kill switch and consent, one network door, units drawn in a sandboxed iframe from the API's origin, three outputs (npm ESM and CJS, a CDN loader, the frame) and size, API-report and tarball gates"
 stacks:
   - id: angular-bun-express
     path: stacks/angular-bun-express

@@ -1,0 +1,7 @@
+node_modules
+dist
+tests
+etc
+.tmp
+.git
+**/*.map
