@@ -8,6 +8,7 @@ Both match the raw request path, never the decoded one Starlette routes on, so a
 dot, a backslash and a second folder never reach the disk.
 """
 
+import hashlib
 import re
 from pathlib import Path
 from typing import Final
@@ -40,6 +41,18 @@ _FRAME_POLICY: Final = (
 )
 
 
+def _etag_of(content: bytes) -> str:
+    """The file's validator: a digest of its bytes, so every replica names the same one."""
+    return f'"{hashlib.sha256(content).hexdigest()[:32]}"'
+
+
+def _holds(header: str | None, etag: str) -> bool:
+    """Whether `If-None-Match` names the validator (the comparison is weak, RFC 9110 13.1.2)."""
+    if header is None:
+        return False
+    return any(tag.strip().removeprefix("W/") in (etag, "*") for tag in header.split(","))
+
+
 def _read_if_servable(root: Path, name: str) -> bytes | None:
     """The bytes of a regular file that is really inside `root`: a link in the build to a file
     elsewhere is a miss."""
@@ -70,10 +83,15 @@ def register_sdk_files(app: FastAPI, directory: Path) -> None:
     """Adds the two routes for the build in `directory`."""
 
     async def sdk_dist(request: Request) -> Response:
-        # Headers are set only once the file is known to exist, so a 404 carries none of them.
+        # Headers are set only once the file is known to exist, so a 404 carries none of them. A
+        # request that holds the file's validator gets 304 and no body.
         content = await _read_build(directory, request, _DIST_PATH, "")
         set_own_security_headers(request.scope, {"cross-origin-resource-policy"})
-        return Response(content, media_type="text/javascript", headers=_DIST_HEADERS)
+        etag = _etag_of(content)
+        headers = {**_DIST_HEADERS, "etag": etag}
+        if _holds(request.headers.get("if-none-match"), etag):
+            return Response(status_code=304, headers=headers)
+        return Response(content, media_type="text/javascript", headers=headers)
 
     async def sdk_frame(request: Request) -> Response:
         # The one HTML page of the API package: it may be framed by the origins the key lists and

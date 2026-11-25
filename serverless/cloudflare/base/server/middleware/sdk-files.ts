@@ -3,7 +3,8 @@
 // document at /api/sdk/frame/v<major>. server.ts mounts them. `bun run assemble` put the files in
 // the assets at the same paths, under /api/, which the Worker answers before the platform does
 // (`run_worker_first`), so no file is ever served raw; a response is built here from the status and
-// the body of the assets' answer and none of its headers, so a `_headers` rule changes nothing.
+// the body of the assets' answer and none of its headers but a script's well-formed ETag, so a
+// `_headers` rule changes nothing.
 // It does not belong: the namespace's JSON endpoints (api/sdk/) or the SDK's own build. Both answer
 // the 404 envelope, never a page, and neither is in the OpenAPI document.
 import { originsForKey } from '../services/security/sdk-keys'
@@ -45,10 +46,30 @@ async function fetchFile(ctx: Context, pathname: string): Promise<Response> {
   return answer
 }
 
+// An entity tag as RFC 9110 8.8.3 writes it; anything else the assets name is not passed on.
+const ETAG = /^(?:W\/)?"[!#-~]*"$/
+const opaque = (tag: string) => tag.trim().replace(/^W\//, '')
+
+// Whether `If-None-Match` names the file's validator (the comparison is weak, RFC 9110 13.1.2).
+function holds(header: string | null, etag: string): boolean {
+  if (header === null) return false
+  return header.split(',').some((tag) => tag.trim() === '*' || opaque(tag) === opaque(etag))
+}
+
 export const sdkDist = handle(async (ctx) => {
   if (!DIST_FILE.test(ctx.url.pathname)) throw notFound()
   const file = await fetchFile(ctx, ctx.url.pathname)
-  return new Response(file.body, { status: 200, headers: DIST_HEADERS })
+  const etag = file.headers.get('etag')
+  if (etag === null || !ETAG.test(etag)) {
+    return new Response(file.body, { status: 200, headers: DIST_HEADERS })
+  }
+  const headers = { ...DIST_HEADERS, ETag: etag }
+  // A request that holds the validator gets 304 and no body.
+  if (holds(ctx.request.headers.get('if-none-match'), etag)) {
+    await file.body?.cancel()
+    return new Response(null, { status: 304, headers })
+  }
+  return new Response(file.body, { status: 200, headers })
 })
 
 // The one HTML page of the API: it may be framed by the origins the key lists and by nothing else,

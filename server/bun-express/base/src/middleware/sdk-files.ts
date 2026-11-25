@@ -42,7 +42,9 @@ async function isServable(root: string, name: string): Promise<boolean> {
 }
 
 // Headers are set only once the file is known to exist, so a 404 carries none of them; a read
-// that still fails takes them off again before the 404 envelope.
+// that still fails takes them off again before the 404 envelope. Express adds the file's weak
+// ETag (the application's `etag` setting, whatever this call says) and answers a request that
+// holds it with 304.
 function send(
   res: Response,
   next: (error?: unknown) => void,
@@ -51,7 +53,7 @@ function send(
   headers: Readonly<Record<string, string>>,
 ): void {
   res.set(headers)
-  res.sendFile(name, { root, cacheControl: false, etag: false, lastModified: false }, (error) => {
+  res.sendFile(name, { root, cacheControl: false, lastModified: false }, (error) => {
     if (error === undefined || res.headersSent) return
     for (const header of Object.keys(headers)) res.removeHeader(header)
     next()

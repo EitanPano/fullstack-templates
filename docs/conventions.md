@@ -62,7 +62,8 @@ language-neutral core.
     frontend's page; the Worker takes the build in `assemble`, see **Serverless**): `GET|HEAD /api/sdk/dist/v<major>/<file>` serves only a name matching
     `^v[0-9]+/[A-Za-z0-9._-]+\.js$` (never `frame.html`) with `Cache-Control: public,
     max-age=300`, `Cross-Origin-Resource-Policy: cross-origin`, `Access-Control-Allow-Origin: *`
-    and `X-Content-Type-Options: nosniff`; and `GET /api/sdk/frame/v<major>?k=<key>` answers
+    and `X-Content-Type-Options: nosniff`, an `ETag`, and 304 for a request that holds it; and
+    `GET /api/sdk/frame/v<major>?k=<key>` answers
     `v<major>/frame.html` with `Cache-Control: no-store` and one `Content-Security-Policy`:
     `default-src 'none'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action
     'none'; frame-ancestors <the key's origins, or 'none'>`. No `X-Frame-Options`.

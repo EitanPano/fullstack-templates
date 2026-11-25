@@ -25,8 +25,8 @@
   - `GET|HEAD /api/sdk/dist/v<major>/<file>.js` and `GET /api/sdk/frame/v<major>?k=<key>`
     (`middleware/sdk-files.ts`), outside the key gate and outside the OpenAPI document. `assemble`
     copies the SDK's build into `dist/api/sdk/` (the frame document without its `.html` name); the Worker
-    fetches the same path through `ASSETS` and builds its response from the body alone, so a `_headers`
-    rule changes nothing and no address answers a file raw (`/api/*` runs the Worker first in every
+    fetches the same path through `ASSETS` and builds its response from the body alone (and a script's
+    well-formed `ETag`, with 304 for a request that holds it), so a `_headers` rule changes nothing and no address answers a file raw (`/api/*` runs the Worker first in every
     plan). The frame carries one `Content-Security-Policy` whose `frame-ancestors` are the key's origins
     (`'none'` for an unknown key), no `X-Frame-Options`, `Cache-Control: no-store`.
   - `SDK_KEYS` and `SDK_ENABLED` in `config/env.ts` (bindings, local values in `.env.example`): a malformed
