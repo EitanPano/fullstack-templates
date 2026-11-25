@@ -18,6 +18,7 @@ commands:
   lint: bun run lint
   format: bun run format
   test: bun run test
+  testE2e: bun run test:e2e
   contract: bun run api:types
 contract: { consumes: "<server>/openapi.json" }
 http: { port: 5190, health: / }

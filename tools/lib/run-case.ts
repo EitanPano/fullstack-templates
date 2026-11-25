@@ -75,7 +75,10 @@ function runSdk(
   const cwd = path.join(out, pkg.dir)
   run(commands.check, cwd)
   if (options.e2e && commands.testE2e) {
-    if (options.installBrowsers) run(browserInstallCommand(process.platform), cwd)
+    // A guest behaves differently per engine (ADR 0020 F4), so its suite runs in all three.
+    if (options.installBrowsers) {
+      run(browserInstallCommand(process.platform, ['chromium', 'firefox', 'webkit']), cwd)
+    }
     run(commands.testE2e, cwd)
   }
 }

@@ -17,6 +17,7 @@ dependency. Commands: `bun run check` runs every gate and stops at the first fai
 | `dev`                                       | Rebuilds on change and serves a host page (`playground/`) on this package's port; it loads the loader the API serves.                                     |
 | `build`                                     | `dist/`: the npm entry (ESM, CJS, `.d.ts`, `.d.cts`) and `dist/cdn/v<major>/` (`loader.js`, `frame.js`, `frame.html`). The API package serves `dist/cdn`. |
 | `build:e2e`                                 | The same three files with the fixture module registered, in `tests/e2e/.build/cdn/v<major>/`.                                                             |
+| `test:e2e`                                  | `build:e2e`, then Playwright in Chromium, Firefox and WebKit against the API and two host servers it starts. `check` does not run it.                     |
 | `api:types`                                 | Regenerates `src/contract/` from the server's OpenAPI document. Run it after a change under `/api/sdk/`.                                                  |
 | `typecheck`, `lint`, `format:check`, `test` | One gate each; `format` rewrites files.                                                                                                                   |
 | `size`                                      | Fails over the byte budget of an output (`package.json › sdk.sizeBudget`).                                                                                |
@@ -110,12 +111,22 @@ report.
 
 `bun run test` runs `tests/unit/` on jsdom (Vitest): one happy path and one failure for each
 behaviour. `eslint-boundaries.test.ts` lints one violation and one allowed case per rule through
-the real config. `tests/e2e/fixture-module/` holds a feature for tests only; `build:e2e` writes
-its build, and the e2e suite of the project serves that folder from the API and loads it into a
-host page on another site, under a strict policy (`default-src 'none'; script-src 'self' <file
-origin>; connect-src <API origin>; frame-src <API origin>`). It asserts no policy violation, no
-uncaught error, one new property on `window`, a handshake from a listed origin, a collapse from
-an unlisted one, a frame the page cannot read, and no `viewed` for each way of hiding the frame.
+the real config. `tests/e2e/fixture-module/` holds a feature for tests only; `build:e2e` writes its build.
+
+`bun run test:e2e` (the manifest's `testE2e`) runs `tests/e2e/*.spec.ts` in Chromium, Firefox and
+WebKit, because a guest behaves differently in each (ADR 0020 F4). `playwright.config.ts` starts,
+fresh each run, the API package (`SDK_KEYS` lists one made-up key for the listed host,
+`SDK_DIR` is `tests/e2e/.build/cdn`, `RATE_LIMIT_SCALE=100`) and two host servers
+(`tests/e2e/host-server.mjs`): the listed host on `__PORT__` and an unlisted one on the next
+port, both on `127.0.0.1` while the API is on `localhost`, each serving `tests/e2e/pages/` under
+`default-src 'none'; script-src 'self' <API origin>; connect-src <API origin>; frame-src <API
+origin>` (the pages hold no inline script or style). The specs assert no policy violation, no
+uncaught error, one new property on `window`, a handshake from a listed origin, a collapse from an
+unlisted one, a frame the page cannot read, the kill switch, consent before telemetry, and no
+`viewed` for each way of hiding the frame. Where an engine cannot detect a way of hiding it, the
+spec asserts that limit for that engine (`view.spec.ts`). One spec: `bun x playwright test
+tests/e2e/view.spec.ts --project=firefox`; install the engines once with `bun x playwright
+install chromium firefox webkit` (on Linux, add `--with-deps`).
 `tests/consumers/` are the three files `consumers` runs against the tarball. A test is never
 deleted, skipped or focused to get a gate green.
 

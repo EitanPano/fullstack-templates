@@ -19,10 +19,13 @@ export const fixtureFrame: FrameModule = {
     ctx.report('rendered')
 
     ctx.onMessage((payload) => {
+      // The host's text arrives after the consent state, so this is sent only once it is granted.
+      ctx.track({ name: 'rendered' })
       const { text, href } = (payload ?? {}) as { text?: unknown; href?: unknown }
       block.replaceChildren()
       if (typeof text === 'string' && text) {
         const paragraph = doc.createElement('p')
+        paragraph.style.setProperty('margin', '0')
         appendText(paragraph, text)
         block.appendChild(paragraph)
       }

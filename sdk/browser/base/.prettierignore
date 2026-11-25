@@ -6,3 +6,5 @@ src/contract/
 tests/e2e/.build/
 .tmp/
 etc/
+playwright-report/
+test-results/

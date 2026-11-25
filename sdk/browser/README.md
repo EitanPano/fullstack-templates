@@ -13,7 +13,7 @@ frontend: no static build, no brand, no screens.
 
 - `template.yaml`: the manifest (commands, contract, playground port, `cdn.out`).
 - `base/`: the files copied into the package: `src/` (`entries`, `core`, `transport`, `contract`,
-  `protocol`, `ui`, `frame`, `modules`), `tests/` (unit, consumers, a fixture module), `scripts/`
+  `protocol`, `ui`, `frame`, `modules`), `tests/` (unit, e2e specs and host pages, consumers, a fixture module), `scripts/`
   (size, API report, pack lint, consumers, playground), `playground/`, `Dockerfile`, `bun.lock`,
   the committed `src/contract/` and `etc/sdk.api.txt`.
 - `base/Dockerfile`: the `dist` target holds `dist/cdn` at `/sdk` for the server's image.
@@ -25,5 +25,7 @@ frontend: no static build, no brand, no screens.
 
 `bun run dev` rebuilds on change and serves the host page on the package's port; `bun run check`
 runs every gate (typecheck, lint, format, unit tests, build, size budget, API report, tarball lint,
-consumers); `bun run build:e2e` builds the fixture module's three files; `bun run api:types`
+consumers); `bun run build:e2e` builds the fixture module's three files; `bun run test:e2e`
+builds them, then runs the browser suite in Chromium, Firefox and WebKit against the API
+package and two host servers; `bun run api:types`
 regenerates `src/contract/` from the server's contract, keeping only `/api/sdk/`.

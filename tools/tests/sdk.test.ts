@@ -395,7 +395,12 @@ describe('runCase with an sdk', () => {
     const a = record()
     const options = { ...OFF, e2e: true, installBrowsers: true }
     await runCase(catalog, find('sdk/mini-sdk/default'), tempDir(), options, a.run, a.log)
-    expect(sdkCalls(a.calls)).toHaveLength(3)
+    const install = `bun x playwright install ${process.platform === 'linux' ? '--with-deps ' : ''}chromium firefox webkit`
+    expect(sdkCalls(a.calls).map((c) => c.line)).toEqual([
+      'bun ./ok.ts',
+      install,
+      'bun ./ok.ts e2e',
+    ])
   })
   test('a server case with an sdk runs the server gates and skips the sdk package', async () => {
     const a = record()

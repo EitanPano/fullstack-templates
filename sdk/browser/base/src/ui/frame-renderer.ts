@@ -101,10 +101,12 @@ export function createFrameRenderer(options: FrameRendererOptions): Renderer {
       iframe.style.setProperty('width', '100%')
       iframe.style.setProperty('border', '0')
       setHeight(placeholder)
+      // Sandbox and address are in place before the iframe is in the page: it starts loading with
+      // them, and no `load` fires for an empty document first (WebKit does, and a handshake to
+      // that document is refused with a console error).
+      iframe.setAttribute('src', url.href)
       container.appendChild(iframe)
       target.appendChild(container)
-      // The address is set last: the frame starts loading with the attributes already in place.
-      iframe.setAttribute('src', url.href)
       clearTimeout(timer)
       timer = setTimeout(() => {
         show(false)

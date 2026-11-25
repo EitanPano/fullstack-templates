@@ -44,6 +44,7 @@
     "pack:lint": "node scripts/pack-lint.mjs",
     "size": "node scripts/size.mjs",
     "test": "vitest run",
+    "test:e2e": "bun run build:e2e && playwright test",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
@@ -61,6 +62,7 @@
     "@eslint/js": "9.39.5",
     "@hey-api/openapi-ts": "0.99.0",
     "@microsoft/api-extractor": "7.60.1",
+    "@playwright/test": "1.65.0",
     "@types/node": "24.19.2",
     "ajv": "8.20.0",
     "eslint": "9.39.5",

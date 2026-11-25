@@ -37,6 +37,28 @@ afterEach(() => {
 })
 
 describe('frame renderer', () => {
+  // A browser found this: an iframe put in the page without an address fires `load` for its empty
+  // document first (WebKit), and the handshake sent to it was refused with a console error.
+  it('puts the iframe in the page with its sandbox and address already set', () => {
+    const target = document.body.appendChild(document.createElement('div'))
+    const attributes: Array<[string | null, string | null]> = []
+    vi.spyOn(target, 'appendChild').mockImplementation(<T extends Node>(node: T): T => {
+      const frame = (node as unknown as Element).querySelector('iframe')
+      attributes.push([frame?.getAttribute('sandbox') ?? null, frame?.getAttribute('src') ?? null])
+      return Node.prototype.appendChild.call(target, node) as T
+    })
+    createFrameRenderer({
+      apiOrigin: ORIGIN,
+      key: 'pk_a',
+      major: 1,
+      theme: {},
+      onEvent: vi.fn(),
+    }).mount(target)
+    expect(attributes).toHaveLength(1)
+    expect(attributes[0]?.[0]).toContain('allow-scripts')
+    expect(attributes[0]?.[1]).toContain('/api/sdk/frame/v1')
+  })
+
   it('adds one container with one iframe, sandboxed, from the API origin', () => {
     const { target, iframe } = make()
     expect(target.children).toHaveLength(1)

@@ -170,7 +170,7 @@ export default defineConfig(
   },
   ...zones,
   {
-    files: ['scripts/**/*.mjs', 'tests/consumers/**', '*.mjs'],
+    files: ['scripts/**/*.mjs', 'tests/consumers/**', 'tests/e2e/*.mjs', '*.mjs'],
     languageOptions: { globals: NODE_GLOBALS },
   },
   {

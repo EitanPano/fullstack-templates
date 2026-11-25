@@ -23,7 +23,8 @@ export function fixtureHost(options: FixtureOptions): HostModule {
         key: ctx.key,
         major,
         theme: ctx.theme,
-        placeholderHeight: 120,
+        // Not the block's own height, so a test can tell the frame's report from the placeholder.
+        placeholderHeight: 60,
         onEvent: ({ name, occlusion, message }) =>
           ctx.emit({
             name,
