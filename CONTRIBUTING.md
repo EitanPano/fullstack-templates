@@ -10,7 +10,8 @@
   template's `tools` before it starts.
 - Docker with Compose: provider-backed tests (`--with-services`) and the image smoke
   (`--with-app`) start containers. Every `check` command runs without Docker. The `single`
-  deploy mode needs Compose 2.35.0 or later; the app smoke of a `single` case checks it first.
+  deploy mode needs Compose 2.35.0 or later, and so does `split` in a project with an sdk package;
+  the app smoke of a `single` case checks it first.
 
 ## Running the tools
 
@@ -49,13 +50,15 @@ bun tools/test-generated.ts [--list] [--case <id>] [--e2e [--install-browsers]] 
   and use its template, or a template its `stack.yaml` lists under `frontends` when the request holds
   more than one frontend (ADR 0017). `--sdk <dir>=<template>` adds the one sdk package of a plan beside
   a `--stack` (refused without one, with `--template`, twice, or for a template of another kind; it is
-  never a frontend). `--skip-post-generate` leaves out install, contract and format; `--keep-staging` keeps the
+  never a frontend). The `sdk` selection is then on in every package, so the API package generates
+  its SDK namespace, and the sdk's Compose service joins `docker-compose.yml` beside a `server`.
+  `--skip-post-generate` leaves out install, contract and format; `--keep-staging` keeps the
   working directory for inspection.
 - The brand options (and `answers.brand`) apply to a frontend; `tools/lib/theme.ts` builds the OKLCH
   tokens and fails, naming the pair, when a seed cannot pass the contrast checks. A server-only
   plan ignores them.
 - `test-generated` generates each case from every template's `tests/cases.yaml` and runs
-  its gates. `--list` prints the cases, `--case` runs one, `--e2e` adds the e2e suite (`--install-browsers` first installs Playwright's Chromium in each generated package that has one) and
+  its gates. `--list` prints the cases, `--case` runs one, `--e2e` adds the e2e suite (`--install-browsers` first installs Playwright's Chromium in each generated package that has one, and Chromium, Firefox and WebKit for an sdk package) and
   `--keep` keeps the output. `--with-services` starts a case's provider services with
   `docker compose up -d --wait`, runs `migrate`, `check`, `testDb` (and e2e), then
   `docker compose down -v`; without it a case with providers runs `check` only.
@@ -269,6 +272,67 @@ holds `serverless/other/` is left alone.
 - **Markers.** `.jsonc` takes `//`; `.astro` takes `//` in its frontmatter and `<!-- -->` in its
   markup. Two flags may list one path in `onlyPaths`: it exists while both are on.
 
+### Adding an sdk template
+
+An `sdk` template (ADR 0020) is a library other sites load into their pages, in `sdk/<id>/` (the
+model is `sdk/browser`). The contract is the twelve invariants of
+[docs/conventions.md › SDK](docs/conventions.md); a template's layers, lint and recipes are its own,
+written in its `base/AGENTS.md`. The checklist is what `validate` and the cases prove. A `server`
+or `serverless` template added later ships the namespace of
+[docs/conventions.md › Server](docs/conventions.md) behind the `sdk` selection (`onlyWhen: { sdk }`
+and `@sdk` markers, see "Markers and placeholders") and an `sdk` case.
+
+- [ ] `template.yaml`: `kind: sdk`; `cdn: { out: <dir> }` (required: the directory the build writes,
+      which the API package serves; never `static`); `contract: { consumes: "<server>/openapi.json" }`;
+      `http: { port, health }` for the playground (a port no other template uses); `defaultStack`
+      (the stack its cases and `default` use); `commands` for the fixed vocabulary, without `build`
+      (the package script `build` is not a command); `postGenerate: [install, contract, format]`,
+      never the build. It may not declare `static`, `capabilities`, `onlyWhen`, `docker`, `withApp` or
+      a brand case; flags are allowed. No stack lists it: it comes from `--sdk`, once per plan, and
+      always beside a stack, so a lone `--template sdk/<id>` is refused.
+- [ ] `base/AGENTS.md` has the headings `Adding a feature`, `Public API`, `Errors`, `Tests` and
+      `Deployment`, matched exactly; `validate` checks them. A feature is a module of the package.
+      The layer map and import rules are required by the contract and are not checked headings.
+- [ ] A `Dockerfile` with a `build` stage and a `dist` target (`FROM scratch`, `dist/cdn` copied to
+      `/sdk`), and a `compose.yaml` fragment that is a build-only service (`build: { context, target:
+      dist }`, `scale: 0`, no ports, profile or `depends_on`), the same in both deploy modes. The
+      API package's image reads it as `additional_contexts: { sdk: "service:<dir>" }`, so Compose
+      2.35.0 is the floor for `split` in a project with an sdk.
+- [ ] `cdn.out` holds one folder per major of the package's own version: `v<major>/loader.js`,
+      `v<major>/frame.js` and `v<major>/frame.html`. The API package serves a `.js` of that shape at
+      `/api/sdk/dist/v<major>/` and the frame document at `/api/sdk/frame/v<major>`; a layout that
+      differs is not served. A new major takes the old major's files away from loaders in use
+      until the project keeps old builds (ADR 0020 N4).
+- [ ] `check` runs, in this order and with no Docker and no browser, typecheck, lint, format, unit
+      tests, `build`, the size budget (`size`), the API report (`api`), `pack:lint` (`publint` and
+      are-the-types-wrong on the tarball) and `consumers` (three files, ESM, CJS and no DOM,
+      installed from the tarball). A boundaries test lints one violation and one allowed case per
+      import rule through the real ESLint config.
+- [ ] The API report is committed as `etc/sdk.api.txt`, not `.md`: the generator and `validate` read
+      a `// @public` tag as an undeclared marker in every text type, so the report holds `// public`
+      and `scripts/api.mjs` runs api-extractor, rewrites the tags and compares the file itself
+      (`api:update` writes it). A `// @tag` line in a committed text file fails the run.
+- [ ] `testE2e` runs the browser suite in Chromium, Firefox and WebKit, because a guest behaves
+      differently in each. The config starts a fresh API package (with `SDK_KEYS`, `SDK_DIR`
+      pointing at the e2e build, `SDK_ENABLED` and `RATE_LIMIT_SCALE=100`) and two host servers on
+      another origin than the API, with no inline script. `--install-browsers` installs the three
+      engines for an sdk case (`--with-deps` on Linux); `check` does not run the suite.
+- [ ] `contract` generates types only (no client, no `zod`), only for the operations under
+      `/api/sdk/`, and refuses a server whose document has none: `@hey-api/openapi-ts` writes the
+      whole API when its filter matches nothing, so the package's script checks the input first and
+      restores the committed output if a path outside `/api/sdk/` appears.
+- [ ] `tests/cases.yaml`: `default`, which names a `stack` (omitted, the manifest's `defaultStack`);
+      the runner adds the template at `sdk-<id>`, runs its `check` and, with `--e2e`, its
+      `testE2e`. No `withApp`. Each API template carries an `sdk` case of its own
+      (`sdk: "sdk-example=sdk/<id>"`) that generates the pair and runs the API's gates; the sdk's
+      gates run in its own case, and the API's case logs `SKIP <dir>: its own cases run its gates`.
+- [ ] The tokens an sdk package gets are declared by the generator (`__SERVER_*__`, `__PACKAGE_DIR__`,
+      `__PORT__`, `__SDK_GLOBAL__`; see "Markers and placeholders"). It ships no placeholder or
+      example module (ADR 0010) and no step that edits its `AGENTS.md` (ADR 0019).
+- [ ] An `index.yaml` entry, a `README.md` and `CHANGELOG.md`, `bun tools/validate.ts --readme`, then
+      `bun tools/validate.ts` green, and the case green: `bun tools/test-generated.ts --case
+      sdk/<id>/default --e2e --install-browsers`.
+
 ## Adding a provider
 
 A provider is one implementation of a capability, described once for every language
@@ -375,8 +439,9 @@ Markers are written in the file's own comment syntax (`//`, `--` in `.sql`, `#` 
   negates either.
 - A frontend's selections include `server:<name>` for each flag and capability kind its stack's
   server selected (`server:auth`, `server:database`), all off when the frontend is generated alone.
-  A template's `onlyWhen: { "server:auth": [paths] }` keeps those files only while it is on; a `server` or `serverless` template takes the one key `sdk` (a path list or the object form) for files that exist only in a plan with an sdk package;
-  `validate` dry-runs a frontend with each server selection on and off. A frontend manifest cannot
+  A template's `onlyWhen: { "server:auth": [paths] }` keeps those files only while it is on;
+  a `server` or `serverless` template takes the one key `sdk` (a path list or the object form) for
+  files that exist only in a plan with an sdk package. `validate` dry-runs a frontend with each server selection on and off. A frontend manifest cannot
   declare a flag named `auth`, so `--flag auth=...` still means the server's. `server:serverless` is
   one more fact, on when the plan's API is a `serverless` package (a flag cannot be named `serverless`).
   The bare key `server` keeps its files only when the plan has a server package. A value is a path
@@ -386,7 +451,8 @@ Markers are written in the file's own comment syntax (`//`, `--` in `.sql`, `#` 
   path, dependency and script exists in `base/` and that no flag of the template removes the same
   name; the pyproject adapter refuses dependency and script removal.
 - `server` (the plan has a server package), `single` (the plan deploys as one image, which
-  needs a server), `sdk` (the plan holds an sdk package, ADR 0020; true in every package of it), `frontend` (a `serverless` package's selection: the plan has a frontend) and
+  needs a server), `sdk` (the plan holds an sdk package, ADR 0020; true in every package of it),
+  `frontend` (a `serverless` package's selection: the plan has a frontend) and
   `frontends` (a `serverless` or `frontend` package's: the plan holds more than one frontend) are
   reserved selections; a manifest cannot declare a flag of any of these names.
 - A name that no flag or capability declares fails validation, as does an unbalanced block
@@ -406,10 +472,17 @@ in `placeholders` (usually `__PROJECT_NAME__`); the generator also provides
 `__FRONTEND_DIR__` (the frontend's directory, for a server's Compose fragment). A `serverless`
 package beside a frontend also gets `__FRONTEND_PATH__` and `__FRONTEND_OUT__` (the first frontend's
 directory path and `static.out`), `__FRONTENDS__` (a JSON list of `{dir,path,out,port}`) and
-`__FRONTEND_HOSTS__` (the local host map). A `server` or `serverless` package of a plan with an sdk also gets `__SDK_DIR__`, `__SDK_PATH__` (from its own directory), `__SDK_OUT__` (the sdk's `cdn.out`) and `__SDK_PORT__`; without an sdk they are undefined (wrap their lines in `@sdk`). The sdk package gets the `__SERVER_*__` tokens and `__SDK_GLOBAL__` (its directory's last segment, `sdk-` dropped, in PascalCase). With no frontend in the plan the first two are
+`__FRONTEND_HOSTS__` (the local host map). With no frontend in the plan the first two are
 undefined, so a kept line that uses one fails the run naming the file (wrap it in `@frontend`),
-and the other two are `[]` and empty. Each package's `__PORT__`
-is unique in the plan. A frontend's e2e
+and the other two are `[]` and empty. A `server` or `serverless` package of a plan with an sdk
+also gets `__SDK_DIR__` (the sdk's directory), `__SDK_PATH__` (the path to it from the package's
+own directory, as `__FRONTEND_PATH__` is), `__SDK_OUT__` (the sdk's `cdn.out`) and `__SDK_PORT__`.
+Without an sdk they are undefined, so a kept line that uses one fails the run naming the file (wrap
+it in `@sdk`), and no other package may use one. The sdk package gets `__SERVER_DIR__`,
+`__SERVER_PORT__`, `__SERVER_START_COMMAND__`, `__SERVER_E2E_DB_COMMAND__`,
+`__SERVER_E2E_DATABASE_URL__` and `__SERVER_DEV_COMMAND__` as a frontend does, and `__SDK_GLOBAL__`:
+its directory's last segment with a leading `sdk-` dropped, in PascalCase (`sdk-ads` is `Ads`).
+Each package's `__PORT__` is unique in the plan. A frontend's e2e
 config also gets `__SERVER_START_COMMAND__` (the server's `start` command; from a nested
 `__SERVER_DIR__` write `../__SERVER_DIR__`),
 `__SERVER_E2E_DB_COMMAND__` (its `e2eDb` command; empty without a database) and
@@ -655,6 +728,46 @@ When Astro or a dependency moves:
    `serverless/cloudflare`'s chain on 8788: run the Windows teardown check of that package's refresh
    section after each.
 
+## Refreshing `sdk/browser/base`
+
+When a dependency moves or the base is regenerated. The package has no runtime dependency, so
+everything below is a dev dependency, every one pinned exactly.
+
+1. Verify every version on the registry (`npm view <pkg> time --json` and its peers; the latest
+   stable at least 14 days old, an exception recorded in the CHANGELOG). Pins that move together:
+   - **TypeScript is pinned to `6.0.3`.** One version serves three tools: `tsdown` (its
+     declarations, through `rolldown-plugin-dts`), `@hey-api/openapi-ts` and
+     `@microsoft/api-extractor` (which depends on exactly the version it bundles and prints it on
+     every run). `typescript-eslint` peers below 6.1. Move it only to a version all of them accept,
+     and check `npm ls typescript` shows one copy: the spike crashed the contract tool on 7.0.2.
+   - `@hey-api/openapi-ts` (exact; 0.x: a minor can change the generated output), with the
+     `@hey-api/typescript` plugin alone and `parser.filters.operations.include` of `/api/sdk/`.
+   - `tsdown` with the three configs that write one `dist/` (`build` empties it first, because
+     tsdown's own `clean` would erase the sibling outputs).
+   - `ajv` 8 beside ESLint's own ajv 6: api-extractor needs it at the top of `node_modules`.
+   - `@playwright/test` (exact), and the engines it installs with `--install-browsers`.
+2. Run `bun install` and commit `bun.lock`; `bun tools/validate.ts --lockfiles` checks it with
+   `--frozen-lockfile`.
+3. Regenerate `src/contract/` in a kept project beside a server with the SDK namespace (generate
+   `server/bun-express/sdk` with `--keep`, then `bun run api:types` in the SDK) and copy it back;
+   read the diff. The base was written against the real document, so a move in the server's
+   `/api/sdk/` operations moves this directory.
+4. Run `bun run check` in the kept project: it runs typecheck, lint, format, the unit tests, the
+   build, the size budget (a raw-byte budget with about ten percent headroom: raise it on purpose,
+   never to pass), the API report, `pack:lint` and `consumers`. In `base/` it does not pass in
+   place (placeholders). A change of the public surface on purpose: `bun run api:update`, and read
+   the report diff.
+5. Run `bun run test:e2e` there, in all three engines. A browser or Playwright bump can change what
+   an engine reports; the specs assert per engine what the engine does (ADR 0020 F4), so a failing
+   row is a finding to read, not a number to loosen.
+6. Bump `version` in `template.yaml` and `index.yaml` (and `package.json`), add a `CHANGELOG.md`
+   entry and run `bun tools/validate.ts --readme`. A new major of the package moves the CDN folder
+   (`v<major>/`): ADR 0020 N4 says what that costs a project.
+7. Cases, one at a time, with the browsers installed once (`--install-browsers`):
+   `bun tools/test-generated.ts --case sdk/browser/default --e2e`, then each API template's `sdk`
+   case (`server/bun-express/sdk`, `server/python-fastapi/sdk`, `serverless/cloudflare/sdk`). The
+   e2e starts the API; check that nothing is left listening on 4000, 5190 and 5191 afterwards.
+
 ## The e2e database
 
 A frontend's e2e suite never uses the development database. With a database provider (the
@@ -723,8 +836,16 @@ the lockfiles is still to be configured.
   existing file invalid bumps it. v1.4.0 added optional fields (`answers.brand`, `onlyWhen`, the case
   fields for a server's flags, the `e2eDb` command, the provider's `e2e` URL); v1.4.1 adds the case
   field `brand`; v1.5.0 and v1.5.1 add none; v1.11.0 widens `onlyWhen` (a bare `server` key, an
-  object form) without a bump.
-- This release is `v1.17.0`, a minor with seven template majors: the architecture unit and the
+  object form) without a bump; v1.18.0 adds the manifest key `cdn`, the case field `sdk`, the
+  `onlyWhen` key `sdk` of a server or serverless manifest and the kind `sdk`, all optional.
+- This release is `v1.18.0`, a minor: the template kind `sdk` with `sdk/browser` 1.0.0, an
+  embeddable browser SDK, and the SDK namespace in `server/bun-express` 4.1.0,
+  `server/python-fastapi` 3.1.0 and `serverless/cloudflare` 3.1.0, each behind the `sdk`
+  selection, so a project without an SDK generates the tree it had
+  ([ADR 0020](docs/adr/0020-sdk-kind.md)); `schemaVersion` 1 (the optional fields named above); a
+  tool change (`generate --sdk`, the reserved `sdk` selection, the `__SDK_*__` placeholders, the
+  `cdn` key, `onlyWhen` for `sdk`, and an sdk case installing Chromium, Firefox and WebKit).
+  Before it, `v1.17.0`, a minor with seven template majors: the architecture unit and the
   sample are named `entity`, and a library facade lives in `services/`
   ([ADR 0018](docs/adr/0018-entity-term-and-service-facades.md)): `server/bun-express` 4.0.0,
   `server/python-fastapi` 3.0.0, `serverless/cloudflare` 3.0.0, `frontend/react` 7.0.0,

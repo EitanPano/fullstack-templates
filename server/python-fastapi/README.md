@@ -58,7 +58,10 @@ dev dependency; the image never uses it.
 
 When the plan holds an `sdk` package ([ADR 0020](../../docs/adr/0020-sdk-kind.md); generate with
 `--sdk <dir>=<template>`), the server also serves it. Without one none of this exists in the
-generated package. It behaves as in `server/bun-express`.
+generated package. It behaves as in `server/bun-express`, except where Starlette routes differently:
+a case variant of a path (`/API/SDK/V1/config`) is the 404 envelope, never gated, and an encoded
+slash in the prefix (`/api/sdk/v1%2Fconfig`) reaches the config route and is gated like the plain
+path. The two file routes match the raw path before they touch the disk.
 
 - `/api/sdk/v1/`: the public, cross-origin namespace, `api/sdk/<entity>/`. One gate runs first:
   CORS for the namespace alone (the origin is echoed when the key lists it; never credentials),

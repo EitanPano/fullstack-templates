@@ -8,7 +8,7 @@ and no account is needed. The shape is [ADR 0014](../../docs/adr/0014-astro-clou
 alone (`--template serverless/cloudflare`, in `serverless/cloudflare/`) or as the API of a stack with
 a frontend; it is then the plan's server for everything the frontend keys on.
 
-This version (2.0.0) has no accounts (every endpoint is public) and no `auth` flag.
+This template has no accounts (every endpoint is public) and no `auth` flag.
 
 ## Layout
 

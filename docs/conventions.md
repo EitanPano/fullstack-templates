@@ -26,6 +26,40 @@ language-neutral core.
   and applies the one gate first, the same in every environment: the role gate with accounts,
   a refusal of every request (403) without, until the product writes its own. No admin entity
   ships.
+- SDK namespace ([ADR 0020](adr/0020-sdk-kind.md) N1 to N5), only with the `sdk` selection (the
+  plan holds an SDK package, see **SDK** below; without one none of it is generated): every
+  endpoint an SDK calls is under `/api/sdk/v1/` and lives in `api/sdk/<entity>/`, an entity like
+  any other. The namespace's `routes` mounts at `/api/sdk/v1` and applies one gate first, the same
+  in every environment, in this order:
+  1. CORS for the namespace alone: the request's origin is echoed only when its key lists it,
+     with `Vary: Origin`; never `Access-Control-Allow-Credentials`; `x-sdk-key` and `content-type`
+     allowed, `Access-Control-Max-Age: 600`. A preflight carries no key, so it is answered for an
+     origin any key lists. `CORS_ORIGINS` and the rest of the API are untouched.
+  2. The publishable key in the `X-Sdk-Key` header, resolved to the origins it may be used from
+     (403 for no key, an unknown key and an origin the key does not list). It identifies an
+     integration and is not a secret.
+  3. A rate limit by key and `by_ip` (`sdkPerKey` 3000 and `sdkPerIp` 120 a minute at
+     `RATE_LIMIT_SCALE` 1; 429).
+
+  A same-origin request (the SDK's frame calls the API from the API's own origin) needs a valid
+  key only and gets no CORS header; it is one with no `Origin`, or `Sec-Fetch-Site: same-origin`,
+  or an `Origin` whose host equals the request's `Host`. No cookie is read. Within `v1` the
+  namespace only adds (an endpoint, an optional request field, a response field); a removal or a
+  change is a `v2` beside it. Errors, the request id and the log line are the server's own.
+  - `GET /api/sdk/v1/config` answers `{ enabled }` from `SDK_ENABLED` (default `true`): the kill
+    switch, the one entity that ships.
+  - Two routes outside the gate, outside the OpenAPI document and not JSON, from the directory
+    `SDK_DIR` names (unset, both answer the 404 envelope; a missing file never answers a
+    frontend's page; the Worker takes the build in `assemble`, see **Serverless**): `GET|HEAD /api/sdk/dist/v<major>/<file>` serves only a name matching
+    `^v[0-9]+/[A-Za-z0-9._-]+\.js$` (never `frame.html`) with `Cache-Control: public,
+    max-age=300`, `Cross-Origin-Resource-Policy: cross-origin`, `Access-Control-Allow-Origin: *`
+    and `X-Content-Type-Options: nosniff`; and `GET /api/sdk/frame/v<major>?k=<key>` answers
+    `v<major>/frame.html` with `Cache-Control: no-store` and one `Content-Security-Policy`:
+    `default-src 'none'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action
+    'none'; frame-ancestors <the key's origins, or 'none'>`. No `X-Frame-Options`.
+  - `SDK_KEYS` holds the default resolver's pairs, `key=origin,origin` separated by `;`; unset or
+    empty refuses every request, and a malformed value stops the start naming the variable and
+    never a key. A product replaces the resolver with a lookup once it has an entity for keys.
 - Request flow: `config routes → entity routes → gates → controller handler → service →
   db seam → infra store`. The gates are what the framework runs before a handler (middleware
   in Express, dependencies in FastAPI): authentication, roles, rate limits. Validation comes
@@ -95,8 +129,16 @@ request and the agents file's five server headings.
   then), with the `frontend` and `frontends` selections (`@frontend` / `@nofrontend`,
   `@frontends`); a line that uses `__FRONTEND_PATH__` or `__FRONTEND_OUT__` with no frontend fails
   generation.
-- It may not declare `static`, `capabilities`, `onlyWhen`, `docker`, `withApp` or a brand case. It
-  declares `start` (a frontend's e2e runs `e2eDb && start` in its directory).
+- It may not declare `static`, `capabilities`, `onlyWhen` (but the one key `sdk`), `docker`,
+  `withApp` or a brand case. It declares `start` (a frontend's e2e runs `e2eDb && start` in its
+  directory).
+- With an SDK package in the plan it ships the namespace of **Server** above, with these
+  differences: `assemble` copies the SDK's build into `dist/api/sdk/` (`SDK_DIR` in its
+  environment names another build; the frame document is stored without its `.html` name), and the
+  Worker fetches it through `ASSETS` and builds the response from the body alone, so a `_headers`
+  rule never reaches a served file. `SDK_KEYS` and `SDK_ENABLED` are bindings, set in `vars` per
+  environment, and a malformed `SDK_KEYS` fails each request, naming the variable. A method the
+  config path lacks answers 405 with `Allow`.
 - Command rows that differ: `start` serves the assembled sites and the API once on the
   manifest's port; `testDb` is the API project in the runtime; `migrate` and `e2eDb` act on the
   platform's local database and its separate e2e state, with no service to start.
@@ -236,6 +278,99 @@ template's `AGENTS.md` holds its layer map). The rationale is in
 - The Dockerfile has two targets: `dist` (the built files only, at `/dist`) and the default
   `serve` (the `split` static server).
 
+**SDK** ([ADR 0020](adr/0020-sdk-kind.md))
+
+A library other sites load into their own pages: from a `<script>` tag or from npm. It asks the
+API for content, draws it and reports what happened. It is a package of kind `sdk`, in
+`sdk/<id>/`, and a plan holds at most one, added with `generate --sdk <dir>=<template>` beside a
+`--stack` (an SDK has no API to call without one). The generator accepts any valid directory; the
+harness holds a new project's to `sdk-<name>`, `<name>` a kebab-case term of the glossary.
+
+- **Not a frontend.** None of the ten frontend invariants binds it, it has no brand case, and the
+  rule that a `server` package takes one frontend does not count it. It calls the API from
+  another origin, which is why invariant 2 (one origin, CORS off) does not apply to it.
+- **Manifest.** `kind: sdk`; `cdn: { out }`, the directory its CDN build writes and the API
+  package serves (required; never `static`); `contract: { consumes: "<server>/openapi.json" }`;
+  `http: { port, health }` for its playground; a `compose.yaml` that is a build-only service. It
+  may not declare `static`, `capabilities`, `onlyWhen`, `docker`, `withApp` or a brand case. No
+  stack lists it. The command vocabulary below applies without `build`.
+- **Layers.** `src/` holds `entries/` (the npm entry, the CDN loader, the frame's script), `core/`
+  (init, config, the module registry, the event bus, the error boundary, consent), `transport/`
+  (the one network door), `contract/` (generated types, committed, never edited), `protocol/` (the
+  messages between loader and frame, with their version), `ui/` (the renderer interface and the
+  frame renderer's host half), `frame/` (what runs inside the frame) and `modules/<name>/` (one
+  feature each, a host half and a frame half; none ships). Imports go `entries → modules → core |
+  transport | contract | protocol | ui | frame`. The host half never imports `frame/`, the frame
+  half never imports `ui/`, `transport/` or `core/`, both import `protocol/`, and a module never
+  imports another module: they meet through the registry and the bus. The template's `AGENTS.md`
+  holds the rules with the lint that enforces them, and a boundaries test lints one violation and
+  one allowed case per rule.
+- **Contract.** Types only, for the operations under `/api/sdk/` only: no generated client, no
+  `zod` schemas. `contract` refuses a server whose document has no `/api/sdk/` path and restores
+  the committed types if the output names any other path.
+- **Shipping.** `cdn.out` holds one folder per major of the package's own version:
+  `v<major>/loader.js` (the IIFE loader), `v<major>/frame.js` and `v<major>/frame.html`. A
+  Dockerfile with a `build` stage and a `dist` target (`FROM scratch`, the build at `/sdk`), and a
+  Compose fragment with `build: { context, target: dist }` and `scale: 0`, the same in both deploy
+  modes: the API package's image (or its `assemble`) reads it. No port, image or deploy mode of
+  its own in production.
+
+What every SDK template satisfies. These twelve invariants are numbered so the harness can cite
+them; the rationale and the browser evidence are in ADR 0020.
+
+1. **Three outputs, one source.** The npm entry (ESM, CJS and types, `sideEffects: false`,
+   importable where there is no `window`, where `init` does nothing), the CDN loader (one IIFE,
+   one global) and the frame's script and document. Gate: `publint` and are-the-types-wrong on the
+   packed tarball, and three consumers (ESM, CJS, no DOM) installed from it.
+2. **Good guest.** No runtime dependency; one global; no public call throws into the host (every
+   entry point runs in the error boundary); `init` twice is one instance; the SDK adds a container
+   and an iframe to the host page and no style, markup or listener beyond them. Gate: the e2e loads
+   the built loader into a host fixture on another site than the API, under `default-src 'none'`
+   with only the API's origin added to `script-src`, `connect-src` and `frame-src`, and asserts no
+   policy violation, no uncaught error, no unhandled rejection and one new property on `window`.
+3. **A frame only where it may be.** The frame document is served with `frame-ancestors` naming
+   the origins of the request's key and nothing else may frame it; the iframe carries
+   `sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"`, never
+   a token that allows top navigation. A refused frame fires `load` and throws nothing, so the
+   loader opens a handshake and, with no answer in time, collapses its container and reports
+   nothing; `load` and `error` are never read as signals. Gate: the e2e frames the document from a
+   listed origin (the handshake completes) and from an unlisted one (the container collapses,
+   nothing is thrown), and asserts the page can read nothing of the frame.
+4. **Seen is the frame's word.** The visibility meter runs in the frame, and nothing that proves
+   a view crosses the channel. A view event names the checks that ran (`occlusion: checked |
+   unavailable`); the server decides what a view from an engine without the check is worth.
+   Gate: the e2e hides the frame each way ADR 0020 F4 lists and asserts no view where the engine
+   can tell; unit tests of the rule.
+5. **Size budget.** A number per output in the package (`package.json › sdk.sizeBudget`); `check`
+   fails over it.
+6. **One network door on each side.** Only `transport/` calls `fetch` on the host side and only
+   the frame's sender inside the frame, each with a timeout, `credentials: 'omit'`, the key header
+   and the default cache mode (`no-store` defeats the preflight cache). Gate: a lint zone.
+7. **Untrusted strings.** Text from the server or the host reaches the DOM as text nodes and a
+   link is https; no `innerHTML`, `outerHTML`, `insertAdjacentHTML` or `document.write`, on either
+   side. Gate: lint and unit tests.
+8. **Consent first.** Nothing is sent as telemetry until the consent state allows it.
+9. **Telemetry that arrives.** A buffer drained once, on `visibilitychange` to hidden and on
+   `pagehide`, sent as JSON with `keepalive`; the frame sends its own. Never `sendBeacon` with a
+   JSON body.
+10. **Kill switch.** `init` reads `GET /api/sdk/v1/config`; `enabled: false`, a failed read and a
+    slow read each leave the page untouched, with no frame created.
+11. **The public surface is a contract, and so is the channel.** A committed API report
+    (`etc/sdk.api.txt`); `check` fails when the surface and the report differ. The CDN global and
+    the npm entry expose the same surface. `protocol/` only adds within a major: the loader's major
+    is in the frame's address, and a loader installed long ago meets a frame served today.
+12. **The agents file.** The headings `Adding a feature`, `Public API`, `Errors`, `Tests` and
+    `Deployment`, matched exactly (`validate` checks them): a feature is a module; the layer map
+    and the import rules with the lint that enforces them; under `Deployment`, what an integrator
+    adds to their policy (`script-src`, `connect-src` and `frame-src` gain the API's origin,
+    nothing for styles), the release steps and the recipes for old builds and for what the
+    server adds. No step in the file tells a task to edit it
+    ([ADR 0019](adr/0019-package-docs.md)).
+
+Gates: `check` runs typecheck, lint, format, unit tests, the build, the size budget, the API
+report and the tarball lint and consumers, with no Docker and no browser; `testE2e` runs the
+browser suite in Chromium, Firefox and WebKit against a fresh API package and two host servers.
+
 **Deploy modes**
 
 How a project with a server and a frontend ships. A plan whose API is `serverless` has no deploy mode and no Compose file. Chosen at generation with `--deploy`, recorded
@@ -268,7 +403,9 @@ alternatives: ADR 0003 (M5-4 to M5-7).
   count of whatever sits in front; each template's `AGENTS.md › Deployment` says how.
 - **Compose floor.** `single` needs Docker Compose 2.35.0 or later: the server's build reads the
   SPA's build through `additional_contexts: { spa: "service:<frontend dir>" }`. Older clients fail
-  with a message that does not name the cause. `split` has no such floor.
+  with a message that does not name the cause. `split` has no such floor, except in a project with
+  an SDK: its server's build reads the SDK's through `additional_contexts: { sdk: "service:<sdk
+  dir>" }` in both modes.
 - **`docker compose down`** needs `--profile app` (or `COMPOSE_PROFILES=app`) to stop the
   application services, which carry that profile; without it they keep running.
 - **Provenance** records the mode generated. `.doc/architecture.md › Deployment` in the project
@@ -298,8 +435,13 @@ language's own invocation. Only `check` is required.
 | `format` | Rewrite files to the project's formatting. |
 | `test` | Unit tests that need no infrastructure. |
 | `testDb` | Tests that need a database; added by a database capability overlay, or declared by a serverless template. |
-| `testE2e` | End-to-end tests with the accessibility scan; may start dev servers. |
+| `testE2e` | End-to-end tests with the accessibility scan; may start dev servers. An SDK's run in Chromium, Firefox and WebKit. |
 | `start` | Run the server once, with no file watcher; a frontend's e2e starts the API with it. A serverless template also serves the frontend's build. |
-| `contract` | Server: write the OpenAPI document. Frontend: regenerate the typed client from it; exists only with a server. |
+| `contract` | Server: write the OpenAPI document. Frontend: regenerate the typed client from it; exists only with a server. SDK: regenerate the types of the `/api/sdk/` operations; refuses a server without them. |
 | `migrate` | Apply schema migrations; added by a database capability overlay, or declared by a serverless template. |
 | `e2eDb` | Prepare the e2e database (create if missing, migrate, truncate; refuses a name not ending in `_e2e`); added by a database capability overlay. A serverless template rebuilds its separate e2e state folder. |
+
+`build` is not in the vocabulary: no tool or agent calls it. An SDK's build is its package script
+`build`, which `check`, the Dockerfile's `build` stage and the `dist` target call; the API package
+gets the output through the build-only Compose service (its image) or by `assemble` (the Worker),
+never by a command of its own.

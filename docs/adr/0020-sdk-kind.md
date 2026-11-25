@@ -163,6 +163,9 @@ S2, per hiding trick, on that rule:
   the server decides what a view from an engine without the check is worth. The template ships
   the meter and the field; the weighing is the product's.
 - Not tested: Safari itself, a mobile engine, a tab in the background, a partial opacity.
+- 2026-11-25, the template's e2e (Playwright 1.65.0, Chromium, Firefox and WebKit): Firefox did not
+  count `display: none`, where S2 had counted it. The suite asserts what it observes in each
+  engine, so the spec says "not counted" there. The other rows matched the table.
 
 ### F5. Size and look
 

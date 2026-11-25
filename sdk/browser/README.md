@@ -6,8 +6,10 @@ draws units in a sandboxed iframe from the API's origin and reports `rendered`, 
 and `error` to the host page. No runtime dependency; no module ships (a feature is added with the
 recipe in the package's `AGENTS.md › Adding a feature`).
 
-Generated with `--sdk <dir>=sdk/browser` beside any stack's API package. The package is not a
-frontend: no static build, no brand, no screens.
+Generated with `--sdk <dir>=sdk/browser` beside any stack's API package; the harness names the
+directory `sdk-<name>`. The package is not a frontend: no static build, no brand, no screens. Its
+playground port is 5190 and the global its CDN loader sets is the directory's last segment in
+PascalCase with `sdk-` dropped (`sdk-ads` gives `Ads`).
 
 ## Layout
 
@@ -16,7 +18,9 @@ frontend: no static build, no brand, no screens.
   `protocol`, `ui`, `frame`, `modules`), `tests/` (unit, e2e specs and host pages, consumers, a fixture module), `scripts/`
   (size, API report, pack lint, consumers, playground), `playground/`, `Dockerfile`, `bun.lock`,
   the committed `src/contract/` and `etc/sdk.api.txt`.
-- `base/Dockerfile`: the `dist` target holds `dist/cdn` at `/sdk` for the server's image.
+- `base/Dockerfile`: the `dist` target holds `dist/cdn` at `/sdk` for the server's image: one folder
+  per major, `v<major>/loader.js`, `frame.js` and `frame.html`, which the API package serves under
+  `/api/sdk/`.
 - `compose.yaml`: a build-only service (the server's `additional_contexts` reads it).
 - `tests/cases.yaml`: the generated variants the catalog gates.
 - `CHANGELOG.md`: version history.

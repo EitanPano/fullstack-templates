@@ -127,8 +127,14 @@ A frontend generated alone has every `server:*` selection off, and a server temp
   Parentheses are allowed in a path (a route group); `..`, `(..)`, `(...)`, absolute and backslash
   paths fail validation. They are removed after the flags' `onlyPaths` and before the marker
   pass. `validate` fails on a key that is not `server:<name>` of a declared flag or kind, on `onlyWhen` in a server
-  template, and on a path missing from `base/`; its dry run applies every combination of the
-  `server:*` selections (never one on without a server).
+  template other than its one key `sdk`, and on a path missing from `base/`; its dry run applies
+  every combination of the `server:*` selections (never one on without a server).
+- The reverse direction is one reserved selection: `sdk`, true in every package of a plan that holds
+  an `sdk` package ([ADR 0020](adr/0020-sdk-kind.md) K3). A `server` or `serverless` template keeps
+  the files of its SDK namespace under `onlyWhen: { sdk: [paths] }` (or the object form) and marks
+  the lines it shares with `@sdk` and `@nosdk`, so a project without an SDK generates the tree it
+  had before. A manifest cannot declare a flag named `sdk`; `validate` dry-runs it on and off
+  for every server, serverless and sdk template. An `sdk` template has no capability and no `onlyWhen`.
 - A frontend case sets the server's side with `server: { flags: { auth: false }, capabilities:
   { database: postgres } }`; the flags and capabilities must be declared by the stack's server
   template, and the case needs a `stack`.
@@ -176,6 +182,9 @@ Every template's `tests/cases.yaml` covers each flag alone, each capability alon
 capability with every flag off. For `bun-express` and `python-fastapi` that is `default`,
 `auth-off`, `postgres` and `auth-off-postgres`, plus the stack cases. `validate` fails a listed
 provider that lacks the case alone at the default flags or the case with every flag off. The README matrix lists only tested combinations.
+A stack case of a server or serverless template that holds an SDK sets `sdk: "<dir>=<template>"`
+(the `sdk` case of each API template); an `sdk` template's own case names the `stack` its API comes
+from, and the runner adds the template itself at `sdk-<id>`.
 
 `bun tools/test-generated.ts --with-services` runs the provider-backed steps. For a case with
 providers it starts their services (`docker compose up -d --wait`), then runs per package
