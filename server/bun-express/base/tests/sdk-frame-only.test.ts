@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test'
 import express, { Router } from 'express'
 import request from 'supertest'
 
@@ -6,6 +6,7 @@ import { env } from '../src/config/env'
 import { errorHandler } from '../src/middleware/error-handler'
 import { requestId } from '../src/middleware/request-id'
 import { endPreflight, frameOnly, sdkGate } from '../src/middleware/sdk-gate'
+import * as cache from '../src/services/cache'
 import { resetStore } from './store'
 
 const KEY = 'pk_test_a'
@@ -104,6 +105,21 @@ describe('frameOnly', () => {
     const res = await request(app).get(PATH).set('Sec-Fetch-Site', 'same-origin')
 
     expect(res.status).toBe(403)
+  })
+
+  it('answers a rate-limited request of a listed origin on a frame-only route with no allow header', async () => {
+    const incr = spyOn(cache, 'incr').mockImplementation(() =>
+      Promise.resolve(Number.MAX_SAFE_INTEGER),
+    )
+
+    try {
+      const res = await request(app).post(SUB_PATH).set('Origin', A).set('X-Sdk-Key', KEY)
+
+      expect(res.status).toBe(429)
+      expect(res.header['access-control-allow-origin']).toBeUndefined()
+    } finally {
+      incr.mockRestore()
+    }
   })
 
   it('still answers a preflight for a route that is not frame-only', async () => {
