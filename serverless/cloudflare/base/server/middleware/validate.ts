@@ -55,5 +55,6 @@ export function readInput<S extends Schemas>(ctx: Context, _schemas: S): Validat
 async function read(ctx: Context, part: RequestPart): Promise<unknown> {
   if (part === 'query') return Object.fromEntries(ctx.url.searchParams)
   if (part === 'params') return ctx.params
-  return readJsonBody(ctx.request)
+  return readJsonBody(ctx.request) // @nosdk
+  return readJsonBody(ctx.request, ctx.maxBodyBytes) // @sdk
 }

@@ -7,17 +7,27 @@
 import { Hono, type Context as HonoContext, type ErrorHandler, type MiddlewareHandler } from 'hono'
 import { matchedRoutes } from 'hono/route' // @sdk
 
+import { MAX_BODY_BYTES, SDK_MAX_BODY_BYTES } from '../config/constants' // @sdk
 import { getConfig, type Config } from '../config/env'
 import type { Bindings } from '../infra/bindings'
 import { createDb, type Db } from '../infra/db'
 import { createLogger, type Logger } from '../services/logger'
+import type { SdkKey } from '../services/security/sdk-keys' // @sdk
 import { AppError } from '../services/utils/error'
 import { errorResponse } from './error-handler'
 import { resolveRequestId } from './request-id'
 import { logRequest } from './request-log'
 
 // The app's Hono types: the platform's bindings and the one value the root middleware sets.
+// @nosdk-start
 export type AppEnv = { Bindings: Bindings; Variables: { requestId?: string } }
+// @nosdk-end
+// @sdk-start
+export type AppEnv = {
+  Bindings: Bindings
+  Variables: { requestId?: string; sdkKey?: SdkKey }
+}
+// @sdk-end
 
 // What every gate and controller receives, one object per request. A gate fills a slot it owns
 // (validate sets `input`); nothing else is mutable.
@@ -37,6 +47,11 @@ export type Context = {
   // @sdk-start
   // The handlers Hono matched for this request: the namespace gate looks for `frameOnly` among them.
   handlers: readonly unknown[]
+  // The record of the request's key, set once by the namespace's key gate and shared by every
+  // context of the request; undefined until the key has been admitted.
+  sdkKey: SdkKey | undefined
+  // What a JSON body may weigh: the namespace's cap under /api/sdk/, else MAX_BODY_BYTES.
+  maxBodyBytes: number
   // @sdk-end
 }
 
@@ -66,7 +81,18 @@ function contextOf(c: HonoContext<AppEnv>): Context {
     waitUntil: (promise) => {
       c.executionCtx.waitUntil(promise)
     },
-    handlers: matchedRoutes(c).map((route) => route.handler), // @sdk
+    // @sdk-start
+    handlers: matchedRoutes(c).map((route) => route.handler),
+    get sdkKey() {
+      return c.get('sdkKey')
+    },
+    set sdkKey(record) {
+      c.set('sdkKey', record)
+    },
+    maxBodyBytes: new URL(c.req.url).pathname.startsWith('/api/sdk/')
+      ? SDK_MAX_BODY_BYTES
+      : MAX_BODY_BYTES,
+    // @sdk-end
   }
 }
 
@@ -99,15 +125,15 @@ export function guard(...gates: Gate[]): MiddlewareHandler<AppEnv> {
 
 // @sdk-start
 // `guard` for a namespace that also writes headers on every answer (the SDK's CORS): `decorate`
-// reads the request alone and returns the headers; they are set on the gates' answer, a refusal or
-// the router's, so a 403 and a 429 carry them like a 200.
+// returns them once the gates have run, so it sees what a gate stored on the context (the key's
+// record); they are set on the gates' answer, a refusal or the router's, so a 403 and a 429 carry
+// them like a 200. A gate that throws before it stored anything leaves the fixed headers alone.
 export function namespaceGuard(
   decorate: (ctx: Context) => Record<string, string>,
   ...gates: Gate[]
 ): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
     const ctx = contextOf(c)
-    const headers = decorate(ctx)
     let answer: Response | undefined
     try {
       for (const gate of gates) {
@@ -124,7 +150,7 @@ export function namespaceGuard(
       await next()
       answer = c.res
     }
-    c.res = withHeaders(answer, headers)
+    c.res = withHeaders(answer, decorate(ctx))
   }
 }
 

@@ -10,4 +10,6 @@ Project __PROJECT_NAME__, global __SDK_GLOBAL__.
 
 ## Tests
 
+## Styling
+
 ## Deployment

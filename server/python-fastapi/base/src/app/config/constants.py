@@ -15,6 +15,10 @@ VERSION: Final = version("app")
 
 # A request body is JSON only and capped; oversize becomes a 413 envelope in the body limit.
 MAX_BODY_BYTES: Final = 1024 * 1024
+# @sdk-start
+# A body under /api/sdk/v1 is smaller still: the frame sends events, not documents.
+SDK_MAX_BODY_BYTES: Final = 64 * 1024
+# @sdk-end
 
 
 # @auth-start

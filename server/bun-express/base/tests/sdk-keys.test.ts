@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import { env, loadEnv } from '../src/config/env'
-import { isListedOrigin, originsForKey } from '../src/services/security/sdk-keys'
+import { isListedOrigin, resolveKey } from '../src/services/security/sdk-keys'
 
 const A = 'https://a.example.test'
 const B = 'https://b.example.test'
@@ -77,7 +77,11 @@ describe('SDK_KEYS parsing', () => {
   })
 
   it('refuses a loopback origin in production', () => {
-    for (const origin of ['https://localhost:5190', 'https://127.0.0.1', 'https://127.1.2.3:8443']) {
+    for (const origin of [
+      'https://localhost:5190',
+      'https://127.0.0.1',
+      'https://127.1.2.3:8443',
+    ]) {
       const attempt = () => loadEnv({ ...PRODUCTION, SDK_KEYS: `pk_a=${A};pk_probe=${origin}` })
 
       expect(attempt).toThrow(/SDK_KEYS: pair 2/)
@@ -92,6 +96,27 @@ describe('SDK_KEYS parsing', () => {
       expect(loadEnv({ NODE_ENV, SDK_KEYS: text }).env.SDK_KEYS?.get('pk_a')).toHaveLength(3)
     }
     expect(loadEnv({ ...PRODUCTION, SDK_KEYS: `pk_a=${A}` }).env.SDK_KEYS?.get('pk_a')).toEqual([A])
+  })
+
+  it('reads SDK_IMG_ORIGINS as a list, empty when blank or unset', () => {
+    expect(loadEnv({}).env.SDK_IMG_ORIGINS).toEqual([])
+    expect(loadEnv({ SDK_IMG_ORIGINS: '  ' }).env.SDK_IMG_ORIGINS).toEqual([])
+    expect(loadEnv({ SDK_IMG_ORIGINS: `${A}, ${B}` }).env.SDK_IMG_ORIGINS).toEqual([A, B])
+  })
+
+  it('refuses a malformed SDK_IMG_ORIGINS, naming the variable', () => {
+    for (const text of ['*', `${A}/path`, 'https://A.example.test', `${A},`, `${A} img-src *`]) {
+      expect(() => loadEnv({ SDK_IMG_ORIGINS: text })).toThrow(/SDK_IMG_ORIGINS/)
+    }
+  })
+
+  it('refuses an http or loopback image origin in production only', () => {
+    for (const origin of ['http://a.example.test', 'https://localhost', 'https://127.0.0.1:8443']) {
+      expect(() => loadEnv({ ...PRODUCTION, SDK_IMG_ORIGINS: origin })).toThrow(/SDK_IMG_ORIGINS/)
+      const parsed = loadEnv({ NODE_ENV: 'development', SDK_IMG_ORIGINS: origin })
+      expect(parsed.env.SDK_IMG_ORIGINS).toEqual([origin])
+    }
+    expect(loadEnv({ ...PRODUCTION, SDK_IMG_ORIGINS: A }).env.SDK_IMG_ORIGINS).toEqual([A])
   })
 
   it('treats a blank SDK_DIR as unset and resolves a set one to an absolute path', () => {
@@ -113,38 +138,38 @@ describe('the key resolver', () => {
     env.SDK_KEYS = original
   })
 
-  it('gives the origins of a known key and nothing for an unknown, empty or missing one', () => {
+  it('gives the record of a known key and nothing for an unknown, empty or missing one', async () => {
     env.SDK_KEYS = new Map([['pk_a', [A, B]]])
 
-    expect(originsForKey('pk_a')).toEqual([A, B])
-    expect(originsForKey('pk_other')).toBeUndefined()
-    expect(originsForKey('')).toBeUndefined()
-    expect(originsForKey(undefined)).toBeUndefined()
+    expect(await resolveKey('pk_a')).toEqual({ origins: [A, B], enabled: true })
+    expect(await resolveKey('pk_other')).toBeUndefined()
+    expect(await resolveKey('')).toBeUndefined()
+    expect(await resolveKey(undefined)).toBeUndefined()
   })
 
-  it('does not resolve an inherited object property as a key', () => {
+  it('does not resolve an inherited object property as a key', async () => {
     env.SDK_KEYS = new Map([['pk_a', [A]]])
 
-    expect(originsForKey('__proto__')).toBeUndefined()
-    expect(originsForKey('constructor')).toBeUndefined()
+    expect(await resolveKey('__proto__')).toBeUndefined()
+    expect(await resolveKey('constructor')).toBeUndefined()
   })
 
-  it('knows no key and no origin while SDK_KEYS is unset', () => {
+  it('knows no key and no origin while SDK_KEYS is unset', async () => {
     env.SDK_KEYS = undefined
 
-    expect(originsForKey('pk_a')).toBeUndefined()
-    expect(isListedOrigin(A)).toBe(false)
+    expect(await resolveKey('pk_a')).toBeUndefined()
+    expect(await isListedOrigin(A)).toBe(false)
   })
 
-  it('lists an origin when any key lists it', () => {
+  it('lists an origin when any key lists it', async () => {
     env.SDK_KEYS = new Map([
       ['pk_a', [A]],
       ['pk_b', [B]],
     ])
 
-    expect(isListedOrigin(A)).toBe(true)
-    expect(isListedOrigin(B)).toBe(true)
-    expect(isListedOrigin('https://c.example.test')).toBe(false)
-    expect(isListedOrigin(undefined)).toBe(false)
+    expect(await isListedOrigin(A)).toBe(true)
+    expect(await isListedOrigin(B)).toBe(true)
+    expect(await isListedOrigin('https://c.example.test')).toBe(false)
+    expect(await isListedOrigin(undefined)).toBe(false)
   })
 })

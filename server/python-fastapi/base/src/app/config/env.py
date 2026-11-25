@@ -75,6 +75,7 @@ _BLANK_IS_UNSET: Final = (
     "SDK_KEYS",  # @sdk
     "SDK_ENABLED",  # @sdk
     "SDK_DIR",  # @sdk
+    "SDK_IMG_ORIGINS",  # @sdk
     "TRUST_PROXY",
 )
 # @auth-start
@@ -164,7 +165,7 @@ _SDK_ORIGIN: Final = re.compile(r"https?://[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::[
 _DEFAULT_PORT: Final = {"http": "80", "https": "443"}
 
 
-def _is_origin(value: str) -> bool:
+def is_origin(value: str) -> bool:
     if _SDK_ORIGIN.fullmatch(value) is None:
         return False
     parts = urlsplit(value)
@@ -202,10 +203,20 @@ def _parse_sdk_keys(value: object) -> object:
         if key in keys:
             raise ValueError(f"{at} repeats an earlier key")
         listed = tuple(origin.strip() for origin in origins.split(","))
-        if not all(_is_origin(origin) for origin in listed):
+        if not all(is_origin(origin) for origin in listed):
             raise ValueError(f"{at} has an origin that is not scheme://host[:port] in lower case")
         keys[key] = listed
     return keys
+
+
+def _parse_sdk_img_origins(value: object) -> object:
+    """`origin,origin`: where the frame may load pictures from. Blank is none."""
+    if not isinstance(value, str) or value.strip() == "":
+        return ()
+    listed = tuple(origin.strip() for origin in value.split(","))
+    if not all(is_origin(origin) for origin in listed):
+        raise ValueError("must be origins, scheme://host[:port] in lower case, separated by commas")
+    return listed
 
 
 def _is_weak_origin(origin: str) -> bool:
@@ -256,6 +267,8 @@ class Env(BaseModel):
     sdk_dir: Annotated[Path | None, BeforeValidator(_strip_text), AfterValidator(_resolve_dir)] = (
         None
     )
+    # Origins the frame may load pictures from (its `img-src`), beside its own; none by default.
+    sdk_img_origins: Annotated[tuple[str, ...], BeforeValidator(_parse_sdk_img_origins)] = ()
     # @sdk-end
     jwt_access_secret: Secret  # @auth
     jwt_refresh_secret: Secret  # @auth
@@ -342,6 +355,11 @@ def load_env(source: Mapping[str, str]) -> LoadedEnv:
                 f"invalid environment: SDK_KEYS: pair {index} has an http or loopback origin, "
                 "production takes https origins only"
             )
+    if production and any(_is_weak_origin(origin) for origin in parsed.sdk_img_origins):
+        raise EnvError(
+            "invalid environment: SDK_IMG_ORIGINS: has an http or loopback origin, "
+            "production takes https origins only"
+        )
     # @sdk-end
     return LoadedEnv(env=parsed, defaulted_secrets=defaulted)
 

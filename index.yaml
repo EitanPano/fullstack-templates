@@ -44,7 +44,7 @@ templates:
     kind: sdk
     path: sdk/browser
     version: 1.0.0
-    summary: "Embeddable browser SDK: a kernel with an error boundary, a kill switch and consent, one network door, units drawn in a sandboxed iframe from the API's origin, three outputs (npm ESM and CJS, a CDN loader, the frame) and size, API-report and tarball gates"
+    summary: "Embeddable browser SDK: units a host page mounts in place, by a call or by markup, or opens as a modal, each drawn in a sandboxed iframe from the API's origin with a stylesheet of its own; a kernel with an error boundary, a kill switch and consent; three outputs (npm ESM and CJS, a CDN loader, the frame) and size, API-report, tarball and screens gates"
 stacks:
   - id: angular-bun-express
     path: stacks/angular-bun-express

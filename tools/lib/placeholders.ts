@@ -61,13 +61,14 @@ export const SERVER_PLACEHOLDERS: readonly string[] = [
 ]
 
 // The tokens of an sdk package: the API package of a plan that holds one is given the first four,
-// the sdk package its global (ADR 0020 K3).
+// the sdk package its global and slot attribute (ADR 0020 K3, ADR 0021 U4).
 export const SDK_PLACEHOLDERS: readonly string[] = [
   'SDK_DIR',
   'SDK_PATH',
   'SDK_OUT',
   'SDK_PORT',
   'SDK_GLOBAL',
+  'SDK_SLOT',
 ]
 
 // The tokens the generator itself defines, beside the ones a template declares.
@@ -108,6 +109,15 @@ export function sdkGlobal(dir: string): string {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join('')
   return pascal.endsWith('Sdk') ? pascal : `${pascal}Sdk`
+}
+
+// The attribute a page marks a slot with: `data-` and the global's name in kebab case (`AdsSdk`
+// gives `data-ads-sdk`), so two SDKs on one page never read each other's markup.
+export function sdkSlot(dir: string): string {
+  const kebab = sdkGlobal(dir)
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .toLowerCase()
+  return `data-${kebab}`
 }
 
 // The reason a directory cannot name the sdk's global, or null: the name after `sdk-` must start

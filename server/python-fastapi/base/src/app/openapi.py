@@ -45,6 +45,7 @@ COMPONENTS: Final = frozenset(
         "CreateEntityBody",
         "UpdateEntityBody",
         "SdkConfig",  # @sdk
+        "SdkTelemetryBody",  # @sdk
         "AuthSession",  # @auth
         "PublicUser",  # @auth
         "AuthTokens",  # @auth

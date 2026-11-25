@@ -1,3 +1,5 @@
+import { own } from './own'
+
 // The theme travels in the frame's address (first paint) and again over the channel. The frame
 // writes it into the document through the CSSOM, so a value is checked here against a short
 // pattern: nothing the host passes can add a rule or close a declaration.
@@ -18,9 +20,10 @@ const PATTERN = { text: COLOR, accent: COLOR, radius: RADIUS, font: FONT } as co
 
 export function parseTheme(data: Record<string, unknown>): Theme {
   const theme: Theme = {}
-  if (data.scheme === 'light' || data.scheme === 'dark') theme.scheme = data.scheme
+  const scheme = own(data, 'scheme')
+  if (scheme === 'light' || scheme === 'dark') theme.scheme = scheme
   for (const key of KEYS) {
-    const value = data[key]
+    const value = own(data, key)
     if (typeof value === 'string' && PATTERN[key].test(value)) theme[key] = value
   }
   return theme
@@ -28,9 +31,10 @@ export function parseTheme(data: Record<string, unknown>): Theme {
 
 export function themeToParams(theme: Theme): URLSearchParams {
   const params = new URLSearchParams()
-  if (theme.scheme) params.set('scheme', theme.scheme)
+  const scheme = own(theme, 'scheme')
+  if (scheme) params.set('scheme', scheme)
   for (const key of KEYS) {
-    const value = theme[key]
+    const value = own(theme, key)
     if (value) params.set(key, value)
   }
   return params

@@ -12,6 +12,7 @@ import { memory } from '../src/infra/memory'
 import { errorHandler } from '../src/middleware/error-handler'
 import { requestId } from '../src/middleware/request-id'
 import * as cache from '../src/services/cache'
+import * as sdkKeys from '../src/services/security/sdk-keys'
 import { app, createApp } from '../src/server'
 
 const KEY = 'pk_test_a'
@@ -468,6 +469,7 @@ describe('the limits of /api/sdk/v1', () => {
 
   it('limits preflights by address', async () => {
     const { incr } = spyLimits()
+    const listed = spyOn(sdkKeys, 'isListedOrigin')
     const bare = gateApp()
     const pre = () =>
       request(bare)
@@ -479,8 +481,15 @@ describe('the limits of /api/sdk/v1', () => {
     try {
       expect((await pre()).status).toBe(204)
       expect((await pre()).status).toBe(204)
-      expectEnvelope(await pre(), 429, 'rate_limited')
+      const refused = await pre()
+
+      expectEnvelope(refused, 429, 'rate_limited')
+      expect(refused.header['access-control-allow-origin']).toBeUndefined()
+      expect(refused.header['access-control-allow-methods']).toBeUndefined()
+      expect(refused.header['access-control-max-age']).toBeUndefined()
+      expect(listed).toHaveBeenCalledTimes(2)
     } finally {
+      listed.mockRestore()
       incr.mockRestore()
     }
   })
@@ -509,6 +518,135 @@ describe('the answers of /api/sdk/v1', () => {
       expect(res.header['cache-control']).toBe('no-store')
       expect(res.header.vary).toContain('Origin')
       expect(res.header.vary).toContain('X-Sdk-Key')
+    }
+  })
+})
+
+describe('a key the resolver reports disabled, and a lookup that fails', () => {
+  it('answers { enabled: false } on config to a listed origin, with the allow header', async () => {
+    const resolve = spyOn(sdkKeys, 'resolveKey').mockResolvedValue({ origins: [A], enabled: false })
+
+    try {
+      const res = await request(app).get(PATH).set('Origin', A).set('X-Sdk-Key', KEY)
+
+      expect(res.status).toBe(200)
+      expect(res.body).toEqual({ enabled: false })
+      expect(res.header['access-control-allow-origin']).toBe(A)
+    } finally {
+      resolve.mockRestore()
+    }
+  })
+
+  it('still refuses a disabled key from an origin it does not list', async () => {
+    const resolve = spyOn(sdkKeys, 'resolveKey').mockResolvedValue({ origins: [A], enabled: false })
+
+    try {
+      const res = await request(app).get(PATH).set('Origin', C).set('X-Sdk-Key', KEY)
+
+      expectEnvelope(res, 403, 'forbidden')
+    } finally {
+      resolve.mockRestore()
+    }
+  })
+
+  it('refuses a disabled key on every other endpoint of the namespace', async () => {
+    const resolve = spyOn(sdkKeys, 'resolveKey').mockResolvedValue({ origins: [A], enabled: false })
+
+    try {
+      const res = await request(app)
+        .get('/api/sdk/v1/nothing-here')
+        .set('Origin', A)
+        .set('X-Sdk-Key', KEY)
+
+      expectEnvelope(res, 403, 'forbidden')
+      expect(res.header['access-control-allow-origin']).toBeUndefined()
+    } finally {
+      resolve.mockRestore()
+    }
+  })
+
+  it('answers config for a disabled key to GET and HEAD on the exact path only', async () => {
+    const resolve = spyOn(sdkKeys, 'resolveKey').mockResolvedValue({ origins: [A], enabled: false })
+    const send = (method: 'post' | 'put' | 'get' | 'head', path: string) =>
+      request(app)[method](path).set('Origin', A).set('X-Sdk-Key', KEY)
+
+    try {
+      const head = await send('head', PATH)
+      const refused = [
+        await send('post', PATH),
+        await send('put', PATH),
+        await send('get', PATH + '/'),
+        await send('get', '/api/sdk/v1/Config'),
+      ]
+
+      expect(head.status).toBe(200)
+      for (const res of refused) {
+        expectEnvelope(res, 403, 'forbidden')
+        expect(res.header['access-control-allow-origin']).toBeUndefined()
+      }
+    } finally {
+      resolve.mockRestore()
+    }
+  })
+
+  it('answers { enabled: false } for an enabled key while SDK_ENABLED is false', async () => {
+    env.SDK_ENABLED = false
+
+    const res = await request(app).get(PATH).set('Origin', A).set('X-Sdk-Key', KEY)
+
+    expect(res.body).toEqual({ enabled: false })
+  })
+
+  it('answers the 500 envelope with no allow header when the lookup throws', async () => {
+    const resolve = spyOn(sdkKeys, 'resolveKey').mockRejectedValue(new Error('lookup down'))
+    const logged = spyOn(console, 'error').mockImplementation(() => undefined)
+
+    try {
+      const res = await request(app).get(PATH).set('Origin', A).set('X-Sdk-Key', KEY)
+      const same = await request(app)
+        .get(PATH)
+        .set('Sec-Fetch-Site', 'same-origin')
+        .set('X-Sdk-Key', KEY)
+
+      expectEnvelope(res, 500, 'internal')
+      expectEnvelope(same, 500, 'internal')
+      expect(res.header['access-control-allow-origin']).toBeUndefined()
+      expect(JSON.stringify(res.body)).not.toContain('lookup down')
+    } finally {
+      resolve.mockRestore()
+      logged.mockRestore()
+    }
+  })
+
+  it('answers a preflight whose origin lookup fails with the 500 envelope and no allow header', async () => {
+    const listed = spyOn(sdkKeys, 'isListedOrigin').mockRejectedValue(new Error('lookup down'))
+    const logged = spyOn(console, 'error').mockImplementation(() => undefined)
+
+    try {
+      const res = await request(app)
+        .options(PATH)
+        .set('Origin', A)
+        .set('Access-Control-Request-Method', 'GET')
+
+      expectEnvelope(res, 500, 'internal')
+      expect(res.header['access-control-allow-origin']).toBeUndefined()
+      expect(res.header['access-control-allow-methods']).toBeUndefined()
+      expect(JSON.stringify(res.body)).not.toContain('lookup down')
+    } finally {
+      listed.mockRestore()
+      logged.mockRestore()
+    }
+  })
+
+  it('resolves the key once per request', async () => {
+    const resolve = spyOn(sdkKeys, 'resolveKey')
+
+    try {
+      await request(app).get(PATH).set('Origin', A).set('X-Sdk-Key', KEY)
+
+      expect(resolve).toHaveBeenCalledTimes(1)
+    } finally {
+      resolve.mockRestore()
     }
   })
 })

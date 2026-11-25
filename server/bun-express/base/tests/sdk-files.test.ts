@@ -8,6 +8,7 @@ import { createApp } from '../src/server'
 import { isEnvelope404, listen, raw } from './sdk-http'
 
 const LOADER = '(()=>{window.__loader=1})()'
+const STYLE = 'body{margin:0}'
 const INDEX = '<!doctype html><title>spa</title>'
 const BASE = '/api/sdk/dist/v1'
 
@@ -27,6 +28,9 @@ beforeAll(async () => {
   writeFileSync(join(build, 'v1', 'loader.js'), LOADER)
   writeFileSync(join(build, 'v1', 'frame.js'), 'console.log("frame")')
   writeFileSync(join(build, 'v1', 'frame.html'), '<!doctype html><title>frame</title>')
+  writeFileSync(join(build, 'v1', 'frame.css'), STYLE)
+  writeFileSync(join(build, 'v1', 'frame.css.map'), '{}')
+  writeFileSync(join(build, 'v1', 'frame.CSS'), STYLE)
   writeFileSync(join(build, 'v1', 'notes.txt'), 'not a script')
   writeFileSync(join(build, 'v1', 'map.js.map'), '{}')
   writeFileSync(join(build, 'v2', 'loader.js'), 'two')
@@ -99,6 +103,43 @@ describe('GET and HEAD /api/sdk/dist/v<major>/<file>', () => {
     expect(res.headers['access-control-allow-origin']).toBe('*')
     expect(res.headers['x-content-type-options']).toBe('nosniff')
     expect(res.headers['content-type']).toMatch(/javascript/)
+  })
+
+  it('serves a stylesheet with its type, the same headers, a validator and 304', async () => {
+    const res = await raw(server, 'GET', `${BASE}/frame.css`)
+    const etag = res.headers.etag ?? ''
+    const again = await raw(server, 'GET', `${BASE}/frame.css`, { 'If-None-Match': etag })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toBe(STYLE)
+    expect(res.headers['content-type']).toBe('text/css; charset=utf-8')
+    expect(res.headers['cache-control']).toBe('public, max-age=300')
+    expect(res.headers['cross-origin-resource-policy']).toBe('cross-origin')
+    expect(res.headers['access-control-allow-origin']).toBe('*')
+    expect(res.headers['x-content-type-options']).toBe('nosniff')
+    expect(etag).toMatch(/^(W\/)?".+"$/)
+    expect(again.status).toBe(304)
+    expect(again.body).toBe('')
+  })
+
+  it('answers HEAD for a stylesheet with its headers and no body', async () => {
+    const res = await raw(server, 'HEAD', `${BASE}/frame.css`)
+
+    expect(res.status).toBe(200)
+    expect(res.body).toBe('')
+    expect(res.headers['content-type']).toBe('text/css; charset=utf-8')
+  })
+
+  it('serves a script as a script, as before', async () => {
+    const res = await raw(server, 'GET', `${BASE}/loader.js`)
+
+    expect(res.headers['content-type']).toBe('text/javascript; charset=utf-8')
+  })
+
+  it('answers the 404 envelope for a source map and an upper-case extension', async () => {
+    for (const path of [`${BASE}/frame.css.map`, `${BASE}/frame.CSS`]) {
+      expect(isEnvelope404(await raw(server, 'GET', path)), path).toBe(true)
+    }
   })
 
   it('serves another major from its own folder', async () => {

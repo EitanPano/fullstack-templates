@@ -1,20 +1,14 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import { API_ORIGIN, CONFIG_URL, LISTED_ORIGIN, SDK_KEY } from './hosts'
-import { loadSdk } from './support'
+import { fixtureBlock, loadSdk, mountUnit } from './support'
 
 // The frame's own call (`request` of the frame context): what a module uses to reach an entity the
-// server mounts for the frame alone. The fixture calls the path the page names on its element.
-const block = (page: Page) =>
-  page.frameLocator('[data-sdk-slot] iframe').locator('[data-fixture-block]')
-
-async function open(page: Page, ask: string) {
+// server mounts for the frame alone. The fixture holds its paths and the props pick one by name.
+async function open(page: Page, props: Record<string, unknown>) {
   await page.goto(`${LISTED_ORIGIN}/blank.html`)
-  await page.evaluate(
-    (path) => document.querySelector('[data-sdk-slot]')?.setAttribute('data-fixture-ask', path),
-    ask,
-  )
   await loadSdk(page)
+  await mountUnit(page, { props })
 }
 
 /** Every request a frame of the API's origin made to the API, as `METHOD path`. */
@@ -39,21 +33,21 @@ test.describe("the frame's own call", () => {
     const sent = page.waitForRequest(
       (request) => request.url() === CONFIG_URL && request.frame() !== page.mainFrame(),
     )
-    await open(page, '/api/sdk/v1/config')
+    await open(page, { call: 'config' })
 
     const request = await sent
     expect(request.method()).toBe('GET')
     expect(await request.headerValue('x-sdk-key')).toBe(SDK_KEY)
     expect((await request.response())?.status()).toBe(200)
-    await expect(block(page)).toHaveAttribute('data-fixture-answer', '{"enabled":true}')
+    await expect(fixtureBlock(page)).toHaveAttribute('data-fixture-answer', '{"enabled":true}')
     expect(calls).toContain('GET /api/sdk/v1/config')
   })
 
   test('refuses a path outside the namespace before any request', async ({ page }) => {
     const calls = frameCalls(page)
-    await open(page, '/api/health')
+    await open(page, { call: 'outside' })
 
-    await expect(block(page)).toHaveAttribute('data-fixture-answer', 'bad_path')
+    await expect(fixtureBlock(page)).toHaveAttribute('data-fixture-answer', 'bad_path')
     expect(calls.filter((call) => call.endsWith(' /api/health'))).toEqual([])
   })
 
@@ -63,9 +57,21 @@ test.describe("the frame's own call", () => {
       if (new URL(request.url()).hostname === 'elsewhere.example.test')
         elsewhere.push(request.url())
     })
-    await open(page, '@elsewhere.example.test/api/sdk/v1/config')
+    await open(page, { call: 'elsewhere' })
 
-    await expect(block(page)).toHaveAttribute('data-fixture-answer', 'bad_path')
+    await expect(fixtureBlock(page)).toHaveAttribute('data-fixture-answer', 'bad_path')
     expect(elsewhere).toEqual([])
+  })
+
+  test('never takes a path from a prop: the page cannot make the frame call an endpoint', async ({
+    page,
+  }) => {
+    const calls = frameCalls(page)
+    await open(page, { call: '/api/sdk/v1/config', ask: '/api/sdk/v1/config' })
+
+    await expect(fixtureBlock(page)).toBeVisible()
+    await page.waitForTimeout(300)
+    await expect(fixtureBlock(page)).not.toHaveAttribute('data-fixture-answer', /.*/)
+    expect(calls.filter((call) => call.endsWith('/config'))).toEqual([])
   })
 })

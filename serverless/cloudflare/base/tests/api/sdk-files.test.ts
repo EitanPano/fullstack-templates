@@ -1,7 +1,8 @@
-// GET and HEAD /api/sdk/dist/v<major>/<file>.js: the SDK's script files, outside the key gate. A
-// fake ASSETS stands for the platform's assets, so a test sees which path the Worker asked for and
-// can make the assets answer with headers a `_headers` rule would add. The real assets, and that
-// the frame document is nowhere else, are proved by tests/unit/sdk-start.test.ts.
+// GET and HEAD /api/sdk/dist/v<major>/<file>.js and .css: the SDK's script and style files, outside
+// the key gate. A fake ASSETS stands for the platform's assets, so a test sees which path the
+// Worker asked for and can make the assets answer with headers a `_headers` rule would add. The
+// real assets, and that the frame document is nowhere else, are proved by
+// tests/unit/sdk-start.test.ts.
 import { describe, expect, it } from 'vitest'
 
 import { json, served } from './helpers'
@@ -13,6 +14,7 @@ const BASE = '/api/sdk/dist/v1'
 // What the assemble step puts in the assets: the allow-listed scripts and the frame document.
 const FILES = {
   [`${BASE}/loader.js`]: LOADER,
+  [`${BASE}/frame.css`]: 'body{margin:0}',
   [`${BASE}/frame.js`]: 'console.log("frame")',
   '/api/sdk/dist/v2/loader.js': 'two',
   '/api/sdk/frame/v1': '<!doctype html><title>frame</title>',
@@ -124,6 +126,36 @@ describe('GET and HEAD /api/sdk/dist/v<major>/<file>', () => {
     expect(assets.seen.map((request) => request.method)).toEqual(['HEAD'])
   })
 
+  it('serves a stylesheet as text/css with the same headers, an ETag and a 304', async () => {
+    const extra = { etag: '"css1"' }
+    const first = await reach(`${BASE}/frame.css`, { extra }).res
+    const again = await reach(`${BASE}/frame.css`, {
+      extra,
+      headers: { 'If-None-Match': '"css1"' },
+    }).res
+
+    expect(first.status).toBe(200)
+    expect(await first.text()).toBe('body{margin:0}')
+    expect(first.headers.get('content-type')).toBe('text/css; charset=utf-8')
+    expect(first.headers.get('cache-control')).toBe('public, max-age=300')
+    expect(first.headers.get('cross-origin-resource-policy')).toBe('cross-origin')
+    expect(first.headers.get('access-control-allow-origin')).toBe('*')
+    expect(first.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(first.headers.get('etag')).toBe('"css1"')
+    expect(again.status).toBe(304)
+    expect(again.headers.get('content-type')).toBe('text/css; charset=utf-8')
+  })
+
+  it('answers HEAD for a stylesheet with the headers and no body', async () => {
+    const { assets, res: pending } = reach(`${BASE}/frame.css`, { method: 'HEAD' })
+    const res = await pending
+
+    expect(res.status).toBe(200)
+    expect(await res.text()).toBe('')
+    expect(res.headers.get('content-type')).toBe('text/css; charset=utf-8')
+    expect(assets.seen.map((request) => request.method)).toEqual(['HEAD'])
+  })
+
   it('serves another major from its own folder', async () => {
     const res = await reach('/api/sdk/dist/v2/loader.js').res
 
@@ -143,6 +175,8 @@ describe('GET and HEAD /api/sdk/dist/v<major>/<file>', () => {
     const attempts = [
       `${BASE}/notes.txt`,
       `${BASE}/map.js.map`,
+      `${BASE}/frame.css.map`,
+      `${BASE}/frame.CSS`,
       `${BASE}/loader.JS`,
       `${BASE}/loader.js/`,
       '/api/sdk/dist/loader.js',
@@ -214,7 +248,7 @@ describe('GET and HEAD /api/sdk/dist/v<major>/<file>', () => {
       expect(res.status, path).toBe(404)
       expect(
         paths(assets.seen).every((seen) =>
-          /^\/api\/sdk\/dist\/v[0-9]+\/[A-Za-z0-9._-]+\.js$/.test(seen),
+          /^\/api\/sdk\/dist\/v[0-9]+\/[A-Za-z0-9._-]+\.(js|css)$/.test(seen),
         ),
         path,
       ).toBe(true)

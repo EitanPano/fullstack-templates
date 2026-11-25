@@ -6,6 +6,7 @@ import { CatalogError, loadCatalog } from '../lib/catalog'
 import { listCases, requestFor } from '../lib/cases'
 import { dryRunMarkers } from '../lib/dry-run'
 import { generate } from '../lib/generate'
+import { sdkSlot } from '../lib/placeholders'
 import { PlanError, parseSdkArg, resolveRequest, type RequestInput } from '../lib/plan'
 import { runCase, type Options } from '../lib/run-case'
 import { FIXTURE, copyFixture, tempDir } from './helpers'
@@ -195,6 +196,18 @@ describe('the sdk placeholders', () => {
     const out = build({ stack: 'mini', sdks: sdk(dir) })
     expect(read(out, dir, 'src', 'index.ts')).toContain(`globalName = '${global}'`)
     expect(read(out, dir, 'AGENTS.md')).toContain(`global ${global}.`)
+  })
+
+  test.each([
+    ['sdk-ads', 'data-ads-sdk'],
+    ['sdk-two-words', 'data-two-words-sdk'],
+    ['sdk-browser', 'data-browser-sdk'],
+    ['sdk', 'data-sdk'],
+    ['ads-sdk', 'data-ads-sdk'],
+  ])('derive the slot attribute of %s as %s', (dir, slot) => {
+    expect(sdkSlot(dir)).toBe(slot)
+    const out = build({ stack: 'mini', sdks: sdk(dir) })
+    expect(read(out, dir, 'src', 'index.ts')).toContain(`slotAttribute = '${slot}'`)
   })
 })
 

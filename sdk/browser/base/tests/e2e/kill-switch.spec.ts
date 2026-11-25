@@ -1,10 +1,10 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
 
-import { CONFIG_URL, LISTED_ORIGIN, TELEMETRY_URL } from './hosts'
-import { hostEvents, loadSdk, settle } from './support'
+import { CONFIG_URL, LISTED_ORIGIN } from './hosts'
+import { hostEvents, loadSdk, mountUnit, settle, watchEvents } from './support'
 
-// V10: a kill switch, a failed read and a slow read each leave the page as it was, and nothing
-// is sent as telemetry before consent.
+// V10: a kill switch, a failed read and a slow read each leave the page as it was. A `mount` made
+// while the read is open waits, and reports `closed` with `disabled` when the answer is no.
 const body = (page: Page) => page.locator('body').innerHTML()
 
 async function untouched(page: Page, before: string) {
@@ -19,13 +19,36 @@ async function answerWith(route: Route, json: unknown) {
   await route.fulfill({ response, json })
 }
 
+const disabled = { name: 'closed', module: 'fixture', unit: 'u1', reason: 'disabled' }
+
 test.describe('the kill switch', () => {
-  test('`enabled: false` creates no frame and changes nothing', async ({ page }) => {
+  test('`enabled: false` creates no frame, changes nothing and closes a waiting mount', async ({
+    page,
+  }) => {
     await page.route(CONFIG_URL, (route) => answerWith(route, { enabled: false }))
     await page.goto(`${LISTED_ORIGIN}/blank.html`)
     const before = await body(page)
     const answered = page.waitForResponse(CONFIG_URL)
     await loadSdk(page)
+    // Made before the answer: the unit waits for it.
+    await mountUnit(page, { props: { text: 'x' } })
+    await answered
+    await expect.poll(() => hostEvents(page)).toEqual([disabled])
+    await untouched(page, before)
+    // A mount after the answer is closed at once.
+    await mountUnit(page)
+    await expect.poll(() => hostEvents(page)).toEqual([disabled, { ...disabled, unit: 'u2' }])
+    await untouched(page, before)
+  })
+
+  test('`enabled: false` leaves a page with a slot as it was, and says nothing', async ({
+    page,
+  }) => {
+    await page.route(CONFIG_URL, (route) => answerWith(route, { enabled: false }))
+    await watchEvents(page)
+    const answered = page.waitForResponse(CONFIG_URL)
+    await page.goto(`${LISTED_ORIGIN}/guest.html`)
+    const before = await body(page)
     await answered
     await settle(page)
     await settle(page)
@@ -40,13 +63,16 @@ test.describe('the kill switch', () => {
     await page.goto(`${LISTED_ORIGIN}/blank.html`)
     const before = await body(page)
     await loadSdk(page)
+    await mountUnit(page)
     await expect
-      .poll(async () => (await hostEvents(page)).map((event) => event.name))
-      .toEqual(['error'])
+      .poll(() => hostEvents(page))
+      .toEqual([{ name: 'error', code: 'config_failed' }, disabled])
     await untouched(page, before)
   })
 
-  test('a slow read creates no frame, changes nothing and reports a timeout', async ({ page }) => {
+  test('a slow read creates no frame, changes nothing and reports a failed read', async ({
+    page,
+  }) => {
     let release!: () => void
     const gate = new Promise<void>((resolve) => (release = resolve))
     await page.route(CONFIG_URL, async (route) => {
@@ -56,82 +82,12 @@ test.describe('the kill switch', () => {
     await page.goto(`${LISTED_ORIGIN}/blank.html`)
     const before = await body(page)
     await loadSdk(page)
+    await mountUnit(page)
     await expect
-      .poll(async () => hostEvents(page), { timeout: 10_000 })
-      .toEqual([{ name: 'error', message: 'timeout' }])
+      .poll(() => hostEvents(page), { timeout: 15_000 })
+      .toEqual([{ name: 'error', code: 'config_failed' }, disabled])
     release()
     await settle(page)
     await untouched(page, before)
-  })
-})
-
-// The frame tracks `rendered` once the host's text arrives, which is after the consent state.
-test.describe('consent', () => {
-  async function telemetry(page: Page) {
-    const sent: { headers: Record<string, string>; body: unknown }[] = []
-    await page.route(TELEMETRY_URL, async (route) => {
-      const request = route.request()
-      sent.push({ headers: request.headers(), body: request.postDataJSON() })
-      await route.fulfill({ status: 204 })
-    })
-    return sent
-  }
-  const frameOf = (page: Page) =>
-    page.frames().find((frame) => frame.url().includes('/api/sdk/frame/'))
-
-  async function flush(page: Page) {
-    // What the frame listens to when the page is left: the buffer drains once.
-    await frameOf(page)?.evaluate(() => window.dispatchEvent(new Event('pagehide')))
-  }
-
-  test('nothing is sent before consent', async ({ page }) => {
-    const sent = await telemetry(page)
-    await page.goto(`${LISTED_ORIGIN}/blank.html`)
-    await loadSdk(page)
-    await expect(page.locator('iframe')).toHaveCSS('height', '120px')
-    await flush(page)
-    await settle(page)
-    expect(sent).toEqual([])
-  })
-
-  test('one request after consent, with the key and without a cookie', async ({ page }) => {
-    const sent = await telemetry(page)
-    await page.goto(`${LISTED_ORIGIN}/blank.html`)
-    await loadSdk(page, { consent: 'granted' })
-    await expect(page.locator('iframe')).toHaveCSS('height', '120px')
-    await flush(page)
-    await expect.poll(() => sent.length).toBe(1)
-    expect(sent[0]?.body).toEqual({ events: [{ name: 'rendered' }] })
-    expect(sent[0]?.headers['x-sdk-key']).toBe('pk_e2e_listed')
-    expect(sent[0]?.headers['cookie']).toBeUndefined()
-    await flush(page)
-    await settle(page)
-    expect(sent).toHaveLength(1)
-  })
-
-  test('what was tracked before consent is dropped, not sent late', async ({ page }) => {
-    const sent = await telemetry(page)
-    await page.goto(`${LISTED_ORIGIN}/blank.html`)
-    await loadSdk(page)
-    await expect(page.locator('iframe')).toHaveCSS('height', '120px')
-    await page.evaluate(() =>
-      (window as unknown as Record<string, { setConsent(s: string): void }>)[
-        '__SDK_GLOBAL__'
-      ]?.setConsent('granted'),
-    )
-    await flush(page)
-    await settle(page)
-    expect(sent).toEqual([])
-  })
-
-  test('the frame is let through its own origin by the server gate', async ({ page }) => {
-    // No interception: the frame posts from the API's own origin, with an Origin header, and the
-    // server has no telemetry endpoint. A 404 means the gate let it pass; a 403 would not.
-    const status = page.waitForResponse((response) => response.url() === TELEMETRY_URL)
-    await page.goto(`${LISTED_ORIGIN}/blank.html`)
-    await loadSdk(page, { consent: 'granted' })
-    await expect(page.locator('iframe')).toHaveCSS('height', '120px')
-    await flush(page)
-    expect((await status).status()).toBe(404)
   })
 })

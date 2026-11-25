@@ -76,7 +76,7 @@ const booleanText = z.enum(['true', 'false']).transform((value) => value === 'tr
 const SDK_KEY = /^[A-Za-z0-9_.-]{1,128}$/
 const SDK_ORIGIN = /^https?:\/\/[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::[0-9]{1,5})?$/
 
-function isOrigin(value: string): boolean {
+export function isOrigin(value: string): boolean {
   if (!SDK_ORIGIN.test(value)) return false
   try {
     return new URL(value).origin === value
@@ -92,6 +92,24 @@ function isWeakOrigin(origin: string): boolean {
 
 const blankIsUnset = (value: unknown) =>
   typeof value === 'string' && value.trim() === '' ? undefined : value
+
+// The origins the frame document may load images from: the same closed form, joined by commas.
+const sdkImgOrigins = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value, context): string[] => {
+    if (value === undefined || value === '') return []
+    const list = value.split(',').map((origin) => origin.trim())
+    if (!list.every(isOrigin)) {
+      context.addIssue({
+        code: 'custom',
+        message: 'must be origins (scheme://host[:port], in lower case) separated by commas',
+      })
+      return z.NEVER
+    }
+    return list
+  })
 
 // `key=origin,origin;key=origin`. A refusal names the pair by position and never the key.
 const sdkKeys = z
@@ -153,6 +171,8 @@ const schema = z
     // file routes answer 404 and unset SDK_KEYS means every namespace request is refused.
     SDK_KEYS: sdkKeys,
     SDK_ENABLED: z.preprocess(blankIsUnset, booleanText.default(true)),
+    // Origins the frame document may load images from, on top of its own.
+    SDK_IMG_ORIGINS: sdkImgOrigins,
     SDK_DIR: z
       .string()
       .trim()
@@ -192,6 +212,14 @@ const schema = z
         })
         return z.NEVER
       }
+    }
+    if (value.NODE_ENV === 'production' && value.SDK_IMG_ORIGINS.some(isWeakOrigin)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['SDK_IMG_ORIGINS'],
+        message: 'has an http or loopback origin, which production refuses',
+      })
+      return z.NEVER
     }
     // @sdk-end
     if (value.MAIL_PROVIDER !== 'console' && value.MAIL_FROM === undefined) {

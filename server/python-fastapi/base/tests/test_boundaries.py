@@ -136,6 +136,11 @@ SDK_MOUNT_FILE = "app/api/sdk/routes.py"
 class TestSdkBoundaries:
     """`api/sdk/<entity>/` is an entity like any other, beside `api/admin/<entity>/`."""
 
+    def test_the_shipped_sdk_entities_follow_the_entity_rules(self, tmp_path: Path) -> None:
+        code, output = lint(tmp_path, add={}, append={})
+
+        assert code == 0, output
+
     def test_an_sdk_entity_following_the_entity_rules_passes(self, tmp_path: Path) -> None:
         code, output = lint(tmp_path, add=SDK_LEAD, append={SDK_MOUNT_FILE: SDK_MOUNT})
 

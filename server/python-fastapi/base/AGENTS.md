@@ -629,18 +629,18 @@ command.
 <!-- @noauth-end -->
 <!-- @sdk-start -->
 - SDK endpoints live in `api/sdk/<name>/`, an entity like any other, at `/api/sdk/v1/<name>`
-  (`sdk` is a namespace); add its router to `ENTITIES` in `api/sdk/routes.py`. That router runs
-  `middleware/sdk_gate.py` first: CORS for this namespace alone (`SdkCorsMiddleware`; the global
-  `CORS_ORIGINS` layer skips `/api/sdk/`), the `X-Sdk-Key` header resolved by
-  `services/security/sdk_keys.py` (reads `SDK_KEYS`, https origins only in production; replace its
-  bodies with a lookup, and answer `is_listed_origin` from a cache, since unauthenticated
-  preflights call it), then the rate limit by address and by key. Every answer is `no-store`.
-  An entity only the frame calls (a token, a view, a click) is mounted with `frame_only`, which
-  refuses the host page; one mounted without it is readable by the host page, so it never issues
-  or accepts anything that counts. Within `v1` the namespace only
-  adds: a removal or a change is a `v2` beside it. The SDK's built files
-  (`/api/sdk/dist/v<major>/`) and its frame document (`/api/sdk/frame/v<major>?k=<key>`) come from
-  `SDK_DIR` through `middleware/sdk_files.py`, carry no key and are not in the OpenAPI document.
+  (`sdk` is a namespace); add its router to `ENTITIES` in `api/sdk/routes.py`. The gate in
+  `middleware/sdk_gate.py` decides before any body is read: CORS for this namespace alone
+  (`SdkCorsMiddleware`; the global `CORS_ORIGINS` layer skips `/api/sdk/`), the `X-Sdk-Key` header
+  resolved once by `resolve_key` in `services/security/sdk_keys.py` (reads `SDK_KEYS`; replace the
+  bodies with a lookup answering from a cache, misses too), the 64 KB body cap, then the rate
+  limits by address and by key. A key with `enabled: false` gets 403 except on `GET /config`,
+  which answers `false`; a failing lookup is a 500. Every answer is `no-store`. A write the host
+  page must not make is mounted with `frame_only` and takes a rate limit of its own (`telemetry`
+  takes none; its sink is `services/telemetry.py`). `v1` only adds: a removal or a change is a
+  `v2`. The built `.js` and `.css` (`/api/sdk/dist/v<major>/`) and the frame document
+  (`/api/sdk/frame/v<major>?k=<key>`) come from `SDK_DIR` through `middleware/sdk_files.py`, carry
+  no key and are not in the OpenAPI document; `SDK_IMG_ORIGINS` lists the frame's image origins.
   `SDK_ENABLED=false` turns the SDK off.
 <!-- @sdk-end -->
 

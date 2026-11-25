@@ -7,8 +7,6 @@ const make = (fetchImpl: typeof fetch, extra = {}) =>
   createTransport({
     apiOrigin: ORIGIN,
     key: 'pk_a',
-    allowTelemetry: () => true,
-    win: window,
     fetch: fetchImpl,
     retryDelayMs: 0,
     ...extra,
@@ -46,23 +44,5 @@ describe('transport edges', () => {
     transport.dispose()
     expect(signal?.aborted).toBe(true)
     expect(await result).toBe('stopped')
-  })
-
-  it('caps a telemetry batch by bytes under the keepalive limit and sends the rest next time', () => {
-    const bodies: string[] = []
-    const fetchImpl = vi.fn(async (_url: string, init: RequestInit) => {
-      bodies.push(init.body as string)
-      return new Response('{}')
-    })
-    const transport = make(fetchImpl as unknown as typeof fetch)
-    const chunk = 'x'.repeat(20_000)
-    for (let n = 0; n < 5; n += 1) transport.track({ n, chunk })
-    transport.flush()
-    transport.flush()
-    transport.flush()
-    expect(bodies.length).toBeGreaterThanOrEqual(2)
-    for (const body of bodies) expect(body.length).toBeLessThan(64 * 1024)
-    const sent = bodies.flatMap((body) => (JSON.parse(body) as { events: { n: number }[] }).events)
-    expect(sent.map((item) => item.n)).toEqual([0, 1, 2, 3, 4])
   })
 })

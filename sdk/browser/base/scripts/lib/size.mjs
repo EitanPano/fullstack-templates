@@ -1,7 +1,7 @@
 // The size budget: a byte count per output, read from package.json (`sdk.sizeBudget`). A key may
 // say `v{major}`, which stands for the major of the package's own version, so a release does not
 // rename keys. It fails over a number, on a budgeted output that was not built, on a package with
-// no budget and on a `.js` file in `dist/cdn/v<major>/` that has no budget.
+// no budget and on a `.js` or `.css` file in `dist/cdn/v<major>/` that has no budget.
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -32,7 +32,8 @@ export function checkSizes(root) {
     const budgeted = new Set(files.map(([file]) => file))
     for (const name of readdirSync(served)) {
       const file = `dist/cdn/v${major}/${name}`
-      if (name.endsWith('.js') && !budgeted.has(file)) failures.push(`${file}: has no size budget`)
+      if ((name.endsWith('.js') || name.endsWith('.css')) && !budgeted.has(file))
+        failures.push(`${file}: has no size budget`)
     }
   }
   return { failures, rows }

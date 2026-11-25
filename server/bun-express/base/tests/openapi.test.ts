@@ -74,10 +74,30 @@ describe('openapi.json', () => {
     expect(doc.components?.schemas?.SdkConfig).toBeDefined()
   })
 
+  it('documents the SDK telemetry endpoint: a 204, its key header and the body schema', () => {
+    const doc = buildOpenApiDocument()
+    const operation = doc.paths?.['/api/sdk/v1/telemetry']?.post
+
+    expect(operation?.operationId).toBe('postSdkTelemetry')
+    expect(operation?.tags).toEqual(['sdk'])
+    expect(operation?.responses?.['204']).toBeDefined()
+    expect(operation?.responses?.['400']).toBeDefined()
+    expect(operation?.responses?.['403']).toBeDefined()
+    expect(operation?.responses?.['413']).toBeDefined()
+    expect(operation?.responses?.['429']).toBeDefined()
+    expect(operation?.parameters).toEqual([
+      expect.objectContaining({ name: 'x-sdk-key', in: 'header', required: true }),
+    ])
+    expect(doc.components?.schemas?.SdkTelemetryBody).toBeDefined()
+  })
+
   it('leaves the served files out of the document: they are not JSON', () => {
     const paths = Object.keys(buildOpenApiDocument().paths ?? {})
 
-    expect(paths.filter((path) => path.startsWith('/api/sdk/'))).toEqual(['/api/sdk/v1/config'])
+    expect(paths.filter((path) => path.startsWith('/api/sdk/'))).toEqual([
+      '/api/sdk/v1/config',
+      '/api/sdk/v1/telemetry',
+    ])
   })
 
   // @sdk-end

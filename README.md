@@ -38,7 +38,7 @@ template finds the same shape.
 | `next` | frontend | 5.0.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
 | `react` | frontend | 7.0.0 | — | — | Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives styled by co-located SCSS on a global token tree |
 | `vue` | frontend | 5.0.0 | i18n, pwa | — | Vite and Vue 3 single-page app: Vue Router 5, Pinia 4 setup stores over a client generated from the server's contract, Reka UI primitives styled by co-located SCSS on a global token tree, vue-i18n and the service worker behind flags |
-| `browser` | sdk | 1.0.0 | — | — | Embeddable browser SDK: a kernel with an error boundary, a kill switch and consent, one network door, units drawn in a sandboxed iframe from the API's origin, three outputs (npm ESM and CJS, a CDN loader, the frame) and size, API-report and tarball gates |
+| `browser` | sdk | 1.0.0 | — | — | Embeddable browser SDK: units a host page mounts in place, by a call or by markup, or opens as a modal, each drawn in a sandboxed iframe from the API's origin with a stylesheet of its own; a kernel with an error boundary, a kill switch and consent; three outputs (npm ESM and CJS, a CDN loader, the frame) and size, API-report, tarball and screens gates |
 
 | Stack | Packages | Summary |
 | --- | --- | --- |
@@ -147,9 +147,9 @@ Any stack with an embeddable browser SDK beside it (its image build needs Docker
 later in both deploy modes; its browser tests run in Chromium, Firefox and WebKit):
 
 ```sh
-bun tools/generate.ts --stack react-bun-express --sdk sdk-ads=sdk/browser \
+bun tools/generate.ts --stack react-bun-express --sdk sdk-widget=sdk/browser \
   --out ../my-app --name my-app
-cd ../my-app/sdk-ads && bun run check
+cd ../my-app/sdk-widget && bun run check
 ```
 
 The generator copies each package's base, applies the flags, assembles the root
@@ -248,10 +248,13 @@ stack; production does not refuse its credentials if you export them.
   `frontend/astro` 1.1.1. A package's `AGENTS.md` is the template's: no step tells a task to edit
   it ([ADR 0019](docs/adr/0019-package-docs.md)).
 - v1.18.0: a fourth template kind, `sdk`: `sdk/browser` 1.0.0, an embeddable browser SDK (npm ESM
-  and CJS, a CDN loader, a frame it draws units in) and, behind the `sdk` selection, the public
-  SDK namespace `/api/sdk/v1/`, the SDK's files and the frame document in `server/bun-express`
+  and CJS, a CDN loader, a frame it draws units in; a host page mounts a unit in place, by a call
+  or by markup, or opens one as a modal, and a module is a declaration, a frame half and a
+  stylesheet) and, behind the `sdk` selection, the public SDK namespace `/api/sdk/v1/` with its
+  kill switch and telemetry, the SDK's files and the frame document in `server/bun-express`
   4.1.0, `server/python-fastapi` 3.1.0 and `serverless/cloudflare` 3.1.0
-  ([ADR 0020](docs/adr/0020-sdk-kind.md)); `generate --sdk <dir>=<template>`.
+  ([ADR 0020](docs/adr/0020-sdk-kind.md), [ADR 0021](docs/adr/0021-sdk-units.md));
+  `generate --sdk <dir>=<template>`.
 - Next: mongodb, redis, and a worker with rabbitmq.
 
 The design is in [ADR 0001](docs/adr/0001-catalog-architecture.md).

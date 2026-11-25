@@ -1,9 +1,13 @@
 export {
-  EVENT_NAMES,
+  DATA_MAX_BYTES,
   HANDSHAKE_KIND,
   MODULE_FAILED,
+  PROPS_MAX_BYTES,
   PROTOCOL_VERSION,
+  checkJson,
+  checkJsonObject,
   isConsentState,
+  isDisplay,
   isHandshake,
   isErrorCode,
   isHttpsUrl,
@@ -12,17 +16,16 @@ export {
 } from './messages'
 export type {
   ConsentState,
+  Display,
   FrameMessage,
-  FrameEventMessage,
   Handshake,
   HostMessage,
-  Occlusion,
-  SdkEventName,
+  JsonCheck,
+  Props,
 } from './messages'
+export { own } from './own'
 export { KEY_PATTERN, MODULE_NAME_PATTERN, isKey, isModuleName } from './key'
-export { CONFIG_PATH, KEY_HEADER, TELEMETRY_PATH, requestInit } from './request'
+export { CONFIG_PATH, KEY_HEADER, requestInit } from './request'
 export type { RequestOptions } from './request'
-export { createTelemetryBuffer } from './telemetry'
-export type { TelemetryBuffer, TelemetryOptions } from './telemetry'
 export { parseTheme, themeFromParams, themeToParams } from './theme'
 export type { Theme } from './theme'

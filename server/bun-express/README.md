@@ -40,13 +40,18 @@ When the plan holds an `sdk` package ([ADR 0020](../../docs/adr/0020-sdk-kind.md
 generated package.
 
 - `/api/sdk/v1/`: the public, cross-origin namespace, `api/sdk/<entity>/`. One gate runs first:
-  CORS for the namespace alone (the origin is echoed when the key lists it; never credentials),
-  the `X-Sdk-Key` key, then a rate limit by key and by address. `GET /api/sdk/v1/config` answers
-  `{ enabled }`, the kill switch.
-- `GET|HEAD /api/sdk/dist/v<major>/<file>.js`: the SDK's build, with no key and a five-minute cache.
-- `GET /api/sdk/frame/v<major>?k=<key>`: the frame document, framed only by the key's origins.
+  CORS for the namespace alone (the origin is echoed once the key step admits the request; never
+  credentials), the `X-Sdk-Key` key (`services/security/sdk-keys.ts`, async, answering from a cache,
+  misses too; a switched-off key gets `{ enabled: false }` from a GET or HEAD of `config` and 403
+  elsewhere), then a rate limit by key and by address (a preflight is counted before any lookup),
+  then a JSON body of at most 64 KB, read after the gate. `GET /api/sdk/v1/config` answers `{ enabled }`, the kill switch. `POST /api/sdk/v1/telemetry`
+  takes the frame's events (frame only, 204) and awaits `services/telemetry.ts` with them.
+- `GET|HEAD /api/sdk/dist/v<major>/<file>.js` and `<file>.css`: the SDK's build, with no key and a five-minute cache.
+- `GET /api/sdk/frame/v<major>?k=<key>`: the frame document, framed only by the key's origins, with
+  its own script, style and image policy.
 - Variables: `SDK_KEYS` (`key=origin,origin;key=origin`; unset refuses every request),
-  `SDK_ENABLED` (default `true`), `SDK_DIR` (the build to serve; the image sets it).
+  `SDK_ENABLED` (default `true`), `SDK_IMG_ORIGINS` (image origins the frame may load; default none),
+  `SDK_DIR` (the build to serve; the image sets it).
 - Compose takes the build through an `additional_contexts` line for the SDK's build-only service,
   in both deploy modes (Compose 2.35.0 or later).
 

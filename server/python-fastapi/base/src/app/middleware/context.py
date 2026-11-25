@@ -11,12 +11,14 @@ from urllib.parse import quote
 from starlette.types import Scope
 
 from app.models.auth.type import Caller  # @auth
+from app.services.security.sdk_keys import SdkKey  # @sdk
 
 _REQUEST_ID_KEY: Final = "request_id"
 _CLIENT_IP_KEY: Final = "client_ip"
 _CALLER_KEY: Final = "caller"  # @auth
 _ORIGINAL_METHOD_KEY: Final = "app.original_method"
 _OWN_SECURITY_HEADERS_KEY: Final = "own_security_headers"  # @sdk
+_SDK_KEY_KEY: Final = "sdk_key"  # @sdk
 _UNKNOWN: Final = "unknown"
 # Spaces and control characters: nothing a request target may carry, and nothing a log line may.
 _UNPRINTABLE: Final = re.compile(r"[\x00-\x20\x7f]")
@@ -82,6 +84,18 @@ def set_own_security_headers(scope: Scope, names: set[str]) -> None:
 def own_security_headers_of(scope: Scope) -> frozenset[str]:
     value = _state(scope).get(_OWN_SECURITY_HEADERS_KEY)
     return value if isinstance(value, frozenset) else frozenset()
+
+
+def set_sdk_key(scope: Scope, record: SdkKey | None) -> None:
+    """Keeps what the lookup answered for the request's key, so the steps after the gate's first
+    read it and the lookup runs once; only `middleware/sdk_gate.py` calls it."""
+    _state(scope)[_SDK_KEY_KEY] = record
+
+
+def sdk_key_of(scope: Scope) -> SdkKey | None:
+    """The record `set_sdk_key` kept, or None for an unknown key or a request the gate never saw."""
+    value = _state(scope).get(_SDK_KEY_KEY)
+    return value if isinstance(value, SdkKey) else None
 
 
 # @sdk-end

@@ -126,8 +126,8 @@ class TestTheMiddlewareOrder:
             RequestIdMiddleware,
             ProxyMiddleware,
             RequestLogMiddleware,
-            BodyLimitMiddleware,
             SdkCorsMiddleware,  # @sdk
+            BodyLimitMiddleware,
             HeadMiddleware,
             CatchAllMiddleware,
         ]
@@ -139,8 +139,8 @@ class TestTheMiddlewareOrder:
             RequestIdMiddleware,
             ProxyMiddleware,
             RequestLogMiddleware,
-            BodyLimitMiddleware,
             SdkCorsMiddleware,  # @sdk
+            BodyLimitMiddleware,
             HeadMiddleware,
             CatchAllMiddleware,
         ]

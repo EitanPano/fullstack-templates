@@ -1,16 +1,15 @@
 // sdk-build (lib) belongs: putting the SDK's build into the folder the Worker's assets serve. Each
-// `v<major>/` folder of the build gives its allow-listed scripts to `api/sdk/dist/v<major>/` and
-// its `frame.html` to `api/sdk/frame/v<major>`, the two addresses the Worker serves them at
-// (server/middleware/sdk-files.ts). The prefix `api/sdk/` is the Worker's: `/api/*` runs it before
-// the platform's assets, so these files are never answered raw, with a `_headers` rule or without
-// the frame's policy. The frame document is stored without its `.html` name, which the platform
-// would redirect. It does not belong: the build of the SDK (its own command) or running wrangler.
+// `v<major>/` folder gives its allow-listed scripts and stylesheets to `api/sdk/dist/v<major>/` and
+// its `frame.html`, stored without the `.html` the platform would redirect, to
+// `api/sdk/frame/v<major>` (server/middleware/sdk-files.ts). `/api/*` runs the Worker before the
+// platform's assets, so no file is answered raw.
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 
-// The same forms the Worker serves: a major folder, a script in it.
+// The same forms the Worker serves: a major folder, a script or a stylesheet in it. A source map
+// ends in `.map` and is left out.
 const MAJOR = /^v[0-9]+$/
-const SCRIPT = /^[A-Za-z0-9][A-Za-z0-9._-]*\.js$/
+const SCRIPT = /^[A-Za-z0-9][A-Za-z0-9._-]*\.(js|css)$/
 const FRAME = 'frame.html'
 
 const PREFIX = path.join('api', 'sdk')

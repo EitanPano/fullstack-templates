@@ -16,7 +16,7 @@ const make = () => {
   const sdk = createSdk({ modules: [] })
   const init = vi.spyOn(sdk, 'init').mockImplementation(() => undefined)
   const errors: string[] = []
-  sdk.on('error', (event) => errors.push(event.message ?? ''))
+  sdk.on('error', (event) => errors.push(event.code ?? ''))
   return { sdk, init, errors }
 }
 
@@ -45,7 +45,7 @@ describe('installCdn as a guest', () => {
     ).not.toThrow()
     expect(win[NAME]).toBe(foreign)
     expect(init).not.toHaveBeenCalled()
-    expect(errors).toEqual([expect.stringContaining(NAME)])
+    expect(errors).toEqual(['global_taken'])
   })
 
   it('does not throw when the global cannot be written', () => {
@@ -55,7 +55,7 @@ describe('installCdn as a guest', () => {
       installCdn({ sdk, globalName: NAME, win, script: script({ 'data-key': 'pk_a' }) }),
     ).not.toThrow()
     expect(init).not.toHaveBeenCalled()
-    expect(errors).toHaveLength(1)
+    expect(errors).toEqual(['internal'])
   })
 
   it('still drains a queue array and installs over it', () => {

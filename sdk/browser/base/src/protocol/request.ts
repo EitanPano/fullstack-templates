@@ -4,7 +4,6 @@
 // `keepalive` for telemetry. Never `sendBeacon`: with a JSON body it is credentialed.
 export const KEY_HEADER = 'X-Sdk-Key'
 export const CONFIG_PATH = '/api/sdk/v1/config'
-export const TELEMETRY_PATH = '/api/sdk/v1/telemetry'
 
 export type RequestOptions = {
   key: string

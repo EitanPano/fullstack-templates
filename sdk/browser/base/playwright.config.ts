@@ -1,8 +1,10 @@
-import { resolve } from 'node:path'
+import { mkdirSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
 
 import { defineConfig, devices } from '@playwright/test'
 
 import {
+  API_LOG,
   API_ORIGIN,
   API_PORT,
   LISTED_ORIGIN,
@@ -11,7 +13,8 @@ import {
   UNLISTED_PORT,
 } from './tests/e2e/hosts'
 
-// A guest behaves differently in each engine (ADR 0020 F4), so every spec runs in all three.
+// A guest behaves differently in each engine (ADR 0020 F4), so every spec runs in all three. The
+// screens spec runs in two projects of its own, `phone` and `desktop`, and in none of the three.
 // Playwright starts, fresh each run: the API from the server package, serving the test build of
 // the SDK (the fixture module, written by `build:e2e`) from SDK_DIR, and two host fixture
 // servers on another site than the API. The API lists the first host for the key, not the second.
@@ -34,6 +37,12 @@ function e2eDatabaseUrl(configured: string | undefined, fallback: string): strin
 const databaseUrl = e2eDatabaseUrl(process.env.E2E_DATABASE_URL, '__SERVER_E2E_DATABASE_URL__')
 // @server:database-end
 
+const SCREENS = '**/screens.spec.ts'
+
+// The API's output goes to a file the specs read, to see what reached the server (hosts.ts).
+mkdirSync(dirname(API_LOG), { recursive: true })
+const toLog = ` > "${API_LOG}" 2>&1`
+
 const host = (port: number) =>
   `node tests/e2e/host-server.mjs ${port} ${API_ORIGIN} ${LISTED_ORIGIN} ${SDK_KEY}`
 
@@ -49,17 +58,27 @@ export default defineConfig({
   reporter: 'list',
   use: { trace: 'retain-on-failure' },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: SCREENS },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testIgnore: SCREENS },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] }, testIgnore: SCREENS },
+    {
+      name: 'phone',
+      use: { ...devices['Desktop Safari'], viewport: { width: 390, height: 844 } },
+      testMatch: SCREENS,
+    },
+    {
+      name: 'desktop',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
+      testMatch: SCREENS,
+    },
   ],
   webServer: [
     {
       // A fresh API every run, with its limits scaled so the suite does not trip them. Playwright
       // starts web servers before any global setup, so the browser-test database is prepared in
       // the same command, before the API connects to it.
-      command: '__SERVER_E2E_DB_COMMAND__ && __SERVER_START_COMMAND__', // @server:database
-      command: '__SERVER_START_COMMAND__', // @noserver:database
+      command: `__SERVER_E2E_DB_COMMAND__ && __SERVER_START_COMMAND__${toLog}`, // @server:database
+      command: `__SERVER_START_COMMAND__${toLog}`, // @noserver:database
       cwd: '../__SERVER_DIR__',
       url: `http://127.0.0.1:${API_PORT}/api/health`,
       reuseExistingServer: false,

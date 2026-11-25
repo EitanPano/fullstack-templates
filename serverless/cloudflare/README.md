@@ -65,15 +65,18 @@ generated package.
 
 - `/api/sdk/v1/`: the public, cross-origin namespace, `server/api/sdk/<entity>/`. One gate runs first:
   CORS for the namespace alone (the origin is echoed when the key lists it; never credentials), the
-  `X-Sdk-Key` key, then a rate limit by key and by address. `GET /api/sdk/v1/config` answers
-  `{ enabled }`, the kill switch.
-- `GET|HEAD /api/sdk/dist/v<major>/<file>.js`: the SDK's build, with no key and a five-minute cache.
+  `X-Sdk-Key` key (resolved once to `{ origins, enabled }`; a product swaps in a cached lookup), then a rate
+  limit by key and by address. `GET /api/sdk/v1/config` answers `{ enabled }`, the kill switch;
+  `POST /api/sdk/v1/telemetry` takes the frame's events (204). A body is at most 64 KB.
+- `GET|HEAD /api/sdk/dist/v<major>/<file>.js` and `.css`: the SDK's build, with no key and a
+  five-minute cache.
 - `GET /api/sdk/frame/v<major>?k=<key>`: the frame document, framed only by the key's origins.
 - `assemble` puts the SDK's build under `dist/api/sdk/`. The Worker answers every `/api/*` request
   before the platform's assets, fetches those files through `ASSETS` and writes its own headers, so a
   `_headers` rule never reaches them and none is served raw. `SDK_DIR` names another build.
-- Variables: `SDK_KEYS` (`key=origin,origin;key=origin`; unset refuses every request) and
-  `SDK_ENABLED` (default `true`), in `vars` of `wrangler.jsonc` once deployed.
+- Variables: `SDK_KEYS` (`key=origin,origin;key=origin`; unset refuses every request),
+  `SDK_ENABLED` (default `true`) and `SDK_IMG_ORIGINS` (image origins of the frame, default none),
+  in `vars` of `wrangler.jsonc` once deployed.
 
 ## Versions
 

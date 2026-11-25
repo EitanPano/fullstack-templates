@@ -1,9 +1,13 @@
-// A buffer both sides use, with the sending left to the caller (the one that owns a `fetch`).
-// Items are kept only while consent allows. The buffer drains once when the page goes hidden or
+// The frame's telemetry buffer, with the sending left to the caller (the one that owns a `fetch`).
+// Items are kept only while consent allows, and only a plain JSON object: the server takes nothing
+// else and answers 400 to the whole batch, so one bad item would lose the good ones. The buffer drains once when the page goes hidden or
 // is left: both events usually fire, the second finds it empty. Listeners are attached with the
 // first item, so a page that tracks nothing gets none.
 // A `keepalive` request body is limited to 64 KiB by the browsers: a batch stays under it, and what
 // does not fit waits for the next drain.
+import { checkJsonObject } from '../protocol'
+
+export const TELEMETRY_PATH = '/api/sdk/v1/telemetry'
 const MAX_ITEMS = 100
 const MAX_BATCH_BYTES = 60_000
 
@@ -19,15 +23,8 @@ export type TelemetryOptions = {
   win: Window
 }
 
-// Bytes on the wire (UTF-8, plus the comma), or null for a value JSON cannot hold (a cycle, a BigInt).
-function sizeOf(item: unknown): number | null {
-  try {
-    const text = JSON.stringify(item)
-    return text === undefined ? null : new TextEncoder().encode(text).length + 1
-  } catch {
-    return null
-  }
-}
+// Bytes on the wire (UTF-8, plus the comma). An item went through JSON when it was pushed.
+const sizeOf = (item: unknown): number => new TextEncoder().encode(JSON.stringify(item)).length + 1
 
 export function createTelemetryBuffer(options: TelemetryOptions): TelemetryBuffer {
   const { win } = options
@@ -45,9 +42,8 @@ export function createTelemetryBuffer(options: TelemetryOptions): TelemetryBuffe
     let bytes = 0
     while (items.length > 0) {
       const size = sizeOf(items[0])
-      // An item that cannot be serialised, or alone does not fit, can never be sent: it is
-      // dropped, not kept for ever. This runs in a listener on the host page, so it never throws.
-      if (size === null || size > MAX_BATCH_BYTES) {
+      // An item that alone does not fit can never be sent: it is dropped, not kept for ever.
+      if (size > MAX_BATCH_BYTES) {
         items.shift()
         continue
       }
@@ -70,9 +66,12 @@ export function createTelemetryBuffer(options: TelemetryOptions): TelemetryBuffe
   return {
     push(item) {
       if (!options.allowed()) return
+      // Run in a listener of the host page and from a module: it never throws, and keeps a copy.
+      const checked = checkJsonObject(item, MAX_BATCH_BYTES)
+      if (!checked.ok) return
       attach()
       if (items.length >= MAX_ITEMS) items.shift()
-      items.push(item)
+      items.push(checked.value)
     },
     flush,
     dispose() {

@@ -1,18 +1,20 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import { LISTED_ORIGIN } from './hosts'
-import { hostEvents, loadSdk, type Engine, type HostEvent } from './support'
+import { hostEvents, loadSdk, mountUnit, style, type Engine, type HostEvent } from './support'
 
-// V15, second half: a view is the frame's word. The meter counts a unit that is in view for a
+// V15, second half: the view helper (`observeView`), used by the fixture's frame half, which
+// emits `fixture:viewed` with the checks that ran. The helper counts a unit that is in view for a
 // second and none of the ways of hiding it that every engine can detect (ADR 0020 F4). Where an
 // engine cannot detect a way, the spec asserts that: the table below is the documented limit.
 //
 // A view takes a second to count, so "no view" is observed over a window longer than that. The
 // first test shows the window is long enough on the machine that runs it.
 const OBSERVE_MS = 3000
+const VIEWED = 'fixture:viewed'
 
 const viewed = async (page: Page): Promise<HostEvent[]> =>
-  (await hostEvents(page)).filter((event) => event.name === 'viewed')
+  (await hostEvents(page)).filter((event) => event.name === VIEWED)
 
 async function untilRendered(page: Page) {
   await expect
@@ -31,26 +33,16 @@ async function observe(page: Page): Promise<HostEvent[]> {
   return viewed(page)
 }
 
-/** Styles one of the page's elements through the CSSOM: the page's policy allows no style. */
-async function style(page: Page, selector: string, css: Record<string, string>) {
-  await page.evaluate(
-    ({ selector, css }) => {
-      const element = document.querySelector(selector) as HTMLElement
-      for (const [name, value] of Object.entries(css)) element.style.setProperty(name, value)
-    },
-    { selector, css },
-  )
-}
-
 async function open(page: Page, hide?: (page: Page) => Promise<void>) {
   await page.goto(`${LISTED_ORIGIN}/blank.html`)
   await hide?.(page)
   await loadSdk(page)
+  await mountUnit(page, { props: { text: 'Seen' } })
   await untilRendered(page)
 }
 
 test.describe('a view', () => {
-  test('is one `viewed` after a second in view, naming the checks that ran', async ({
+  test('is one `fixture:viewed` after a second in view, naming the checks that ran', async ({
     page,
     browserName,
   }) => {
@@ -58,7 +50,12 @@ test.describe('a view', () => {
     await expect.poll(async () => (await viewed(page)).length, { timeout: OBSERVE_MS }).toBe(1)
     // Chromium has IntersectionObserver v2 (`isVisible`); the others cannot say a unit is covered.
     expect(await viewed(page)).toEqual([
-      { name: 'viewed', occlusion: browserName === 'chromium' ? 'checked' : 'unavailable' },
+      {
+        name: VIEWED,
+        module: 'fixture',
+        unit: 'u1',
+        data: { occlusion: browserName === 'chromium' ? 'checked' : 'unavailable' },
+      },
     ])
     // What the host sees names the event and the checks, and holds nothing that proves a view.
     expect(JSON.stringify(await hostEvents(page))).not.toMatch(/token|nonce|signature/i)
@@ -73,7 +70,7 @@ test.describe('a view', () => {
       await style(page, '[data-scroller]', { height: '100px', overflow: 'auto' })
       await style(page, '[data-spacer]', { height: '600px' })
     },
-    'shrunk to a pixel': (page) => style(page, '[data-sdk-slot]', { width: '1px' }),
+    'shrunk to a pixel': (page) => style(page, '[data-place]', { width: '1px' }),
     'clipped by a parent of one pixel': (page) =>
       style(page, '[data-wrapper]', { width: '1px', height: '1px', overflow: 'hidden' }),
   }
@@ -86,7 +83,7 @@ test.describe('a view', () => {
 })
 
 // What each engine can tell, per way of hiding the unit from the page (ADR 0020 F4). `true` is
-// a view the meter counts although the unit is hidden: the documented limit of that engine, which
+// a view the helper counts although the unit is hidden: the documented limit of that engine, which
 // the server weighs by the event's `occlusion`.
 const COUNTED_WHEN_HIDDEN: Record<string, Record<Engine, boolean>> = {
   'displayed as none': { chromium: false, firefox: false, webkit: false },
@@ -123,7 +120,7 @@ test.describe('what each engine can tell of a hidden unit', () => {
         // The documented limit: the engine cannot see this, so the view is counted, and its
         // `occlusion` says `unavailable` for the server to weigh.
         await expect.poll(async () => (await viewed(page)).length, { timeout: 10_000 }).toBe(1)
-        expect((await viewed(page))[0]?.occlusion).toBe('unavailable')
+        expect((await viewed(page))[0]?.data).toEqual({ occlusion: 'unavailable' })
       } else {
         expect(await observe(page)).toEqual([])
       }

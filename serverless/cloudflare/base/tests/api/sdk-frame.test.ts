@@ -8,8 +8,8 @@ import { A, B, KEY_A, KEY_B, LOCAL, paths, sdkAssets, sdkBindings } from './sdk-
 
 const DOCUMENT =
   '<!doctype html><title>frame</title><script src="/api/sdk/dist/v1/frame.js"></script>'
-const POLICY = (ancestors: string) =>
-  `default-src 'none'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors ${ancestors}`
+const POLICY = (ancestors: string, images: string[] = []) =>
+  `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'${images.map((origin) => ` ${origin}`).join('')}; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors ${ancestors}`
 
 type Envelope = { error: { code: string }; requestId: string }
 
@@ -28,6 +28,7 @@ const frame = (
   options: {
     method?: string
     keys?: string | null
+    images?: string
     files?: Record<string, string>
     rules?: Record<string, string>
   } = {},
@@ -39,7 +40,7 @@ const frame = (
   const keys = options.keys === undefined ? KEYS : options.keys
   const res = served(path, {
     method: options.method,
-    bindings: sdkBindings({ ASSETS: assets.fetcher }, keys),
+    bindings: sdkBindings({ ASSETS: assets.fetcher, SDK_IMG_ORIGINS: options.images }, keys),
   })
   return { assets, res }
 }
@@ -63,6 +64,27 @@ describe('GET /api/sdk/frame/v<major>?k=<key>', () => {
     expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8')
     expect(res.headers.get('content-security-policy')).toBe(POLICY(`${A} ${B}`))
     expect(paths(assets.seen)).toEqual(['/api/sdk/frame/v1'])
+  })
+
+  it('names the SDK_IMG_ORIGINS in img-src, in order, and nowhere else', async () => {
+    const images = 'https://img.example.test, https://cdn.example.test:8443'
+    const res = await frame(`/api/sdk/frame/v1?k=${KEY_A}`, { images }).res
+
+    expect(res.headers.get('content-security-policy')).toBe(
+      POLICY(`${A} ${B}`, ['https://img.example.test', 'https://cdn.example.test:8443']),
+    )
+  })
+
+  it('keeps img-src to the frame itself while SDK_IMG_ORIGINS is blank', async () => {
+    const res = await frame(`/api/sdk/frame/v1?k=${KEY_A}`, { images: '' }).res
+
+    expect(res.headers.get('content-security-policy')).toContain("img-src 'self'; connect-src")
+  })
+
+  it('sends no referrer', async () => {
+    const res = await frame(`/api/sdk/frame/v1?k=${KEY_A}`).res
+
+    expect(res.headers.get('referrer-policy')).toBe('no-referrer')
   })
 
   it('sends no X-Frame-Options and none of what a `_headers` rule adds', async () => {

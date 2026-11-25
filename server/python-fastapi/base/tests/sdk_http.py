@@ -11,7 +11,7 @@ import socket
 import sys
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -76,9 +76,12 @@ def link_directory(link: Path, target: Path) -> None:
 
 
 @contextlib.contextmanager
-def serving(*, sdk_dir: Path | None, static_dir: Path | None = None) -> Iterator[int]:
-    """The app on a free port, serving the SDK build in `sdk_dir` (and a SPA from `static_dir`)."""
-    source = {"APP_ENV": "test"}
+def serving(
+    *, sdk_dir: Path | None, static_dir: Path | None = None, extra: Mapping[str, str] | None = None
+) -> Iterator[int]:
+    """The app on a free port, serving the SDK build in `sdk_dir` (and a SPA from `static_dir`);
+    `extra` adds environment variables."""
+    source = {"APP_ENV": "test", **(extra or {})}
     if sdk_dir is not None:
         source["SDK_DIR"] = str(sdk_dir)
     if static_dir is not None:

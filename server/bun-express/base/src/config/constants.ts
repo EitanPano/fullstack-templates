@@ -27,6 +27,11 @@ export const RATE_LIMITS = {
   // @sdk-end
   createPostPerIp: { limit: 30, window: '15m' },
 } as const
+// @sdk-start
+// The most a request body may hold under /api/sdk/v1/: the frame's batches and the host page's
+// calls are small, and the server-wide limit (server.ts) is far above them.
+export const SDK_MAX_BODY_BYTES = 65_536
+// @sdk-end
 // @auth-start
 export const COOKIE_NAMES = { access: 'access_token', refresh: 'refresh_token' } as const
 export const COOKIE_PATHS = { access: '/', refresh: '/api/auth' } as const

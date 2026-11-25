@@ -7,16 +7,8 @@ from fastapi import APIRouter
 
 from app.api.sdk.config.controller import get_sdk_config
 from app.api.sdk.config.schema import SdkConfig
+from app.middleware.sdk_gate import KEY_HEADER
 from app.services.utils.openapi import error_responses
-
-# The key header is read by the namespace gate, not by the handler, so the document names it here.
-KEY_HEADER = {
-    "name": "x-sdk-key",
-    "in": "header",
-    "required": True,
-    "description": "The publishable key of the integration",
-    "schema": {"type": "string"},
-}
 
 router = APIRouter()
 

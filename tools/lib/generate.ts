@@ -37,6 +37,7 @@ import {
   SDK_PLACEHOLDERS,
   SERVER_PLACEHOLDERS,
   sdkGlobal,
+  sdkSlot,
   findLeftoverPlaceholder,
   isTextFile,
   placeholderValues,
@@ -211,7 +212,9 @@ export function packagePlaceholders(
     ...(plan.frontends[0] === undefined ? {} : { FRONTEND_DIR: plan.frontends[0].dir }),
     ...frontendValues(plan, pkg),
     ...sdkValues(plan, pkg),
-    ...(pkg.template.manifest.kind === 'sdk' ? { SDK_GLOBAL: sdkGlobal(pkg.dir) } : {}),
+    ...(pkg.template.manifest.kind === 'sdk'
+      ? { SDK_GLOBAL: sdkGlobal(pkg.dir), SDK_SLOT: sdkSlot(pkg.dir) }
+      : {}),
     PACKAGE_DIR: pkg.dir,
     PORT: http === undefined ? '' : String(pkg.port ?? http.port),
     ...serverValues,
@@ -640,8 +643,8 @@ function sweepPlaceholders(plan: GenerationPlan, staging: string): void {
   // Only a serverless package is given these, and the first two only beside a frontend (ADR 0014
   // K4, ADR 0015 F2): one that survives anywhere names its file.
   names.push('FRONTEND_PATH', 'FRONTEND_OUT', 'FRONTENDS', 'FRONTEND_HOSTS')
-  // The sdk tokens go to the API package of a plan that holds one, and __SDK_GLOBAL__ to the
-  // sdk package alone.
+  // The sdk tokens go to the API package of a plan that holds one, and __SDK_GLOBAL__ and __SDK_SLOT__
+  // to the sdk package alone.
   names.push(...SDK_PLACEHOLDERS)
   // Nor may the SERVER_* tokens survive a plan without a server: a kept file that uses one names
   // itself here instead of shipping an address nobody serves (ADR 0011).

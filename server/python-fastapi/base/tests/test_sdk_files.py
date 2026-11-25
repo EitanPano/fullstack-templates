@@ -9,6 +9,7 @@ import pytest
 from tests.sdk_http import is_envelope_404, link_directory, raw, serving
 
 LOADER = "(()=>{window.__loader=1})()"
+STYLE = "body{margin:0}"
 INDEX = "<!doctype html><title>spa</title>"
 BASE = "/api/sdk/dist/v1"
 
@@ -25,6 +26,9 @@ def tree(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]:
     (build / "v1" / "loader.js").write_text(LOADER)
     (build / "v1" / "frame.js").write_text('console.log("frame")')
     (build / "v1" / "frame.html").write_text("<!doctype html><title>frame</title>")
+    (build / "v1" / "frame.css").write_text(STYLE)
+    (build / "v1" / "frame.css.map").write_text("{}")
+    (build / "v1" / "other.CSS").write_text("upper")
     (build / "v1" / "notes.txt").write_text("not a script")
     (build / "v1" / "map.js.map").write_text("{}")
     (build / "v2" / "loader.js").write_text("two")
@@ -123,6 +127,42 @@ class TestGetAndHeadSdkDist:
 
         assert res.status == 200
         assert res.body == "two"
+
+    def test_serves_a_stylesheet_with_its_type_the_script_headers_and_a_validator(
+        self, port: int
+    ) -> None:
+        res = raw(port, "GET", f"{BASE}/frame.css")
+        again = raw(port, "GET", f"{BASE}/frame.css", {"If-None-Match": res.headers["etag"]})
+
+        assert res.status == 200
+        assert res.body == STYLE
+        assert res.headers["content-type"] == "text/css; charset=utf-8"
+        assert res.headers["cache-control"] == "public, max-age=300"
+        assert res.headers["cross-origin-resource-policy"] == "cross-origin"
+        assert res.headers["access-control-allow-origin"] == "*"
+        assert res.headers["x-content-type-options"] == "nosniff"
+        assert re.fullmatch(r'"[0-9a-f]{32}"', res.headers["etag"])
+        assert again.status == 304
+        assert again.body == ""
+
+    def test_answers_head_for_a_stylesheet_with_its_type_and_no_body(self, port: int) -> None:
+        res = raw(port, "HEAD", f"{BASE}/frame.css")
+
+        assert res.status == 200
+        assert res.body == ""
+        assert res.headers["content-type"] == "text/css; charset=utf-8"
+        assert res.headers["content-length"] == str(len(STYLE))
+
+    def test_still_serves_a_script_as_javascript(self, port: int) -> None:
+        res = raw(port, "GET", f"{BASE}/frame.js")
+
+        assert res.headers["content-type"] == "text/javascript; charset=utf-8"
+
+    @pytest.mark.parametrize("name", ["frame.css.map", "other.CSS", "frame.css/", "frame.scss"])
+    def test_answers_the_404_envelope_for_a_stylesheet_name_outside_the_allow_list(
+        self, port: int, name: str
+    ) -> None:
+        assert is_envelope_404(raw(port, "GET", f"{BASE}/{name}")), name
 
     def test_answers_the_404_envelope_for_frame_html_the_frame_document_has_its_own_route(
         self, port: int

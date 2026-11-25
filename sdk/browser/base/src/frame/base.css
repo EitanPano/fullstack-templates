@@ -1,0 +1,60 @@
+/* The frame's base sheet. A theme the host passes is written on the root element's style, so it
+   wins over the defaults here. Module sheets follow this one and scope under [data-module]. */
+:root {
+  --sdk-text: light-dark(#1a1a1a, #f2f2f2);
+  --sdk-accent: light-dark(#0b5cd5, #7ab4ff);
+  --sdk-muted: light-dark(#595959, #a3a3a3);
+  --sdk-surface: light-dark(#ffffff, #1c1c1e);
+  --sdk-border: light-dark(#767676, #8e8e93);
+  --sdk-radius: 4px;
+  --sdk-font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --sdk-scrim: light-dark(rgb(0 0 0 / 40%), rgb(0 0 0 / 60%));
+  --sdk-space: 4px;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  background: transparent;
+  color: var(--sdk-text);
+  font-family: var(--sdk-font);
+}
+
+:focus-visible {
+  outline: 2px solid var(--sdk-accent);
+  outline-offset: 2px;
+}
+
+[hidden] {
+  display: none;
+}
+
+/* A modal's frame fills the host's dialog: the scrim, and the mount centred on it. The panel
+   (surface, width, radius, a phone's layout) is the module's sheet. */
+:root[data-display='modal'] {
+  overscroll-behavior: contain;
+}
+
+:root[data-display='modal'] body {
+  box-sizing: border-box;
+  display: flex;
+  min-height: 100dvh;
+  padding: calc(var(--sdk-space) * 4);
+  background: var(--sdk-scrim);
+}
+
+:root[data-display='modal'] [data-module] {
+  margin: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

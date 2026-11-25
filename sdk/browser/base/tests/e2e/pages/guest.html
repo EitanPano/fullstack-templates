@@ -6,7 +6,13 @@
   </head>
   <body>
     <h1 data-heading>Host page</h1>
-    <div data-sdk-slot></div>
+    <div
+      data-place
+      __SDK_SLOT__="fixture"
+      data-text="A unit from a slot"
+      data-href="https://example.test/page"
+      data-secret="not for the frame"
+    ></div>
     <script async src="{{api}}/api/sdk/dist/v{{major}}/loader.js" data-key="{{key}}"></script>
   </body>
 </html>

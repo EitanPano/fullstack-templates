@@ -6,6 +6,8 @@ a new root-module type - SDK … `sdk-<sdkName>`"; "distributed both as a CDN `<
 and an installable npm package (ESM/CJS)"; "consider modular architecture"; the namespace in
 "all servers at once"; the file "under `/api/`"; "iframe first, then shadow-dom"). Catalog
 release `v1.18.0`: a new template `sdk/browser` 1.0.0 and a minor of each server template.
+Amended before that release by [ADR 0021](0021-sdk-units.md): a note dated 2026-11-25 that
+names it stands under each decision it changes.
 
 ## Context
 
@@ -110,6 +112,8 @@ host page is the second renderer, behind the same interface, and does not ship i
   only and which the host side may not import. The second renderer therefore needs a drawing
   contract at the module level as well (one half a module writes once, run by either renderer);
   it is an addition, and it is decided with that renderer, not before.
+- 2026-11-25, ADR 0021 U1: the interface in `ui/` is removed. No module used it, and by the
+  note above it could not serve the second renderer.
 
 ### F1. Who may frame it
 
@@ -120,6 +124,8 @@ enforces it; no `X-Frame-Options` is sent.
 - ▲ A refused frame fires `load` and throws nothing in every engine. The loader therefore opens
   a handshake and, when no answer comes within its timeout, collapses the container and
   reports nothing to the page. `load` and `error` are never read as signals.
+- 2026-11-25, ADR 0021 U2: the timeout is no longer silent. The unit is removed and the page
+  is told `closed` with the reason `timeout`.
 
 ### F2. The frame's limits
 
@@ -133,6 +139,9 @@ policy of its own (`default-src 'none'`, its script and its connections from its
   API's own origin (the product's own frontend, in `single`) can read the frame and lift its
   sandbox; that is the HTML standard's rule, read and not run in S2. Such a page is ours, so
   nothing is lost, but a key never lists the API's origin for a host we pay.
+- 2026-11-25, ADR 0021 U5 and U6: the sandbox gains `allow-forms` (without it two engines fire
+  no `submit`), and the frame's policy gains `style-src 'self'` and `img-src`. Its `script-src`
+  and `form-action` are unchanged.
 
 ### F3. The channel
 
@@ -147,6 +156,9 @@ exact origin of the frame; the frame answers to the exact origin of its parent.
 - What does cross: the host's text for the unit (the context), the theme, the height, and
   events the host may show (`rendered`, `viewed`, `clicked`, `error`), each a report after the
   fact and never the thing the server counts.
+- 2026-11-25, ADR 0021 U2: the fixed reports are replaced by `props` in and a module's own
+  `emit` out; `viewed` and `clicked` are no longer the kernel's. "No secret crosses the
+  channel" stands, now as the guide's rule and the review's.
 
 ### F4. What "seen" means inside the frame
 
@@ -171,6 +183,9 @@ S2, per hiding trick, on that rule:
 - 2026-11-25, the template's e2e (Playwright 1.65.0, Chromium, Firefox and WebKit): Firefox did not
   count `display: none`, where S2 had counted it. The suite asserts what it observes in each
   engine, so the spec says "not counted" there. The other rows matched the table.
+- 2026-11-25, ADR 0021 U7: the kernel no longer runs the meter. The same rule is
+  `observeView`, a helper a module's frame half calls; the e2e still enforces the table,
+  through a fixture.
 
 ### F5. Size and look
 
@@ -241,12 +256,18 @@ for keys. No cookie is read in the namespace: S1 saw one browser build send a co
 - The SDK's one global takes the suffix `Sdk` (`sdk-ads` gives `AdsSdk`), is never written over
   a value a host already holds, and a second tag does nothing.
 
+2026-11-25, ADR 0021 U9: the resolver is asynchronous and answers a record, `{ origins,
+enabled }`, and a body under the namespace is at most 64 KB.
+
 ### N3. The one endpoint that ships
 
 ▲ `GET /api/sdk/v1/config` answers `{ enabled: boolean }`: the kill switch. A script on other
 people's pages needs a way to be turned off from the server, so this is the template's own
 behaviour and not an example, and it is what the template's e2e exercises. No other SDK entity
 ships; a product's units, events and keys are its own.
+
+2026-11-25, ADR 0021 U8 and U9: a second entity ships, `POST /api/sdk/v1/telemetry`, behind
+the frame-only guard, and `config` answers `false` for a key switched off.
 
 ### N4. The served files
 
@@ -271,6 +292,7 @@ package's own major, independent of the namespace's `v1`: the loader, and the fr
   holds one build, so a new major takes the old major's frame away from loaders still
   installed. A store that keeps old builds answers both; the package's guide carries the recipe
   and a project does it before its first major.
+- 2026-11-25, ADR 0021 U6: the route serves the frame's stylesheet too, as `text/css`.
 
 ### N5. The frame document
 
@@ -278,6 +300,10 @@ package's own major, independent of the namespace's `v1`: the loader, and the fr
 with the `frame-ancestors` of F1 computed from the key and the policy of F2. An unknown key
 answers `frame-ancestors 'none'`. It is the one HTML page the API package serves; like N4 it is
 outside the OpenAPI document and behind the `sdk` selection.
+
+2026-11-25, ADR 0021 U6 and U9: the policy gains `style-src 'self'` and `img-src`, the answer
+carries `Referrer-Policy: no-referrer`, and a key switched off answers `frame-ancestors
+'none'` as an unknown one does.
 
 ### N6. What the product adds on the server
 
@@ -313,6 +339,11 @@ the registry and the bus, so one can become a chunk loaded on demand without a r
 lint holds the direction, with a boundaries test as in the frontends. The recipe for a module
 is the guide's `Adding a feature`; a template ships no placeholder code
 ([ADR 0010](0010-no-chrome-no-example-screen.md)).
+
+2026-11-25, ADR 0021 U1 and U8: `core/` holds the units and their slots in place of the
+registry and the bus, `ui/` the iframe, the inline mount and the dialog, `transport/` the
+kill-switch read alone, and a module's host half is a declaration. `docs/conventions.md` holds
+the map as it is.
 
 ### T2. What every SDK template satisfies
 
@@ -357,6 +388,9 @@ is the guide's `Adding a feature`; a template ships no placeholder code
     layer map and the import rules with the lint that enforces them; under `Deployment`, what
     an integrator adds to their policy, the release steps, the recipes of N4 and N6. No step
     tells a task to edit it ([ADR 0019](0019-package-docs.md)).
+
+2026-11-25: ADR 0021 changes invariants 2, 3, 4, 8, 9, 10 and 12 (its table);
+`docs/conventions.md` holds their text as it is.
 
 ### T3. The tools of `sdk/browser`
 
