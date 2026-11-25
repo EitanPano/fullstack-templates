@@ -782,6 +782,13 @@ the `Dockerfile` and the Compose fragment differ, through the lines named below,
   requests to HTTPS and the page is blank.
 - **Secrets.** Production values come from the shell environment or a secret manager; Compose
   reads `${VAR}` and never stores them.
+<!-- @sdk-start -->
+- **The SDK's build.** In both modes the image copies the SDK's CDN build from the `sdk` build
+  context and sets `SDK_DIR`, so `build` is the map form with `additional_contexts: { sdk:
+  "service:<sdk dir>" }`, in `single` beside `spa`. The blocks below show a project without an
+  SDK: keep the `sdk` line when you switch mode. It needs Docker Compose 2.35.0 or later in
+  `split` too.
+<!-- @sdk-end -->
 
 **The lines of each mode.** Switching mode edits exactly these lines, copied from this package's
 `compose.yaml` and `Dockerfile`, so they cannot drift. A generated project holds only the lines
