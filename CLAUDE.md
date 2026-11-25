@@ -85,7 +85,7 @@ bun tools/generate.ts --template server/python-fastapi --out ../api --name api  
 bun tools/generate.ts --stack astro-cloudflare --out ../x --name x \
   --frontend site=frontend/astro --frontend admin=frontend/angular   # several frontends (serverless API only); a template other than the stack's own must be listed in its stack.yaml `frontends`
 bun tools/generate.ts --stack react-bun-express --out ../x --name x \
-  --sdk sdk-ads=sdk/browser   # one sdk package, only with --stack; the API package then ships its /api/sdk/ namespace
+  --sdk sdk-widget=sdk/browser   # one sdk package, only with --stack; the API package then ships its /api/sdk/ namespace
 bun tools/test-generated.ts --list                                    # case ids: <kind>/<id>/<case>
 bun tools/test-generated.ts --case server/bun-express/default          # generate, run its check
 bun tools/test-generated.ts --case server/bun-express/postgres --with-services   # Docker: migrate, check, testDb
@@ -178,7 +178,7 @@ catalog with `skipPostGenerate`. The `*-cli.test.ts` files spawn the entry scrip
   for the server's Compose fragment); a `serverless` package beside a frontend also gets
   `__FRONTEND_PATH__` and `__FRONTEND_OUT__` (the first frontend's, undefined when the plan has
   no frontend), `__FRONTENDS__` (JSON list of `{dir,path,out,port}`, `[]` then) and
-  `__FRONTEND_HOSTS__` (the local host map, empty then). A `server` or `serverless` package of a plan with an sdk also gets `__SDK_DIR__`, `__SDK_PATH__` (from its own directory), `__SDK_OUT__` (the sdk's `cdn.out`) and `__SDK_PORT__`, undefined without one (wrap their lines in `@sdk`); the sdk package gets the `__SERVER_*__` tokens and `__SDK_GLOBAL__`. Each package's `__PORT__` is unique in the plan. A declared token left in output
+  `__FRONTEND_HOSTS__` (the local host map, empty then). A `server` or `serverless` package of a plan with an sdk also gets `__SDK_DIR__`, `__SDK_PATH__` (from its own directory), `__SDK_OUT__` (the sdk's `cdn.out`) and `__SDK_PORT__`, undefined without one (wrap their lines in `@sdk`); the sdk package gets the `__SERVER_*__` tokens, `__SDK_GLOBAL__` and `__SDK_SLOT__`. Each package's `__PORT__` is unique in the plan. A declared token left in output
   fails the run.
 - **Two dependency adapters.** `npm` (bun-express, next): a flag's `dependencies.remove` and a
   capability's `dependencies` and `scripts` edit `package.json`; a script name the base already

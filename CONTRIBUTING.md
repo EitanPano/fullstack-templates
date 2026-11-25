@@ -274,7 +274,8 @@ holds `serverless/other/` is left alone.
 
 ### Adding an sdk template
 
-An `sdk` template (ADR 0020) is a library other sites load into their pages, in `sdk/<id>/` (the
+An `sdk` template (ADR 0020, ADR 0021) is a library other sites load into their pages, in
+`sdk/<id>/` (the
 model is `sdk/browser`). The contract is the twelve invariants of
 [docs/conventions.md › SDK](docs/conventions.md); a template's layers, lint and recipes are its own,
 written in its `base/AGENTS.md`. The checklist is what `validate` and the cases prove. A `server`
@@ -290,8 +291,9 @@ and `@sdk` markers, see "Markers and placeholders") and an `sdk` case.
       never the build. It may not declare `static`, `capabilities`, `onlyWhen`, `docker`, `withApp` or
       a brand case; flags are allowed. No stack lists it: it comes from `--sdk`, once per plan, and
       always beside a stack, so a lone `--template sdk/<id>` is refused.
-- [ ] `base/AGENTS.md` has the headings `Adding a feature`, `Public API`, `Errors`, `Tests` and
-      `Deployment`, matched exactly; `validate` checks them. A feature is a module of the package.
+- [ ] `base/AGENTS.md` has the headings `Adding a feature`, `Public API`, `Errors`, `Tests`,
+      `Styling` and `Deployment`, matched exactly; `validate` checks them. A feature is a module of
+      the package.
       The layer map and import rules are required by the contract and are not checked headings.
 - [ ] A `Dockerfile` with a `build` stage and a `dist` target (`FROM scratch`, `dist/cdn` copied to
       `/sdk`), and a `compose.yaml` fragment that is a build-only service (`build: { context, target:
@@ -299,7 +301,8 @@ and `@sdk` markers, see "Markers and placeholders") and an `sdk` case.
       API package's image reads it as `additional_contexts: { sdk: "service:<dir>" }`, so Compose
       2.35.0 is the floor for `split` in a project with an sdk.
 - [ ] `cdn.out` holds one folder per major of the package's own version: `v<major>/loader.js`,
-      `v<major>/frame.js` and `v<major>/frame.html`. The API package serves a `.js` of that shape at
+      `v<major>/frame.js`, `v<major>/frame.css` and `v<major>/frame.html`. The API package serves a
+      `.js` or `.css` of that shape at
       `/api/sdk/dist/v<major>/` and the frame document at `/api/sdk/frame/v<major>`; a layout that
       differs is not served. A new major takes the old major's files away from loaders in use
       until the project keeps old builds (ADR 0020 N4).
@@ -316,7 +319,10 @@ and `@sdk` markers, see "Markers and placeholders") and an `sdk` case.
       differently in each. The config starts a fresh API package (with `SDK_KEYS`, `SDK_DIR`
       pointing at the e2e build, `SDK_ENABLED` and `RATE_LIMIT_SCALE=100`) and two host servers on
       another origin than the API, with no inline script. `--install-browsers` installs the three
-      engines for an sdk case (`--with-deps` on Linux); `check` does not run the suite.
+      engines for an sdk case (`--with-deps` on Linux); `check` does not run the suite. Two more
+      projects run `screens.spec` alone, `phone` (WebKit) and `desktop` (Chromium): each unit in
+      `tests/e2e/unit-screens.ts`, light and dark, as a file under `test-results/screens/`, with an
+      axe scan and no horizontal overflow in the frame. The harness reads those files.
 - [ ] `contract` generates types only (no client, no `zod`), only for the operations under
       `/api/sdk/`, and refuses a server whose document has none: `@hey-api/openapi-ts` writes the
       whole API when its filter matches nothing, so the package's script checks the input first and
@@ -327,7 +333,8 @@ and `@sdk` markers, see "Markers and placeholders") and an `sdk` case.
       (`sdk: "sdk-example=sdk/<id>"`) that generates the pair and runs the API's gates; the sdk's
       gates run in its own case, and the API's case logs `SKIP <dir>: its own cases run its gates`.
 - [ ] The tokens an sdk package gets are declared by the generator (`__SERVER_*__`, `__PACKAGE_DIR__`,
-      `__PORT__`, `__SDK_GLOBAL__`; see "Markers and placeholders"). It ships no placeholder or
+      `__PORT__`, `__SDK_GLOBAL__`, `__SDK_SLOT__`; see "Markers and placeholders"). It ships no
+      placeholder or
       example module (ADR 0010) and no step that edits its `AGENTS.md` (ADR 0019).
 - [ ] An `index.yaml` entry, a `README.md` and `CHANGELOG.md`, `bun tools/validate.ts --readme`, then
       `bun tools/validate.ts` green, and the case green: `bun tools/test-generated.ts --case
@@ -482,7 +489,9 @@ it in `@sdk`), and no other package may use one. The sdk package gets `__SERVER_
 `__SERVER_PORT__`, `__SERVER_START_COMMAND__`, `__SERVER_E2E_DB_COMMAND__`,
 `__SERVER_E2E_DATABASE_URL__` and `__SERVER_DEV_COMMAND__` as a frontend does, and `__SDK_GLOBAL__`:
 its directory's last segment with a leading `sdk-` dropped, in PascalCase, plus the suffix `Sdk`
-so a host's own global is not taken (`sdk-ads` is `AdsSdk`); the name after `sdk-` starts with a letter.
+so a host's own global is not taken (`sdk-widget` is `WidgetSdk`); the name after `sdk-` starts with
+a letter. It also gets `__SDK_SLOT__`, the attribute a page marks a slot with: `data-` and that
+global in kebab case (`data-widget-sdk`).
 Each package's `__PORT__` is unique in the plan. A frontend's e2e
 config also gets `__SERVER_START_COMMAND__` (the server's `start` command; from a nested
 `__SERVER_DIR__` write `../__SERVER_DIR__`),
@@ -843,7 +852,8 @@ the lockfiles is still to be configured.
   embeddable browser SDK, and the SDK namespace in `server/bun-express` 4.1.0,
   `server/python-fastapi` 3.1.0 and `serverless/cloudflare` 3.1.0, each behind the `sdk`
   selection, so a project without an SDK generates the tree it had
-  ([ADR 0020](docs/adr/0020-sdk-kind.md)); `schemaVersion` 1 (the optional fields named above); a
+  ([ADR 0020](docs/adr/0020-sdk-kind.md), [ADR 0021](docs/adr/0021-sdk-units.md));
+  `schemaVersion` 1 (the optional fields named above); a
   tool change (`generate --sdk`, the reserved `sdk` selection, the `__SDK_*__` placeholders, the
   `cdn` key, `onlyWhen` for `sdk`, and an sdk case installing Chromium, Firefox and WebKit).
   Before it, `v1.17.0`, a minor with seven template majors: the architecture unit and the
