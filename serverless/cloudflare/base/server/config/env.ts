@@ -65,6 +65,61 @@ const frontendHosts = z
   })
 
 // @frontends-end
+// @sdk-start
+// A key is publishable and an origin goes verbatim into a response header (frame-ancestors), so
+// each is checked against a closed form. An origin is the exact text a browser sends: lower-case
+// scheme and host, an optional non-default port, no path, no wildcard.
+const SDK_KEY = /^[A-Za-z0-9_.-]{1,128}$/
+const SDK_ORIGIN = /^https?:\/\/[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::[0-9]{1,5})?$/
+
+function isOrigin(value: string): boolean {
+  if (!SDK_ORIGIN.test(value)) return false
+  try {
+    return new URL(value).origin === value
+  } catch {
+    return false
+  }
+}
+
+// `key=origin,origin;key=origin`. A refusal names the pair by position and never the key.
+const sdkKeys = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value, ctx): Map<string, string[]> | undefined => {
+    if (value === undefined || value === '') return undefined
+    const keys = new Map<string, string[]>()
+    const refuse = (message: string) => {
+      ctx.addIssue({ code: 'custom', message })
+      return z.NEVER
+    }
+    const pairs = value.split(';').map((pair) => pair.trim())
+    if (pairs.at(-1) === '') pairs.pop()
+    for (const [index, pair] of pairs.entries()) {
+      const at = `pair ${String(index + 1)}`
+      const [key = '', origins = '', ...rest] = pair.split('=').map((part) => part.trim())
+      if (rest.length > 0 || origins === '') return refuse(`${at} must be key=origin[,origin]`)
+      if (!SDK_KEY.test(key)) return refuse(`${at} has a key outside A-Z a-z 0-9 _ . -`)
+      if (keys.has(key)) return refuse(`${at} repeats an earlier key`)
+      const list = origins.split(',').map((origin) => origin.trim())
+      if (!list.every(isOrigin)) {
+        return refuse(`${at} has an origin that is not scheme://host[:port] in lower case`)
+      }
+      keys.set(key, list)
+    }
+    return keys
+  })
+
+// A JSON boolean in wrangler.jsonc's vars is as good as the text.
+const sdkEnabled = z.preprocess(
+  (value) => (typeof value === 'boolean' ? String(value) : blankIsUnset(value)),
+  z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .default(true),
+)
+
+// @sdk-end
 const schema = z.object({
   // Required: `wrangler.jsonc` sets it per environment, so a missing one is a deploy fault.
   ENVIRONMENT: z.enum(['development', 'test', 'preview', 'production']),
@@ -76,6 +131,12 @@ const schema = z.object({
   // bypass.
   RATE_LIMIT_SCALE: z.preprocess(blankIsUnset, z.coerce.number().min(1).max(1000).default(1)),
   LOG_LEVEL: z.preprocess(blankIsUnset, z.enum(['debug', 'info', 'warn', 'error']).default('info')),
+  // @sdk-start
+  // The SDK namespace: publishable keys with their origins and the kill switch GET /api/sdk/v1/config
+  // answers. A blank value is unset; unset SDK_KEYS means every namespace request is refused.
+  SDK_KEYS: sdkKeys,
+  SDK_ENABLED: sdkEnabled,
+  // @sdk-end
   // @frontends-start
   // Required in every environment, with no default: preview and production carry it empty until a
   // deployer sets their hosts, so an unset map refuses every request instead of guessing a host.

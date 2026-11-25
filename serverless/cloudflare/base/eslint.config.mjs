@@ -7,6 +7,7 @@
 //   server/     imports itself, by the layer map in AGENTS.md
 //   hono        only the entries, the routes.ts files and middleware/handler.ts import it
 //   admin       api/admin/<entity>/ is an entity like any other; api/admin/routes.ts mounts them
+//   sdk         api/sdk/<entity>/ likewise; api/sdk/routes.ts mounts them // @sdk
 //   openapi.ts  imports every entity's schema.ts and services/utils/; only scripts and tests import it
 import eslint from '@eslint/js'
 import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript'
@@ -144,15 +145,19 @@ export const zones = [
     // mounts the routes.ts of the entities under it. Nothing else imports one.
     target: [
       ...everyServerLayer,
-      server('api', '!(admin)', '**'),
+      server('api', '!(admin)', '**'), // @nosdk
+      server('api', '!(admin|sdk)', '**'), // @sdk
       server('api', 'admin', '!(routes).ts'),
       server('api', 'admin', '*', '**'),
+      server('api', 'sdk', '!(routes).ts'), // @sdk
+      server('api', 'sdk', '*', '**'), // @sdk
       server('index.ts'),
       server('openapi.ts'),
     ],
     from: server('api', '**', 'routes.ts'),
     message:
-      'only server.ts imports a routes.ts (api/admin/routes.ts imports the routes.ts of its admin entities).',
+      'only server.ts imports a routes.ts (api/admin/routes.ts imports the routes.ts of its admin entities).', // @nosdk
+      'only server.ts imports a routes.ts (api/admin/routes.ts and api/sdk/routes.ts import the routes.ts of the entities under them).', // @sdk
   },
 ]
 
@@ -253,7 +258,8 @@ export default tseslint.config(
   // api/admin/<entity>/: an entity like any other, so a top-level entity two levels up counts as
   // another entity too. Each block restates its whole policy.
   {
-    files: ['server/api/admin/*/**'],
+    files: ['server/api/admin/*/**'], // @nosdk
+    files: ['server/api/{admin,sdk}/*/**'], // @sdk
     rules: {
       'no-restricted-imports': [
         'error',
@@ -267,7 +273,8 @@ export default tseslint.config(
             {
               regex: `${topLevelEntity}(?!controller${end})`,
               message:
-                "an admin entity reaches a top-level entity's data through that entity's controller.ts, and only a controller.ts imports it",
+                "an admin entity reaches a top-level entity's data through that entity's controller.ts, and only a controller.ts imports it", // @nosdk
+                "an admin or SDK entity reaches a top-level entity's data through that entity's controller.ts, and only a controller.ts imports it", // @sdk
             },
             throughApi,
           ],
@@ -276,7 +283,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ['server/api/admin/*/{service,model}.ts'],
+    files: ['server/api/admin/*/{service,model}.ts'], // @nosdk
+    files: ['server/api/{admin,sdk}/*/{service,model}.ts'], // @sdk
     rules: {
       'no-restricted-imports': [
         'error',

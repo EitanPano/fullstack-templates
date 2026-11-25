@@ -91,6 +91,44 @@ export function guard(...gates: Gate[]): MiddlewareHandler<AppEnv> {
   }
 }
 
+// @sdk-start
+// `guard` for a namespace that also writes headers on every answer (the SDK's CORS): `decorate`
+// reads the request alone and returns the headers; they are set on the gates' answer, a refusal or
+// the router's, so a 403 and a 429 carry them like a 200.
+export function namespaceGuard(
+  decorate: (ctx: Context) => Record<string, string>,
+  ...gates: Gate[]
+): MiddlewareHandler<AppEnv> {
+  return async (c, next) => {
+    const ctx = contextOf(c)
+    const headers = decorate(ctx)
+    let answer: Response | undefined
+    try {
+      for (const gate of gates) {
+        const result = await gate(ctx)
+        if (result instanceof Response) {
+          answer = result
+          break
+        }
+      }
+    } catch (error) {
+      answer = errorResponse(error, ctx.requestId, ctx.log)
+    }
+    if (answer === undefined) {
+      await next()
+      answer = c.res
+    }
+    c.res = withHeaders(answer, headers)
+  }
+}
+
+function withHeaders(response: Response, headers: Record<string, string>): Response {
+  const target = new Response(response.body, response)
+  for (const [name, value] of Object.entries(headers)) target.headers.set(name, value)
+  return target
+}
+
+// @sdk-end
 // A path's fallback after its endpoints: a method it does not register answers 405 with Allow.
 export function methodNotAllowed(...allowed: string[]): Handler {
   return handle(() => {
@@ -130,8 +168,15 @@ export function secure(headers: Headers, requestId: string): void {
   headers.set('referrer-policy', 'no-referrer')
   // An API response is data, never a document: nothing may frame it, run it or embed it from
   // another origin. (A page's policy is the meta its build wrote plus the line assemble adds.)
-  headers.set('content-security-policy', API_POLICY)
-  headers.set('cross-origin-resource-policy', 'same-origin')
+  headers.set('content-security-policy', API_POLICY) // @nosdk
+  headers.set('cross-origin-resource-policy', 'same-origin') // @nosdk
+  // @sdk-start
+  // A response that sets its own policy (the SDK's frame document, its script files) keeps it.
+  if (!headers.has('content-security-policy')) headers.set('content-security-policy', API_POLICY)
+  if (!headers.has('cross-origin-resource-policy')) {
+    headers.set('cross-origin-resource-policy', 'same-origin')
+  }
+  // @sdk-end
   if (!headers.has('cache-control')) headers.set('cache-control', 'no-store')
 }
 

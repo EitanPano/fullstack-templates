@@ -10,6 +10,11 @@ export const RATE_LIMITS = {
   createEntityPerIp: { limit: 30, window: '15m' },
   updateEntityPerIp: { limit: 30, window: '15m' },
   deleteEntityPerIp: { limit: 30, window: '15m' },
+  // @sdk-start
+  // The SDK namespace: a key stands for a publisher's whole audience, an address for one visitor.
+  sdkPerKey: { limit: 3000, window: '1m' },
+  sdkPerIp: { limit: 120, window: '1m' },
+  // @sdk-end
 } as const
 
 // Expired counter rows are deleted opportunistically: one request in RATE_LIMIT_CLEANUP_SAMPLE

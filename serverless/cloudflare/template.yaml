@@ -2,7 +2,7 @@ schemaVersion: 1
 id: cloudflare
 kind: serverless
 name: Cloudflare Workers
-version: 3.0.0
+version: 3.1.0
 summary: "One Cloudflare Worker with static assets, routed by Hono: D1 through Drizzle, zod schemas and the OpenAPI contract from them, one error envelope, tests in workerd; serves a frontend's build on one origin"
 runtime: { language: typescript, platform: cloudflare-workers, minVersion: '24' }
 tools:
@@ -32,6 +32,20 @@ commands:
   contract: bun run openapi
 contract: { produces: openapi.json }
 http: { port: 8788, health: /api/health, ready: /api/health/ready }
+onlyWhen:
+  sdk:
+    - server/api/sdk
+    - server/middleware/sdk-files.ts
+    - server/middleware/sdk-gate.ts
+    - server/services/security/sdk-keys.ts
+    - scripts/lib/sdk-build.mjs
+    - tests/api/sdk-assets.ts
+    - tests/api/sdk-config.test.ts
+    - tests/api/sdk-files.test.ts
+    - tests/api/sdk-frame.test.ts
+    - tests/api/sdk-keys.test.ts
+    - tests/unit/sdk-build.test.ts
+    - tests/unit/sdk-start.test.ts
 gitignore: [node, cloudflare]
 agents: AGENTS.md
 postGenerate:

@@ -1,5 +1,38 @@
 # Changelog
 
+## 3.1.0 — 2026-11-25
+
+### Added
+
+- With an `sdk` package in the plan ([ADR 0020](../../docs/adr/0020-sdk-kind.md) N1 to N5, as
+  [ADR 0016](../../docs/adr/0016-one-worker-with-static-assets.md) has the Worker; without one the
+  generated package is unchanged):
+  - the SDK namespace `server/api/sdk/`, mounted at `/api/sdk/v1`, an entity of it being
+    `server/api/sdk/<entity>/`. `middleware/sdk-gate.ts` runs first through `namespaceGuard`: CORS for the
+    namespace alone (origin echoed when the key lists it, `Vary: Origin`, never credentials,
+    `Access-Control-Max-Age: 600`; a preflight answers for an origin any key lists), the `X-Sdk-Key` key
+    resolved by `services/security/sdk-keys.ts`, then the rate limit by key and address (`sdkPerKey`,
+    `sdkPerIp` in `RATE_LIMITS`, on the D1 limiter). A same-origin request (no `Origin`,
+    `Sec-Fetch-Site: same-origin`, or an `Origin` whose host equals the request URL's host) needs a valid
+    key only and gets no allow-origin header. No cookie is read.
+  - `GET /api/sdk/v1/config` answers `{ enabled }` from `SDK_ENABLED`; it is in `openapi.json` with the
+    key header and the 403 and 429 answers. A method it lacks answers 405 with `Allow`.
+  - `GET|HEAD /api/sdk/dist/v<major>/<file>.js` and `GET /api/sdk/frame/v<major>?k=<key>`
+    (`middleware/sdk-files.ts`), outside the key gate and outside the OpenAPI document. `assemble`
+    copies the SDK's build into `dist/api/sdk/` (the frame document without its `.html` name); the Worker
+    fetches the same path through `ASSETS` and builds its response from the body alone, so a `_headers`
+    rule changes nothing and no address answers a file raw (`/api/*` runs the Worker first in every
+    plan). The frame carries one `Content-Security-Policy` whose `frame-ancestors` are the key's origins
+    (`'none'` for an unknown key), no `X-Frame-Options`, `Cache-Control: no-store`.
+  - `SDK_KEYS` and `SDK_ENABLED` in `config/env.ts` (bindings, local values in `.env.example`): a malformed
+    `SDK_KEYS` fails the request naming the variable and never the key; each origin must be
+    `scheme://host[:port]` in lower case. `SDK_DIR`, read by `assemble`, names another SDK build to
+    serve. `bun run start` takes `SDK_KEYS` and `SDK_ENABLED` from the shell.
+  - `secure` keeps a `Content-Security-Policy` or `Cross-Origin-Resource-Policy` the response already
+    set (only the SDK's two routes set one), and the layer lint treats `api/sdk/<entity>/` as it
+    treats `api/admin/<entity>/`.
+  - the `sdk` case in `tests/cases.yaml`.
+
 ## 3.0.0 — 2026-11-24
 
 The architecture unit is an entity, not a module ([ADR 0018](../../docs/adr/0018-entity-term-and-service-facades.md)

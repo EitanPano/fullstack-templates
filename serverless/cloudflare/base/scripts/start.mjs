@@ -10,6 +10,10 @@
 // Beside several frontends: `--frontend <dir>=<output dir>` (repeatable) and `--only <dir>` go to
 // assemble too; without `--only` every frontend's build must exist, and all are served.
 // @frontends-end
+// @sdk-start
+// With an SDK package SDK_KEYS and SDK_ENABLED are taken from the shell too, and SDK_DIR (read by
+// assemble) names the SDK build to serve in place of the SDK package's own.
+// @sdk-end
 // It does not belong: building the frontend (run its build first), migrations (`bun run e2e:db`)
 // or deployment.
 import { spawnSync } from 'node:child_process'
@@ -46,7 +50,8 @@ const built = spawnSync(
 )
 if (built.status !== 0) process.exit(built.status ?? 1)
 
-const vars = ['RATE_LIMIT_SCALE', 'LOG_LEVEL']
+const vars = ['RATE_LIMIT_SCALE', 'LOG_LEVEL'] // @nosdk
+const vars = ['RATE_LIMIT_SCALE', 'LOG_LEVEL', 'SDK_KEYS', 'SDK_ENABLED'] // @sdk
   .filter((name) => process.env[name] !== undefined && process.env[name] !== '')
   .flatMap((name) => ['--var', `${name}:${process.env[name]}`])
 

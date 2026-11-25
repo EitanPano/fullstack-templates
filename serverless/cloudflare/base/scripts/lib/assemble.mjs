@@ -26,6 +26,7 @@ import {
   checkHeadersSource,
   checkPages,
 } from './csp-headers.mjs'
+import { addSdkBuild, refuseApiFrontend } from './sdk-build.mjs' // @sdk
 
 export class AssembleError extends Error {
   constructor(message) {
@@ -128,6 +129,15 @@ export function prefixRedirects(text, dir, label) {
 const joined = (parts) =>
   parts.map((part, at) => (at === 0 ? part.replace(/\s+$/, '') : part.replace(/^\s+/, ''))).join('\n\n')
 
+// @sdk-start
+// The SDK's build beside the site, under api/sdk/ (sdk-build.mjs); `sdk` is its folder, null when
+// the plan has none.
+const fail = (message) => new AssembleError(message)
+function addSdk(work, sdk, warn) {
+  if (sdk !== null) addSdkBuild(work, sdk, warn, fail)
+}
+
+// @sdk-end
 function swap(work, dist) {
   rmSync(dist, { recursive: true, force: true })
   renameSync(work, dist)
@@ -163,6 +173,7 @@ export function frontendOverrides(argv, names) {
  *   frontend?: string | null
  *   frontends?: { dir: string; build: string }[] | null
  *   only?: string
+ *   sdk?: string | null // @sdk
  *   warn?: (message: string) => void
  * }} options
  * @returns {{ pages: number; withPolicy: number; without: string[] }}
@@ -173,6 +184,7 @@ export function assemble({
   frontend = null,
   frontends = null,
   only,
+  sdk = null, // @sdk
   warn = (message) => {
     process.stderr.write(`assemble: warning: ${message}\n`)
   },
@@ -180,7 +192,8 @@ export function assemble({
   if (!existsSync(statics)) {
     throw new AssembleError(`${statics} is missing: it holds the base _headers and _redirects`)
   }
-  if (frontends !== null) return assembleSeveral({ statics, dist, frontends, only, warn })
+  if (frontends !== null) return assembleSeveral({ statics, dist, frontends, only, warn }) // @nosdk
+  if (frontends !== null) return assembleSeveral({ statics, dist, frontends, only, sdk, warn }) // @sdk
   if (frontend !== null && isEmptyBuild(frontend)) {
     throw new AssembleError(
       `the frontend's output ${frontend} is missing or empty: build the frontend first`,
@@ -215,6 +228,7 @@ export function assemble({
       }
     }
     const summary = applyPolicy(work)
+    addSdk(work, sdk, warn) // @sdk
     swap(work, dist)
     if (summary.without.length > 0) warn(listWithout(summary.without))
     return summary
@@ -231,12 +245,15 @@ export function assemble({
  *   dist: string
  *   frontends: { dir: string; build: string }[]
  *   only?: string
+ *   sdk: string | null // @sdk
  *   warn: (message: string) => void
  * }} options
  * @returns {{ pages: number; withPolicy: number; without: string[] }}
  */
-function assembleSeveral({ statics, dist, frontends, only, warn }) {
+function assembleSeveral({ statics, dist, frontends, only, warn }) { // @nosdk
+function assembleSeveral({ statics, dist, frontends, only, sdk, warn }) { // @sdk
   const names = frontends.map((item) => item.dir)
+  if (sdk !== null) refuseApiFrontend(names, fail) // @sdk
   if (only !== undefined && !names.includes(only)) {
     throw new AssembleError(`--only names "${only}", which is not a frontend (${names.join(', ')})`)
   }
@@ -313,6 +330,7 @@ function assembleSeveral({ statics, dist, frontends, only, warn }) {
       path.join(work, '_redirects'),
       `${parts([...redirects, ...base('_redirects')])}\n`,
     )
+    addSdk(work, sdk, warn) // @sdk
     swap(work, dist)
     if (summary.without.length > 0) warn(listWithout(summary.without))
     return summary
