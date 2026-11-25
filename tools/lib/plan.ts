@@ -26,7 +26,7 @@ import {
 import { isKind } from './capability-kinds'
 import { migrateServiceName } from './compose'
 import { DIR_PATTERN, isApiKind, isSdkKind, memberProblems } from './package-dir'
-import { toProjectName } from './placeholders'
+import { sdkGlobalProblem, toProjectName } from './placeholders'
 import { ThemeError } from './theme'
 
 export interface Answers {
@@ -170,6 +170,8 @@ function sdkMember(catalog: Catalog, input: RequestInput): Member | undefined {
     throw new PlanError('--sdk needs --stack: an sdk package has no API to call without one')
   }
   if (!DIR_PATTERN.test(one.dir)) throw new PlanError(`invalid package dir: ${one.dir}`)
+  const globalProblem = sdkGlobalProblem(one.dir)
+  if (globalProblem !== null) throw new PlanError(globalProblem)
   const template = catalog.templates.get(one.template)
   if (!template) throw new PlanError(`unknown template: ${one.template}`)
   if (!isSdkKind(template.manifest.kind)) {

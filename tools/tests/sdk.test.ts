@@ -186,13 +186,23 @@ describe('the sdk placeholders', () => {
   })
 
   test.each([
-    ['sdk-ads', 'Ads'],
-    ['sdk-two-words', 'TwoWords'],
+    ['sdk-ads', 'AdsSdk'],
+    ['sdk-two-words', 'TwoWordsSdk'],
+    ['sdk-browser', 'BrowserSdk'],
     ['sdk', 'Sdk'],
+    ['ads-sdk', 'AdsSdk'],
   ])('derive the global of %s as %s', (dir, global) => {
     const out = build({ stack: 'mini', sdks: sdk(dir) })
     expect(read(out, dir, 'src', 'index.ts')).toContain(`globalName = '${global}'`)
     expect(read(out, dir, 'AGENTS.md')).toContain(`global ${global}.`)
+  })
+})
+
+describe('the sdk global must be an identifier', () => {
+  test.each(['sdk-', 'sdk-2fa'])('refuses the directory %s before anything is staged', (dir) => {
+    expect(() => plan({ stack: 'mini', sdks: sdk(dir) })).toThrow(
+      new RegExp(`sdk directory "${dir}".*after sdk- must start with a letter`),
+    )
   })
 })
 

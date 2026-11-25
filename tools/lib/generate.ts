@@ -36,6 +36,7 @@ import {
   GENERATED_PLACEHOLDERS,
   SDK_PLACEHOLDERS,
   SERVER_PLACEHOLDERS,
+  sdkGlobal,
   findLeftoverPlaceholder,
   isTextFile,
   placeholderValues,
@@ -158,17 +159,6 @@ function sdkValues(plan: GenerationPlan, pkg: PackagePlan): Record<string, strin
     ...(sdk.template.manifest.cdn === undefined ? {} : { SDK_OUT: sdk.template.manifest.cdn.out }),
     ...(port === undefined ? {} : { SDK_PORT: String(port) }),
   }
-}
-
-// The name of the sdk's one global: its directory's last segment, a leading `sdk-` dropped, in
-// PascalCase (`sdk-ads` is `Ads`, `sdk` is `Sdk`).
-export function sdkGlobal(dir: string): string {
-  const last = dir.split('/').at(-1) ?? dir
-  const name = last.startsWith('sdk-') ? last.slice('sdk-'.length) : last
-  return name
-    .split('-')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join('')
 }
 
 // The frontend's place as a serverless package sees it (ADR 0014 K4): the relative path from its

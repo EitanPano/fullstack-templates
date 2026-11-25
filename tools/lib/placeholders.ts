@@ -96,6 +96,30 @@ export const GENERATED_PLACEHOLDERS: readonly string[] = [
   'THEME_FONT_STACK',
 ]
 
+// The name of the sdk's one global: its directory's last segment, a leading `sdk-` dropped, in
+// PascalCase, plus the suffix `Sdk` so a host's own `Chat` or `React` is not taken (`sdk-ads` is
+// `AdsSdk`; `sdk` and `ads-sdk` end in the suffix already: `Sdk`, `AdsSdk`).
+export function sdkGlobal(dir: string): string {
+  const last = dir.split('/').at(-1) ?? dir
+  const name = last.startsWith('sdk-') ? last.slice('sdk-'.length) : last
+  const pascal = name
+    .split('-')
+    .filter((word) => word !== '')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('')
+  return pascal.endsWith('Sdk') ? pascal : `${pascal}Sdk`
+}
+
+// The reason a directory cannot name the sdk's global, or null: the name after `sdk-` must start
+// with a letter, so the global is a JavaScript identifier.
+export function sdkGlobalProblem(dir: string): string | null {
+  const global = sdkGlobal(dir)
+  const last = dir.split('/').at(-1) ?? dir
+  const after = last.startsWith('sdk-') ? last.slice('sdk-'.length) : last
+  if (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(global) && /^[a-z]/.test(after)) return null
+  return `sdk directory "${dir}": the name after sdk- must start with a letter (the global is window.<Name>Sdk)`
+}
+
 export function substitutePlaceholders(
   content: string,
   values: Readonly<Record<string, string>>,
