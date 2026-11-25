@@ -9,9 +9,10 @@
   generated package is unchanged):
   - the SDK namespace `server/api/sdk/`, mounted at `/api/sdk/v1`, an entity of it being
     `server/api/sdk/<entity>/`. `middleware/sdk-gate.ts` runs first through `namespaceGuard`: CORS for the
-    namespace alone (origin echoed when the key lists it, `Vary: Origin, X-Sdk-Key`, `Cache-Control: no-store`, never
+    namespace alone (origin echoed once the key step admits a key that lists it, `Vary: Origin, X-Sdk-Key`, `Cache-Control: no-store`, never
     credentials, `Access-Control-Max-Age: 600`; a preflight answers for an origin any key lists), the `X-Sdk-Key` key
-    resolved by `services/security/sdk-keys.ts`, then the rate limit by address and by key
+    resolved once by `services/security/sdk-keys.ts` (async `resolveKey`, answering `{ origins, enabled }`, and
+    `isListedOrigin`; a lookup that throws answers 500, a switched-off key 403 but for `GET|HEAD /config` on the exact path; both lookups answer from a cache), then the rate limit by address and by key
     (`sdkPerIp`, `sdkPerKey` in `RATE_LIMITS`, on the D1 limiter; the address first, so a refused request
     never reaches the key's counter, and a preflight counts on the address). A same-origin request
     (`Sec-Fetch-Site: same-origin`, or, with no such header, no `Origin` or one whose host equals the
@@ -20,20 +21,28 @@
     cross-origin header to these paths. `frameOnly` narrows an entity to the frame, mounted as
     `routes.use('/<name>/*', frameOnly)` so the paths under it are guarded too: a request that is not
     same-origin gets the 403 envelope and no allow header, and its preflight none either.
-  - `GET /api/sdk/v1/config` answers `{ enabled }` from `SDK_ENABLED`; it is in `openapi.json` with the
-    key header and the 403 and 429 answers. A method it lacks answers 405 with `Allow`.
-  - `GET|HEAD /api/sdk/dist/v<major>/<file>.js` and `GET /api/sdk/frame/v<major>?k=<key>`
+  - `GET /api/sdk/v1/config` answers `{ enabled }` from `SDK_ENABLED` and the key's own switch; it is in
+    `openapi.json` with the key header and the 403 and 429 answers. A method it lacks answers 405 with `Allow`.
+  - `POST /api/sdk/v1/telemetry` (`api/sdk/telemetry/`, behind `frameOnly`): `{ events }`, 1 to 100 objects,
+    answers 204 after `{ key, events }` goes to `recordSdkTelemetry` in `services/telemetry.ts`, awaited (the default logs a
+    count; a sink that throws is logged by its error class and the answer stays 204). In `openapi.json` as `postSdkTelemetry`.
+  - A body under `/api/sdk/` is at most 64 KB (`SDK_MAX_BODY_BYTES`, 413), read after the key gate
+    (`Context.maxBodyBytes`, passed by `validate` to `readJsonBody`).
+  - `GET|HEAD /api/sdk/dist/v<major>/<file>.js` and `.css`, and `GET /api/sdk/frame/v<major>?k=<key>`
     (`middleware/sdk-files.ts`), outside the key gate and outside the OpenAPI document. `assemble`
-    copies the SDK's build into `dist/api/sdk/` (the frame document without its `.html` name); the Worker
+    copies the SDK's scripts and stylesheets (never a source map) and its frame document into `dist/api/sdk/` (the frame document without its `.html` name); the Worker
     fetches the same path through `ASSETS` and builds its response from the body alone (and a script's
     well-formed `ETag`, with 304 for a request that holds it), so a `_headers` rule changes nothing and no address answers a file raw (`/api/*` runs the Worker first in every
-    plan). The frame carries one `Content-Security-Policy` whose `frame-ancestors` are the key's origins
-    (`'none'` for an unknown key), no `X-Frame-Options`, `Cache-Control: no-store`.
-  - `SDK_KEYS` and `SDK_ENABLED` in `config/env.ts` (bindings, local values in `.env.example`): a malformed
-    `SDK_KEYS` fails the request naming the variable and never the key; each origin must be
+    plan). The frame carries one `Content-Security-Policy` (script, style and connect from itself, images from itself and
+    `SDK_IMG_ORIGINS`, `frame-ancestors` the key's origins, `'none'` for an unknown or switched-off key, an origin outside the `SDK_KEYS` form, or a lookup that
+    throws, logged as a warning), no `X-Frame-Options`, `Referrer-Policy: no-referrer`, `Cache-Control: no-store`.
+  - `SDK_KEYS`, `SDK_ENABLED` and `SDK_IMG_ORIGINS` in `config/env.ts` (bindings, local values in `.env.example`): a
+    malformed `SDK_KEYS` or `SDK_IMG_ORIGINS` fails the request naming the variable and never the key; each origin must be
     `scheme://host[:port]` in lower case; production refuses an `http:` or loopback origin. `SDK_DIR`, read by `assemble`, names another SDK build to
     serve. A missing or empty SDK build fails `assemble`, as a missing frontend build does; `bun run
-    start` passes `--allow-missing-sdk` and warns. `bun run start` takes `SDK_KEYS` and `SDK_ENABLED` from the shell.
+    start` passes `--allow-missing-sdk` and warns. `bun run start` takes `SDK_KEYS`, `SDK_ENABLED` and `SDK_IMG_ORIGINS` from the shell.
+  - `namespaceGuard` sets its headers after the gates, so the allow-origin header reads the key's record on
+    `Context.sdkKey` (a getter over a Hono variable, shared by the guard's and the route's contexts).
   - `secure` keeps a `Content-Security-Policy` or `Cross-Origin-Resource-Policy` the response already
     set (only the SDK's two routes set one), and the layer lint treats `api/sdk/<entity>/` as it
     treats `api/admin/<entity>/`.

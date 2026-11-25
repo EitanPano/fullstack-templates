@@ -43,8 +43,10 @@ function write(root: string, base: string, files: Record<string, string>) {
 const BUILD = {
   'v1/loader.js': '(()=>{})()',
   'v1/frame.js': 'console.log("frame")',
+  'v1/frame.css': 'body{margin:0}',
   'v1/frame.html': FRAME,
   'v1/loader.js.map': '{}',
+  'v1/frame.css.map': '{}',
   'v1/notes.txt': 'not a script',
   'v1/.hidden.js': 'x',
   'v1/sub/deep.js': 'x',
@@ -94,6 +96,7 @@ describe('assemble with an SDK build', () => {
 
     expect(p.read('api/sdk/dist/v1/loader.js')).toBe('(()=>{})()')
     expect(p.read('api/sdk/dist/v1/frame.js')).toBe('console.log("frame")')
+    expect(p.read('api/sdk/dist/v1/frame.css')).toBe('body{margin:0}')
     expect(p.read('api/sdk/dist/v2/loader.js')).toBe('two')
     expect(p.read('api/sdk/frame/v1')).toBe(FRAME)
   })
@@ -105,6 +108,7 @@ describe('assemble with an SDK build', () => {
 
     const sdkFiles = listing(path.join(p.root, 'dist', 'api'))
     expect(sdkFiles.sort()).toEqual([
+      'sdk/dist/v1/frame.css',
       'sdk/dist/v1/frame.js',
       'sdk/dist/v1/loader.js',
       'sdk/dist/v2/loader.js',

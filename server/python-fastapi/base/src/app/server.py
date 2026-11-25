@@ -48,12 +48,12 @@ def create_app(lifespan: Lifespan[FastAPI] | None = None, *, config: Env = env) 
     app.add_middleware(CatchAllMiddleware)
     # HEAD is answered wherever GET is: runs the request as GET and drops the body.
     app.add_middleware(HeadMiddleware)
+    app.add_middleware(BodyLimitMiddleware, max_bytes=MAX_BODY_BYTES)
     # @sdk-start
-    # CORS for /api/sdk/v1 alone, whatever CORS_ORIGINS says. It sits between the body limit and
-    # head: tests/test_server.py pins the order.
+    # CORS and the key gate for /api/sdk/v1 alone, whatever CORS_ORIGINS says. They sit outside the
+    # body limit so that no body of the namespace is read before the gate has decided.
     app.add_middleware(SdkCorsMiddleware)
     # @sdk-end
-    app.add_middleware(BodyLimitMiddleware, max_bytes=MAX_BODY_BYTES)
     # One log line per request.
     app.add_middleware(RequestLogMiddleware)
     # Behind a proxy, the client IP needs the configured hop count.
@@ -81,7 +81,7 @@ def create_app(lifespan: Lifespan[FastAPI] | None = None, *, config: Env = env) 
     # The SDK's built files and its frame document, outside the key gate and never answered by
     # the SPA below. Without SDK_DIR neither route exists and the 404 envelope answers.
     if config.sdk_dir is not None:
-        register_sdk_files(app, config.sdk_dir)
+        register_sdk_files(app, config.sdk_dir, config.sdk_img_origins)
 
     # @sdk-end
     # The built SPA, only when configured: after every API route and the contract, and last in

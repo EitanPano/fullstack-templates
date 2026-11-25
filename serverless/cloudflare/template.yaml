@@ -38,6 +38,7 @@ onlyWhen:
     - server/middleware/sdk-files.ts
     - server/middleware/sdk-gate.ts
     - server/services/security/sdk-keys.ts
+    - server/services/telemetry.ts
     - scripts/lib/sdk-build.mjs
     - tests/api/sdk-assets.ts
     - tests/api/sdk-config.test.ts
@@ -45,6 +46,8 @@ onlyWhen:
     - tests/api/sdk-frame-only.test.ts
     - tests/api/sdk-frame.test.ts
     - tests/api/sdk-keys.test.ts
+    - tests/api/sdk-lookup.test.ts
+    - tests/api/sdk-telemetry.test.ts
     - tests/unit/sdk-build.test.ts
     - tests/unit/sdk-start.test.ts
 gitignore: [node, cloudflare]

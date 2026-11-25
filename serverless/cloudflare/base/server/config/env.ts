@@ -72,7 +72,7 @@ const frontendHosts = z
 const SDK_KEY = /^[A-Za-z0-9_.-]{1,128}$/
 const SDK_ORIGIN = /^https?:\/\/[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::[0-9]{1,5})?$/
 
-function isOrigin(value: string): boolean {
+export function isOrigin(value: string): boolean {
   if (!SDK_ORIGIN.test(value)) return false
   try {
     return new URL(value).origin === value
@@ -126,6 +126,25 @@ const sdkEnabled = z.preprocess(
     .default(true),
 )
 
+// The origins the frame may load images from (its img-src): `origin,origin`, each in the closed
+// form an SDK_KEYS origin has, since it goes verbatim into a response header.
+const sdkImgOrigins = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value, ctx): string[] => {
+    if (value === undefined || value === '') return []
+    const list = value.split(',').map((origin) => origin.trim())
+    if (!list.every(isOrigin)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'must be origins, scheme://host[:port] in lower case, separated by commas',
+      })
+      return z.NEVER
+    }
+    return list
+  })
+
 // @sdk-end
 const schema = z.object({
   // Required: `wrangler.jsonc` sets it per environment, so a missing one is a deploy fault.
@@ -139,10 +158,12 @@ const schema = z.object({
   RATE_LIMIT_SCALE: z.preprocess(blankIsUnset, z.coerce.number().min(1).max(1000).default(1)),
   LOG_LEVEL: z.preprocess(blankIsUnset, z.enum(['debug', 'info', 'warn', 'error']).default('info')),
   // @sdk-start
-  // The SDK namespace: publishable keys with their origins and the kill switch GET /api/sdk/v1/config
-  // answers. A blank value is unset; unset SDK_KEYS means every namespace request is refused.
+  // The SDK namespace: publishable keys with their origins, the kill switch GET /api/sdk/v1/config
+  // answers, and the image origins of the frame. A blank value is unset; unset SDK_KEYS means every
+  // namespace request is refused.
   SDK_KEYS: sdkKeys,
   SDK_ENABLED: sdkEnabled,
+  SDK_IMG_ORIGINS: sdkImgOrigins,
   // @sdk-end
   // @frontends-start
   // Required in every environment, with no default: preview and production carry it empty until a
@@ -169,6 +190,11 @@ export function parseConfig(source: Record<string, unknown>): Config {
         `invalid environment: SDK_KEYS: pair ${String(weak + 1)} has an http or loopback origin, which production refuses`,
       )
     }
+  }
+  if (result.data.ENVIRONMENT === 'production' && result.data.SDK_IMG_ORIGINS.some(isWeakOrigin)) {
+    throw new Error(
+      'invalid environment: SDK_IMG_ORIGINS: an http or loopback origin, which production refuses',
+    )
   }
   // @sdk-end
   return result.data

@@ -1,7 +1,7 @@
 """The SDK namespace at /api/sdk/v1: the gate (CORS for the namespace alone, the key, the rate
 limit) and the one endpoint that ships, GET /api/sdk/v1/config."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 
 import httpx
@@ -16,6 +16,8 @@ from app.middleware.rate_limit import scaled_limit
 from app.server import create_app
 from app.services import cache
 from app.services.security import sdk_keys
+from app.services.security.sdk_keys import SdkKey
+from tests.sdk_http import raw, serving
 from tests.support import error_of, http_client
 
 KEY = "pk_test_a"
@@ -548,6 +550,25 @@ class TestTheLimitsAreByAddressFirst:
         expect_envelope(res, 429, "rate_limited")
         assert "access-control-allow-origin" not in res.headers
 
+    async def test_counts_a_preflight_before_any_lookup(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        limit = scaled_limit(RATE_LIMITS.sdk_per_ip.limit, load_env({}).env.rate_limit_scale)
+        looked: list[str | None] = []
+
+        async def listed(origin: str | None) -> bool:
+            looked.append(origin)
+            return True
+
+        monkeypatch.setattr(sdk_keys, "is_listed_origin", listed)
+        headers = {"origin": A, **PREFLIGHT}
+
+        async with http_client(create_app()) as http:
+            for _ in range(limit + 3):
+                await http.options(PATH, headers=headers)
+
+        assert len(looked) == limit
+
 
 class TestNamespaceAnswersAreNeverStored:
     async def test_never_lets_a_namespace_answer_be_stored(
@@ -570,3 +591,145 @@ class TestNamespaceAnswersAreNeverStored:
             assert res.headers["cache-control"] == "no-store"
             names = {token.strip().lower() for token in res.headers["vary"].split(",")}
             assert {"origin", "x-sdk-key"} <= names
+
+
+def stub_lookup(
+    monkeypatch: pytest.MonkeyPatch, lookup: Callable[[str | None], Awaitable[SdkKey | None]]
+) -> None:
+    """A product's own resolver: one patch point, since the gate and the frame call it by module."""
+    monkeypatch.setattr(sdk_keys, "resolve_key", lookup)
+
+
+class TestADisabledKey:
+    @pytest.fixture(autouse=True)
+    def disabled(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        async def lookup(key: str | None) -> SdkKey | None:
+            return SdkKey(origins=(A,), enabled=False) if key == KEY else None
+
+        stub_lookup(monkeypatch, lookup)
+
+    async def test_answers_config_with_enabled_false_and_echoes_a_listed_origin(self) -> None:
+        async with http_client(create_app()) as http:
+            res = await http.get(PATH, headers={"origin": A, "x-sdk-key": KEY})
+
+        assert res.status_code == 200
+        assert res.json() == {"enabled": False}
+        assert res.headers["access-control-allow-origin"] == A
+
+    async def test_still_checks_the_origin_on_config(self) -> None:
+        async with http_client(create_app()) as http:
+            res = await http.get(PATH, headers={"origin": C, "x-sdk-key": KEY})
+
+        expect_envelope(res, 403, "forbidden")
+        assert "access-control-allow-origin" not in res.headers
+
+    async def test_answers_every_other_path_of_the_namespace_with_the_403_envelope(self) -> None:
+        async with http_client(create_app()) as http:
+            unknown = await http.get(
+                "/api/sdk/v1/nothing-here", headers={"origin": A, "x-sdk-key": KEY}
+            )
+            posted = await http.post(PATH, headers={"origin": A, "x-sdk-key": KEY})
+
+        expect_envelope(unknown, 403, "forbidden")
+        expect_envelope(posted, 403, "forbidden")
+        assert "access-control-allow-origin" not in unknown.headers
+        assert "access-control-allow-origin" not in posted.headers
+
+    @pytest.mark.parametrize(
+        ("method", "path"),
+        [
+            ("GET", f"{PATH}/"),
+            ("GET", "/api/sdk/v1/Config"),
+            ("POST", PATH),
+            ("DELETE", PATH),
+            ("GET", "/api/sdk/v1/telemetry"),
+        ],
+    )
+    async def test_counts_only_get_or_head_on_the_exact_config_path_as_the_config(
+        self, method: str, path: str
+    ) -> None:
+        async with http_client(create_app()) as http:
+            res = await http.request(method, path, headers={"origin": A, "x-sdk-key": KEY})
+
+        expect_envelope(res, 403, "forbidden")
+        assert "access-control-allow-origin" not in res.headers
+
+    async def test_leaves_a_preflight_as_it_was(self) -> None:
+        async with http_client(create_app()) as http:
+            res = await http.options(PATH, headers={"origin": A, **PREFLIGHT})
+
+        assert res.status_code == 204
+        assert res.headers["access-control-allow-origin"] == A
+
+
+class TestAnEnabledKeyWhileTheSwitchIsOff:
+    async def test_answers_enabled_false_though_the_key_is_enabled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        configure(monkeypatch, keys=f"{KEY}={A}", enabled="false")
+
+        async with http_client(create_app()) as http:
+            res = await http.get(PATH, headers={"origin": A, "x-sdk-key": KEY})
+
+        assert res.json() == {"enabled": False}
+
+
+class TestALookupThatThrows:
+    @pytest.fixture(autouse=True)
+    def broken(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        async def lookup(key: str | None) -> SdkKey | None:
+            del key
+            raise RuntimeError("store down, secret-detail")
+
+        async def listed(origin: str | None) -> bool:
+            del origin
+            raise RuntimeError("store down, secret-detail")
+
+        stub_lookup(monkeypatch, lookup)
+        monkeypatch.setattr(sdk_keys, "is_listed_origin", listed)
+
+    async def test_answers_the_500_envelope_with_no_allow_header_and_no_detail(self) -> None:
+        async with http_client(create_app()) as http:
+            res = await http.get(PATH, headers={"origin": A, "x-sdk-key": KEY})
+
+        expect_envelope(res, 500, "internal")
+        assert "access-control-allow-origin" not in res.headers
+        assert "secret-detail" not in res.text
+        assert res.headers["cache-control"] == "no-store"
+
+    async def test_answers_a_preflight_with_the_500_envelope_and_no_allow_header(self) -> None:
+        async with http_client(create_app()) as http:
+            res = await http.options(PATH, headers={"origin": A, **PREFLIGHT})
+
+        expect_envelope(res, 500, "internal")
+        assert "access-control-allow-origin" not in res.headers
+
+
+class TestTheKeyIsResolvedOncePerRequest:
+    async def test_calls_the_lookup_once_for_a_request_the_gate_admits(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        real = sdk_keys.resolve_key
+        calls: list[str | None] = []
+
+        async def counting(key: str | None) -> SdkKey | None:
+            calls.append(key)
+            return await real(key)
+
+        stub_lookup(monkeypatch, counting)
+
+        async with http_client(create_app()) as http:
+            res = await http.get(PATH, headers={"origin": A, "x-sdk-key": KEY})
+
+        assert res.status_code == 200
+        assert calls == [KEY]
+
+
+class TestARefusedHead:
+    async def test_answers_403_with_the_headers_and_no_body_on_a_real_socket(self) -> None:
+        with serving(sdk_dir=None) as port:
+            res = raw(port, "HEAD", PATH, {"x-sdk-key": "pk_unknown"})
+
+        assert res.status == 403
+        assert res.body == ""
+        assert res.headers["cache-control"] == "no-store"

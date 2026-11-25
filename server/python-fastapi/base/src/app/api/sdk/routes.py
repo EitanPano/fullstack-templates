@@ -1,21 +1,12 @@
-"""routes.py belongs: the SDK namespace's router, mounted at /api/sdk/v1 by `config/routes.py`. It
-applies the one gate first (`middleware/sdk_gate.py`), then mounts each SDK entity's router (one
-entry in `ENTITIES`). It does not belong: an endpoint, a rule or a query (the entity's own files),
-or a second gate. The served files (`/api/sdk/dist`, `/api/sdk/frame`) are not here: they carry
-no key (`middleware/sdk_files.py`).
+"""routes.py belongs: the SDK namespace's router, mounted at /api/sdk/v1 by `config/routes.py`,
+with the one gate on it (`middleware/sdk_gate.py`) and each entity's router in `ENTITIES`. It does
+not belong: an endpoint, a rule or a query (the entity's own files) or a second gate.
 
-`sdk` is a namespace, not an entity: an SDK entity is `api/sdk/<entity>/` (copy `api/sdk/config/`),
-its paths are `/api/sdk/v1/<entity>`, and its router is added to `ENTITIES`:
-`("/event", event_router)`. The gate is a dependency of the namespace router, so a route inside it
-cannot ship without it. Within `v1` the namespace only adds: a new endpoint, a new optional request
-field, a new response field. A removal or a change is a `v2` beside it, mounted at /api/sdk/v2,
-and `v1` stays while a build that calls it is in use. A path under it that no entity answers is the
-JSON 404 for a caller the gate admits, so the gate also guards the fallback below.
-
-An entity only the frame calls (it issues a token, accepts a view or a click, carries the
-frame's telemetry) is mounted with the guard: `APIRouter(dependencies=[Depends(frame_only)])`
-in its `routes.py`, listed in `ENTITIES` as usual. An entity mounted without it is readable by
-the host page, so it never issues or accepts anything that counts.
+An SDK entity is `api/sdk/<entity>/` (copy `api/sdk/config/`) with its paths under
+`/api/sdk/v1/<entity>`; within `v1` the namespace only adds, and a removal or change is a `v2`
+beside it. An entity only the frame calls puts `Depends(frame_only)` on its router; a write from
+the frame (a `message`, say) also takes a rate limit of its own, and telemetry has none beyond the
+namespace's two.
 """
 
 import re
@@ -25,13 +16,17 @@ from fastapi import APIRouter, Request
 from fastapi.routing import APIRoute
 
 from app.api.sdk.config.routes import router as config_router
+from app.api.sdk.telemetry.routes import router as telemetry_router
 from app.middleware.not_found import no_route
 from app.middleware.sdk_gate import NAMESPACE, frame_only, sdk_gate
 
 ANY_METHOD: Final = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 
 # The SDK entities: `(path, router)`, one entry each.
-ENTITIES: Final[list[tuple[str, APIRouter]]] = [("/config", config_router)]
+ENTITIES: Final[list[tuple[str, APIRouter]]] = [
+    ("/config", config_router),
+    ("/telemetry", telemetry_router),
+]
 
 
 def frame_only_paths() -> list[re.Pattern[str]]:

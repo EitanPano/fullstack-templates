@@ -65,10 +65,29 @@ describe('openapi.json', () => {
     expect(doc.components?.schemas?.SdkConfig).toBeDefined()
   })
 
+  it('documents the SDK telemetry endpoint with its body schema and the 403, 413 and 429 answers', () => {
+    const doc = buildOpenApiDocument()
+    const operation = doc.paths?.['/api/sdk/v1/telemetry']?.post
+
+    expect(operation?.operationId).toBe('postSdkTelemetry')
+    expect(operation?.tags).toEqual(['sdk'])
+    expect(operation?.responses?.['204']).toBeDefined()
+    for (const status of ['400', '403', '413', '429']) {
+      expect(operation?.responses?.[status], status).toBeDefined()
+    }
+    expect(operation?.parameters).toEqual([
+      expect.objectContaining({ name: 'x-sdk-key', in: 'header', required: true }),
+    ])
+    expect(doc.components?.schemas?.SdkTelemetryBody).toBeDefined()
+  })
+
   it('leaves the served files out of the document: they are not JSON', () => {
     const paths = Object.keys(buildOpenApiDocument().paths ?? {})
 
-    expect(paths.filter((path) => path.startsWith('/api/sdk/'))).toEqual(['/api/sdk/v1/config'])
+    expect(paths.filter((path) => path.startsWith('/api/sdk/'))).toEqual([
+      '/api/sdk/v1/config',
+      '/api/sdk/v1/telemetry',
+    ])
   })
 
   // @sdk-end

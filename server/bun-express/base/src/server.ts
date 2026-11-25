@@ -43,10 +43,11 @@ export function createApp(
   // @sdk-start
   // It skips /api/sdk/: that namespace has its own gate, and this layer would answer its
   // preflights and add credentials to its answers.
+  const inSdkNamespace = (path: string) => /^\/api\/sdk(\/|$)/i.test(path)
   if (corsConfig !== undefined) {
     const projectCors = cors(corsConfig)
     app.use((req, res, next) => {
-      if (/^\/api\/sdk(\/|$)/i.test(req.path)) next()
+      if (inSdkNamespace(req.path)) next()
       else projectCors(req, res, next)
     })
   }
@@ -56,7 +57,15 @@ export function createApp(
   // One log line per request.
   app.use(requestLog)
   // Bodies are JSON only and capped; oversize becomes a 413 envelope in the error handler.
-  app.use(express.json({ limit: '1mb' }))
+  app.use(express.json({ limit: '1mb' })) // @nosdk
+  // @sdk-start
+  // It skips /api/sdk/ too: that router reads its body after the key gate, with its own cap.
+  const json = express.json({ limit: '1mb' })
+  app.use((req, res, next) => {
+    if (inSdkNamespace(req.path)) next()
+    else json(req, res, next)
+  })
+  // @sdk-end
   // Cookies are parsed once here for the auth resolver. // @auth
   app.use(cookieParser()) // @auth
 

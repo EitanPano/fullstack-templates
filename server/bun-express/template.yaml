@@ -63,12 +63,14 @@ onlyWhen:
     - src/middleware/sdk-files.ts
     - src/middleware/sdk-gate.ts
     - src/services/security/sdk-keys.ts
+    - src/services/telemetry.ts
     - tests/sdk-config.test.ts
     - tests/sdk-files.test.ts
     - tests/sdk-frame-only.test.ts
     - tests/sdk-frame.test.ts
     - tests/sdk-http.ts
     - tests/sdk-keys.test.ts
+    - tests/sdk-telemetry.test.ts
 gitignore: [node]
 agents: AGENTS.md
 defaultStack: next-bun-express

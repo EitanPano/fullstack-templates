@@ -24,7 +24,7 @@ const ORIGIN = 'http://localhost:5190'
 const FRAME_MARKER = 'FRAME-DOCUMENT-MARKER'
 const FRAME = `<!doctype html><title>${FRAME_MARKER}</title><script src="/api/sdk/dist/v1/frame.js"></script>`
 const POLICY = (ancestors: string) =>
-  `default-src 'none'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors ${ancestors}`
+  `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors ${ancestors}`
 
 // @frontends-start
 // Beside several frontends each is built from the one fixture; `/api/*` answers on any host.
@@ -101,6 +101,7 @@ beforeAll(async () => {
   writeFileSync(path.join(out, '404.html'), html('Missing page'))
   writeFileSync(path.join(sdk, 'v1', 'loader.js'), '(()=>{window.__loader=1})()')
   writeFileSync(path.join(sdk, 'v1', 'frame.js'), 'console.log("frame")')
+  writeFileSync(path.join(sdk, 'v1', 'frame.css'), 'body{margin:0}')
   writeFileSync(path.join(sdk, 'v1', 'frame.html'), FRAME)
 
   // The namespace's rate limit writes to D1: the state folder gets the migrations first, as
@@ -187,6 +188,15 @@ describe('start with an SDK build', () => {
     expect(response.headers.get('access-control-allow-origin')).toBe('*')
     expect(response.headers.get('x-request-id')).toBeTruthy()
     expect(response.headers.get('x-frame-options')).toBeNull()
+  })
+
+  it('serves a stylesheet from the assets as text/css with the same headers', async () => {
+    const response = await fetch(`${origin}/api/sdk/dist/v1/frame.css`)
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('body{margin:0}')
+    expect(response.headers.get('content-type')).toBe('text/css; charset=utf-8')
+    expect(response.headers.get('cross-origin-resource-policy')).toBe('cross-origin')
   })
 
   it('serves the frame document with the one policy naming the key’s origin', async () => {

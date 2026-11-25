@@ -11,9 +11,9 @@
 // assemble too; without `--only` every frontend's build must exist, and all are served.
 // @frontends-end
 // @sdk-start
-// With an SDK package SDK_KEYS and SDK_ENABLED are taken from the shell too, and SDK_DIR (read by
-// assemble) names the SDK build to serve in place of the SDK package's own. A missing SDK build
-// is a warning here (the API runs before the SDK is built) and an error for `bun run assemble`.
+// With an SDK package SDK_KEYS, SDK_ENABLED and SDK_IMG_ORIGINS are taken from the shell too, and
+// SDK_DIR (read by assemble) names the SDK build to serve in place of the SDK package's own. A
+// missing SDK build is a warning here and an error for `bun run assemble`.
 // @sdk-end
 // It does not belong: building the frontend (run its build first), migrations (`bun run e2e:db`)
 // or deployment.
@@ -53,7 +53,7 @@ const built = spawnSync(
 if (built.status !== 0) process.exit(built.status ?? 1)
 
 const vars = ['RATE_LIMIT_SCALE', 'LOG_LEVEL'] // @nosdk
-const vars = ['RATE_LIMIT_SCALE', 'LOG_LEVEL', 'SDK_KEYS', 'SDK_ENABLED'] // @sdk
+const vars = ['RATE_LIMIT_SCALE', 'LOG_LEVEL', 'SDK_KEYS', 'SDK_ENABLED', 'SDK_IMG_ORIGINS'] // @sdk
   .filter((name) => process.env[name] !== undefined && process.env[name] !== '')
   .flatMap((name) => ['--var', `${name}:${process.env[name]}`])
 

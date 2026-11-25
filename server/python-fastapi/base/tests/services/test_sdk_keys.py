@@ -6,7 +6,7 @@ import pytest
 
 from app.config.env import EnvError, load_env
 from app.services.security import sdk_keys
-from app.services.security.sdk_keys import is_listed_origin, origins_for_key
+from app.services.security.sdk_keys import SdkKey, is_listed_origin, resolve_key
 
 A = "https://a.example.test"
 B = "https://b.example.test"
@@ -84,40 +84,74 @@ class TestSdkKeysParsing:
 
 
 class TestTheKeyResolver:
-    def test_gives_the_origins_of_a_known_key_and_nothing_for_an_unknown_empty_or_missing_one(
+    async def test_gives_the_record_of_a_known_key_and_nothing_for_an_unknown_empty_or_missing_one(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(sdk_keys, "env", load_env({"SDK_KEYS": f"pk_a={A},{B}"}).env)
 
-        assert origins_for_key("pk_a") == (A, B)
-        assert origins_for_key("pk_other") is None
-        assert origins_for_key("") is None
-        assert origins_for_key(None) is None
+        assert await resolve_key("pk_a") == SdkKey(origins=(A, B), enabled=True)
+        assert await resolve_key("pk_other") is None
+        assert await resolve_key("") is None
+        assert await resolve_key(None) is None
 
-    def test_does_not_resolve_an_inherited_name_as_a_key(
+    async def test_does_not_resolve_an_inherited_name_as_a_key(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(sdk_keys, "env", load_env({"SDK_KEYS": f"pk_a={A}"}).env)
 
-        assert origins_for_key("__proto__") is None
-        assert origins_for_key("__class__") is None
-        assert origins_for_key("get") is None
+        assert await resolve_key("__proto__") is None
+        assert await resolve_key("__class__") is None
+        assert await resolve_key("get") is None
 
-    def test_knows_no_key_and_no_origin_while_sdk_keys_is_unset(
+    async def test_knows_no_key_and_no_origin_while_sdk_keys_is_unset(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(sdk_keys, "env", load_env({}).env)
 
-        assert origins_for_key("pk_a") is None
-        assert is_listed_origin(A) is False
+        assert await resolve_key("pk_a") is None
+        assert await is_listed_origin(A) is False
 
-    def test_lists_an_origin_when_any_key_lists_it(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_lists_an_origin_when_any_key_lists_it(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setattr(sdk_keys, "env", load_env({"SDK_KEYS": f"pk_a={A};pk_b={B}"}).env)
 
-        assert is_listed_origin(A) is True
-        assert is_listed_origin(B) is True
-        assert is_listed_origin("https://c.example.test") is False
-        assert is_listed_origin(None) is False
+        assert await is_listed_origin(A) is True
+        assert await is_listed_origin(B) is True
+        assert await is_listed_origin("https://c.example.test") is False
+        assert await is_listed_origin(None) is False
+
+
+class TestSdkImgOrigins:
+    def test_is_empty_when_absent_or_blank(self) -> None:
+        assert load_env({}).env.sdk_img_origins == ()
+        assert load_env({"SDK_IMG_ORIGINS": ""}).env.sdk_img_origins == ()
+        assert load_env({"SDK_IMG_ORIGINS": "  "}).env.sdk_img_origins == ()
+
+    def test_reads_origins_separated_by_commas_ignoring_spaces(self) -> None:
+        parsed = load_env({"SDK_IMG_ORIGINS": f" {A} , {B},{C}"}).env
+
+        assert parsed.sdk_img_origins == (A, B, C)
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "*",
+            f"{A}/path",
+            f"{A}/",
+            "https://A.example.test",
+            "a.example.test",
+            "ftp://a.example.test",
+            f"{A},",
+            f"{A} img-src *",
+            "https://a.example.test;script-src",
+            "https://a.example.test'",
+            "https://a.example.test:443",
+        ],
+    )
+    def test_refuses_a_malformed_origin_naming_the_variable(self, text: str) -> None:
+        with pytest.raises(EnvError, match="SDK_IMG_ORIGINS"):
+            load_env({"SDK_IMG_ORIGINS": text})
 
 
 class TestWeakOriginsInProduction:
@@ -154,3 +188,14 @@ class TestWeakOriginsInProduction:
         parsed = load_env({**self.PRODUCTION, "SDK_KEYS": f"pk_a={A}"}).env
 
         assert parsed.sdk_keys == {"pk_a": (A,)}
+
+    @pytest.mark.parametrize(
+        "origin", ["http://a.example.test", "https://localhost", "https://127.0.0.1:8443"]
+    )
+    def test_refuses_an_http_or_loopback_image_origin_in_production(self, origin: str) -> None:
+        with pytest.raises(EnvError, match="SDK_IMG_ORIGINS"):
+            load_env({**self.PRODUCTION, "SDK_IMG_ORIGINS": f"{A},{origin}"})
+
+    def test_accepts_https_image_origins_in_production_and_any_origin_outside_it(self) -> None:
+        assert load_env({**self.PRODUCTION, "SDK_IMG_ORIGINS": A}).env.sdk_img_origins == (A,)
+        assert load_env({"SDK_IMG_ORIGINS": C}).env.sdk_img_origins == (C,)

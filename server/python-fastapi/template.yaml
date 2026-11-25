@@ -63,12 +63,14 @@ onlyWhen:
     - src/app/middleware/sdk_files.py
     - src/app/middleware/sdk_gate.py
     - src/app/services/security/sdk_keys.py
+    - src/app/services/telemetry.py
     - tests/sdk_http.py
     - tests/services/test_sdk_keys.py
     - tests/test_sdk_config.py
     - tests/test_sdk_files.py
     - tests/test_sdk_frame_only.py
     - tests/test_sdk_frame.py
+    - tests/test_sdk_telemetry.py
 gitignore: [python]
 agents: AGENTS.md
 defaultStack: next-python-fastapi

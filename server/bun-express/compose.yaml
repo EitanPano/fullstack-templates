@@ -46,6 +46,7 @@ environment:
   # Empty keys refuse every namespace request. The image sets SDK_DIR.
   SDK_KEYS: ${SDK_KEYS:-}
   SDK_ENABLED: ${SDK_ENABLED:-true}
+  SDK_IMG_ORIGINS: ${SDK_IMG_ORIGINS:-}
   # @sdk-end
   # Scheduled jobs run on exactly one replica. The template itself runs as one instance
   # @nodatabase-start

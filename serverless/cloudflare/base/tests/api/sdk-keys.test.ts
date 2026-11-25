@@ -4,7 +4,7 @@ import { env } from 'cloudflare:workers'
 import { describe, expect, it } from 'vitest'
 
 import { parseConfig as parseBindings } from '../../server/config/env'
-import { isListedOrigin, originsForKey } from '../../server/services/security/sdk-keys'
+import { isListedOrigin, resolveKey } from '../../server/services/security/sdk-keys'
 
 const A = 'https://a.example.test'
 const B = 'https://b.example.test'
@@ -78,36 +78,76 @@ describe('SDK_KEYS parsing', () => {
 })
 
 describe('the key resolver', () => {
-  it('gives the origins of a known key and nothing for an unknown, empty or missing one', () => {
+  it('gives the record of a known key and nothing for an unknown, empty or missing one', async () => {
     const config = resolverConfig(`pk_a=${A},${B}`)
 
-    expect(originsForKey(config, 'pk_a')).toEqual([A, B])
-    expect(originsForKey(config, 'pk_other')).toBeUndefined()
-    expect(originsForKey(config, '')).toBeUndefined()
-    expect(originsForKey(config, undefined)).toBeUndefined()
+    expect(await resolveKey(config, 'pk_a')).toEqual({ origins: [A, B], enabled: true })
+    expect(await resolveKey(config, 'pk_other')).toBeUndefined()
+    expect(await resolveKey(config, '')).toBeUndefined()
+    expect(await resolveKey(config, undefined)).toBeUndefined()
   })
 
-  it('does not resolve an inherited object property as a key', () => {
+  it('does not resolve an inherited object property as a key', async () => {
     const config = resolverConfig(`pk_a=${A}`)
 
-    expect(originsForKey(config, '__proto__')).toBeUndefined()
-    expect(originsForKey(config, 'constructor')).toBeUndefined()
+    expect(await resolveKey(config, '__proto__')).toBeUndefined()
+    expect(await resolveKey(config, 'constructor')).toBeUndefined()
   })
 
-  it('knows no key and no origin while SDK_KEYS is unset', () => {
+  it('knows no key and no origin while SDK_KEYS is unset', async () => {
     const config = resolverConfig(undefined)
 
-    expect(originsForKey(config, 'pk_a')).toBeUndefined()
-    expect(isListedOrigin(config, A)).toBe(false)
+    expect(await resolveKey(config, 'pk_a')).toBeUndefined()
+    expect(await isListedOrigin(config, A)).toBe(false)
   })
 
-  it('lists an origin when any key lists it', () => {
+  it('lists an origin when any key lists it', async () => {
     const config = resolverConfig(`pk_a=${A};pk_b=${B}`)
 
-    expect(isListedOrigin(config, A)).toBe(true)
-    expect(isListedOrigin(config, B)).toBe(true)
-    expect(isListedOrigin(config, 'https://c.example.test')).toBe(false)
-    expect(isListedOrigin(config, undefined)).toBe(false)
+    expect(await isListedOrigin(config, A)).toBe(true)
+    expect(await isListedOrigin(config, B)).toBe(true)
+    expect(await isListedOrigin(config, 'https://c.example.test')).toBe(false)
+    expect(await isListedOrigin(config, undefined)).toBe(false)
+  })
+})
+
+describe('SDK_IMG_ORIGINS parsing', () => {
+  it('is an empty list when absent or blank', () => {
+    expect(parseConfig({ SDK_IMG_ORIGINS: undefined }).SDK_IMG_ORIGINS).toEqual([])
+    expect(parseConfig({ SDK_IMG_ORIGINS: '' }).SDK_IMG_ORIGINS).toEqual([])
+    expect(parseConfig({ SDK_IMG_ORIGINS: '   ' }).SDK_IMG_ORIGINS).toEqual([])
+  })
+
+  it('reads comma-separated origins, ignoring spaces', () => {
+    const config = parseConfig({ SDK_IMG_ORIGINS: ` ${A} , ${B},${C}` })
+
+    expect(config.SDK_IMG_ORIGINS).toEqual([A, B, C])
+  })
+
+  for (const text of [
+    'a.example.test',
+    `${A}/path`,
+    `${A},`,
+    '*',
+    `${A} script-src *`,
+    'https://A.example.test',
+    "https://a.example.test'",
+  ]) {
+    it(`refuses ${JSON.stringify(text)}, naming SDK_IMG_ORIGINS`, () => {
+      expect(() => parseConfig({ SDK_IMG_ORIGINS: text })).toThrow(/SDK_IMG_ORIGINS/)
+    })
+  }
+
+  it('refuses an http or loopback origin in production only', () => {
+    const production = (origins: string) =>
+      parseConfig({ ENVIRONMENT: 'production', SDK_IMG_ORIGINS: origins })
+
+    expect(() => production('http://a.example.test')).toThrow(/SDK_IMG_ORIGINS/)
+    expect(() => production(`${A},https://localhost:8443`)).toThrow(/SDK_IMG_ORIGINS/)
+    expect(production(`${A},${B}`).SDK_IMG_ORIGINS).toEqual([A, B])
+    expect(parseConfig({ ENVIRONMENT: 'development', SDK_IMG_ORIGINS: C }).SDK_IMG_ORIGINS).toEqual(
+      [C],
+    )
   })
 })
 

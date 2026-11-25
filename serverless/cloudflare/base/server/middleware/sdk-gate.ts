@@ -1,18 +1,21 @@
 // sdk-gate.ts belongs: the one gate of /api/sdk/v1, in order: CORS for this namespace alone, the
-// publishable key, then the rate limit by address and by key. api/sdk/routes.ts mounts it first
-// with `namespaceGuard(sdkHeaders, ...sdkGate)`: the gates answer or refuse, and `sdkHeaders` puts
-// `Vary` and the allowed origin on whatever answer follows, so a 403 and a 429 carry them too.
-// `frameOnly` narrows a route to the frame. The Worker has no global CORS layer: nothing else adds
-// a cross-origin header to these paths.
-// It does not belong: the key lookup (services/security/sdk-keys.ts) or the limits' values
-// (config/constants.ts). No cookie is read here, and no response sends Allow-Credentials.
+// publishable key (resolved once, kept on `ctx.sdkKey`), then the rate limit by address and by key.
+// api/sdk/routes.ts mounts it with `namespaceGuard(sdkHeaders, ...sdkGate)`, so `sdkHeaders` puts
+// `Vary` and the allowed origin on whatever follows, and `frameOnly` narrows a route to the frame.
+// No cookie is read and no response sends Allow-Credentials.
 import { RATE_LIMITS } from '../config/constants'
-import { isListedOrigin, originsForKey } from '../services/security/sdk-keys'
+import { isListedOrigin, resolveKey } from '../services/security/sdk-keys'
 import { AppError } from '../services/utils/error'
 import { guard, type Context, type Gate } from './handler'
 import { byIp, rateLimit } from './rate-limit'
 
 const KEY_HEADER = 'x-sdk-key'
+// The one request a key that is switched off may still make: the loader asks whether to draw. GET
+// or HEAD on this exact path; any other method, case or trailing slash is refused like the rest.
+const CONFIG_PATH = '/api/sdk/v1/config'
+const isConfigRead = (ctx: Context) =>
+  (ctx.request.method === 'GET' || ctx.request.method === 'HEAD') &&
+  ctx.url.pathname === CONFIG_PATH
 
 const ALLOWED_METHODS = 'GET, POST'
 const ALLOWED_HEADERS = `${KEY_HEADER}, content-type`
@@ -48,10 +51,11 @@ const isPreflight = (ctx: Context) =>
 // A route behind `frameOnly` (below) is matched by the router, so the gate can tell before it runs.
 const isFrameOnly = (ctx: Context) => ctx.handlers.includes(frameOnly)
 
-// The headers every namespace answer carries. The origin is echoed once the key lists it, so a
-// refusal for the origin carries no allow header while a 429 after it does, and the page can read
-// it; a frame-only route echoes nothing. `Vary` names the key too: the answer depends on it. A
-// preflight sets its own in `cors`.
+// The headers every namespace answer carries. The origin is echoed once the key step admitted a key
+// that lists it, so a refusal for the key or the origin carries no allow header while a 429 after
+// it does, and the page can read it; a frame-only route echoes nothing. `Vary` names the key too:
+// the answer depends on it. A preflight sets its own in `cors`. It runs after the gates, so it
+// sees the record the key step stored.
 export function sdkHeaders(ctx: Context): Record<string, string> {
   const origin = ctx.request.headers.get('origin')
   const headers: Record<string, string> = { Vary: 'Origin, X-Sdk-Key' }
@@ -60,7 +64,7 @@ export function sdkHeaders(ctx: Context): Record<string, string> {
     !isPreflight(ctx) &&
     !isFrameOnly(ctx) &&
     !isSameOrigin(ctx) &&
-    originsForKey(ctx.env, keyOf(ctx))?.includes(origin) === true
+    ctx.sdkKey?.origins.includes(origin) === true
   ) {
     headers['Access-Control-Allow-Origin'] = origin
   }
@@ -79,7 +83,7 @@ const cors: Gate = async (ctx) => {
   await limitByIp(ctx)
   const origin = ctx.request.headers.get('origin') ?? ''
   const headers: Record<string, string> = {}
-  if (!isFrameOnly(ctx) && isListedOrigin(ctx.env, origin)) {
+  if (!isFrameOnly(ctx) && (await isListedOrigin(ctx.env, origin))) {
     headers['Access-Control-Allow-Origin'] = origin
     headers['Access-Control-Allow-Methods'] = ALLOWED_METHODS
     headers['Access-Control-Allow-Headers'] = ALLOWED_HEADERS
@@ -88,13 +92,19 @@ const cors: Gate = async (ctx) => {
   return new Response(null, { status: 204, headers })
 }
 
-// 403 for no key, an unknown key and an origin the key does not list: the three look the same.
-const requireKey: Gate = (ctx) => {
-  const origins = originsForKey(ctx.env, keyOf(ctx))
+// 403 for no key, an unknown key, an origin the key does not list and a key that is switched off
+// (except on /config): they look the same. The record is kept for what runs after.
+const requireKey: Gate = async (ctx) => {
+  const key = await resolveKey(ctx.env, keyOf(ctx))
   const origin = ctx.request.headers.get('origin')
-  if (origins === undefined || (!isSameOrigin(ctx) && !origins.includes(origin ?? ''))) {
+  if (
+    key === undefined ||
+    (!isSameOrigin(ctx) && !key.origins.includes(origin ?? '')) ||
+    (!key.enabled && !isConfigRead(ctx))
+  ) {
     throw new AppError('forbidden', 'a valid SDK key for this origin is required')
   }
+  ctx.sdkKey = key
 }
 
 export const sdkGate: Gate[] = [cors, requireKey, limitByIp, limitByKey]

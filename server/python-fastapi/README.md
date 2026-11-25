@@ -64,13 +64,21 @@ slash in the prefix (`/api/sdk/v1%2Fconfig`) reaches the config route and is gat
 path. The two file routes match the raw path before they touch the disk.
 
 - `/api/sdk/v1/`: the public, cross-origin namespace, `api/sdk/<entity>/`. One gate runs first:
-  CORS for the namespace alone (the origin is echoed when the key lists it; never credentials),
-  the `X-Sdk-Key` key, then a rate limit by key and by address. `GET /api/sdk/v1/config` answers
-  `{ enabled }`, the kill switch.
-- `GET|HEAD /api/sdk/dist/v<major>/<file>.js`: the SDK's build, with no key and a five-minute cache.
-- `GET /api/sdk/frame/v<major>?k=<key>`: the frame document, framed only by the key's origins.
+  CORS for the namespace alone (the origin is echoed only for a request the key step admits; never credentials),
+  the `X-Sdk-Key` key (`sdk_keys.resolve_key`, resolved once per request; a product replaces its
+  body with a lookup), then a rate limit by key and by address. `GET /api/sdk/v1/config` answers
+  `{ enabled }`, the kill switch; a key with `enabled: false` gets `false` there and the 403
+  envelope everywhere else. A lookup that throws is a 500 with no allow-origin header. A body
+  under the namespace is at most 64 KB (`SDK_MAX_BODY_BYTES`), read only after the key, origin and frame-only checks.
+  `POST /api/sdk/v1/telemetry` takes the frame's events, frame-only, and answers 204 once the sink
+  (`services/telemetry.py`) has run; it has no limit of its own.
+- `GET|HEAD /api/sdk/dist/v<major>/<file>.js` and `.css`: the SDK's build, with no key and a
+  five-minute cache.
+- `GET /api/sdk/frame/v<major>?k=<key>`: the frame document, framed only by the key's origins, with
+  its own policy (own script and stylesheet, images from itself and `SDK_IMG_ORIGINS`).
 - Variables: `SDK_KEYS` (`key=origin,origin;key=origin`; unset refuses every request),
-  `SDK_ENABLED` (default `true`), `SDK_DIR` (the build to serve; the image sets it).
+  `SDK_ENABLED` (default `true`), `SDK_DIR` (the build to serve; the image sets it),
+  `SDK_IMG_ORIGINS` (`origin,origin`; images the frame may load; empty allows none).
 - Compose takes the build through an `additional_contexts` line for the SDK's build-only service,
   in both deploy modes (Compose 2.35.0 or later).
 

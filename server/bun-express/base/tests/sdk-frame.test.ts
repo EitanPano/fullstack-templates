@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, spyOn } from 'bun:test'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import type { Server } from 'node:http'
 import { tmpdir } from 'node:os'
@@ -6,19 +6,20 @@ import { join } from 'node:path'
 
 import { env } from '../src/config/env'
 import { createApp } from '../src/server'
+import * as sdkKeys from '../src/services/security/sdk-keys'
 import { headerCount, isEnvelope404, listen, raw } from './sdk-http'
 
 const A = 'https://a.example.test'
 const B = 'https://b.example.test'
 const DOCUMENT =
   '<!doctype html><title>frame</title><script src="/api/sdk/dist/v1/frame.js"></script>'
-const POLICY = (ancestors: string) =>
-  `default-src 'none'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors ${ancestors}`
+const POLICY = (ancestors: string, img = '') =>
+  `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'${img}; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors ${ancestors}`
 
 let root: string
 let server: Server
 let withoutBuild: Server
-const original = env.SDK_KEYS
+const original = { keys: env.SDK_KEYS, img: env.SDK_IMG_ORIGINS }
 
 beforeAll(async () => {
   root = mkdtempSync(join(tmpdir(), 'sdk-frame-'))
@@ -42,7 +43,8 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  env.SDK_KEYS = original
+  env.SDK_KEYS = original.keys
+  env.SDK_IMG_ORIGINS = original.img
 })
 
 describe('GET /api/sdk/frame/v<major>?k=<key>', () => {
@@ -102,6 +104,86 @@ describe('GET /api/sdk/frame/v<major>?k=<key>', () => {
     const res = await raw(server, 'GET', '/api/sdk/frame/v1?k=pk_test_a')
 
     expect(res.headers['content-security-policy']).toBe(POLICY("'none'"))
+  })
+
+  it("adds the image origins to img-src, after 'self'", async () => {
+    env.SDK_IMG_ORIGINS = [A, 'https://img.example.test']
+
+    const res = await raw(server, 'GET', '/api/sdk/frame/v1?k=pk_test_a')
+
+    expect(res.headers['content-security-policy']).toBe(
+      POLICY(`${A} ${B}`, ` ${A} https://img.example.test`),
+    )
+  })
+
+  it('sends Referrer-Policy no-referrer once', async () => {
+    const res = await raw(server, 'GET', '/api/sdk/frame/v1?k=pk_test_a')
+
+    expect(res.headers['referrer-policy']).toBe('no-referrer')
+    expect(headerCount(res, 'referrer-policy')).toBe(1)
+  })
+
+  it("answers frame-ancestors 'none' for a disabled key", async () => {
+    const resolve = spyOn(sdkKeys, 'resolveKey').mockResolvedValue({ origins: [A], enabled: false })
+
+    try {
+      const res = await raw(server, 'GET', '/api/sdk/frame/v1?k=pk_test_a')
+
+      expect(res.status).toBe(200)
+      expect(res.headers['content-security-policy']).toBe(POLICY("'none'"))
+    } finally {
+      resolve.mockRestore()
+    }
+  })
+
+  it("answers frame-ancestors 'none' when the lookup throws", async () => {
+    const resolve = spyOn(sdkKeys, 'resolveKey').mockRejectedValue(new Error('lookup down'))
+
+    try {
+      const res = await raw(server, 'GET', '/api/sdk/frame/v1?k=pk_test_a')
+
+      expect(res.status).toBe(200)
+      expect(res.headers['content-security-policy']).toBe(POLICY("'none'"))
+    } finally {
+      resolve.mockRestore()
+    }
+  })
+
+  it("answers frame-ancestors 'none' for a record with an origin outside the closed form", async () => {
+    const bad = [`${B}; script-src *`, '*', `${B}/path`, 'https://UPPER.example.test']
+
+    for (const origin of bad) {
+      const resolve = spyOn(sdkKeys, 'resolveKey').mockResolvedValue({
+        origins: [A, origin],
+        enabled: true,
+      })
+
+      try {
+        const res = await raw(server, 'GET', '/api/sdk/frame/v1?k=pk_test_a')
+
+        expect(res.headers['content-security-policy'], origin).toBe(POLICY("'none'"))
+      } finally {
+        resolve.mockRestore()
+      }
+    }
+  })
+
+  it('logs a failed lookup as a warning with the request id and no error text', async () => {
+    const resolve = spyOn(sdkKeys, 'resolveKey').mockRejectedValue(new Error('lookup down'))
+    const warn = spyOn(console, 'warn').mockImplementation(() => undefined)
+
+    try {
+      const res = await raw(server, 'GET', '/api/sdk/frame/v1?k=pk_test_a')
+      const line = String(warn.mock.calls[0]?.[0])
+
+      expect(warn).toHaveBeenCalledTimes(1)
+      expect(line).toContain(String(res.headers['x-request-id']))
+      expect(line).not.toContain('lookup down')
+      expect(line).not.toContain('stack')
+    } finally {
+      resolve.mockRestore()
+      warn.mockRestore()
+    }
   })
 
   it('does not let the key reach the header: only configured origins are written', async () => {

@@ -6,17 +6,23 @@ from pathlib import Path
 import pytest
 
 from app.config.env import load_env
+from app.middleware import sdk_files
 from app.services.security import sdk_keys
+from app.services.security.sdk_keys import SdkKey
 from tests.sdk_http import is_envelope_404, raw, serving
+from tests.support import recording_logger
 
 A = "https://a.example.test"
 B = "https://b.example.test"
+IMG_A = "https://img-a.example.test"
+IMG_B = "https://img-b.example.test"
 DOCUMENT = '<!doctype html><title>frame</title><script src="/api/sdk/dist/v1/frame.js"></script>'
 
 
-def policy(ancestors: str) -> str:
+def policy(ancestors: str, images: str = "") -> str:
     return (
-        "default-src 'none'; script-src 'self'; connect-src 'self'; base-uri 'none'; "
+        "default-src 'none'; script-src 'self'; style-src 'self'; "
+        f"img-src 'self'{images}; connect-src 'self'; base-uri 'none'; "
         f"form-action 'none'; frame-ancestors {ancestors}"
     )
 
@@ -39,6 +45,12 @@ def build(tmp_path_factory: pytest.TempPathFactory) -> Path:
 @pytest.fixture(scope="module")
 def port(build: Path) -> Iterator[int]:
     with serving(sdk_dir=build) as value:
+        yield value
+
+
+@pytest.fixture(scope="module")
+def images_port(build: Path) -> Iterator[int]:
+    with serving(sdk_dir=build, extra={"SDK_IMG_ORIGINS": f"{IMG_A}, {IMG_B}"}) as value:
         yield value
 
 
@@ -166,3 +178,91 @@ class TestGetSdkFrame:
         assert res.headers["x-frame-options"] == "SAMEORIGIN"
         assert res.headers["cross-origin-resource-policy"] == "same-origin"
         assert "default-src 'self'" in res.headers["content-security-policy"]
+
+    def test_lists_the_image_origins_after_self_when_sdk_img_origins_is_set(
+        self, images_port: int
+    ) -> None:
+        res = raw(images_port, "GET", "/api/sdk/frame/v1?k=pk_test_a")
+
+        assert res.headers["content-security-policy"] == policy(f"{A} {B}", f" {IMG_A} {IMG_B}")
+        assert res.count("content-security-policy") == 1
+
+    def test_keeps_the_image_origins_when_the_key_lists_no_ancestor(self, images_port: int) -> None:
+        res = raw(images_port, "GET", "/api/sdk/frame/v1?k=pk_unknown")
+
+        assert res.headers["content-security-policy"] == policy("'none'", f" {IMG_A} {IMG_B}")
+
+    def test_sends_no_referrer(self, port: int) -> None:
+        res = raw(port, "GET", "/api/sdk/frame/v1?k=pk_test_a")
+
+        assert res.headers["referrer-policy"] == "no-referrer"
+        assert res.count("referrer-policy") == 1
+
+    def test_answers_frame_ancestors_none_for_a_disabled_key(
+        self, port: int, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        async def lookup(key: str | None) -> SdkKey | None:
+            return SdkKey(origins=(A,), enabled=False) if key == "pk_test_a" else None
+
+        monkeypatch.setattr(sdk_keys, "resolve_key", lookup)
+
+        res = raw(port, "GET", "/api/sdk/frame/v1?k=pk_test_a")
+
+        assert res.status == 200
+        assert res.headers["content-security-policy"] == policy("'none'")
+
+    def test_answers_frame_ancestors_none_when_the_lookup_throws(
+        self, port: int, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        async def lookup(key: str | None) -> SdkKey | None:
+            del key
+            raise RuntimeError("store down")
+
+        monkeypatch.setattr(sdk_keys, "resolve_key", lookup)
+
+        res = raw(port, "GET", "/api/sdk/frame/v1?k=pk_test_a")
+
+        assert res.status == 200
+        assert res.headers["content-security-policy"] == policy("'none'")
+        assert res.headers["cache-control"] == "no-store"
+
+    def test_logs_a_failed_lookup_as_a_warning_with_the_request_id_and_no_error_text(
+        self, port: int, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        async def lookup(key: str | None) -> SdkKey | None:
+            del key
+            raise RuntimeError("store down, private-detail")
+
+        monkeypatch.setattr(sdk_keys, "resolve_key", lookup)
+        logger, sink = recording_logger()
+        monkeypatch.setattr(sdk_files, "log", logger)
+
+        res = raw(port, "GET", "/api/sdk/frame/v1?k=pk_test_a")
+
+        assert len(sink.lines) == 1
+        assert sink.lines[0].startswith("warning ")
+        assert res.headers["x-request-id"] in sink.lines[0]
+        assert "private-detail" not in sink.lines[0]
+
+    @pytest.mark.parametrize(
+        "origins",
+        [
+            (f"{A} ; script-src *",),
+            (A, "https://b.example.test; frame-src *"),
+            (A, "*"),
+            ("https://a.example.test/path",),
+            ("HTTPS://a.example.test",),
+        ],
+    )
+    def test_answers_frame_ancestors_none_for_a_record_with_an_origin_outside_the_closed_form(
+        self, port: int, monkeypatch: pytest.MonkeyPatch, origins: tuple[str, ...]
+    ) -> None:
+        async def lookup(key: str | None) -> SdkKey | None:
+            return SdkKey(origins=origins, enabled=True) if key == "pk_test_a" else None
+
+        monkeypatch.setattr(sdk_keys, "resolve_key", lookup)
+
+        res = raw(port, "GET", "/api/sdk/frame/v1?k=pk_test_a")
+
+        assert res.status == 200
+        assert res.headers["content-security-policy"] == policy("'none'")

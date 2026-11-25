@@ -3,6 +3,10 @@
 // of the data itself (field lengths) live in models/<name>/constants.ts.
 // It does not belong: values that differ per environment (env.ts) or secrets.
 export const MAX_BODY_BYTES = 1_048_576
+// @sdk-start
+// A body under /api/sdk/: the frame sends props and events, never a document.
+export const SDK_MAX_BODY_BYTES = 65_536
+// @sdk-end
 
 // One entry per limiter, named for what it limits and by what. `bun run test` and an e2e run
 // raise every limit with RATE_LIMIT_SCALE; production keeps 1.

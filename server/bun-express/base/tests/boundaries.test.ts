@@ -78,8 +78,17 @@ describe('api/sdk/<entity>/ boundaries', () => {
     expect(await messages(`${config}/schema.ts`, '../../entity/schema')).toEqual([])
   })
 
+  it('lets the telemetry entity follow the entity rules, and reach its sink in services/', async () => {
+    const telemetry = 'src/api/sdk/telemetry'
+    expect(await messages(`${telemetry}/routes.ts`, '../../../middleware/validate')).toEqual([])
+    expect(await messages(`${telemetry}/controller.ts`, '../../../services/telemetry')).toEqual([])
+    expect(await messages(`${telemetry}/controller.ts`, '../config/service')).not.toEqual([])
+    expect(await messages(`${telemetry}/controller.ts`, '../../entity/service')).not.toEqual([])
+  })
+
   it('lets the namespace router mount an SDK entity and nothing else mount one', async () => {
     expect(await messages('src/api/sdk/routes.ts', './config/routes')).toEqual([])
+    expect(await messages('src/api/sdk/routes.ts', './telemetry/routes')).toEqual([])
     expect(await messages('src/config/routes.ts', '../api/sdk/routes')).toEqual([])
     expect(await messages('src/api/sdk/other/routes.ts', '../config/routes')).not.toEqual([])
     expect(await messages('src/api/entity/routes.ts', '../sdk/config/routes')).not.toEqual([])

@@ -2,6 +2,7 @@
 // authenticate, validate), so the shape is declared here, once, for every layer that reads it. // @auth
 // validate), so the shape is declared here, once, for every layer that reads it. // @noauth
 import type { Caller } from '../models/auth/type' // @auth
+import type { SdkKeyRecord } from '../services/security/sdk-keys' // @sdk
 
 declare global {
   namespace Express {
@@ -9,6 +10,8 @@ declare global {
       requestId: string
       caller?: Caller // @auth
       input?: unknown
+      // The key the SDK gate resolved, with its record. // @sdk
+      sdk?: SdkKeyRecord & { key: string } // @sdk
     }
   }
 }
