@@ -1,4 +1,4 @@
-# **PROJECT_NAME**-sdk
+# `__PROJECT_NAME__-sdk`
 
 An embeddable browser SDK. It asks the API for content, draws it in a frame from the API's
 origin and reports `rendered`, `viewed`, `clicked` and `error` back to your page.

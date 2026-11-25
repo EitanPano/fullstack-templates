@@ -403,7 +403,9 @@ function providerOf(
   return found
 }
 
-// One group per entry: what it is, what the tests use, and the local value.
+// One group per entry: what it is, what the tests use, and the local value. A blank line keeps
+// the provider line a header: a reader of the file takes only the comments touching a variable as
+// its description.
 function appendEnvExample(
   pkg: PackagePlan,
   pkgStaging: string,
@@ -415,6 +417,7 @@ function appendEnvExample(
     for (const entry of provider.manifest.env) {
       groups.push([
         `# ${provider.kind}/${provider.id} provider`,
+        '',
         `# ${entry.summary}`,
         entry.testOverride === undefined
           ? `# Tests (testDb) use ${entry.test}.`

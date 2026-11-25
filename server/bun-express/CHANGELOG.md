@@ -11,7 +11,7 @@
   - `SDK_KEYS`, `SDK_ENABLED` and `SDK_DIR` in `config/env.ts`: a malformed `SDK_KEYS` stops the boot naming the variable and never the key; each origin must be `scheme://host[:port]` in lower case.
   - the Dockerfile copies the SDK's build from the `sdk` build context and sets `SDK_DIR`; `compose.yaml` adds that context in both deploy modes (Compose 2.35.0 or later) and passes `SDK_KEYS` and `SDK_ENABLED`.
   - the layer lint treats `api/sdk/<entity>/` as it treats `api/admin/<entity>/`.
-  - the `sdk` case in `tests/cases.yaml`.
+  - the `sdk` and `sdk-postgres` cases in `tests/cases.yaml`. The SDK suites clear the cache only, never the store: with a database the store seam refuses a non-test one, which failed `check` on a fresh scaffold.
 
 ## 4.0.0 — 2026-11-24
 

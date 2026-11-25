@@ -569,12 +569,14 @@ describe('generate with a capability', () => {
     expect(read(out, 'backend', '.env.example')).toBe(
       [
         '# database/fake provider',
+        '',
         '# Connection string of the fake database',
         '# Tests (testDb) use fake://localhost:5432/app_test; override with TEST_DATABASE_URL.',
         '# Browser tests (e2eDb) use fake://localhost:5432/app_e2e; override with E2E_DATABASE_URL.',
         'DATABASE_URL=fake://localhost:5432/app',
         '',
         '# database/fake provider',
+        '',
         '# Connections the fake database keeps open',
         '# Tests (testDb) use 2.',
         'FAKE_POOL_SIZE=5',
