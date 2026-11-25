@@ -105,6 +105,11 @@ host page is the second renderer, behind the same interface, and does not ship i
   that an addition and not a rewrite.
 - ▲ A small frame that only measures, beside a unit drawn in the page, is refused: the page can
   keep that frame in view and hide the unit. What is measured must be what is shown.
+- 2026-11-25, after the branch's review: the interface in `ui/` covers where a unit is
+  mounted, not who draws it. A module's drawing half is a `FrameModule`, which runs in `frame/`
+  only and which the host side may not import. The second renderer therefore needs a drawing
+  contract at the module level as well (one half a module writes once, run by either renderer);
+  it is an addition, and it is decided with that renderer, not before.
 
 ### F1. Who may frame it
 
