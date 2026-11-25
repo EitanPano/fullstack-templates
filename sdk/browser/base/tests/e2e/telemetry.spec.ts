@@ -90,17 +90,18 @@ test.describe('telemetry', () => {
     const before = telemetryLines()
     await callUnit(page, id, { close: true })
     await expect(page.locator('iframe')).toHaveCount(0)
-    // In every engine the server's own output shows the batch arriving, which no route sees in
-    // Chromium and Firefox: Playwright reports no request for a frame removed in the same task.
+    // In every engine the server's own output shows the batch arriving. A route does not always
+    // see it in Chromium and Firefox: Playwright may report no request for a frame removed in
+    // the same task.
     await expect.poll(telemetryLines, LOG_WAIT).toBeGreaterThan(before)
-    if (browserName !== 'webkit') {
-      expect(sent).toEqual([])
-      return
-    }
-    // The frame is gone, so what arrives is what its `pagehide` handler sent.
-    await expect.poll(() => sent.length).toBe(1)
-    expect(sent.map((one) => one.status)).toEqual([204])
-    expect(sent.map((one) => one.body)).toEqual([{ events: [{ name: 'rendered' }] }])
+    if (browserName === 'webkit') await expect.poll(() => sent.length).toBe(1)
+    // The frame is gone, so what a route did see is what its `pagehide` handler sent, once.
+    await settle(page)
+    expect(sent.length).toBeLessThanOrEqual(1)
+    expect(sent.map((one) => one.status)).toEqual(sent.map(() => 204))
+    expect(sent.map((one) => one.body)).toEqual(
+      sent.map(() => ({ events: [{ name: 'rendered' }] })),
+    )
   })
 
   test('a unit told denied and closed in one task sends nothing', async ({ page }) => {

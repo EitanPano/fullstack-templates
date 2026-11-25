@@ -341,7 +341,11 @@ describe('end of a unit', () => {
 })
 
 describe('display', () => {
-  beforeEach(() => root.removeAttribute('data-display'))
+  // The frame of a shown dialog holds the page's focus; the test of the wait says otherwise.
+  beforeEach(() => {
+    root.removeAttribute('data-display')
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+  })
 
   it.each(['inline', 'modal'])(
     'sets data-display=%s on the root before the module starts',
@@ -450,6 +454,31 @@ describe('display', () => {
     expect(calls).toBe(2)
     await new Promise((resolve) => setTimeout(resolve, 80))
     expect(calls).toBe(2)
+  })
+
+  it('makes no focus call until the window of the frame is focused, then one', async () => {
+    const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(false)
+    let calls = 0
+    let field: HTMLElement | undefined
+    await modalFrame((ctx) => {
+      field = ctx.mount.ownerDocument.createElement('input')
+      field.setAttribute('autofocus', '')
+      field.focus = function (this: HTMLElement) {
+        calls += 1
+        HTMLElement.prototype.focus.call(this)
+      }
+      ctx.mount.appendChild(field)
+    })
+    // Chromium reports a call made now in the console of the host's page.
+    await new Promise((resolve) => setTimeout(resolve, 80))
+    expect(calls).toBe(0)
+    expect(document.activeElement).toBe(document.body)
+    hasFocus.mockReturnValue(true)
+    window.dispatchEvent(new Event('focus'))
+    expect(document.activeElement).toBe(field)
+    expect(calls).toBe(1)
+    window.dispatchEvent(new Event('focus'))
+    expect(calls).toBe(1)
   })
 
   it('takes no focus for an inline unit', async () => {

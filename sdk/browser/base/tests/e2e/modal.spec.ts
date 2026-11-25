@@ -4,6 +4,7 @@ import { GLOBAL, LISTED_ORIGIN, SLOT, TELEMETRY_URL, UNLISTED_ORIGIN } from './h
 import {
   apiFrame,
   callSdk,
+  clickToClose,
   eventNames,
   hostEvents,
   LOG_WAIT,
@@ -189,7 +190,7 @@ test.describe('a modal unit', () => {
 
     // A valid one is reported, then the unit closes itself and leaves nothing.
     await frame.locator('input').fill('an answer')
-    await frame.locator('button[type="submit"]').click()
+    clickToClose(frame.locator('button[type="submit"]'))
     await expect
       .poll(() => hostEvents(page))
       .toEqual([
@@ -203,7 +204,7 @@ test.describe('a modal unit', () => {
   test('closes with frame from its close button, and the page works again', async ({ page }) => {
     await prepare(page)
     await openByClick(page)
-    await frameOf(page).locator('[data-fixture-modal-close]').click()
+    clickToClose(frameOf(page).locator('[data-fixture-modal-close]'))
     await expect
       .poll(async () => (await hostEvents(page)).map((event) => event.reason))
       .toContain('frame')
@@ -240,16 +241,22 @@ test.describe('a modal unit', () => {
 
   test('gives the focus back after a mouse open, as each engine focuses a button', async ({
     page,
-    browserName,
   }) => {
     await prepare(page)
+    // Whether a click focuses a button is the engine's and the platform's: Safari's WebKit
+    // focuses none, WebKit on Linux does. Another button of the page says which one runs.
+    await page.locator(BEHIND).click()
+    const focusesOnClick = await page.evaluate(
+      (behind) => document.activeElement === document.querySelector(behind),
+      BEHIND,
+    )
     await openByClick(page)
     escape(page)
     await expect
       .poll(async () => (await hostEvents(page)).some((event) => event.name === 'closed'))
       .toBe(true)
-    // WebKit focuses no button on a click, so the opener was the body and there is nothing to
-    // return to: focus falls to the body, as for a dialog of the page's own.
+    // Where a click focuses no button the opener was the body and there is nothing to return
+    // to: focus falls to the body, as for a dialog of the page's own.
     const active = await page.evaluate(() =>
       document.activeElement === document.body
         ? 'body'
@@ -257,7 +264,7 @@ test.describe('a modal unit', () => {
           ? 'opener'
           : 'other',
     )
-    expect(active).toBe(browserName === 'webkit' ? 'body' : 'opener')
+    expect(active).toBe(focusesOnClick ? 'opener' : 'body')
   })
 
   test('locks the scroll of the page while open and puts it back, also what the page set', async ({
@@ -372,13 +379,12 @@ test.describe('a modal unit', () => {
     escape(page)
     await expect.poll(() => frameCount(page)).toBe(1)
     // The server's own output, in every engine (as for an inline unit, telemetry.spec.ts):
-    // Playwright reports no request for a frame removed in the same task.
+    // Playwright does not always report a request of a frame removed in the same task.
     await expect.poll(telemetryLines, LOG_WAIT).toBeGreaterThan(before)
-    if (browserName !== 'webkit') {
-      expect(sent).toEqual([])
-      return
-    }
-    await expect.poll(() => sent).toEqual([{ events: [{ name: 'opened' }] }])
+    if (browserName === 'webkit') await expect.poll(() => sent.length).toBe(1)
+    // What a route did see is the one batch, never a second.
+    await settle(page)
+    expect([[], [{ events: [{ name: 'opened' }] }]]).toContainEqual(sent)
   })
 })
 

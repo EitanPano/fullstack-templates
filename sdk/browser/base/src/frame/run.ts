@@ -196,8 +196,10 @@ export function runFrame(options: RunOptions): { stop(): void } {
       }
 
       // A modal's focus is in the frame: a module that marks its first field `autofocus` gets
-      // it, else the mount. A `focus()` the module makes during `start` is ignored by WebKit,
-      // so the module does not make one; the kernel tries again on the next frames until it holds.
+      // it, else the mount. The host gives the iframe the page's focus as it shows the dialog,
+      // and a frame of another site learns it a moment later: a `focus()` made before that is
+      // reported in the console by Chromium and ignored by WebKit. So the kernel waits for the
+      // frame's window to be focused, and tries again on the next frames until the focus holds.
       function focusMount(triesLeft = 30) {
         let chosen = doc.activeElement as HTMLElement | null
         if (chosen && mount.contains(chosen)) return
@@ -205,6 +207,10 @@ export function runFrame(options: RunOptions): { stop(): void } {
         if (!chosen) {
           mount.setAttribute('tabindex', '-1')
           chosen = mount
+        }
+        if (!doc.hasFocus()) {
+          win.addEventListener('focus', () => focusMount(triesLeft), { once: true })
+          return
         }
         chosen.focus()
         if (!mount.contains(doc.activeElement) && triesLeft > 0) {
