@@ -26,6 +26,7 @@ router.add_api_route(
     methods=["GET"],
     status_code=200,
     response_model=SdkConfig,
+    operation_id="getSdkConfig",
     response_description="Whether the SDK is switched on",
     responses={**error_responses(403, 429, 500)},
     summary="The SDK kill switch: false tells a loader to draw nothing",

@@ -26,4 +26,7 @@ cases:
     deploy: single
     capabilities: { database: postgres }
     withApp: true
-  - { name: sdk, stack: react-python-fastapi, sdk: "sdk-example=sdk/browser" }
+  # The SDK beside the stack's frontend (ADR 0020): the image carries its build, and the app smoke
+  # asks for the loader and the frame, on the server in single and through the proxy in split.
+  - { name: sdk, stack: react-python-fastapi, sdk: "sdk-example=sdk/browser", withApp: true }
+  - { name: sdk-split, stack: react-python-fastapi, sdk: "sdk-example=sdk/browser", deploy: split, withApp: true }

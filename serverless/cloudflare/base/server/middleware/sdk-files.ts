@@ -65,6 +65,9 @@ export const sdkFrame = handle(async (ctx) => {
       'Content-Type': 'text/html; charset=utf-8',
       'Content-Security-Policy': `${FRAME_POLICY} ${ancestors ?? "'none'"}`,
       'Cache-Control': 'no-store',
+      // The framed unit gets its own agent cluster; without it Chromium on Windows delivers no click
+      // to a frame on another site. The other API templates send it with their isolation headers.
+      'Origin-Agent-Cluster': '?1',
     },
   })
 })

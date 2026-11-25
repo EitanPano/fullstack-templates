@@ -19,4 +19,7 @@ cases:
     stack: next-bun-express
     flags: { auth: false }
     capabilities: { database: postgres }
-  - { name: sdk, stack: react-bun-express, sdk: "sdk-example=sdk/browser" }
+  # The SDK beside the stack's frontend (ADR 0020): the image carries its build, and the app smoke
+  # asks for the loader and the frame, on the server in single and through the proxy in split.
+  - { name: sdk, stack: react-bun-express, sdk: "sdk-example=sdk/browser", withApp: true }
+  - { name: sdk-split, stack: react-bun-express, sdk: "sdk-example=sdk/browser", deploy: split, withApp: true }

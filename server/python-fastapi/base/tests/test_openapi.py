@@ -214,7 +214,7 @@ class TestTheShaping:
         self, document: Json
     ) -> None:
         for operation in operations(document):
-            assert "operationId" not in operation
+            assert "operationId" not in operation  # @nosdk
             assert "description" not in operation
             body = operation.get("requestBody")
             if body is not None:
@@ -478,6 +478,8 @@ class TestTheSdkContract:
         assert set(path) == {"get"}
         get = as_object(path["get"])
         assert get["tags"] == ["sdk"]
+        # The SDK's generated types are named after it: the other API templates write the same name.
+        assert get["operationId"] == "getSdkConfig"
         assert isinstance(get["parameters"], list)
         parameters = [as_object(parameter) for parameter in get["parameters"]]
         header = next(parameter for parameter in parameters if parameter["name"] == "x-sdk-key")
@@ -486,6 +488,13 @@ class TestTheSdkContract:
         config = as_object(as_object(as_object(doc["components"])["schemas"])["SdkConfig"])
         assert names(config["required"]) == {"enabled"}
         assert as_object(as_object(config["properties"])["enabled"])["type"] == "boolean"
+
+    def test_keeps_the_id_of_the_sdk_operation_and_gives_no_other_operation_one(self) -> None:
+        doc = build_openapi_document(app)
+
+        assert [
+            operation["operationId"] for operation in operations(doc) if "operationId" in operation
+        ] == ["getSdkConfig"]
 
     def test_leaves_the_served_files_out_of_the_document_they_are_not_json(self) -> None:
         doc = build_openapi_document(app)

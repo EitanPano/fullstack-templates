@@ -83,6 +83,14 @@ describe('GET /api/sdk/frame/v<major>?k=<key>', () => {
     expect(res.headers.get('x-request-id')).toBeTruthy()
   })
 
+  // Without it Chromium on Windows delivers no click to a frame on another site (found by the SDK's
+  // e2e beside this template); the other two API templates send it with their other isolation headers.
+  it('asks for its own agent cluster, as the other API templates do', async () => {
+    const res = await frame(`/api/sdk/frame/v1?k=${KEY_A}`).res
+
+    expect(res.headers.get('origin-agent-cluster')).toBe('?1')
+  })
+
   it('names one origin for a key with one', async () => {
     const res = await frame(`/api/sdk/frame/v1?k=${KEY_B}`).res
 

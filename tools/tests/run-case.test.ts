@@ -970,3 +970,154 @@ describe('app smoke, a Next frontend (not an SPA)', () => {
     expect(verbs(calls).at(-1)).toBe('down -v')
   })
 })
+
+// A plan that holds an SDK (ADR 0020 N4): the images carry its build, so the smoke asks for the
+// loader and the frame on the address the API answers on, the frontend's proxy in split.
+describe('app smoke, a plan with an SDK', () => {
+  // The fixture's SDK has no version; the smoke reads the major from the generated package.json.
+  const withSdk = (deploy?: string, version = '2.3.0') => {
+    const root = copyFixture('catalog')
+    const cases = path.join(root, 'frontend/mini-spa/tests/cases.yaml')
+    const extra = `    withApp: true\n    sdk: sdk-x=sdk/mini-sdk\n${deploy ? `    deploy: ${deploy}\n` : ''}`
+    writeFileSync(
+      cases,
+      readFileSync(cases, 'utf8').replace('stack: mini-spa\n', (m) => m + extra),
+    )
+    const manifest = path.join(root, 'sdk/mini-sdk/base/package.json')
+    writeFileSync(
+      manifest,
+      readFileSync(manifest, 'utf8').replace(
+        '"__PROJECT_NAME__-sdk"',
+        `"__PROJECT_NAME__-sdk", "version": "${version}"`,
+      ),
+    )
+    const loaded = loadCatalog(root)
+    const found = listCases(loaded).find((c) => c.id === 'frontend/mini-spa/default')
+    if (!found?.withApp || found.sdk === null) throw new Error('fixture case lost its sdk')
+    return { loaded, c: found }
+  }
+  const LOADER = (at: number, major = 2) =>
+    `http://127.0.0.1:${String(at)}/api/sdk/dist/v${String(major)}/loader.js`
+  const FRAME = (at: number, major = 2) =>
+    `http://127.0.0.1:${String(at)}/api/sdk/frame/v${String(major)}?k=`
+  const loaderReply: ProbeResult = {
+    status: 200,
+    body: '(function(){})()',
+    contentType: 'text/javascript; charset=utf-8',
+    headers: { 'access-control-allow-origin': '*' },
+  }
+  const frameReply: ProbeResult = {
+    status: 200,
+    body: '<!doctype html>',
+    contentType: 'text/html; charset=utf-8',
+    headers: {
+      'content-security-policy':
+        "default-src 'none'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    },
+  }
+  // The fake site answers the SDK's two addresses unless the test overrides them.
+  const sdkSite = (at: number, overrides: Record<string, Reply> = {}) => {
+    const inner = site(at, overrides)
+    const probe: Probe = async (url) => {
+      inner.urls.push(url)
+      if (url in overrides) {
+        const found = overrides[url]
+        if (found instanceof Error) throw found
+        if (found !== undefined) return found
+      }
+      if (/\/api\/sdk\/dist\/v\d+\/loader\.js$/.test(url)) return loaderReply
+      if (/\/api\/sdk\/frame\/v\d+\?k=/.test(url)) return frameReply
+      return inner.probe(url)
+    }
+    return { probe, urls: inner.urls }
+  }
+  const sdkUrls = (urls: string[]) => urls.filter((u) => u.includes('/api/sdk/'))
+
+  test('single: asks the server port for the loader and for the frame with a key nobody holds', async () => {
+    const { probe, urls } = sdkSite(4000)
+    await smoke(withSdk(), APP, probe, fakeCapture().capture).result
+    const asked = sdkUrls(urls)
+    expect(asked).toHaveLength(2)
+    expect(asked[0]).toBe(LOADER(4000))
+    expect(asked[1]?.startsWith(FRAME(4000))).toBe(true)
+    expect(asked[1]).not.toBe(FRAME(4000))
+  })
+
+  test('split: both addresses go through the frontend port', async () => {
+    const { probe, urls } = sdkSite(5173)
+    await smoke(withSdk('split'), APP, probe, fakeCapture().capture).result
+    expect(sdkUrls(urls).map((u) => new URL(u).port)).toEqual(['5173', '5173'])
+  })
+
+  test('the major is the generated package version, not a constant', async () => {
+    const { probe, urls } = sdkSite(4000)
+    await smoke(withSdk(undefined, '7.0.1'), APP, probe, fakeCapture().capture).result
+    const asked = sdkUrls(urls)
+    expect(asked[0]).toBe(LOADER(4000, 7))
+    expect(asked[1]?.startsWith(FRAME(4000, 7))).toBe(true)
+  })
+
+  test('a plan without an SDK asks for neither', async () => {
+    const { probe, urls } = site(4000)
+    await smoke(stackCatalog({ frontend: 'mini-spa' }), APP, probe, fakeCapture().capture).result
+    expect(sdkUrls(urls)).toEqual([])
+  })
+
+  test.each([
+    ['status', { ...loaderReply, status: 404 }, /loader.*status 404/],
+    [
+      'content type',
+      { ...loaderReply, contentType: 'text/html' },
+      /loader.*content type text\/html.*JavaScript/,
+    ],
+    ['allow-origin', { ...loaderReply, headers: {} }, /loader.*Access-Control-Allow-Origin/],
+  ])(
+    'a loader with the wrong %s fails naming the check, and the teardown runs',
+    async (_n, bad, message) => {
+      const { probe } = sdkSite(4000, { [LOADER(4000)]: bad })
+      const { calls, result } = smoke(withSdk(), APP, probe, fakeCapture().capture)
+      await expect(result).rejects.toThrow(message)
+      expect(verbs(calls).at(-1)).toBe('down -v')
+    },
+  )
+
+  test.each([
+    ['status', { ...frameReply, status: 404 }, /frame.*status 404/],
+    [
+      'frame-ancestors',
+      { ...frameReply, headers: { 'content-security-policy': "default-src 'none'" } },
+      /frame.*frame-ancestors 'none'/,
+    ],
+    [
+      'a second policy added by a proxy',
+      {
+        ...frameReply,
+        headers: {
+          'content-security-policy': `${frameReply.headers?.['content-security-policy']}, default-src 'self'`,
+        },
+      },
+      /frame.*another Content-Security-Policy/,
+    ],
+    [
+      'an X-Frame-Options header',
+      {
+        ...frameReply,
+        headers: { ...frameReply.headers, 'x-frame-options': 'SAMEORIGIN' },
+      },
+      /frame.*X-Frame-Options/,
+    ],
+  ])('a frame with the wrong %s fails naming the check', async (_n, bad, message) => {
+    const { probe } = sdkSite(4000, {})
+    const wrapped: Probe = async (url) => (url.includes('/api/sdk/frame/') ? bad : probe(url))
+    await expect(smoke(withSdk(), APP, wrapped, fakeCapture().capture).result).rejects.toThrow(
+      message,
+    )
+  })
+
+  test('an SDK package without a readable version fails before the build', async () => {
+    const built = withSdk(undefined, 'next')
+    const { calls, result } = smoke(built, APP, sdkSite(4000).probe, fakeCapture().capture)
+    await expect(result).rejects.toThrow(/sdk-x.*version.*package\.json/)
+    expect(docker(calls)).toEqual([])
+  })
+})

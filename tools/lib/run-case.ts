@@ -368,6 +368,58 @@ async function checkSpa(deps: AppDeps, origin: string): Promise<void> {
   }
 }
 
+// The major of the SDK package's own version names its folder in the build (ADR 0020 N4).
+function sdkMajor(out: string, dir: string): number {
+  const text = readFileSync(path.join(out, dir, 'package.json'), 'utf8')
+  const version = (JSON.parse(text) as { version?: unknown }).version
+  const major = typeof version === 'string' ? /^(\d+)\./.exec(version)?.[1] : undefined
+  if (major === undefined) {
+    throw new Error(
+      `app smoke: the SDK package ${dir} has no readable major in the version of its package.json (${JSON.stringify(version)})`,
+    )
+  }
+  return Number(major)
+}
+
+const SDK_UNKNOWN_KEY = 'pk_smoke_unknown'
+
+// The loader is a script any page may load; the frame names no ancestor for a key nobody holds, so
+// no page may frame it. A proxy that adds a policy or X-Frame-Options of its own would break both.
+async function checkSdk(deps: AppDeps, origin: string, major: number): Promise<void> {
+  await expectProbe(
+    deps,
+    `${origin}/api/sdk/dist/v${String(major)}/loader.js`,
+    'the SDK loader is served as a script any origin may load',
+    (result) => {
+      if (result.status !== 200) return `status ${String(result.status)}`
+      if (!/javascript/i.test(result.contentType ?? '')) {
+        return `content type ${result.contentType ?? 'missing'}, not JavaScript`
+      }
+      return result.headers?.['access-control-allow-origin'] === '*'
+        ? null
+        : 'the Access-Control-Allow-Origin header is missing or not *'
+    },
+  )
+  await expectProbe(
+    deps,
+    `${origin}/api/sdk/frame/v${String(major)}?k=${SDK_UNKNOWN_KEY}`,
+    'the SDK frame document is framed by nobody for an unknown key',
+    (result) => {
+      if (result.status !== 200) return `status ${String(result.status)}`
+      const policy = result.headers?.['content-security-policy'] ?? ''
+      // Headers of one name arrive joined by a comma: a second policy is the edge's own.
+      if (policy.includes(','))
+        return 'another Content-Security-Policy is joined to the one of the frame'
+      if (!policy.includes("frame-ancestors 'none'")) {
+        return "the Content-Security-Policy is missing or has no frame-ancestors 'none'"
+      }
+      return result.headers?.['x-frame-options'] === undefined
+        ? null
+        : 'an X-Frame-Options header is set on the frame document'
+    },
+  )
+}
+
 // Builds and boots the generated stack from its Dockerfiles, then asks the server whether it is
 // alive and ready. In a stack with an SPA the proof depends on the deploy mode the plan records
 // (ADR 0003 M5-8). The teardown always runs, so a failed build leaves no containers or volumes.
@@ -404,6 +456,8 @@ export async function runAppSmoke(
     const problem = composeFloorProblem(deps.capture('docker compose version --short', out))
     if (problem !== null) throw new Error(`app smoke: ${problem}`)
   }
+  const sdk = plan.packages.find((pkg) => pkg.template.manifest.kind === 'sdk')
+  const major = sdk === undefined ? null : sdkMajor(out, sdk.dir)
   const env = appEnvironment(readFileSync(path.join(out, 'docker-compose.yml'), 'utf8'), plan)
   deps.log(`app smoke: environment variables ${Object.keys(env).join(', ')}`)
   const compose = `docker compose -p ${project} --profile app`
@@ -448,6 +502,11 @@ export async function runAppSmoke(
       if (options.e2e && e2e !== undefined) {
         deps.run(e2e, path.join(out, spa.dir), { E2E_BASE_URL: origin })
       }
+    }
+    // The address the API answers on: the frontend's proxy in split, the server's own port otherwise.
+    if (major !== null) {
+      const front = `http://127.0.0.1:${String(spa?.template.manifest.http?.port ?? 0)}`
+      await checkSdk(deps, spa !== undefined && plan.deploy === 'split' ? front : base, major)
     }
   } catch (error) {
     failure = error
