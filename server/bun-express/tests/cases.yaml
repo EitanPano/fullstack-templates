@@ -19,3 +19,4 @@ cases:
     stack: next-bun-express
     flags: { auth: false }
     capabilities: { database: postgres }
+  - { name: sdk, stack: react-bun-express, sdk: "sdk-example=sdk/browser" }

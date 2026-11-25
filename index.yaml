@@ -3,7 +3,7 @@ templates:
   - id: bun-express
     kind: server
     path: server/bun-express
-    version: 4.0.0
+    version: 4.1.0
     summary: "Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus"
   - id: python-fastapi
     kind: server

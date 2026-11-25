@@ -10,6 +10,7 @@ import { errorHandler } from './middleware/error-handler'
 import { notFound } from './middleware/not-found'
 import { requestId } from './middleware/request-id'
 import { requestLog } from './middleware/request-log'
+import { sdkDist, sdkFrame } from './middleware/sdk-files' // @sdk
 import { staticFiles } from './middleware/static'
 import { buildOpenApiDocument } from './openapi'
 
@@ -19,7 +20,13 @@ import { buildOpenApiDocument } from './openapi'
 // Nothing here listens or touches infrastructure: tests import `app` as is, or call
 // `createApp(dir)` to serve a fixture directory, and index.ts starts the infra, listens and
 // handles shutdown.
-export function createApp(staticDir: string | undefined = env.STATIC_DIR): Express {
+export function createApp(staticDir: string | undefined = env.STATIC_DIR): Express { // @nosdk
+// @sdk-start
+export function createApp(
+  staticDir: string | undefined = env.STATIC_DIR,
+  sdkDir: string | undefined = env.SDK_DIR,
+): Express {
+// @sdk-end
   const app = express()
 
   // Do not advertise the framework.
@@ -42,6 +49,13 @@ export function createApp(staticDir: string | undefined = env.STATIC_DIR): Expre
 
   // One line per entity lives in config/routes.ts.
   registerRoutes(app)
+  // @sdk-start
+
+  // The SDK's built files and its frame document, outside the key gate and never answered by the
+  // SPA below. Both are 404 envelopes while SDK_DIR is unset.
+  app.use('/api/sdk/dist', sdkDist(sdkDir))
+  app.get('/api/sdk/frame/:version', sdkFrame(sdkDir))
+  // @sdk-end
 
   // The generated contract, served for tooling.
   app.get('/openapi.json', (_req, res) => {

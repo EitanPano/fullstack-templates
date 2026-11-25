@@ -30,7 +30,7 @@ template finds the same shape.
 <!-- matrix:start -->
 | Template | Kind | Version | Flags | Capabilities | Summary |
 | --- | --- | --- | --- | --- | --- |
-| `bun-express` | server | 4.0.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
+| `bun-express` | server | 4.1.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
 | `python-fastapi` | server | 3.0.0 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
 | `cloudflare` | serverless | 3.0.0 | jobs | — | One Cloudflare Worker with static assets, routed by Hono: D1 through Drizzle, zod schemas and the OpenAPI contract from them, one error envelope, tests in workerd; serves a frontend's build on one origin |
 | `angular` | frontend | 5.0.0 | i18n, pwa | — | Angular 22 single-page app on standalone components and signals, @ngrx/signals stores, co-located SCSS on a global token tree and Hey API's Angular client, with Transloco and the service worker behind flags |

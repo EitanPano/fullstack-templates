@@ -11,7 +11,7 @@ Generated alone or as the `server` of the `next-bun-express` stack.
 - `capabilities/database/postgres/`: the Postgres overlay (manifest and `overlay/` files).
 - `compose.yaml`: the Compose service body, keyed by the package directory at generation.
 - `tests/cases.yaml`: the generated variants the catalog gates (`default`, `auth-off`,
-  `postgres`, `auth-off-postgres`, and the stack cases).
+  `postgres`, `auth-off-postgres`, `sdk`, and the stack cases).
 - `CHANGELOG.md`: version history.
 
 ## Commands
@@ -32,6 +32,23 @@ Generated alone or as the `server` of the `next-bun-express` stack.
 - `auth` (default on): accounts, sessions, JWT and OTP. Off removes the `auth` and `user`
   entities, their middleware, models, jobs, tests and the `cookie-parser` and `jose`
   dependencies; every endpoint is then public.
+
+## With an SDK
+
+When the plan holds an `sdk` package ([ADR 0020](../../docs/adr/0020-sdk-kind.md); generate with
+`--sdk <dir>=<template>`), the server also serves it. Without one none of this exists in the
+generated package.
+
+- `/api/sdk/v1/`: the public, cross-origin namespace, `api/sdk/<entity>/`. One gate runs first:
+  CORS for the namespace alone (the origin is echoed when the key lists it; never credentials),
+  the `X-Sdk-Key` key, then a rate limit by key and by address. `GET /api/sdk/v1/config` answers
+  `{ enabled }`, the kill switch.
+- `GET|HEAD /api/sdk/dist/v<major>/<file>.js`: the SDK's build, with no key and a five-minute cache.
+- `GET /api/sdk/frame/v<major>?k=<key>`: the frame document, framed only by the key's origins.
+- Variables: `SDK_KEYS` (`key=origin,origin;key=origin`; unset refuses every request),
+  `SDK_ENABLED` (default `true`), `SDK_DIR` (the build to serve; the image sets it).
+- Compose takes the build through an `additional_contexts` line for the SDK's build-only service,
+  in both deploy modes (Compose 2.35.0 or later).
 
 ## Capabilities
 
