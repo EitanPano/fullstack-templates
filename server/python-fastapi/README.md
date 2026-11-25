@@ -15,8 +15,8 @@ and stays at behavioural parity with `server/bun-express`; the design is
 - `capabilities/database/postgres/`: the Postgres overlay (manifest and `overlay/` files).
 - `compose.yaml`: the Compose service body, keyed by the package directory at generation.
 - `tests/cases.yaml`: the generated variants the catalog gates (`default`, `auth-off`, `stack`,
-  `stack-auth-off`, `postgres`, `auth-off-postgres`, `stack-postgres` and
-  `stack-auth-off-postgres`).
+  `stack-auth-off`, `postgres`, `auth-off-postgres`, `stack-postgres`,
+  `stack-auth-off-postgres` and `sdk`).
 - `CHANGELOG.md`: version history.
 
 ## Run it
@@ -54,6 +54,26 @@ dev dependency; the image never uses it.
   entities, their middleware, models, jobs, subscribers and tests and the `pyjwt` dependency;
   every endpoint is then public.
 
+## With an SDK
+
+When the plan holds an `sdk` package ([ADR 0020](../../docs/adr/0020-sdk-kind.md); generate with
+`--sdk <dir>=<template>`), the server also serves it. Without one none of this exists in the
+generated package. It behaves as in `server/bun-express`, except where Starlette routes differently:
+a case variant of a path (`/API/SDK/V1/config`) is the 404 envelope, never gated, and an encoded
+slash in the prefix (`/api/sdk/v1%2Fconfig`) reaches the config route and is gated like the plain
+path. The two file routes match the raw path before they touch the disk.
+
+- `/api/sdk/v1/`: the public, cross-origin namespace, `api/sdk/<entity>/`. One gate runs first:
+  CORS for the namespace alone (the origin is echoed when the key lists it; never credentials),
+  the `X-Sdk-Key` key, then a rate limit by key and by address. `GET /api/sdk/v1/config` answers
+  `{ enabled }`, the kill switch.
+- `GET|HEAD /api/sdk/dist/v<major>/<file>.js`: the SDK's build, with no key and a five-minute cache.
+- `GET /api/sdk/frame/v<major>?k=<key>`: the frame document, framed only by the key's origins.
+- Variables: `SDK_KEYS` (`key=origin,origin;key=origin`; unset refuses every request),
+  `SDK_ENABLED` (default `true`), `SDK_DIR` (the build to serve; the image sets it).
+- Compose takes the build through an `additional_contexts` line for the SDK's build-only service,
+  in both deploy modes (Compose 2.35.0 or later).
+
 ## Capabilities
 
 - `database/postgres`: records, users and sessions in Postgres through psycopg 3 and its async
@@ -85,7 +105,8 @@ dev dependency; the image never uses it.
 
 `tests/cases.yaml` lists the variants the catalog generates and gates: `default`, `auth-off`,
 `stack` (`next-python-fastapi`), `stack-auth-off`, `postgres`, `auth-off-postgres`,
-`stack-postgres` (also built and smoke-tested in Compose) and `stack-auth-off-postgres`.
+`stack-postgres` (also built and smoke-tested in Compose), `stack-auth-off-postgres` and `sdk`
+(`react-python-fastapi` with an SDK package).
 
 ## Requirements
 

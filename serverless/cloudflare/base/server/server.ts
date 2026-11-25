@@ -7,8 +7,10 @@
 import adminRoutes from './api/admin/routes'
 import healthRoutes from './api/health/routes'
 import entityRoutes from './api/entity/routes'
+import sdkRoutes from './api/sdk/routes' // @sdk
 import { frontendPages } from './middleware/frontend-host'
 import { notFound, rootApp } from './middleware/handler'
+import { sdkDist, sdkFrame } from './middleware/sdk-files' // @sdk
 
 export const app = rootApp()
 
@@ -16,6 +18,13 @@ export const app = rootApp()
 app.route('/api/health', healthRoutes)
 app.route('/api/entity', entityRoutes)
 app.route('/api/admin', adminRoutes)
+// @sdk-start
+app.route('/api/sdk/v1', sdkRoutes)
+
+// The SDK's built files and its frame document, outside the key gate and never answered by a page.
+app.on(['GET', 'HEAD'], '/api/sdk/dist/*', sdkDist)
+app.on(['GET', 'HEAD'], '/api/sdk/frame/:version', sdkFrame)
+// @sdk-end
 
 app.all('/api/*', notFound)
 

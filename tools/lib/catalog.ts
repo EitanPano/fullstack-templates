@@ -16,7 +16,7 @@ export type DeployMode = 'single' | 'split'
 
 export const DEPLOY_MODES: readonly DeployMode[] = ['single', 'split']
 
-export type TemplateKind = 'server' | 'serverless' | 'frontend' | 'worker'
+export type TemplateKind = 'server' | 'serverless' | 'frontend' | 'sdk' | 'worker'
 
 export type CommandName =
   | 'install'
@@ -52,10 +52,11 @@ export const COMMAND_NAMES: readonly CommandName[] = [
 const DEFAULT_DIR_BY_KIND: Record<Exclude<TemplateKind, 'serverless'>, string> = {
   server: 'backend',
   frontend: 'frontend',
+  sdk: 'sdk',
   worker: 'worker',
 }
 
-const KINDS: TemplateKind[] = ['server', 'serverless', 'frontend', 'worker']
+const KINDS: TemplateKind[] = ['server', 'serverless', 'frontend', 'sdk', 'worker']
 
 // A serverless package lives under its provider's directory, so its default has two segments.
 export function defaultDir(manifest: Pick<TemplateManifest, 'kind' | 'id'>): string {
@@ -63,6 +64,9 @@ export function defaultDir(manifest: Pick<TemplateManifest, 'kind' | 'id'>): str
     ? `serverless/${manifest.id}`
     : DEFAULT_DIR_BY_KIND[manifest.kind]
 }
+
+// Reserved like `single`: true in every package of a plan that holds an sdk package (ADR 0020 K3).
+export const SDK_SELECTION = 'sdk'
 
 // A frontend sees the API package's (server or serverless) flags and capability kinds as
 // `server:<name>`.
@@ -185,6 +189,8 @@ export interface TemplateManifest {
   docker?: boolean
   // Frontend only: the directory the build writes, which the server serves in the single mode.
   static?: { out: string; fallback?: string }
+  // Sdk only: the directory its CDN build writes, which the API package serves (ADR 0020 N4).
+  cdn?: { out: string }
 }
 
 export interface StackManifest {
@@ -215,6 +221,8 @@ export interface CasesFile {
     stack?: string
     // A stack case only: <dir>=<template> pairs that take the place of the stack's frontend.
     frontends?: string[]
+    // A stack case of another template only: the sdk package of the plan, <dir>=<template>.
+    sdk?: string
     flags?: Record<string, boolean>
     capabilities?: Record<string, string>
     // Further packages of the plan by directory, as an answers file's packages.
@@ -290,6 +298,14 @@ export const SERVER_AGENTS_HEADINGS = [
   'Deployment',
 ] as const
 
+export const SDK_AGENTS_HEADINGS = [
+  'Adding a feature',
+  'Public API',
+  'Errors',
+  'Tests',
+  'Deployment',
+] as const
+
 // The layer map is part of the frontend contract but is not a checked heading (ADR 0003, M5-9).
 export const FRONTEND_AGENTS_HEADINGS = [
   'Adding a feature',
@@ -334,9 +350,34 @@ function checkServerlessManifest(
       `${templatePath}: capabilities is not for a serverless template: its data engine is part of the base; declare migrate, testDb and e2eDb as commands`,
     )
   }
+  const keys = Object.keys(manifest.onlyWhen ?? {}).filter((name) => name !== SDK_SELECTION)
+  if (keys.length > 0) {
+    problems.push(
+      `${templatePath}: onlyWhen is not for a serverless template, which has no other package to key on; gate its files with its own flags (the one key it takes is ${SDK_SELECTION})`,
+    )
+  }
+}
+
+// An sdk template is a library the API package serves (ADR 0020): it has no data engine, no
+// static build and no brand, and it names the directory its CDN build writes.
+function checkSdkManifest(
+  templatePath: string,
+  manifest: TemplateManifest,
+  problems: string[],
+): void {
+  if (manifest.cdn === undefined) {
+    problems.push(
+      `${templatePath}: cdn is required for an sdk template: name the directory its CDN build writes`,
+    )
+  }
+  if (manifest.capabilities !== undefined) {
+    problems.push(
+      `${templatePath}: capabilities is not for an sdk template, which has no data engine`,
+    )
+  }
   if (manifest.onlyWhen !== undefined) {
     problems.push(
-      `${templatePath}: onlyWhen is not for a serverless template, which has no other package to key on; gate its files with its own flags`,
+      `${templatePath}: onlyWhen is not for an sdk template; gate its files with its own flags`,
     )
   }
 }
@@ -372,7 +413,9 @@ function checkTemplateFiles(
     ? SERVER_AGENTS_HEADINGS
     : manifest.kind === 'frontend'
       ? FRONTEND_AGENTS_HEADINGS
-      : undefined
+      : manifest.kind === 'sdk'
+        ? SDK_AGENTS_HEADINGS
+        : undefined
   if (required !== undefined && existsSync(agentsFile)) {
     const missing = missingHeadings(agentsFile, required)
     if (missing.length > 0) {
@@ -388,6 +431,10 @@ function checkTemplateFiles(
     )
   }
   if (manifest.kind === 'serverless') checkServerlessManifest(templatePath, manifest, problems)
+  if (manifest.kind === 'sdk') checkSdkManifest(templatePath, manifest, problems)
+  if (manifest.cdn !== undefined && manifest.kind !== 'sdk') {
+    problems.push(`${templatePath}: cdn is only for sdk templates, this one is a ${manifest.kind}`)
+  }
   // A "." segment names the package itself or a path that a drop would resolve oddly; refusing it
   // here names the template before any generation runs.
   for (const entry of manifest.dropAfterPostGenerate ?? []) {
@@ -399,7 +446,7 @@ function checkTemplateFiles(
   }
   checkOnlyWhenOverlaps(templatePath, manifest, problems)
   for (const [name, value] of Object.entries(manifest.onlyWhen ?? {})) {
-    if (manifest.kind === 'server') {
+    if (manifest.kind === 'server' && name !== SDK_SELECTION) {
       problems.push(`${templatePath}: onlyWhen is not for a server template, which has no ${name}`)
     }
     const spec = onlyWhenSpec(value)
@@ -660,6 +707,8 @@ function checkOnlyWhenNames(
 ): void {
   for (const name of Object.keys(template.manifest.onlyWhen ?? {})) {
     if (name === 'server') continue
+    // An API package keys its files on the sdk; no other kind has the selection to key on.
+    if (name === SDK_SELECTION && isApiKind(template.manifest.kind)) continue
     if (
       !name.startsWith(SERVER_PREFIX) ||
       !serverNames.includes(name.slice(SERVER_PREFIX.length))
@@ -733,8 +782,11 @@ function checkFrontendSettings(
   const packages = testCase.packages ?? {}
   if (frontends.length === 0 && Object.keys(packages).length === 0) return
   const where = `${template.path}: case "${testCase.name}"`
-  const stack = testCase.stack === undefined ? undefined : stacks.get(testCase.stack)
-  if (testCase.stack === undefined) {
+  const stackName =
+    testCase.stack ??
+    (template.manifest.kind === 'sdk' ? template.manifest.defaultStack : undefined)
+  const stack = stackName === undefined ? undefined : stacks.get(stackName)
+  if (stackName === undefined) {
     problems.push(`${where} lists frontends or packages but names no stack`)
     return
   }
@@ -768,13 +820,23 @@ function checkFrontendSettings(
   if (frontends.length === 0) {
     for (const entry of stack.manifest.packages) plan.set(entry.dir, entry.template)
   }
+  // The sdk package comes from the request: an sdk template's own case adds itself at sdk-<id>.
+  const sdkDir = `sdk-${template.manifest.id}`
+  if (template.manifest.kind === 'sdk') plan.set(sdkDir, template.path)
+  if (testCase.sdk !== undefined) {
+    const at = testCase.sdk.indexOf('=')
+    plan.set(testCase.sdk.slice(0, at), testCase.sdk.slice(at + 1))
+  }
   // requestFor writes the case's own `flags:` and `server:` under these dirs, over a packages entry.
   const ownDir =
     ownFirst && frontends.length > 0
       ? frontends[0]!.slice(0, frontends[0]!.indexOf('='))
       : undefined
   const primary =
-    ownDir ?? stack.manifest.packages.find((entry) => entry.template === template.path)?.dir
+    ownDir ??
+    (template.manifest.kind === 'sdk'
+      ? sdkDir
+      : stack.manifest.packages.find((entry) => entry.template === template.path)?.dir)
   const apiEntry = stack.manifest.packages.find((entry) =>
     isApiKind(templates.get(entry.template)?.manifest.kind ?? ''),
   )
@@ -815,6 +877,31 @@ function checkFrontendSettings(
   }
 }
 
+// A case's `sdk` is <dir>=<template> of an sdk template, on a stack case of another template; an
+// sdk template's own case never carries it, the runner adds the template itself.
+function checkSdkSettings(
+  template: LoadedTemplate,
+  testCase: CasesFile['cases'][number],
+  templates: Map<string, LoadedTemplate>,
+  problems: string[],
+): void {
+  if (testCase.sdk === undefined) return
+  const where = `${template.path}: case "${testCase.name}"`
+  if (template.manifest.kind === 'sdk') {
+    problems.push(`${where} lists an sdk, but the runner adds the template itself`)
+    return
+  }
+  if (testCase.stack === undefined) {
+    problems.push(`${where} lists an sdk but names no stack`)
+    return
+  }
+  const at = testCase.sdk.indexOf('=')
+  const [dir, used] = [testCase.sdk.slice(0, at), testCase.sdk.slice(at + 1)]
+  if (templates.get(used)?.manifest.kind !== 'sdk') {
+    problems.push(`${where} lists sdk "${dir}" with ${used}, which is not an sdk template`)
+  }
+}
+
 // The Compose smoke builds images and boots them: a template or a stack with none has no app smoke.
 function checkWithApp(
   template: LoadedTemplate,
@@ -825,7 +912,9 @@ function checkWithApp(
 ): void {
   if (testCase.withApp !== true) return
   const where = `${template.path}: case "${testCase.name}" sets withApp, but`
-  if (template.manifest.kind === 'serverless') {
+  if (template.manifest.kind === 'sdk') {
+    problems.push(`${where} an sdk template has no app smoke: remove withApp`)
+  } else if (template.manifest.kind === 'serverless') {
     problems.push(`${where} a serverless template has no app smoke: remove withApp`)
   } else if (template.manifest.docker === false) {
     problems.push(`${where} a template that ships no image has no app smoke: remove withApp`)
@@ -877,11 +966,12 @@ function checkCrossReferences(
     checkCaseCoverage(template, problems)
     checkCapabilityCases(template, problems)
     for (const testCase of template.cases.cases) {
-      if (testCase.brand !== undefined && isApiKind(manifest.kind)) {
+      if (testCase.brand !== undefined && manifest.kind !== 'frontend') {
         problems.push(
           `${template.path}: case "${testCase.name}" has a brand, which only a frontend case takes`,
         )
       }
+      checkSdkSettings(template, testCase, templates, problems)
       checkWithApp(template, testCase, stacks, templates, problems)
       checkServerSettings(template, testCase, stacks, templates, problems)
       checkFrontendSettings(template, testCase, stacks, templates, problems)
@@ -890,7 +980,17 @@ function checkCrossReferences(
           problems.push(`${template.path}: case "${testCase.name}" uses undeclared flag "${flag}"`)
         }
       }
-      if (testCase.stack) {
+      if (manifest.kind === 'sdk') {
+        // The runner adds the template itself to the stack; a case without `stack:` takes defaultStack.
+        const name = testCase.stack ?? manifest.defaultStack
+        if (name === undefined) {
+          problems.push(
+            `${template.path}: case "${testCase.name}" names no stack and the template has no defaultStack`,
+          )
+        } else if (!stacks.has(name)) {
+          problems.push(`${template.path}: case "${testCase.name}" uses unknown stack "${name}"`)
+        }
+      } else if (testCase.stack) {
         const stack = stacks.get(testCase.stack)
         if (!stack) {
           problems.push(
@@ -912,6 +1012,13 @@ function checkCrossReferences(
         : [{ dir: pkg.dir, path: loaded.path, manifest: loaded.manifest }]
     })
     for (const problem of memberProblems(members)) problems.push(`${stack.path}: ${problem}`)
+    for (const member of members) {
+      if (member.manifest.kind === 'sdk') {
+        problems.push(
+          `${stack.path}: no stack lists an sdk package (${member.path}): it comes from the request, --sdk`,
+        )
+      }
+    }
     const dirs = new Set<string>()
     for (const pkg of stack.manifest.packages) {
       if (!templates.has(pkg.template)) {

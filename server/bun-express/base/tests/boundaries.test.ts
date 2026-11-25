@@ -66,3 +66,39 @@ describe('api/admin/<entity>/ boundaries', () => {
     expect(await messages(`${lead}/schema.ts`, '../../entity/controller')).not.toEqual([])
   })
 })
+// @sdk-start
+
+describe('api/sdk/<entity>/ boundaries', () => {
+  it('lets an SDK entity follow the entity rules', async () => {
+    const config = 'src/api/sdk/config'
+    expect(await messages(`${config}/routes.ts`, './controller')).toEqual([])
+    expect(await messages(`${config}/routes.ts`, '../../../middleware/validate')).toEqual([])
+    expect(await messages(`${config}/controller.ts`, './schema')).toEqual([])
+    expect(await messages(`${config}/controller.ts`, '../../entity/controller')).toEqual([])
+    expect(await messages(`${config}/schema.ts`, '../../entity/schema')).toEqual([])
+  })
+
+  it('lets the namespace router mount an SDK entity and nothing else mount one', async () => {
+    expect(await messages('src/api/sdk/routes.ts', './config/routes')).toEqual([])
+    expect(await messages('src/config/routes.ts', '../api/sdk/routes')).toEqual([])
+    expect(await messages('src/api/sdk/other/routes.ts', '../config/routes')).not.toEqual([])
+    expect(await messages('src/api/entity/routes.ts', '../sdk/config/routes')).not.toEqual([])
+  })
+
+  it('refuses an SDK entity importing a top-level entity service or the reverse', async () => {
+    const reach = await messages('src/api/sdk/config/controller.ts', '../../entity/service')
+    const back = await messages('src/api/entity/controller.ts', '../sdk/config/service')
+
+    expect(reach.join(' ')).toContain("entity's controller.ts")
+    expect(back.join(' ')).toContain('service.ts')
+  })
+
+  it('refuses the other ways an SDK entity reaches into an entity or a sibling', async () => {
+    const config = 'src/api/sdk/config'
+    expect(await messages(`${config}/service.ts`, '../../entity/service')).not.toEqual([])
+    expect(await messages(`${config}/routes.ts`, '../../entity/controller')).not.toEqual([])
+    expect(await messages(`${config}/controller.ts`, '../other/service')).not.toEqual([])
+    expect(await messages(`${config}/schema.ts`, '../../entity/controller')).not.toEqual([])
+  })
+})
+// @sdk-end

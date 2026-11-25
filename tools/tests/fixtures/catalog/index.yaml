@@ -30,6 +30,11 @@ templates:
     path: serverless/mini-fn
     version: 1.0.0
     summary: A minimal serverless fixture
+  - id: mini-sdk
+    kind: sdk
+    path: sdk/mini-sdk
+    version: 1.0.0
+    summary: A minimal sdk fixture
 stacks:
   - id: mini
     path: stacks/mini

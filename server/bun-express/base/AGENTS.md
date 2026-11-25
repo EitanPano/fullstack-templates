@@ -53,6 +53,7 @@ api/<name>/         routes · controller · schema; service only when the entity
                     (health, entity: the commented reference) <!-- @noauth -->
                     (model.ts: reserved, for an engine that defines storage in code)
 api/admin/          the admin namespace: routes.ts (gate, mounts) · <name>/ entities
+api/sdk/            the SDK namespace at /api/sdk/v1: routes.ts (gate, mounts) · <name>/ entities <!-- @sdk -->
 models/<name>/      interface.ts · type.ts · enum.ts · constants.ts
 <!-- @auth-start -->
 middleware/         auth · role · validate · rate-limit · error-handler · not-found ·
@@ -467,6 +468,21 @@ identifiers, comments and constants: `entity` to `<name>`, `Entity` to `<Name>`,
 <!-- @noauth-start -->
   That file's gate refuses every request (403) until the product replaces it with its own.
 <!-- @noauth-end -->
+<!-- @sdk-start -->
+- SDK endpoints live in `api/sdk/<name>/`, an entity like any other, at `/api/sdk/v1/<name>`
+  (`sdk` is a namespace); mount its router in `api/sdk/routes.ts`. That file runs
+  `middleware/sdk-gate.ts` first: CORS for this namespace alone, the `X-Sdk-Key` header resolved
+  by `services/security/sdk-keys.ts` (reads `SDK_KEYS`, https origins only in production; replace
+  its bodies with a lookup), then the rate limit by address and by key. The project's
+  `CORS_ORIGINS` layer skips `/api/sdk/`. An entity only the frame calls (issuing a token,
+  accepting a view or a click) is mounted with `frameOnly`; one mounted without it is readable by
+  the host page, so it never issues or accepts anything that counts. The per-key limit is a
+  ceiling for one integration's whole audience (default 3000 a minute, the kill switch read once
+  per page view) and is the product's to size. Within `v1` the namespace only adds: a removal or
+  a change is a `v2` beside it. The SDK's built files (`/api/sdk/dist/v<major>/`) and its frame document
+  (`/api/sdk/frame/v<major>?k=<key>`) come from `SDK_DIR` through `middleware/sdk-files.ts`,
+  carry no key and are not in the OpenAPI document. `SDK_ENABLED=false` turns the SDK off.
+<!-- @sdk-end -->
 
 `api/entity/` is the worked example.
 
@@ -771,6 +787,13 @@ the `Dockerfile` and the Compose fragment differ, through the lines named below,
   requests to HTTPS and the page is blank.
 - **Secrets.** Production values come from the shell environment or a secret manager; Compose
   reads `${VAR}` and never stores them.
+<!-- @sdk-start -->
+- **The SDK's build.** In both modes the image copies the SDK's CDN build from the `sdk` build
+  context and sets `SDK_DIR`, so `build` is the map form with `additional_contexts: { sdk:
+  "service:<sdk dir>" }`, in `single` beside `spa`. The blocks below show a project without an
+  SDK: keep the `sdk` line when you switch mode. It needs Docker Compose 2.35.0 or later in
+  `split` too.
+<!-- @sdk-end -->
 
 **The lines of each mode.** Switching mode edits exactly these lines, copied from this package's
 `compose.yaml` and `Dockerfile`, so they cannot drift. A generated project holds only the lines

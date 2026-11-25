@@ -1,0 +1,5 @@
+# Build only: the server's build reads the CDN files from this service's `dist` target.
+build:
+  context: ./__PACKAGE_DIR__
+  target: dist
+scale: 0

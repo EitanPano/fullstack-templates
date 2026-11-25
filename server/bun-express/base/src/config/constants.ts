@@ -20,6 +20,11 @@ export const RATE_LIMITS = {
   otpPerIp: { limit: 10, window: '1h' }, // @auth
   otpPerTarget: { limit: 5, window: '1h' }, // @auth
   otpVerificationPerIp: { limit: 20, window: '15m' }, // @auth
+  // @sdk-start
+  // The SDK namespace: a key stands for a publisher's whole audience, an address for one visitor.
+  sdkPerKey: { limit: 3000, window: '1m' },
+  sdkPerIp: { limit: 120, window: '1m' },
+  // @sdk-end
   createPostPerIp: { limit: 30, window: '15m' },
 } as const
 // @auth-start

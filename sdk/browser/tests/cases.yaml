@@ -1,0 +1,7 @@
+schemaVersion: 1
+cases:
+  - name: default
+  # The SDK's browser tests beside each other API template (ADR 0020 V15): the same suite, the
+  # same four environment variables, a different server.
+  - { name: python, stack: react-python-fastapi }
+  - { name: cloudflare, stack: astro-cloudflare }

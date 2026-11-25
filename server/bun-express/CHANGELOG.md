@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.1.0 — 2026-11-25
+
+### Added
+
+- With an `sdk` package in the plan ([ADR 0020](../../docs/adr/0020-sdk-kind.md) N1 to N5; without one the generated package is unchanged):
+  - the SDK namespace `api/sdk/`, mounted at `/api/sdk/v1`, an entity of it being `api/sdk/<entity>/`. `middleware/sdk-gate.ts` runs first: CORS for the namespace alone (origin echoed when the key lists it, `Vary: Origin`, never credentials, `Access-Control-Max-Age: 600`), the `X-Sdk-Key` key resolved by `services/security/sdk-keys.ts`, then the rate limit by key and address (`sdkPerKey`, `sdkPerIp` in `RATE_LIMITS`). A same-origin request (`Sec-Fetch-Site: same-origin`; without that header, no `Origin` or an `Origin` whose host equals the raw `Host` header) needs a valid key only and gets no allow-origin header (`isSameOrigin`). No cookie is read. The project's `CORS_ORIGINS` layer skips `/api/sdk/` (it would answer the namespace's preflights and add credentials), and every answer of the namespace carries `Cache-Control: no-store` and `Vary: Origin, X-Sdk-Key`. The gate counts the address before the key and counts preflights; `frameOnly` and `endPreflight` mount an entity only the frame may call; production refuses an `http` or loopback origin in `SDK_KEYS`.
+  - `GET /api/sdk/v1/config` answers `{ enabled }` from `SDK_ENABLED`; it is in `openapi.json` with the key header and the 403 and 429 answers.
+  - `GET|HEAD /api/sdk/dist/v<major>/<file>.js` and `GET /api/sdk/frame/v<major>?k=<key>` (`middleware/sdk-files.ts`), from `SDK_DIR`, outside the key gate and outside the OpenAPI document. The frame carries one `Content-Security-Policy` whose `frame-ancestors` are the key's origins (`'none'` for an unknown key), no `X-Frame-Options`, `Cache-Control: no-store`.
+  - `SDK_KEYS`, `SDK_ENABLED` and `SDK_DIR` in `config/env.ts`: a malformed `SDK_KEYS` stops the boot naming the variable and never the key; each origin must be `scheme://host[:port]` in lower case.
+  - the Dockerfile copies the SDK's build from the `sdk` build context and sets `SDK_DIR`; `compose.yaml` adds that context in both deploy modes (Compose 2.35.0 or later) and passes `SDK_KEYS` and `SDK_ENABLED`.
+  - the layer lint treats `api/sdk/<entity>/` as it treats `api/admin/<entity>/`.
+  - the `sdk` case in `tests/cases.yaml`.
+
 ## 4.0.0 — 2026-11-24
 
 ### Changed (breaking)

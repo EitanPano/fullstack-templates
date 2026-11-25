@@ -12,3 +12,8 @@ cases:
     frontends: ["site=frontend/astro", "admin=frontend/angular"]
     packages:
       admin: { flags: { i18n: false, pwa: false } }
+  # The SDK namespace (ADR 0020): /api/sdk/v1, the SDK's files and its frame document, served by the
+  # Worker from the assets under api/sdk/, beside the stack's frontend.
+  - name: sdk
+    stack: astro-cloudflare
+    sdk: "sdk-example=sdk/browser"

@@ -12,3 +12,6 @@ cases:
       auth: false
     capabilities:
       database: fake
+  - name: with-sdk
+    stack: mini
+    sdk: sdk-x=sdk/mini-sdk

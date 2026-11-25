@@ -60,6 +60,16 @@ export const SERVER_PLACEHOLDERS: readonly string[] = [
   'SERVER_E2E_DATABASE_URL',
 ]
 
+// The tokens of an sdk package: the API package of a plan that holds one is given the first four,
+// the sdk package its global (ADR 0020 K3).
+export const SDK_PLACEHOLDERS: readonly string[] = [
+  'SDK_DIR',
+  'SDK_PATH',
+  'SDK_OUT',
+  'SDK_PORT',
+  'SDK_GLOBAL',
+]
+
 // The tokens the generator itself defines, beside the ones a template declares.
 export const GENERATED_PLACEHOLDERS: readonly string[] = [
   'PROJECT_NAME',
@@ -74,6 +84,7 @@ export const GENERATED_PLACEHOLDERS: readonly string[] = [
   'FRONTENDS',
   // The same package's local host map, `<dir>.localhost=<dir>` per frontend, comma-separated.
   'FRONTEND_HOSTS',
+  ...SDK_PLACEHOLDERS,
   // The brand of a frontend package (lib/brand.ts builds the values).
   'PROJECT_DISPLAY_NAME',
   'THEME_LIGHT',
@@ -84,6 +95,30 @@ export const GENERATED_PLACEHOLDERS: readonly string[] = [
   'THEME_FONT',
   'THEME_FONT_STACK',
 ]
+
+// The name of the sdk's one global: its directory's last segment, a leading `sdk-` dropped, in
+// PascalCase, plus the suffix `Sdk` so a host's own `Chat` or `React` is not taken (`sdk-ads` is
+// `AdsSdk`; `sdk` and `ads-sdk` end in the suffix already: `Sdk`, `AdsSdk`).
+export function sdkGlobal(dir: string): string {
+  const last = dir.split('/').at(-1) ?? dir
+  const name = last.startsWith('sdk-') ? last.slice('sdk-'.length) : last
+  const pascal = name
+    .split('-')
+    .filter((word) => word !== '')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('')
+  return pascal.endsWith('Sdk') ? pascal : `${pascal}Sdk`
+}
+
+// The reason a directory cannot name the sdk's global, or null: the name after `sdk-` must start
+// with a letter, so the global is a JavaScript identifier.
+export function sdkGlobalProblem(dir: string): string | null {
+  const global = sdkGlobal(dir)
+  const last = dir.split('/').at(-1) ?? dir
+  const after = last.startsWith('sdk-') ? last.slice('sdk-'.length) : last
+  if (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(global) && /^[a-z]/.test(after)) return null
+  return `sdk directory "${dir}": the name after sdk- must start with a letter (the global is window.<Name>Sdk)`
+}
 
 export function substitutePlaceholders(
   content: string,

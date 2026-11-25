@@ -7,6 +7,7 @@ import pkg from '../package.json' with { type: 'json' }
 import { registerHealth } from './api/health/schema'
 import { registerAuth } from './api/auth/schema' // @auth
 import { registerEntity } from './api/entity/schema'
+import { registerSdkConfig } from './api/sdk/config/schema' // @sdk
 import { registerUser } from './api/user/schema' // @auth
 
 // Builds the contract from the zod schemas. Every entity registers its endpoints in its
@@ -18,6 +19,7 @@ export const registrations: readonly ((registry: OpenAPIRegistry) => void)[] = [
   registerAuth, // @auth
   registerUser, // @auth
   registerEntity,
+  registerSdkConfig, // @sdk
 ]
 
 export function buildOpenApiDocument() {

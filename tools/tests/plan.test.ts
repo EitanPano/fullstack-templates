@@ -39,6 +39,7 @@ describe('resolveRequest', () => {
       'database:fake': false,
       server: true,
       single: false,
+      sdk: false,
     })
     expect(plan.packages[1]?.serverDir).toBe('backend')
     expect(plan.packages[1]?.serverPort).toBe(4000)
@@ -53,6 +54,7 @@ describe('resolveRequest', () => {
       'database:fake': false,
       server: true,
       single: false,
+      sdk: false,
     })
   })
   test('rejects an ambiguous shorthand naming both packages', () => {
@@ -110,6 +112,7 @@ describe('resolveRequest', () => {
       auth: true,
       server: true,
       single: false,
+      sdk: false,
       database: true,
       'database:fake': true,
     })
@@ -157,6 +160,7 @@ describe('resolveRequest', () => {
       auth: true,
       server: true,
       single: false,
+      sdk: false,
       database: false,
       'database:fake': false,
     })
@@ -426,6 +430,7 @@ describe('cross-package selections', () => {
     expect(plan.packages[1]?.selections).toEqual({
       server: true,
       single: false,
+      sdk: false,
       frontends: false,
       'server:auth': true,
       'server:database': false,
@@ -462,6 +467,7 @@ describe('cross-package selections', () => {
     expect(plan.packages[0]?.selections).toEqual({
       server: false,
       single: false,
+      sdk: false,
       frontends: false,
       'server:auth': false,
       'server:database': false,
@@ -474,6 +480,7 @@ describe('cross-package selections', () => {
     expect(selectionsFor(template, {}, true, false, {}, { auth: true, database: false })).toEqual({
       server: true,
       single: false,
+      sdk: false,
       frontends: false,
       'server:auth': true,
       'server:database': false,

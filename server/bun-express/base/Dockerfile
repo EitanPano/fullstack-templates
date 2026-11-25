@@ -14,6 +14,12 @@ COPY --chown=bun:bun src ./src
 COPY --from=spa --chown=bun:bun /dist ./public
 ENV STATIC_DIR=/app/public
 # @single-end
+# @sdk-start
+# The SDK's CDN build from its build-only `dist` target (the `sdk` build context), served when
+# SDK_DIR names it.
+COPY --from=sdk --chown=bun:bun /sdk ./sdk
+ENV SDK_DIR=/app/sdk
+# @sdk-end
 USER bun
 EXPOSE 4000
 CMD ["bun", "run", "src/index.ts"]

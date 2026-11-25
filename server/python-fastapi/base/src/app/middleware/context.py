@@ -16,6 +16,7 @@ _REQUEST_ID_KEY: Final = "request_id"
 _CLIENT_IP_KEY: Final = "client_ip"
 _CALLER_KEY: Final = "caller"  # @auth
 _ORIGINAL_METHOD_KEY: Final = "app.original_method"
+_OWN_SECURITY_HEADERS_KEY: Final = "own_security_headers"  # @sdk
 _UNKNOWN: Final = "unknown"
 # Spaces and control characters: nothing a request target may carry, and nothing a log line may.
 _UNPRINTABLE: Final = re.compile(r"[\x00-\x20\x7f]")
@@ -64,6 +65,26 @@ def raw_path_of(scope: Scope) -> str:
     return quote(str(scope.get("path", "")))
 
 
+# @sdk-start
+def raw_path_bytes_of(scope: Scope) -> bytes:
+    """The request path exactly as the client wrote it, without the query; empty if the server gave
+    none, so a match against it fails closed."""
+    raw = scope.get("raw_path")
+    return raw if isinstance(raw, bytes) else b""
+
+
+def set_own_security_headers(scope: Scope, names: set[str]) -> None:
+    """Marks the security headers this response sets for itself, or must not carry at all; the
+    security-header middleware leaves those alone. Names are lower case."""
+    _state(scope)[_OWN_SECURITY_HEADERS_KEY] = frozenset(names)
+
+
+def own_security_headers_of(scope: Scope) -> frozenset[str]:
+    value = _state(scope).get(_OWN_SECURITY_HEADERS_KEY)
+    return value if isinstance(value, frozenset) else frozenset()
+
+
+# @sdk-end
 def set_original_method(scope: Scope, method: str) -> None:
     """Records the method the client sent when a middleware runs the request as another one."""
     scope[_ORIGINAL_METHOD_KEY] = method

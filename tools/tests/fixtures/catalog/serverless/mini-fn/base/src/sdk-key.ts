@@ -1,0 +1,1 @@
+export const sdkKey = 'key'

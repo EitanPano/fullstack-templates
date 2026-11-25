@@ -17,10 +17,12 @@ import base64
 import binascii
 import ipaddress
 import os
+import re  # @sdk
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Final, Literal
+from urllib.parse import urlsplit  # @sdk
 
 from pydantic import (
     AfterValidator,
@@ -70,6 +72,9 @@ _BLANK_IS_UNSET: Final = (
     "COOKIE_DOMAIN",  # @auth
     "MAIL_FROM",
     "STATIC_DIR",
+    "SDK_KEYS",  # @sdk
+    "SDK_ENABLED",  # @sdk
+    "SDK_DIR",  # @sdk
     "TRUST_PROXY",
 )
 # @auth-start
@@ -150,6 +155,71 @@ def _resolve_dir(value: Path | None) -> Path | None:
     return None if value is None else value.resolve()
 
 
+# @sdk-start
+# A key is publishable and an origin goes verbatim into a response header (frame-ancestors), so each
+# is checked against a closed form. An origin is the exact text a browser sends: lower-case scheme
+# and host, an optional non-default port, no path, no wildcard.
+_SDK_KEY: Final = re.compile(r"[A-Za-z0-9_.-]{1,128}")
+_SDK_ORIGIN: Final = re.compile(r"https?://[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::[0-9]{1,5})?")
+_DEFAULT_PORT: Final = {"http": "80", "https": "443"}
+
+
+def _is_origin(value: str) -> bool:
+    if _SDK_ORIGIN.fullmatch(value) is None:
+        return False
+    parts = urlsplit(value)
+    host = parts.hostname or ""
+    port = parts.netloc.rpartition(":")[2] if ":" in parts.netloc else None
+    if port is not None and (port == _DEFAULT_PORT[parts.scheme] or str(int(port)) != port):
+        return False
+    if int(port or 0) > 65535:
+        return False
+    if host.rpartition(".")[2].isdigit():
+        # A name that ends in a number is an address; only the canonical dotted form is one.
+        try:
+            return str(ipaddress.IPv4Address(host)) == host
+        except ValueError:
+            return False
+    return True
+
+
+def _parse_sdk_keys(value: object) -> object:
+    """`key=origin,origin;key=origin`. A refusal names the pair by position and never the key."""
+    if not isinstance(value, str) or value.strip() == "":
+        return None
+    keys: dict[str, tuple[str, ...]] = {}
+    pairs = [pair.strip() for pair in value.strip().split(";")]
+    if pairs[-1] == "":
+        pairs.pop()
+    for index, pair in enumerate(pairs, start=1):
+        key, _, origins = pair.partition("=")
+        key, origins = key.strip(), origins.strip()
+        at = f"pair {index}"
+        if origins == "" or "=" in origins:
+            raise ValueError(f"{at} must be key=origin[,origin]")
+        if _SDK_KEY.fullmatch(key) is None:
+            raise ValueError(f"{at} has a key outside A-Z a-z 0-9 _ . -")
+        if key in keys:
+            raise ValueError(f"{at} repeats an earlier key")
+        listed = tuple(origin.strip() for origin in origins.split(","))
+        if not all(_is_origin(origin) for origin in listed):
+            raise ValueError(f"{at} has an origin that is not scheme://host[:port] in lower case")
+        keys[key] = listed
+    return keys
+
+
+def _is_weak_origin(origin: str) -> bool:
+    """An origin production refuses: plain http, or a host on the machine itself."""
+    parts = urlsplit(origin)
+    host = parts.hostname or ""
+    return parts.scheme == "http" or host == "localhost" or host.startswith("127.")
+
+
+def _strip_text(value: object) -> object:
+    return value.strip() if isinstance(value, str) else value
+
+
+# @sdk-end
 def _parse_boolean_text(value: object) -> object:
     if value == "true":
         return True
@@ -177,6 +247,16 @@ class Env(BaseModel):
     cors_origins: Annotated[tuple[str, ...] | None, BeforeValidator(_split_origins)] = None
     # The built SPA to serve, resolved once to an absolute path; blank is unset and serves none.
     static_dir: Annotated[Path | None, AfterValidator(_resolve_dir)] = None
+    # @sdk-start
+    # The SDK namespace: publishable keys with their origins, the kill switch GET /api/sdk/v1/config
+    # answers, and the SDK's CDN build to serve. A blank value is unset; unset SDK_DIR means both
+    # file routes answer 404 and unset SDK_KEYS means every namespace request is refused.
+    sdk_keys: Annotated[dict[str, tuple[str, ...]] | None, BeforeValidator(_parse_sdk_keys)] = None
+    sdk_enabled: Annotated[bool, BeforeValidator(_parse_boolean_text)] = True
+    sdk_dir: Annotated[Path | None, BeforeValidator(_strip_text), AfterValidator(_resolve_dir)] = (
+        None
+    )
+    # @sdk-end
     jwt_access_secret: Secret  # @auth
     jwt_refresh_secret: Secret  # @auth
     otp_secret: Secret  # @auth
@@ -255,6 +335,14 @@ def load_env(source: Mapping[str, str]) -> LoadedEnv:
         )
     if production and parsed.static_dir and not (parsed.static_dir / "index.html").is_file():
         raise EnvError(f"invalid environment: STATIC_DIR: {parsed.static_dir} has no index.html")
+    # @sdk-start
+    for index, origins in enumerate((parsed.sdk_keys or {}).values(), start=1):
+        if production and any(_is_weak_origin(origin) for origin in origins):
+            raise EnvError(
+                f"invalid environment: SDK_KEYS: pair {index} has an http or loopback origin, "
+                "production takes https origins only"
+            )
+    # @sdk-end
     return LoadedEnv(env=parsed, defaulted_secrets=defaulted)
 
 

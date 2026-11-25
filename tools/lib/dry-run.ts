@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
-import { SERVER_PREFIX, type LoadedOverlay, type LoadedTemplate } from './catalog'
+import { SDK_SELECTION, SERVER_PREFIX, type LoadedOverlay, type LoadedTemplate } from './catalog'
 import { inGeneratedDir, listFiles } from './files'
 import {
   applyMarkers,
@@ -95,6 +95,8 @@ export function dryRunMarkers(
     ...Object.keys(template.manifest.flags ?? {}),
     SERVER_SELECTION,
     SINGLE_SELECTION,
+    // The plan may or may not hold an sdk; only the packages that read it vary (ADR 0020 K3).
+    ...(isApiKind(kind) || kind === 'sdk' ? [SDK_SELECTION] : []),
     ...(kind === 'serverless' ? [FRONTEND_SELECTION, FRONTENDS_SELECTION] : []),
     ...(kind === 'frontend' ? [FRONTENDS_SELECTION] : []),
     ...factNames.map((name) => SERVER_PREFIX + name),
@@ -131,6 +133,8 @@ export function dryRunMarkers(
       if (!hasServer && Object.values(facts).some(Boolean)) continue
       delete switches[SERVER_SELECTION]
       delete switches[SINGLE_SELECTION]
+      const hasSdk = switches[SDK_SELECTION] === true
+      delete switches[SDK_SELECTION]
       const frontend = kind === 'serverless' ? switches[FRONTEND_SELECTION] === true : undefined
       const several =
         (kind === 'serverless' || kind === 'frontend') && switches[FRONTENDS_SELECTION] === true
@@ -149,6 +153,7 @@ export function dryRunMarkers(
         facts,
         frontend,
         several,
+        hasSdk,
       )
 
       for (const file of files) {

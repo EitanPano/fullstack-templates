@@ -13,6 +13,8 @@ from app.middleware.head import HeadMiddleware
 from app.middleware.proxy import ProxyMiddleware, compile_trust
 from app.middleware.request_id import RequestIdMiddleware
 from app.middleware.request_log import RequestLogMiddleware
+from app.middleware.sdk_files import register_sdk_files  # @sdk
+from app.middleware.sdk_gate import SdkCorsMiddleware  # @sdk
 from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.middleware.static_files import SpaMount
 from app.openapi import openapi_document
@@ -46,6 +48,11 @@ def create_app(lifespan: Lifespan[FastAPI] | None = None, *, config: Env = env) 
     app.add_middleware(CatchAllMiddleware)
     # HEAD is answered wherever GET is: runs the request as GET and drops the body.
     app.add_middleware(HeadMiddleware)
+    # @sdk-start
+    # CORS for /api/sdk/v1 alone, whatever CORS_ORIGINS says. It sits between the body limit and
+    # head: tests/test_server.py pins the order.
+    app.add_middleware(SdkCorsMiddleware)
+    # @sdk-end
     app.add_middleware(BodyLimitMiddleware, max_bytes=MAX_BODY_BYTES)
     # One log line per request.
     app.add_middleware(RequestLogMiddleware)
@@ -70,6 +77,13 @@ def create_app(lifespan: Lifespan[FastAPI] | None = None, *, config: Env = env) 
     async def contract() -> JSONResponse:
         return JSONResponse(openapi_document(app))
 
+    # @sdk-start
+    # The SDK's built files and its frame document, outside the key gate and never answered by
+    # the SPA below. Without SDK_DIR neither route exists and the 404 envelope answers.
+    if config.sdk_dir is not None:
+        register_sdk_files(app, config.sdk_dir)
+
+    # @sdk-end
     # The built SPA, only when configured: after every API route and the contract, and last in
     # the router, so an unmatched path reaches it and the exception handlers shape its misses.
     if config.static_dir is not None:

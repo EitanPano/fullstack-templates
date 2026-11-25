@@ -21,11 +21,11 @@
             "pattern": "^[a-z][a-z0-9-]*$"
           },
           "kind": {
-            "enum": ["server", "serverless", "frontend", "worker"]
+            "enum": ["server", "serverless", "frontend", "sdk", "worker"]
           },
           "path": {
             "type": "string",
-            "pattern": "^(server|serverless|frontend|worker)/[a-z][a-z0-9-]*$"
+            "pattern": "^(server|serverless|frontend|sdk|worker)/[a-z][a-z0-9-]*$"
           },
           "version": {
             "type": "string",

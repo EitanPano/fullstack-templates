@@ -26,6 +26,11 @@
               "pattern": "^[a-z][a-z0-9-]*(/[a-z][a-z0-9-]*)?=[a-z]+/[a-z][a-z0-9-]*$"
             }
           },
+          "sdk": {
+            "type": "string",
+            "description": "A stack case of another template: the sdk package of the plan as <dir>=<template> (generate --sdk).",
+            "pattern": "^[a-z][a-z0-9-]*=sdk/[a-z][a-z0-9-]*$"
+          },
           "packages": {
             "type": "object",
             "description": "Flags and capabilities of further packages of the plan, by directory (an answers file's packages).",
