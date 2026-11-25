@@ -67,6 +67,7 @@ onlyWhen:
     - tests/services/test_sdk_keys.py
     - tests/test_sdk_config.py
     - tests/test_sdk_files.py
+    - tests/test_sdk_frame_only.py
     - tests/test_sdk_frame.py
 gitignore: [python]
 agents: AGENTS.md

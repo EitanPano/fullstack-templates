@@ -11,20 +11,42 @@ cannot ship without it. Within `v1` the namespace only adds: a new endpoint, a n
 field, a new response field. A removal or a change is a `v2` beside it, mounted at /api/sdk/v2,
 and `v1` stays while a build that calls it is in use. A path under it that no entity answers is the
 JSON 404 for a caller the gate admits, so the gate also guards the fallback below.
+
+An entity only the frame calls (it issues a token, accepts a view or a click, carries the
+frame's telemetry) is mounted with the guard: `APIRouter(dependencies=[Depends(frame_only)])`
+in its `routes.py`, listed in `ENTITIES` as usual. An entity mounted without it is readable by
+the host page, so it never issues or accepts anything that counts.
 """
 
+import re
 from typing import Final
 
 from fastapi import APIRouter, Request
+from fastapi.routing import APIRoute
 
 from app.api.sdk.config.routes import router as config_router
 from app.middleware.not_found import no_route
-from app.middleware.sdk_gate import sdk_gate
+from app.middleware.sdk_gate import NAMESPACE, frame_only, sdk_gate
 
 ANY_METHOD: Final = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 
 # The SDK entities: `(path, router)`, one entry each.
 ENTITIES: Final[list[tuple[str, APIRouter]]] = [("/config", config_router)]
+
+
+def frame_only_paths() -> list[re.Pattern[str]]:
+    """The paths of the routes mounted with `frame_only`, so a preflight to one gets no allow
+    header (`config/routes.py` hands them to the CORS step). Only the routes an entity's own
+    router lists are read."""
+    found: list[re.Pattern[str]] = []
+    for prefix, entity in ENTITIES:
+        for route in entity.routes:
+            if isinstance(route, APIRoute) and any(
+                guard.dependency is frame_only for guard in route.dependencies
+            ):
+                tail = route.path_regex.pattern.removeprefix("^")
+                found.append(re.compile(re.escape(f"{NAMESPACE}{prefix}") + tail))
+    return found
 
 
 async def unknown_path(request: Request) -> None:

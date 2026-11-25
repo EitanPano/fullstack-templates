@@ -44,9 +44,17 @@ class CorsMiddleware:
         self._credentials = options.credentials
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        # @sdk-start
+        # The SDK namespace and its files answer for themselves (`middleware/sdk_gate.py`).
+        if scope["type"] != "http" or scope["path"].startswith("/api/sdk/"):
+            await self.app(scope, receive, send)
+            return
+        # @sdk-end
+        # @nosdk-start
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
+        # @nosdk-end
         origin_lines = header_values(scope, "origin")
         origin = ", ".join(origin_lines) if origin_lines else None
         allowed = origin is not None and origin in self._origins

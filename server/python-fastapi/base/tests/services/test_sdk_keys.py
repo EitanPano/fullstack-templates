@@ -1,4 +1,6 @@
+import base64
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -116,3 +118,39 @@ class TestTheKeyResolver:
         assert is_listed_origin(B) is True
         assert is_listed_origin("https://c.example.test") is False
         assert is_listed_origin(None) is False
+
+
+class TestWeakOriginsInProduction:
+    PRODUCTION: ClassVar[dict[str, str]] = {
+        "APP_ENV": "production",
+        "ENCRYPTION_KEY": base64.b64encode(bytes([7]) * 32).decode(),
+        "JWT_ACCESS_SECRET": "a-production-value-of-at-least-32-characters-1",
+        "JWT_REFRESH_SECRET": "a-production-value-of-at-least-32-characters-2",
+        "OTP_SECRET": "a-production-value-of-at-least-32-characters-3",
+    }
+
+    def test_refuses_an_http_origin_in_production(self) -> None:
+        text = f"pk_a={A};pk_probe=http://a.example.test"
+
+        with pytest.raises(EnvError, match=r"SDK_KEYS: pair 2 ") as raised:
+            load_env({**self.PRODUCTION, "SDK_KEYS": text})
+
+        assert "pk_probe" not in str(raised.value)
+
+    @pytest.mark.parametrize("origin", ["https://localhost", "https://127.0.0.1:8443"])
+    def test_refuses_a_loopback_origin_in_production(self, origin: str) -> None:
+        with pytest.raises(EnvError, match=r"SDK_KEYS: pair 1 ") as raised:
+            load_env({**self.PRODUCTION, "SDK_KEYS": f"pk_probe={origin}"})
+
+        assert "pk_probe" not in str(raised.value)
+
+    def test_accepts_both_outside_production(self) -> None:
+        text = "pk_a=http://localhost:5190;pk_b=http://127.0.0.1:5190,https://localhost"
+
+        assert load_env({"SDK_KEYS": text}).env.sdk_keys is not None
+        assert load_env({"APP_ENV": "test", "SDK_KEYS": text}).env.sdk_keys is not None
+
+    def test_accepts_https_origins_in_production(self) -> None:
+        parsed = load_env({**self.PRODUCTION, "SDK_KEYS": f"pk_a={A}"}).env
+
+        assert parsed.sdk_keys == {"pk_a": (A,)}

@@ -16,7 +16,8 @@ def origins_for_key(key: str | None) -> tuple[str, ...] | None:
 
 
 def is_listed_origin(origin: str | None) -> bool:
-    """Whether any key lists `origin`. A preflight carries no key, so it is answered on this."""
+    """Whether any key lists `origin`. A preflight carries no key, so it is answered on this. It
+    runs on unauthenticated requests: a lookup-backed resolver must answer it from a cache."""
     if origin is None or env.sdk_keys is None:
         return False
     return any(origin in origins for origins in env.sdk_keys.values())

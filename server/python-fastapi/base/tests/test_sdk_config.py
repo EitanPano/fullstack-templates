@@ -2,9 +2,11 @@
 limit) and the one endpoint that ships, GET /api/sdk/v1/config."""
 
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 import httpx
 import pytest
+from fastapi import FastAPI
 
 from app.api.sdk.config import controller
 from app.config.constants import RATE_LIMITS
@@ -404,3 +406,167 @@ class TestTheRateLimitOfTheNamespace:
             await http.get(PATH, headers={"origin": A, "x-sdk-key": "pk_unknown"})
 
         assert seen == []
+
+
+class TestWhileCorsOriginsIsSet:
+    """The global CORS layer skips every path under /api/sdk/: the namespace answers for itself."""
+
+    CORS = "https://app.example.test"
+
+    def app(self) -> FastAPI:
+        return create_app(config=load_env({"CORS_ORIGINS": self.CORS}).env)
+
+    async def test_answers_the_sdk_preflight_itself_when_cors_origins_is_set(self) -> None:
+        async with http_client(self.app()) as http:
+            res = await http.options(PATH, headers={"origin": A, **PREFLIGHT})
+
+        assert res.status_code == 204
+        assert res.headers["access-control-allow-origin"] == A
+        assert res.headers["access-control-max-age"] == "600"
+        assert res.headers["access-control-allow-headers"] == "x-sdk-key, content-type"
+
+    async def test_sends_no_allow_credentials_on_the_namespace_when_cors_origins_is_set(
+        self,
+    ) -> None:
+        async with http_client(self.app()) as http:
+            ok = await http.get(PATH, headers={"origin": A, "x-sdk-key": KEY})
+            refused = await http.get(PATH, headers={"origin": self.CORS})
+            preflight = await http.options(PATH, headers={"origin": A, **PREFLIGHT})
+
+        assert ok.status_code == 200
+        assert refused.status_code == 403
+        for res in (ok, refused, preflight):
+            assert "access-control-allow-credentials" not in res.headers
+
+    async def test_gives_an_origin_that_is_only_in_cors_origins_nothing_on_the_namespace(
+        self,
+    ) -> None:
+        async with http_client(self.app()) as http:
+            res = await http.get(PATH, headers={"origin": self.CORS, "x-sdk-key": KEY})
+            preflight = await http.options(PATH, headers={"origin": self.CORS, **PREFLIGHT})
+
+        expect_envelope(res, 403, "forbidden")
+        assert "access-control-allow-origin" not in res.headers
+        assert "access-control-allow-credentials" not in res.headers
+        assert "access-control-allow-origin" not in preflight.headers
+        assert "access-control-allow-credentials" not in preflight.headers
+
+    async def test_sends_no_allow_credentials_on_the_files_and_the_frame_when_cors_origins_is_set(
+        self, tmp_path: Path
+    ) -> None:
+        (tmp_path / "v1").mkdir()
+        (tmp_path / "v1" / "loader.js").write_text("x")
+        (tmp_path / "v1" / "frame.html").write_text("<p>f</p>")
+        source = {"CORS_ORIGINS": self.CORS, "SDK_DIR": str(tmp_path)}
+        headers = {"origin": self.CORS}
+
+        async with http_client(create_app(config=load_env(source).env)) as http:
+            script = await http.get("/api/sdk/dist/v1/loader.js", headers=headers)
+            frame = await http.get(f"/api/sdk/frame/v1?k={KEY}", headers=headers)
+            preflight = await http.options(
+                "/api/sdk/dist/v1/loader.js", headers={**headers, **PREFLIGHT}
+            )
+
+        assert script.status_code == 200
+        assert frame.status_code == 200
+        for res in (script, frame, preflight):
+            assert "access-control-allow-credentials" not in res.headers
+        assert script.headers["access-control-allow-origin"] == "*"
+        assert "access-control-allow-origin" not in frame.headers
+
+    async def test_leaves_cors_origins_as_it_was_outside_the_sdk_paths(self) -> None:
+        async with http_client(self.app()) as http:
+            res = await http.get("/api/health", headers={"origin": self.CORS})
+
+        assert res.headers["access-control-allow-origin"] == self.CORS
+        assert res.headers["access-control-allow-credentials"] == "true"
+
+
+class TestSameOriginIsStrict:
+    async def test_does_not_take_a_request_that_says_cross_site_for_same_origin_without_origin(
+        self,
+    ) -> None:
+        headers = {"sec-fetch-site": "cross-site", "x-sdk-key": KEY}
+
+        async with http_client(create_app()) as http:
+            res = await http.get(PATH, headers=headers)
+
+        expect_envelope(res, 403, "forbidden")
+
+    async def test_does_not_take_same_site_for_same_origin(self) -> None:
+        headers = {
+            "host": "api.example.test",
+            "origin": "http://api.example.test",
+            "sec-fetch-site": "same-site",
+            "x-sdk-key": KEY,
+        }
+
+        async with http_client(create_app()) as http:
+            res = await http.get(PATH, headers=headers)
+
+        expect_envelope(res, 403, "forbidden")
+
+
+class TestTheLimitsAreByAddressFirst:
+    async def test_one_address_cannot_use_up_a_keys_limit(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        real = cache.incr
+        by_key: list[str] = []
+
+        async def incr(key: str, ttl_ms: int) -> int:
+            if key.startswith("rl:sdkPerKey:"):
+                by_key.append(key)
+            return await real(key, ttl_ms)
+
+        monkeypatch.setattr(cache, "incr", incr)
+        limit = scaled_limit(RATE_LIMITS.sdk_per_ip.limit, load_env({}).env.rate_limit_scale)
+        headers = {"origin": A, "x-sdk-key": KEY}
+        app = create_app()
+
+        async with http_client(app, peer=("10.0.0.1", 1)) as one:
+            for _ in range(limit):
+                assert (await one.get(PATH, headers=headers)).status_code == 200
+            refused = await one.get(PATH, headers=headers)
+        async with http_client(app, peer=("10.0.0.2", 1)) as two:
+            other = await two.get(PATH, headers=headers)
+
+        expect_envelope(refused, 429, "rate_limited")
+        assert other.status_code == 200
+        # The refused request never reached the key's counter; the other address's did.
+        assert len(by_key) == limit + 1
+
+    async def test_limits_preflights_by_address(self) -> None:
+        limit = scaled_limit(RATE_LIMITS.sdk_per_ip.limit, load_env({}).env.rate_limit_scale)
+        headers = {"origin": A, **PREFLIGHT}
+
+        async with http_client(create_app()) as http:
+            for _ in range(limit):
+                assert (await http.options(PATH, headers=headers)).status_code == 204
+            res = await http.options(PATH, headers=headers)
+
+        expect_envelope(res, 429, "rate_limited")
+        assert "access-control-allow-origin" not in res.headers
+
+
+class TestNamespaceAnswersAreNeverStored:
+    async def test_never_lets_a_namespace_answer_be_stored(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        async def over(key: str, ttl_ms: int) -> int:
+            del key, ttl_ms
+            return 10**9
+
+        async with http_client(create_app()) as http:
+            ok = await http.get(PATH, headers={"origin": A, "x-sdk-key": KEY})
+            refused = await http.get(PATH, headers={"origin": A})
+            preflight = await http.options(PATH, headers={"origin": A, **PREFLIGHT})
+            unknown = await http.get("/api/sdk/v1/nothing", headers={"x-sdk-key": KEY})
+            monkeypatch.setattr(cache, "incr", over)
+            limited = await http.get(PATH, headers={"origin": A, "x-sdk-key": KEY})
+
+        assert limited.status_code == 429
+        for res in (ok, refused, preflight, unknown, limited):
+            assert res.headers["cache-control"] == "no-store"
+            names = {token.strip().lower() for token in res.headers["vary"].split(",")}
+            assert {"origin", "x-sdk-key"} <= names

@@ -630,9 +630,14 @@ command.
 <!-- @sdk-start -->
 - SDK endpoints live in `api/sdk/<name>/`, an entity like any other, at `/api/sdk/v1/<name>`
   (`sdk` is a namespace); add its router to `ENTITIES` in `api/sdk/routes.py`. That router runs
-  `middleware/sdk_gate.py` first: CORS for this namespace alone (`SdkCorsMiddleware`), the
-  `X-Sdk-Key` header resolved by `services/security/sdk_keys.py` (reads `SDK_KEYS`; replace its
-  bodies with a lookup), then the rate limit by key and address. Within `v1` the namespace only
+  `middleware/sdk_gate.py` first: CORS for this namespace alone (`SdkCorsMiddleware`; the global
+  `CORS_ORIGINS` layer skips `/api/sdk/`), the `X-Sdk-Key` header resolved by
+  `services/security/sdk_keys.py` (reads `SDK_KEYS`, https origins only in production; replace its
+  bodies with a lookup, and answer `is_listed_origin` from a cache, since unauthenticated
+  preflights call it), then the rate limit by address and by key. Every answer is `no-store`.
+  An entity only the frame calls (a token, a view, a click) is mounted with `frame_only`, which
+  refuses the host page; one mounted without it is readable by the host page, so it never issues
+  or accepts anything that counts. Within `v1` the namespace only
   adds: a removal or a change is a `v2` beside it. The SDK's built files
   (`/api/sdk/dist/v<major>/`) and its frame document (`/api/sdk/frame/v<major>?k=<key>`) come from
   `SDK_DIR` through `middleware/sdk_files.py`, carry no key and are not in the OpenAPI document.
@@ -986,6 +991,13 @@ the `Dockerfile` and the Compose fragment differ, through the lines named below,
   `TRUST_PROXY` defaults to `1`, because the frontend container (the Next.js server, or the SPA's
   nginx) in front is one proxy hop and the rate limits are keyed by client
   IP (an IPv6 address by its /64 network, an IPv4 address as is).
+<!-- @sdk-start -->
+- **The SDK's limits.** The per-key limit (`sdk_per_key` in `RATE_LIMITS`, per minute) is a ceiling
+  for one integration's whole audience, and the loader reads the kill switch once per page view:
+  the product sizes it. The address limit (`sdk_per_ip`) runs first, preflights included, so one
+  address cannot use up a key's allowance. Both count in the cache, so until the cache task moves it
+  out of process each replica counts alone.
+<!-- @sdk-end -->
 - **`TRUST_PROXY` in production.** The server's own default, `.env.example` included, is `false`.
   Set the real hop count of the deployment: behind a PaaS edge it is usually `1`, behind a CDN and
   a load balancer `2`. Too high lets a caller choose its own rate-limit key through

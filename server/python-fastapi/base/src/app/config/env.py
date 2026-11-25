@@ -208,6 +208,13 @@ def _parse_sdk_keys(value: object) -> object:
     return keys
 
 
+def _is_weak_origin(origin: str) -> bool:
+    """An origin production refuses: plain http, or a host on the machine itself."""
+    parts = urlsplit(origin)
+    host = parts.hostname or ""
+    return parts.scheme == "http" or host == "localhost" or host.startswith("127.")
+
+
 def _strip_text(value: object) -> object:
     return value.strip() if isinstance(value, str) else value
 
@@ -328,6 +335,14 @@ def load_env(source: Mapping[str, str]) -> LoadedEnv:
         )
     if production and parsed.static_dir and not (parsed.static_dir / "index.html").is_file():
         raise EnvError(f"invalid environment: STATIC_DIR: {parsed.static_dir} has no index.html")
+    # @sdk-start
+    for index, origins in enumerate((parsed.sdk_keys or {}).values(), start=1):
+        if production and any(_is_weak_origin(origin) for origin in origins):
+            raise EnvError(
+                f"invalid environment: SDK_KEYS: pair {index} has an http or loopback origin, "
+                "production takes https origins only"
+            )
+    # @sdk-end
     return LoadedEnv(env=parsed, defaulted_secrets=defaulted)
 
 
