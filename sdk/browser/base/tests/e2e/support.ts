@@ -299,11 +299,12 @@ export const windowNames = (page: Page): Promise<string[]> =>
 export const LOG_WAIT = { timeout: 15_000 }
 
 /**
- * A click that makes its unit close is not awaited. The frame leaves the page while the browser
- * still waits for the click to be handled, and in Chromium the protocol call then does not always
- * answer; the close is what a test waits for.
+ * A click that makes its unit close: the control is awaited, the click is not. The frame leaves
+ * the page while the browser still waits for the click to be handled, and in Chromium the
+ * protocol call then does not always answer; the close is what a test waits for.
  */
-export function clickToClose(target: Locator): void {
+export async function clickToClose(target: Locator): Promise<void> {
+  await target.waitFor()
   void target.click().catch(() => undefined)
 }
 

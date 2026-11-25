@@ -190,7 +190,7 @@ test.describe('a modal unit', () => {
 
     // A valid one is reported, then the unit closes itself and leaves nothing.
     await frame.locator('input').fill('an answer')
-    clickToClose(frame.locator('button[type="submit"]'))
+    await clickToClose(frame.locator('button[type="submit"]'))
     await expect
       .poll(() => hostEvents(page))
       .toEqual([
@@ -204,7 +204,7 @@ test.describe('a modal unit', () => {
   test('closes with frame from its close button, and the page works again', async ({ page }) => {
     await prepare(page)
     await openByClick(page)
-    clickToClose(frameOf(page).locator('[data-fixture-modal-close]'))
+    await clickToClose(frameOf(page).locator('[data-fixture-modal-close]'))
     await expect
       .poll(async () => (await hostEvents(page)).map((event) => event.reason))
       .toContain('frame')

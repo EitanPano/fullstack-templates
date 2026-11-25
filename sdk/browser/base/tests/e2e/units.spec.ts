@@ -149,7 +149,7 @@ test.describe('a unit', () => {
 
   test('is closed by its own frame, with the reason frame', async ({ page }) => {
     await open(page, { closable: true })
-    clickToClose(unitFrame(page).getByRole('button', { name: 'Close' }))
+    await clickToClose(unitFrame(page).getByRole('button', { name: 'Close' }))
     await expect(page.locator('iframe')).toHaveCount(0)
     expect((await hostEvents(page)).at(-1)).toEqual({
       name: 'closed',
