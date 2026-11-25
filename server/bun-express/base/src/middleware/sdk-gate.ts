@@ -3,7 +3,7 @@
 // The project's own CORS_ORIGINS layer skips /api/sdk/ (server.ts), so nothing here is shared with
 // it. It does not belong: the key lookup (services/security/sdk-keys.ts) or the limits' values
 // (config/constants.ts). No cookie is read here, and no response sends Allow-Credentials.
-import type { Request, RequestHandler, Response } from 'express'
+import type { ErrorRequestHandler, Request, RequestHandler, Response } from 'express'
 
 import { RATE_LIMITS } from '../config/constants'
 import { isListedOrigin, originsForKey } from '../services/security/sdk-keys'
@@ -118,8 +118,8 @@ export const endPreflight: RequestHandler = (_req, res, next) => {
 
 // Lets only the frame through: a request that is not same-origin gets the 403 envelope and no
 // allow header, and a preflight to the route is answered with none. The key and the limits have
-// run already. Mount an entity the host page must not read with it (see api/sdk/routes.ts).
-export const frameOnly: RequestHandler = (req, res, next) => {
+// run already. Mount an entity the host page must not read with `frameOnly` (see api/sdk/routes.ts).
+const guardFrame: RequestHandler = (req, res, next) => {
   if (preflights.has(res)) {
     for (const header of PREFLIGHT_HEADERS) res.removeHeader(header)
     res.status(204).end()
@@ -132,3 +132,12 @@ export const frameOnly: RequestHandler = (req, res, next) => {
   res.removeHeader('Access-Control-Allow-Origin')
   next(new AppError('forbidden', 'this endpoint is for the SDK frame only'))
 }
+
+// A refusal of the gate itself (a 429) never reaches the guard: Express hands it to the error
+// handlers of the path, so this one takes the allow header off before the envelope goes out.
+const hideFromHost: ErrorRequestHandler = (error, req, res, next) => {
+  if (!isSameOrigin(req)) res.removeHeader('Access-Control-Allow-Origin')
+  next(error)
+}
+
+export const frameOnly: [RequestHandler, ErrorRequestHandler] = [guardFrame, hideFromHost]

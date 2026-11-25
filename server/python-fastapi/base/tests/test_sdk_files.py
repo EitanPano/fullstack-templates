@@ -1,5 +1,6 @@
 """The SDK's built files at /api/sdk/dist/v<major>/<file>.js, over a real uvicorn socket."""
 
+import re
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -72,9 +73,33 @@ class TestGetAndHeadSdkDist:
         assert res.headers["access-control-allow-origin"] == "*"
         assert res.headers["x-content-type-options"] == "nosniff"
         assert "access-control-allow-credentials" not in res.headers
-        assert "etag" not in res.headers
         assert "last-modified" not in res.headers
         assert res.headers["x-request-id"]
+
+    def test_names_a_validator_and_answers_304_with_no_body_to_a_request_that_holds_it(
+        self, port: int
+    ) -> None:
+        etag = raw(port, "GET", f"{BASE}/loader.js").headers["etag"]
+        again = raw(port, "GET", f"{BASE}/loader.js", {"If-None-Match": f'"other", W/{etag}'})
+
+        assert re.fullmatch(r'"[0-9a-f]{32}"', etag)
+        assert again.status == 304
+        assert again.body == ""
+        assert again.headers["etag"] == etag
+        assert again.headers["cache-control"] == "public, max-age=300"
+        assert again.headers["access-control-allow-origin"] == "*"
+
+    def test_sends_the_file_to_a_request_that_holds_another_validator(self, port: int) -> None:
+        res = raw(port, "GET", f"{BASE}/loader.js", {"If-None-Match": '"other"'})
+
+        assert res.status == 200
+        assert res.body == LOADER
+
+    def test_names_another_validator_for_another_file(self, port: int) -> None:
+        loader = raw(port, "GET", f"{BASE}/loader.js").headers["etag"]
+        frame = raw(port, "GET", f"{BASE}/frame.js").headers["etag"]
+
+        assert loader != frame
 
     def test_serves_a_request_that_carries_no_key_and_no_origin_as_a_script_tag_does(
         self, port: int

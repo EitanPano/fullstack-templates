@@ -20,7 +20,8 @@ Also in 1.0.0:
   `module_failed` and its name, never its message. Modules meet on `ctx.bus`.
 - A module's frame half has `context.request(path, body?)`, a call to the API from the frame's
   own origin under `/api/sdk/` (the way to an entity behind `frameOnly`; no consent wait; errors
-  `bad_path`, `timeout`, `network`, `status_<n>`); `track` is telemetry only. The telemetry flush
+  `bad_path`, `timeout`, `network`, `status_<n>`; the e2e makes the call in the three engines);
+  `track` is telemetry only. The telemetry flush
   drops an item JSON cannot hold, measures the cap in UTF-8 bytes and never throws into the page;
   a frame with no module in its address reports `module_failed`; the lint also refuses assigning
   `href`, `src` or `srcdoc`.

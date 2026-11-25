@@ -64,6 +64,25 @@ describe('GET and HEAD /api/sdk/dist/v<major>/<file>', () => {
     expect(res.headers['x-request-id']).toBeTruthy()
   })
 
+  it('names a validator, and answers 304 with no body to a request that holds it', async () => {
+    const first = await raw(server, 'GET', `${BASE}/loader.js`)
+    const etag = first.headers.etag ?? ''
+    const again = await raw(server, 'GET', `${BASE}/loader.js`, { 'If-None-Match': etag })
+
+    expect(etag).toMatch(/^(W\/)?".+"$/)
+    expect(again.status).toBe(304)
+    expect(again.body).toBe('')
+    expect(again.headers['cache-control']).toBe('public, max-age=300')
+    expect(again.headers['access-control-allow-origin']).toBe('*')
+  })
+
+  it('sends the file to a request that holds another validator', async () => {
+    const res = await raw(server, 'GET', `${BASE}/loader.js`, { 'If-None-Match': '"other"' })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toBe(LOADER)
+  })
+
   it('serves a request that carries no key and no Origin, as a script tag does', async () => {
     const res = await raw(server, 'GET', `${BASE}/frame.js`)
 

@@ -36,7 +36,12 @@ export function fixtureHost(options: FixtureOptions): HostModule {
           }),
         onReady() {
           renderer.setConsent(ctx.consent())
-          renderer.sendModule('fixture', { text: options.text ?? '', href: options.href ?? '' })
+          renderer.sendModule('fixture', {
+            text: options.text ?? '',
+            href: options.href ?? '',
+            // A path the frame is to call, named by the page on the element it draws into.
+            ask: target.getAttribute('data-fixture-ask') ?? '',
+          })
         },
       })
       renderer.mount(target)

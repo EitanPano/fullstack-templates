@@ -65,6 +65,45 @@ describe('GET and HEAD /api/sdk/dist/v<major>/<file>', () => {
     expect(paths(assets.seen)).toEqual([`${BASE}/loader.js`])
   })
 
+  it("passes the file's validator on, and answers 304 with no body to a request that holds it", async () => {
+    const extra = { etag: '"abc123"' }
+    const first = await reach(`${BASE}/loader.js`, { extra }).res
+    const again = await reach(`${BASE}/loader.js`, {
+      extra,
+      headers: { 'If-None-Match': '"other", W/"abc123"' },
+    }).res
+
+    expect(first.status).toBe(200)
+    expect(first.headers.get('etag')).toBe('"abc123"')
+    expect(again.status).toBe(304)
+    expect(await again.text()).toBe('')
+    expect(again.headers.get('etag')).toBe('"abc123"')
+    expect(again.headers.get('cache-control')).toBe('public, max-age=300')
+    expect(again.headers.get('access-control-allow-origin')).toBe('*')
+  })
+
+  it('sends the file to a request that holds another validator', async () => {
+    const res = await reach(`${BASE}/loader.js`, {
+      extra: { etag: '"abc123"' },
+      headers: { 'If-None-Match': '"other"' },
+    }).res
+
+    expect(res.status).toBe(200)
+    expect(await res.text()).toBe(LOADER)
+  })
+
+  it('names no validator when the assets name none or a malformed one', async () => {
+    const none = await reach(`${BASE}/loader.js`).res
+    const malformed = await reach(`${BASE}/loader.js`, {
+      extra: { etag: 'not-quoted' },
+      headers: { 'If-None-Match': 'not-quoted' },
+    }).res
+
+    expect(none.headers.get('etag')).toBeNull()
+    expect(malformed.status).toBe(200)
+    expect(malformed.headers.get('etag')).toBeNull()
+  })
+
   it('serves a request that carries no key and no Origin, as a script tag does', async () => {
     const { res } = reach(`${BASE}/frame.js`)
 

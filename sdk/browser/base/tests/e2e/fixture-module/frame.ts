@@ -21,7 +21,20 @@ export const fixtureFrame: FrameModule = {
     ctx.onMessage((payload) => {
       // The host's text arrives after the consent state, so this is sent only once it is granted.
       ctx.track({ name: 'rendered' })
-      const { text, href } = (payload ?? {}) as { text?: unknown; href?: unknown }
+      const { text, href, ask } = (payload ?? {}) as {
+        text?: unknown
+        href?: unknown
+        ask?: unknown
+      }
+      // A call to the frame's own origin, when the host names a path: the answer, or the fixed
+      // code of the refusal, is left on the block for a test to read.
+      if (typeof ask === 'string' && ask) {
+        void ctx.request(ask).then(
+          (answer) => block.setAttribute('data-fixture-answer', JSON.stringify(answer)),
+          (error: unknown) =>
+            block.setAttribute('data-fixture-answer', error instanceof Error ? error.message : ''),
+        )
+      }
       block.replaceChildren()
       if (typeof text === 'string' && text) {
         const paragraph = doc.createElement('p')
