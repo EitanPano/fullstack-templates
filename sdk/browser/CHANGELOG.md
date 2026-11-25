@@ -28,4 +28,7 @@ Also in 1.0.0:
 - The CDN loader leaves a page's own global alone and a second tag does nothing; the iframe is put
   in the page with its address already set (WebKit fired `load` for an empty document first); the
   iframe's `title` and `module` come from the module; one key pattern, the servers'.
+- `accessibility.spec.ts` scans a page with the drawn frame with axe (no serious or critical
+  violation), in the three engines. The headings of `AGENTS.md` and `README.md` name the
+  package in a code span, so the formatter leaves the placeholder alone.
 - Size budget keys say `v{major}`; packaging ignores come from `shared/gitignore/sdk.gitignore`.

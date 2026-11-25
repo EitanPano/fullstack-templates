@@ -164,8 +164,10 @@ idle: the telemetry listeners, `visibilitychange` and `pagehide`, exist only onc
 tracked), a second tag or a page's own global under the SDK's name left alone, the shipped
 `dist/cdn/v<major>/loader.js` installing its global and reading the kill switch (`shipped.spec.ts`), a handshake from a listed origin, a collapse from an
 unlisted one, a frame the page cannot read, the kill switch, consent before telemetry, and no
-`viewed` for each way of hiding the frame. Where an engine cannot detect a way of hiding it, the
-spec asserts that limit for that engine (`view.spec.ts`). One spec: `bun x playwright test
+`viewed` for each way of hiding the frame, and no serious or critical axe violation in a page
+with the drawn frame (`accessibility.spec.ts`; a module's spec scans its own frame the same way).
+Where an engine cannot detect a way of hiding it, the spec asserts that limit for that engine
+(`view.spec.ts`). One spec: `bun x playwright test
 tests/e2e/view.spec.ts --project=firefox`; install the engines once with `bun x playwright
 install chromium firefox webkit` (on Linux, add `--with-deps`).
 `tests/consumers/` are the three files `consumers` runs against the tarball. A test is never
