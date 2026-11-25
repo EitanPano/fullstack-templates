@@ -15,7 +15,8 @@ export function originsForKey(
   return config.SDK_KEYS?.get(key)
 }
 
-// Whether any key lists `origin`. A preflight carries no key, so it is answered on this.
+// Whether any key lists `origin`. A preflight carries no key, so it is answered on this. A
+// lookup-backed resolver must answer it from a cache: it runs on unauthenticated preflights.
 export function isListedOrigin(
   config: Pick<Config, 'SDK_KEYS'>,
   origin: string | undefined,

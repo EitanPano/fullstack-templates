@@ -327,3 +327,139 @@ describe('the rate limit of /api/sdk/v1', () => {
     expect(await rows()).toEqual([])
   })
 })
+
+describe('with CORS_ORIGINS set', () => {
+  // The Worker has no global CORS layer: these tests pin that a variable of another template's
+  // layer changes nothing here, and that nothing on the SDK paths ever carries credentials.
+  const CORS = 'https://cors.example.test'
+  const cors = () => sdkBindings({ CORS_ORIGINS: CORS })
+  const preflight = (origin: string) =>
+    served(PATH, {
+      method: 'OPTIONS',
+      headers: { Origin: origin, 'Access-Control-Request-Method': 'GET' },
+      bindings: cors(),
+    })
+
+  it('answers the SDK preflight itself when CORS_ORIGINS is set', async () => {
+    const res = await preflight(A)
+
+    expect(res.status).toBe(204)
+    expect(res.headers.get('access-control-allow-origin')).toBe(A)
+    expect(res.headers.get('access-control-max-age')).toBe('600')
+  })
+
+  it('sends no Allow-Credentials on the namespace when CORS_ORIGINS is set', async () => {
+    const responses = [
+      await served(PATH, { headers: { Origin: A, 'X-Sdk-Key': KEY_A }, bindings: cors() }),
+      await served(PATH, { headers: { Origin: CORS }, bindings: cors() }),
+      await preflight(A),
+    ]
+
+    expect(responses.map((res) => res.status)).toEqual([200, 403, 204])
+    for (const res of responses) {
+      expect(res.headers.get('access-control-allow-credentials')).toBeNull()
+    }
+  })
+
+  it('gives an origin that is only in CORS_ORIGINS nothing on the namespace', async () => {
+    const res = await served(PATH, {
+      headers: { Origin: CORS, 'X-Sdk-Key': KEY_A },
+      bindings: cors(),
+    })
+
+    await expectEnvelope(res, 403, 'forbidden')
+    expect(res.headers.get('access-control-allow-origin')).toBeNull()
+    expect(res.headers.get('access-control-allow-credentials')).toBeNull()
+    expect((await preflight(CORS)).headers.get('access-control-allow-origin')).toBeNull()
+  })
+
+  it('sends no Allow-Credentials on the files and the frame when CORS_ORIGINS is set', async () => {
+    const assets = sdkAssets({
+      '/api/sdk/dist/v1/loader.js': 'x',
+      '/api/sdk/frame/v1': '<title>frame</title>',
+    })
+    const bindings = sdkBindings({ CORS_ORIGINS: CORS, ASSETS: assets.fetcher })
+
+    for (const path of ['/api/sdk/dist/v1/loader.js', `/api/sdk/frame/v1?k=${KEY_A}`]) {
+      const res = await served(path, { headers: { Origin: CORS }, bindings })
+
+      expect(res.status, path).toBe(200)
+      expect(res.headers.get('access-control-allow-credentials'), path).toBeNull()
+    }
+  })
+
+  it('leaves CORS_ORIGINS as it was outside the SDK paths', async () => {
+    const res = await served('/api/health', { headers: { Origin: CORS }, bindings: cors() })
+
+    expect(res.status).toBe(200)
+    expect(res.headers.get('access-control-allow-origin')).toBeNull()
+    expect(res.headers.get('access-control-allow-credentials')).toBeNull()
+  })
+})
+
+describe('what a namespace answer may be stored as', () => {
+  it('never lets a namespace answer be stored', async () => {
+    const bindings = sdkBindings()
+    const ok = await served(PATH, { headers: { Origin: A, 'X-Sdk-Key': KEY_A }, bindings })
+    const refused = await served(PATH, { headers: { Origin: A }, bindings })
+    const now = Date.now()
+    await env.DB.prepare(
+      'INSERT INTO rate_limit (key, window_start, expires_at, count) VALUES (?, ?, ?, ?)',
+    )
+      .bind(`sdkPerKey:${await sha256(KEY_B)}`, now, now + 60_000, RATE_LIMITS.sdkPerKey.limit)
+      .run()
+    const limited = await served(PATH, { headers: { Origin: C, 'X-Sdk-Key': KEY_B }, bindings })
+
+    expect([ok.status, refused.status, limited.status]).toEqual([200, 403, 429])
+    for (const res of [ok, refused, limited]) {
+      expect(res.headers.get('cache-control')).toBe('no-store')
+      expect(res.headers.get('vary')).toContain('Origin')
+      expect(res.headers.get('vary')).toContain('X-Sdk-Key')
+    }
+  })
+})
+
+describe('the same-origin rule', () => {
+  it('does not take a request that says cross-site for same-origin, even without an Origin', async () => {
+    const res = await get({ 'Sec-Fetch-Site': 'cross-site', 'X-Sdk-Key': KEY_A })
+
+    await expectEnvelope(res, 403, 'forbidden')
+  })
+})
+
+describe('the address limit comes first', () => {
+  it('one address cannot use up a key’s limit', async () => {
+    const limit = RATE_LIMITS.sdkPerIp.limit
+    const send = (address: string) =>
+      get({ Origin: A, 'X-Sdk-Key': KEY_A, 'CF-Connecting-IP': address })
+
+    for (let i = 0; i < limit; i++) expect((await send('203.0.113.7')).status).toBe(200)
+    expect((await send('203.0.113.7')).status).toBe(429)
+    expect((await send('203.0.113.7')).status).toBe(429)
+
+    expect((await send('203.0.113.8')).status).toBe(200)
+    const { results } = await env.DB.prepare('SELECT key, count FROM rate_limit').all<{
+      key: string
+      count: number
+    }>()
+    const id = `sdkPerKey:${await sha256(KEY_A)}`
+    // Admitted requests only: the 120 of the first address and the one of the second.
+    expect(results.find((row) => row.key === id)?.count).toBe(limit + 1)
+  })
+
+  it('limits preflights by address', async () => {
+    const limit = RATE_LIMITS.sdkPerIp.limit
+    const send = (address: string) =>
+      served(PATH, {
+        method: 'OPTIONS',
+        headers: { Origin: A, 'Access-Control-Request-Method': 'GET', 'CF-Connecting-IP': address },
+        bindings: sdkBindings(),
+      })
+
+    for (let i = 0; i < limit; i++) expect((await send('203.0.113.9')).status).toBe(204)
+    const res = await send('203.0.113.9')
+
+    await expectEnvelope(res, 429, 'rate_limited')
+    expect((await send('203.0.113.10')).status).toBe(204)
+  })
+})

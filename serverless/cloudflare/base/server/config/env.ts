@@ -110,6 +110,13 @@ const sdkKeys = z
     return keys
   })
 
+// Production takes https origins of a real host: http and loopback origins are for a developer's
+// machine. The refusal names the pair by position, like the others.
+function isWeakOrigin(origin: string): boolean {
+  const { protocol, hostname } = new URL(origin)
+  return protocol === 'http:' || hostname === 'localhost' || hostname.startsWith('127.')
+}
+
 // A JSON boolean in wrangler.jsonc's vars is as good as the text.
 const sdkEnabled = z.preprocess(
   (value) => (typeof value === 'boolean' ? String(value) : blankIsUnset(value)),
@@ -154,6 +161,16 @@ export function parseConfig(source: Record<string, unknown>): Config {
       .join('; ')
     throw new Error(`invalid environment: ${issues}`)
   }
+  // @sdk-start
+  if (result.data.ENVIRONMENT === 'production' && result.data.SDK_KEYS !== undefined) {
+    const weak = [...result.data.SDK_KEYS.values()].findIndex((origins) => origins.some(isWeakOrigin))
+    if (weak !== -1) {
+      throw new Error(
+        `invalid environment: SDK_KEYS: pair ${String(weak + 1)} has an http or loopback origin, which production refuses`,
+      )
+    }
+  }
+  // @sdk-end
   return result.data
 }
 

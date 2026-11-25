@@ -139,23 +139,40 @@ describe('assemble with an SDK build', () => {
     expect(p.warnings).toEqual([])
   })
 
-  it('warns and builds without the SDK when its build is missing or empty', () => {
+  it('fails when the SDK build is missing or empty, as a missing frontend build does', () => {
+    const p = project({ sdk: null })
+    const empty = project({ sdk: {} })
+    const missing = { ...p.options, sdk: path.join(p.root, 'nothing-built') }
+
+    expect(() => assemble(missing)).toThrow(AssembleError)
+    expect(() => assemble(missing)).toThrow(/the SDK's build .* is missing or empty: build the SDK first/)
+    expect(() => assemble(empty.options)).toThrow(/is missing or empty: build the SDK first/)
+    expect(p.has('index.html')).toBe(false)
+  })
+
+  it('fails when the SDK build holds no major folder', () => {
+    const p = project({ sdk: { 'loader.js': 'x' } })
+
+    expect(() => assemble(p.options)).toThrow(/holds no v<major> folder/)
+  })
+
+  it('warns and builds without the SDK when its build is missing or empty and allowMissingSdk', () => {
     const p = project({ sdk: null })
     const empty = project({ sdk: {} })
 
-    assemble({ ...p.options, sdk: path.join(p.root, 'nothing-built') })
-    assemble(empty.options)
+    assemble({ ...p.options, sdk: path.join(p.root, 'nothing-built'), allowMissingSdk: true })
+    assemble({ ...empty.options, allowMissingSdk: true })
 
     expect(p.has('api')).toBe(false)
     expect(empty.has('api')).toBe(false)
-    expect(p.warnings.join(' ')).toMatch(/SDK build .* is missing or empty/)
-    expect(empty.warnings.join(' ')).toMatch(/SDK build .* is missing or empty/)
+    expect(p.warnings.join(' ')).toMatch(/SDK's build .* is missing or empty/)
+    expect(empty.warnings.join(' ')).toMatch(/SDK's build .* is missing or empty/)
   })
 
   it('serves nothing of an SDK build that holds no major folder', () => {
     const p = project({ sdk: { 'loader.js': 'x', 'notes.txt': 'y' } })
 
-    assemble(p.options)
+    assemble({ ...p.options, allowMissingSdk: true })
 
     expect(p.has('api')).toBe(false)
     expect(p.warnings.join(' ')).toMatch(/no v<major> folder/)
@@ -270,15 +287,19 @@ describe('scripts/assemble.mjs and SDK_DIR', () => {
     expect(readFileSync(path.join(out, 'api/sdk/frame/v7'), 'utf8')).toBe(FRAME)
   })
 
-  it('treats a blank SDK_DIR as unset and never fails for a missing default build', () => {
+  it('fails for a missing default build unless --allow-missing-sdk, and blank SDK_DIR is unset', () => {
     const p = project({ sdk: null })
     const script = path.resolve(import.meta.dirname, '../../scripts/assemble.mjs')
     const out = path.join(p.root, 'dist-from-script')
 
-    execFileSync(process.execPath, [script, '--out', out, ...frontendArguments(p.root)], {
-      env: { ...process.env, SDK_DIR: '  ' },
-      stdio: ['ignore', 'ignore', 'pipe'],
-    })
+    const run = (extra: string[]) =>
+      execFileSync(process.execPath, [script, '--out', out, ...frontendArguments(p.root), ...extra], {
+        env: { ...process.env, SDK_DIR: '  ' },
+        stdio: ['ignore', 'ignore', 'pipe'],
+      })
+
+    expect(() => run([])).toThrow(/build the SDK first/)
+    run(['--allow-missing-sdk'])
 
     expect(existsSync(path.join(out, '_headers'))).toBe(true)
   })

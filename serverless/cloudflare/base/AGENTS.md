@@ -266,23 +266,27 @@ embed it. Without one none of this exists in the package.
 - `/api/sdk/v1/` is the public, cross-origin namespace (`server/api/sdk/`). One gate runs first
   (`middleware/sdk-gate.ts`): CORS for this namespace alone (the origin is echoed when the key lists
   it; never credentials), the `X-Sdk-Key` key (`services/security/sdk-keys.ts`), then a rate limit by
-  key and by address (`sdkPerKey`, `sdkPerIp`, on the D1 limiter). `GET /api/sdk/v1/config` answers
-  `{ enabled }`, the kill switch. A same-origin request (no `Origin`, `Sec-Fetch-Site: same-origin`,
-  or an `Origin` whose host is the request URL's host) needs a valid key only.
+  address then by key (`sdkPerIp`, `sdkPerKey`, on the D1 limiter; a preflight counts on the
+  address). Every answer is `no-store` and varies on `Origin` and `X-Sdk-Key`. `GET /api/sdk/v1/config`
+  answers `{ enabled }`, the kill switch. A request is same-origin when it says
+  `Sec-Fetch-Site: same-origin`, or says nothing of it and has no `Origin` or one whose host is the
+  request URL's host; it then needs a valid key only.
 - `GET|HEAD /api/sdk/dist/v<major>/<file>.js` and `GET /api/sdk/frame/v<major>?k=<key>`
   (`middleware/sdk-files.ts`) carry no key and are not in the OpenAPI document. The frame document
   has one `Content-Security-Policy`, whose `frame-ancestors` are the key's origins (`'none'` for an
   unknown key), and no `X-Frame-Options`.
 - `bun run assemble` copies the SDK's build (`__SDK_PATH__/__SDK_OUT__`; the variable `SDK_DIR`
   names another, relative to this package) into `dist/api/sdk/dist/v<major>/<name>.js` and
-  `dist/api/sdk/frame/v<major>` (the frame document, named without `.html`). A missing build is a
-  warning, and both routes then answer 404. The Worker asks `env.ASSETS` for the same path and
+  `dist/api/sdk/frame/v<major>` (the frame document, named without `.html`). A missing or empty build
+  fails `assemble`, as a missing frontend build does; `bun run start` passes `--allow-missing-sdk`
+  and only warns, and both routes then answer 404. The Worker asks `env.ASSETS` for the same path and
   builds its response from the body alone, so no `_headers` rule reaches a file or the frame.
   `api/sdk/` is under `/api/*`, which runs the Worker before the assets in every plan: no address
   answers a file raw. Keep it so: no `_headers` rule or route of your own for these paths, and
   `run_worker_first` keeps `/api/*`. `assemble` refuses an output or `static/` that holds
   `api/sdk/`, and a frontend named `api`.
-- Variables: `SDK_KEYS` (`key=origin,origin;key=origin`; unset refuses every request) and
+- Variables: `SDK_KEYS` (`key=origin,origin;key=origin`; unset refuses every request; in production
+  an `http:` or loopback origin is refused) and
   `SDK_ENABLED` (default `true`). `.env.example` has the local values; a deployment sets both in
   `vars` of each environment in `wrangler.jsonc`, then `bun run types`. `bun run start` takes both
   from the shell, and `SDK_DIR` too: the SDK's own e2e starts it that way.
@@ -327,8 +331,11 @@ in a migration) once a real one exists.
 - SDK endpoints live in `server/api/sdk/<name>/`, an entity like any other, at
   `/api/sdk/v1/<name>` (`sdk` is a namespace); mount its router in `server/api/sdk/routes.ts`
   (`routes.route('/<name>', <name>Routes)`). That file runs `middleware/sdk-gate.ts` first (see The
-  SDK). Within `v1` the namespace only adds: a removal or a change is a `v2` beside it, mounted in
-  `server/server.ts`.
+  SDK). An entity only the frame calls (a token, a view, a click, the frame's telemetry) is mounted
+  behind `frameOnly` (`routes.use('/<name>/*', frameOnly)`; without the `/*` only the exact path is
+  guarded); one mounted without it is readable by the host page, so it never issues or accepts
+  anything that counts. Within `v1` the namespace only
+  adds: a removal or a change is a `v2` beside it, mounted in `server/server.ts`.
 <!-- @sdk-end -->
 - Ids are made in the controller (`crypto.randomUUID()`), never by the database or the client.
 - A rate limit is a gate (`rateLimit({ name, limit, window, key })`) with its numbers in
@@ -555,6 +562,13 @@ not a rewrite.
   `assets.directory` and address.
 
 Each Worker adds a deployment and version skew.
+<!-- @sdk-start -->
+
+With an SDK, each admitted namespace request writes the limiter to D1 twice (address, then key). The
+per-key limit (`sdkPerKey`, per minute, with the kill switch read once per page view) is a ceiling for
+one integration's whole audience and is the product's to size; at that traffic move the counters off
+D1 (a Workers rate-limiting binding or a Durable Object).
+<!-- @sdk-end -->
 <!-- @jobs-start -->
 
 ## Jobs

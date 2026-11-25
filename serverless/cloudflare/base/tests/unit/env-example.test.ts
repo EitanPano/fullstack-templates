@@ -20,7 +20,12 @@ const values = Object.fromEntries(
 describe('.env.example', () => {
   it('parses as a valid configuration in every environment', () => {
     for (const environment of ['development', 'test', 'preview', 'production']) {
-      expect(() => parseConfig({ ENVIRONMENT: environment, ...values })).not.toThrow()
+      expect(() => parseConfig({ ENVIRONMENT: environment, ...values })).not.toThrow() // @nosdk
+      // @sdk-start
+      // The local SDK_KEYS names a localhost origin, which production refuses.
+      const local = environment === 'production' ? { ...values, SDK_KEYS: undefined } : values
+      expect(() => parseConfig({ ENVIRONMENT: environment, ...local })).not.toThrow()
+      // @sdk-end
     }
   })
 

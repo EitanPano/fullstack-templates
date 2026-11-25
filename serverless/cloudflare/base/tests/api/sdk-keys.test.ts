@@ -110,3 +110,31 @@ describe('the key resolver', () => {
     expect(isListedOrigin(config, undefined)).toBe(false)
   })
 })
+
+describe('SDK_KEYS in production', () => {
+  const production = (keys: string) => parseConfig({ ENVIRONMENT: 'production', SDK_KEYS: keys })
+
+  it('refuses an http origin in production', () => {
+    const attempt = () => production(`pk_ok=${A};pk_probe=http://a.example.test`)
+
+    expect(attempt).toThrow(/SDK_KEYS: pair 2/)
+    expect(attempt).not.toThrow(/pk_probe/)
+  })
+
+  it('refuses a loopback origin in production', () => {
+    for (const origin of ['https://localhost', 'https://localhost:5190', 'https://127.0.0.1:8443']) {
+      const attempt = () => production(`pk_probe=${origin}`)
+
+      expect(attempt, origin).toThrow(/SDK_KEYS: pair 1/)
+      expect(attempt, origin).not.toThrow(/pk_probe/)
+    }
+  })
+
+  it('accepts both outside production', () => {
+    const keys = 'pk_a=http://a.example.test;pk_b=http://localhost:5190;pk_c=https://127.0.0.1'
+    for (const environment of ['development', 'test', 'preview']) {
+      expect(parseConfig({ ENVIRONMENT: environment, SDK_KEYS: keys }).SDK_KEYS?.size).toBe(3)
+    }
+    expect(production(`pk_ok=${A}`).SDK_KEYS?.size).toBe(1)
+  })
+})

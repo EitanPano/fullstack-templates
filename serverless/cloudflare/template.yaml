@@ -42,6 +42,7 @@ onlyWhen:
     - tests/api/sdk-assets.ts
     - tests/api/sdk-config.test.ts
     - tests/api/sdk-files.test.ts
+    - tests/api/sdk-frame-only.test.ts
     - tests/api/sdk-frame.test.ts
     - tests/api/sdk-keys.test.ts
     - tests/unit/sdk-build.test.ts

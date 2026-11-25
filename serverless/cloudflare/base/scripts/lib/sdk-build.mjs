@@ -34,13 +34,14 @@ function refuseLink(entry, label, fail) {
 }
 
 // `fail` makes the error to throw (assemble's own). Copies the allow-listed files of `build` into
-// `work` and returns the majors found. A build that
-// is missing or empty is no failure: `warn` says so and the Worker answers 404 for both routes.
-export function addSdkBuild(work, build, warn, fail) {
+// `work` and returns the majors found. A build that is missing or empty fails, as a missing
+// frontend build does (a deploy without it would answer 404 for the loader on every page); with
+// `allowMissing` (a local run) `warn` says so instead and the Worker answers 404 for both routes.
+export function addSdkBuild(work, build, warn, fail, allowMissing = false) {
   if (!existsSync(build) || entries(build).length === 0) {
-    warn(
-      `the SDK build ${build} is missing or empty: build the SDK first; /api/sdk/dist and /api/sdk/frame answer 404`,
-    )
+    const message = `the SDK's build ${build} is missing or empty: build the SDK first`
+    if (!allowMissing) throw fail(message)
+    warn(`${message}; /api/sdk/dist and /api/sdk/frame answer 404`)
     return []
   }
   if (lstatSync(build).isSymbolicLink()) {
@@ -76,9 +77,9 @@ export function addSdkBuild(work, build, warn, fail) {
     if (copied.length > 0) majors.push(folder.name)
   }
   if (majors.length === 0) {
-    warn(
-      `the SDK build ${build} holds no v<major> folder with a script or a frame.html: nothing of it is served`,
-    )
+    const message = `the SDK's build ${build} holds no v<major> folder with a script or a frame.html`
+    if (!allowMissing) throw fail(`${message}: build the SDK first`)
+    warn(`${message}: nothing of it is served`)
   }
   return majors
 }

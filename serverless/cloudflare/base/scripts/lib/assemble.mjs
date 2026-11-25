@@ -133,8 +133,8 @@ const joined = (parts) =>
 // The SDK's build beside the site, under api/sdk/ (sdk-build.mjs); `sdk` is its folder, null when
 // the plan has none.
 const fail = (message) => new AssembleError(message)
-function addSdk(work, sdk, warn) {
-  if (sdk !== null) addSdkBuild(work, sdk, warn, fail)
+function addSdk(work, sdk, warn, allowMissing) {
+  if (sdk !== null) addSdkBuild(work, sdk, warn, fail, allowMissing)
 }
 
 // @sdk-end
@@ -174,6 +174,7 @@ export function frontendOverrides(argv, names) {
  *   frontends?: { dir: string; build: string }[] | null
  *   only?: string
  *   sdk?: string | null // @sdk
+ *   allowMissingSdk?: boolean // @sdk
  *   warn?: (message: string) => void
  * }} options
  * @returns {{ pages: number; withPolicy: number; without: string[] }}
@@ -185,6 +186,7 @@ export function assemble({
   frontends = null,
   only,
   sdk = null, // @sdk
+  allowMissingSdk = false, // @sdk
   warn = (message) => {
     process.stderr.write(`assemble: warning: ${message}\n`)
   },
@@ -193,7 +195,7 @@ export function assemble({
     throw new AssembleError(`${statics} is missing: it holds the base _headers and _redirects`)
   }
   if (frontends !== null) return assembleSeveral({ statics, dist, frontends, only, warn }) // @nosdk
-  if (frontends !== null) return assembleSeveral({ statics, dist, frontends, only, sdk, warn }) // @sdk
+  if (frontends !== null) return assembleSeveral({ statics, dist, frontends, only, sdk, allowMissingSdk, warn }) // @sdk
   if (frontend !== null && isEmptyBuild(frontend)) {
     throw new AssembleError(
       `the frontend's output ${frontend} is missing or empty: build the frontend first`,
@@ -228,7 +230,7 @@ export function assemble({
       }
     }
     const summary = applyPolicy(work)
-    addSdk(work, sdk, warn) // @sdk
+    addSdk(work, sdk, warn, allowMissingSdk) // @sdk
     swap(work, dist)
     if (summary.without.length > 0) warn(listWithout(summary.without))
     return summary
@@ -246,12 +248,13 @@ export function assemble({
  *   frontends: { dir: string; build: string }[]
  *   only?: string
  *   sdk: string | null // @sdk
+ *   allowMissingSdk: boolean // @sdk
  *   warn: (message: string) => void
  * }} options
  * @returns {{ pages: number; withPolicy: number; without: string[] }}
  */
 function assembleSeveral({ statics, dist, frontends, only, warn }) { // @nosdk
-function assembleSeveral({ statics, dist, frontends, only, sdk, warn }) { // @sdk
+function assembleSeveral({ statics, dist, frontends, only, sdk, allowMissingSdk, warn }) { // @sdk
   const names = frontends.map((item) => item.dir)
   if (sdk !== null) refuseApiFrontend(names, fail) // @sdk
   if (only !== undefined && !names.includes(only)) {
@@ -330,7 +333,7 @@ function assembleSeveral({ statics, dist, frontends, only, sdk, warn }) { // @sd
       path.join(work, '_redirects'),
       `${parts([...redirects, ...base('_redirects')])}\n`,
     )
-    addSdk(work, sdk, warn) // @sdk
+    addSdk(work, sdk, warn, allowMissingSdk) // @sdk
     swap(work, dist)
     if (summary.without.length > 0) warn(listWithout(summary.without))
     return summary

@@ -5,6 +5,7 @@
 // every /api response. A controller, a service and a gate see `Context`, never Hono.
 // It does not belong: a gate's own logic (validate.ts, rate-limit.ts) or a controller's rules.
 import { Hono, type Context as HonoContext, type ErrorHandler, type MiddlewareHandler } from 'hono'
+import { matchedRoutes } from 'hono/route' // @sdk
 
 import { getConfig, type Config } from '../config/env'
 import type { Bindings } from '../infra/bindings'
@@ -33,6 +34,10 @@ export type Context = {
   requestId: string
   log: Logger
   waitUntil(promise: Promise<unknown>): void
+  // @sdk-start
+  // The handlers Hono matched for this request: the namespace gate looks for `frameOnly` among them.
+  handlers: readonly unknown[]
+  // @sdk-end
 }
 
 // A gate runs before the controller. Throw an AppError to refuse; return a Response to answer in
@@ -61,6 +66,7 @@ function contextOf(c: HonoContext<AppEnv>): Context {
     waitUntil: (promise) => {
       c.executionCtx.waitUntil(promise)
     },
+    handlers: matchedRoutes(c).map((route) => route.handler), // @sdk
   }
 }
 

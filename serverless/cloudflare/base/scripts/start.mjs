@@ -12,7 +12,8 @@
 // @frontends-end
 // @sdk-start
 // With an SDK package SDK_KEYS and SDK_ENABLED are taken from the shell too, and SDK_DIR (read by
-// assemble) names the SDK build to serve in place of the SDK package's own.
+// assemble) names the SDK build to serve in place of the SDK package's own. A missing SDK build
+// is a warning here (the API runs before the SDK is built) and an error for `bun run assemble`.
 // @sdk-end
 // It does not belong: building the frontend (run its build first), migrations (`bun run e2e:db`)
 // or deployment.
@@ -45,6 +46,7 @@ const built = spawnSync(
     ...(frontend === undefined ? [] : ['--frontend', frontend]), // @nofrontends
     ...frontends.flatMap((pair) => ['--frontend', pair]), // @frontends
     ...(only === undefined ? [] : ['--only', only]), // @frontends
+    '--allow-missing-sdk', // @sdk
   ],
   { stdio: 'inherit' },
 )
