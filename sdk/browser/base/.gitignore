@@ -1,8 +1,0 @@
-dist/
-node_modules/
-coverage/
-tests/e2e/.build/
-.tmp/
-*.tgz
-playwright-report/
-test-results/

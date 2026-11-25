@@ -29,7 +29,9 @@ const server = createServer((request, response) => {
   })
   response.end(page)
 })
-server.listen(__PORT__, () => console.log(`playground: http://localhost:__PORT__ (API ${api})`))
+server.listen(__PORT__, '127.0.0.1', () =>
+  console.log(`playground: http://localhost:__PORT__ (API ${api})`),
+)
 
 const stop = () => {
   build.kill()

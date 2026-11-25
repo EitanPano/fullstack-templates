@@ -24,7 +24,7 @@ function handshake() {
   return { port: channel.port1, received }
 }
 
-const probe = (name = 'probe') => {
+const probe = (name = 'unit') => {
   const start = vi.fn()
   const cleanup = vi.fn()
   const module: FrameModule = {
@@ -40,7 +40,7 @@ const probe = (name = 'probe') => {
 let stop: () => void = () => undefined
 
 beforeEach(() => {
-  window.history.replaceState({}, '', '/api/sdk/frame/v1?k=pk_a&scheme=dark&accent=%230a0')
+  window.history.replaceState({}, '', '/api/sdk/frame/v1?k=pk_a&scheme=dark&accent=%230a0&m=unit')
   document.body.replaceChildren()
   root.removeAttribute('style')
 })
@@ -88,15 +88,12 @@ describe('frame', () => {
     await vi.waitFor(() => expect(start).toHaveBeenCalled())
     const ctx = start.mock.calls[0]?.[0]
     ctx.report('rendered')
-    ctx.report('error', 'x'.repeat(500))
+    ctx.report('error', 'load_failed')
     ctx.send({ hello: 1 })
     await vi.waitFor(() => expect(received).toHaveLength(4))
     expect(received).toContainEqual({ v, type: 'event', name: 'rendered' })
     expect(received).toContainEqual({ v, type: 'module', name: 'unit', payload: { hello: 1 } })
-    const error = received.find((m) => (m as { name?: string }).name === 'error') as {
-      message: string
-    }
-    expect(error.message.length).toBeLessThanOrEqual(200)
+    expect(received).toContainEqual({ v, type: 'event', name: 'error', message: 'load_failed' })
   })
 
   it('reports the height of html over the channel', async () => {
@@ -111,10 +108,11 @@ describe('frame', () => {
   it('tells the host a unit was viewed, with the checks that ran, and no token', async () => {
     const io = installIntersection(true)
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    const { module } = probe()
+    const { module, start } = probe()
     stop = runFrame({ win: window, modules: [module] }).stop
     const { received } = handshake()
-    await vi.waitFor(() => expect(received).toContainEqual({ v, type: 'ready' }))
+    await vi.waitFor(() => expect(start).toHaveBeenCalled())
+    start.mock.calls[0]?.[0].report('rendered')
     io.current().fire({ intersectionRatio: 1, isVisible: true })
     vi.advanceTimersByTime(1000)
     await vi.waitFor(() =>
@@ -171,20 +169,55 @@ describe('frame', () => {
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 
-  it('keeps going when a module throws, and says so', async () => {
+  it('says a module failed with a fixed code when it throws', async () => {
     const bad: FrameModule = {
       name: 'bad',
       start() {
         throw new Error('module bug')
       },
     }
-    const good = probe('good')
-    stop = runFrame({ win: window, modules: [bad, good.module] }).stop
+    window.history.replaceState({}, '', '/api/sdk/frame/v1?k=pk_a&m=bad')
+    stop = runFrame({ win: window, modules: [bad] }).stop
     const { received } = handshake()
-    await vi.waitFor(() => expect(good.start).toHaveBeenCalled())
     await vi.waitFor(() =>
-      expect(received).toContainEqual({ v, type: 'event', name: 'error', message: 'module bug' }),
+      expect(received).toContainEqual({
+        v,
+        type: 'event',
+        name: 'error',
+        message: 'module_failed',
+        module: 'bad',
+      }),
     )
+  })
+
+  it('says a module failed with the fixed code when the address names none', async () => {
+    window.history.replaceState({}, '', '/api/sdk/frame/v1?k=pk_a')
+    stop = runFrame({ win: window, modules: [probe().module] }).stop
+    const { received } = handshake()
+    await vi.waitFor(() =>
+      expect(received).toContainEqual({
+        v,
+        type: 'event',
+        name: 'error',
+        message: 'module_failed',
+      }),
+    )
+  })
+
+  it('gives a module a request that works before consent and is stopped on destroy', async () => {
+    const { module, start } = probe()
+    const fetchImpl = vi.fn(async () => new Response('{"a":1}', { status: 200 }))
+    stop = runFrame({
+      win: window,
+      modules: [module],
+      fetch: fetchImpl as unknown as typeof fetch,
+    }).stop
+    handshake()
+    await vi.waitFor(() => expect(start).toHaveBeenCalled())
+    const ctx = start.mock.calls[0]?.[0]
+    expect(ctx.consent()).toBe('denied')
+    await expect(ctx.request('/api/sdk/v1/view')).resolves.toEqual({ a: 1 })
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
 
   it('runs the cleanups when the host says destroy', async () => {

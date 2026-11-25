@@ -1,155 +1,196 @@
 // @vitest-environment node
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { ESLint } from 'eslint'
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 
 // One violation and one allowed case per rule of the layer map (AGENTS.md › Layers), linted
-// through the real eslint.config.mjs. A rule that stops firing fails here. The import rules read
-// the specifier, so the files the snippets import need not exist.
-const root = fileURLToPath(new URL('../..', import.meta.url))
+// through the real eslint.config.mjs. A rule that stops firing fails here. The boundary rule
+// classifies an import by the file it resolves to, so the snippets run in a throwaway project that
+// holds every file they import.
+const config = fileURLToPath(new URL('../../eslint.config.mjs', import.meta.url))
+const tsconfig = readFileSync(fileURLToPath(new URL('../../tsconfig.json', import.meta.url)))
+const root = mkdtempSync(join(tmpdir(), 'sdk-boundaries-'))
+
+const FILES = [
+  'src/entries/index.ts',
+  'src/entries/cdn.ts',
+  'src/entries/frame.ts',
+  'src/entries/global-name.ts',
+  'src/core/index.ts',
+  'src/core/sdk.ts',
+  'src/transport/index.ts',
+  'src/transport/x.ts',
+  'src/contract/index.ts',
+  'src/protocol/index.ts',
+  'src/ui/index.ts',
+  'src/ui/x.ts',
+  'src/frame/index.ts',
+  'src/frame/run.ts',
+  'src/frame/meter.ts',
+  'src/frame/sender.ts',
+  'src/frame/dom.ts',
+  'src/frame/x.ts',
+  'src/modules/ad/host.ts',
+  'src/modules/ad/frame.ts',
+  'src/modules/ad/types.ts',
+  'src/modules/ad/host/part.ts',
+  'src/modules/ad/frame/part.ts',
+  'src/modules/other/host.ts',
+  'src/modules/other/frame.ts',
+  'src/modules/other/types.ts',
+]
+for (const file of FILES) {
+  mkdirSync(dirname(join(root, file)), { recursive: true })
+  writeFileSync(join(root, file), 'export const a = 1\nexport const b = 1\n')
+}
+writeFileSync(join(root, 'tsconfig.json'), tsconfig)
+
 const eslint = new ESLint({
   cwd: root,
-  overrideConfigFile: fileURLToPath(new URL('../../eslint.config.mjs', import.meta.url)),
+  overrideConfigFile: config,
+  overrideConfig: [
+    {
+      settings: {
+        'boundaries/root-path': root,
+        // The resolver reads the tsconfig of the project it is given: the throwaway one.
+        'import/resolver': { typescript: { project: join(root, 'tsconfig.json') } },
+      },
+    },
+  ],
+})
+
+afterAll(() => {
+  rmSync(root, { recursive: true, force: true })
 })
 
 async function lint(path: string, code: string) {
-  const [result] = await eslint.lintText(code, { filePath: `${root}/${path}` })
+  const [result] = await eslint.lintText(code, { filePath: join(root, path) })
   return (result?.messages ?? []).map((message) => `${message.ruleId}: ${message.message}`)
 }
-
 const refused = async (path: string, code: string, text: string) => {
-  const messages = await lint(path, code)
-  expect(messages.join('\n')).toContain(text)
+  expect((await lint(path, `${code}\n`)).join('\n')).toContain(text)
 }
 const allowed = async (path: string, code: string) => {
-  expect(await lint(path, code)).toEqual([])
+  expect(await lint(path, `${code}\n`)).toEqual([])
 }
+
+const KERNEL = 'core/ is the kernel'
+const DOOR = 'transport/ is the network door'
+const DRAW = 'ui/ draws'
+const SHARED = 'protocol/ imports contract/ only'
+const IN_FRAME = 'frame/ never imports ui/, transport/ or core/'
+const OWN = 'a module imports its own files'
+const OTHER = 'a module never imports another module'
 
 describe('layer map: refused', () => {
   it.each([
-    ['core', 'src/core/x.ts', "import { a } from '../ui'", 'core/ is the kernel'],
-    ['core', 'src/core/x.ts', "import { a } from '../frame/run'", 'never imports frame/'],
+    ['core to ui', 'src/core/x.ts', "import { a } from '../ui/x'", KERNEL],
+    ['core to frame', 'src/core/x.ts', "import { a } from '../frame/run'", KERNEL],
+    ['core to a module', 'src/core/x.ts', "import { a } from '../modules/ad/host'", KERNEL],
+    ['core to entries', 'src/core/x.ts', "import { a } from '../entries/index'", KERNEL],
+    ['transport to core', 'src/transport/x.ts', "import { a } from '../core/sdk'", DOOR],
+    ['transport to ui', 'src/transport/x.ts', "import { a } from '../ui/x'", DOOR],
+    ['ui to transport', 'src/ui/x.ts', "import { a } from '../transport/x'", DRAW],
+    ['ui to core', 'src/ui/x.ts', "import { a } from '../core/sdk'", DRAW],
+    ['ui to frame', 'src/ui/x.ts', "import { a } from '../frame/run'", DRAW],
+    ['protocol to core', 'src/protocol/index.ts', "import { a } from '../core/sdk'", SHARED],
+    ['frame to ui', 'src/frame/x.ts', "import { a } from '../ui/x'", IN_FRAME],
+    ['frame to transport', 'src/frame/x.ts', "import { a } from '../transport/x'", IN_FRAME],
+    ['frame to core', 'src/frame/x.ts', "import { a } from '../core/sdk'", IN_FRAME],
+    ['frame to a module', 'src/frame/x.ts', "import { a } from '../modules/ad/frame'", IN_FRAME],
     [
-      'core',
-      'src/core/x.ts',
-      "import { a } from '../modules/x/host'",
-      'only entries/ imports modules/',
-    ],
-    ['core', 'src/core/x.ts', "import { a } from '../entries/index'", 'nothing imports entries/'],
-    [
-      'transport',
-      'src/transport/x.ts',
-      "import { a } from '../core'",
-      'transport/ is the network door',
-    ],
-    [
-      'transport',
-      'src/transport/x.ts',
-      "import { a } from '../ui'",
-      'transport/ is the network door',
-    ],
-    ['ui', 'src/ui/x.ts', "import { a } from '../transport'", 'ui/ draws'],
-    ['ui', 'src/ui/x.ts', "import { a } from '../core'", 'ui/ draws'],
-    ['ui', 'src/ui/x.ts', "import { a } from '../frame'", 'never imports frame/'],
-    [
-      'protocol',
-      'src/protocol/x.ts',
-      "import { a } from '../core'",
-      'protocol/ imports contract/ only',
-    ],
-    [
-      'frame',
-      'src/frame/x.ts',
-      "import { a } from '../ui'",
-      'frame/ never imports ui/, transport/ or core/',
-    ],
-    [
-      'frame',
-      'src/frame/x.ts',
-      "import { a } from '../transport'",
-      'frame/ never imports ui/, transport/ or core/',
-    ],
-    [
-      'frame',
-      'src/frame/x.ts',
-      "import { a } from '../core/sdk'",
-      'frame/ never imports ui/, transport/ or core/',
-    ],
-    [
-      'entries/index',
+      'entries/index to frame',
       'src/entries/index.ts',
-      "import { a } from '../frame'",
+      "import { a } from '../frame/run'",
       'never imports frame/',
     ],
     [
-      'entries/cdn',
+      'entries/cdn to frame',
       'src/entries/cdn.ts',
       "import { a } from '../frame/run'",
       'never imports frame/',
     ],
     [
-      'entries/frame',
+      'entries/index to a frame half',
+      'src/entries/index.ts',
+      "import { a } from '../modules/ad/frame'",
+      'register a module',
+    ],
+    [
+      'entries/frame to ui',
       'src/entries/frame.ts',
-      "import { a } from '../ui'",
-      'frame/ never imports ui/, transport/ or core/',
+      "import { a } from '../ui/x'",
+      'entries/frame.ts runs in the frame',
     ],
     [
-      'entries/frame',
+      'entries/frame to core',
       'src/entries/frame.ts',
-      "import { a } from '../core'",
-      'frame/ never imports ui/, transport/ or core/',
+      "import { a } from '../core/sdk'",
+      'entries/frame.ts runs in the frame',
     ],
     [
-      'module host',
-      'src/modules/ad/host.ts',
-      "import { a } from '../../frame'",
-      'never imports frame/',
+      'entries/frame to a host half',
+      'src/entries/frame.ts',
+      "import { a } from '../modules/ad/host'",
+      'registers frame halves',
     ],
+    ['a host half to frame/', 'src/modules/ad/host.ts', "import { a } from '../../frame/run'", OWN],
     [
-      'module host',
+      'a host half to its frame half',
       'src/modules/ad/host.ts',
       "import { a } from './frame'",
-      'never imports frame/',
+      "never imports a module's frame half",
     ],
+    ['a frame half to ui', 'src/modules/ad/frame.ts', "import { a } from '../../ui/x'", OWN],
+    ['a frame half to core', 'src/modules/ad/frame.ts', "import { a } from '../../core/sdk'", OWN],
     [
-      'module frame',
+      'a frame half to transport',
       'src/modules/ad/frame.ts',
-      "import { a } from '../../ui'",
-      'frame/ never imports ui/, transport/ or core/',
+      "import { a } from '../../transport/x'",
+      OWN,
     ],
     [
-      'module frame',
-      'src/modules/ad/frame.ts',
-      "import { a } from '../../core'",
-      'frame/ never imports ui/, transport/ or core/',
-    ],
-    [
-      'module frame',
+      'a frame half to its host half',
       'src/modules/ad/frame.ts',
       "import { a } from './host'",
-      'never imports a host half',
+      "never imports a module's host half",
     ],
     [
-      'module',
-      'src/modules/ad/host.ts',
-      "import { a } from '../other/host'",
-      'a module never imports another module',
+      'a shared file to a half',
+      'src/modules/ad/types.ts',
+      "import { a } from './host'",
+      'imports neither half',
     ],
     [
-      'module',
-      'src/modules/ad/frame.ts',
-      "import { a } from '../other/frame'",
-      'a module never imports another module',
-    ],
-    [
-      'module',
+      'a module to entries',
       'src/modules/ad/host.ts',
       "import { a } from '../../entries/index'",
-      'nothing imports entries/',
+      OWN,
     ],
-  ])('%s: %s', async (_layer, path, code, text) => {
-    await refused(path, `${code}\nvoid a\n`, text)
+  ])('%s', async (_name, path, code, text) => {
+    await refused(path, `${code}\nvoid a`, text)
+  })
+})
+
+// The regex rules these replace could be passed by how an import was spelled.
+describe('a module never imports another module, however it is written', () => {
+  it.each([
+    ['a plain sibling', 'src/modules/ad/host.ts', "import { a } from '../other/host'"],
+    ['through modules/', 'src/modules/ad/host.ts', "import { a } from '../../modules/other/host'"],
+    ['with a leading ./', 'src/modules/ad/host.ts', "import { a } from './../other/host'"],
+    ['from a nested folder', 'src/modules/ad/host/part.ts', "import { a } from '../../other/host'"],
+    [
+      'the other frame half',
+      'src/modules/ad/frame.ts',
+      "import { a } from '../../modules/other/frame'",
+    ],
+    ['a shared file', 'src/modules/ad/types.ts', "import { a } from '../other/types'"],
+  ])('%s', async (_name, path, code) => {
+    await refused(path, `${code}\nvoid a`, OTHER)
   })
 })
 
@@ -158,27 +199,33 @@ describe('layer map: allowed', () => {
     [
       'core takes transport, protocol and contract',
       'src/core/x.ts',
-      "import { a } from '../transport'\nimport { b } from '../protocol'\nimport type { SdkConfig } from '../contract'\nexport type C = SdkConfig\nvoid [a, b]",
+      "import { a } from '../transport'\nimport { b } from '../protocol'\nimport { c } from '../contract'\nvoid [a, b, c]",
     ],
     [
       'transport takes protocol and contract',
       'src/transport/x.ts',
-      "import { a } from '../protocol'\nimport type { SdkConfig } from '../contract'\nexport type C = SdkConfig\nvoid a",
+      "import { a } from '../protocol'\nvoid a",
     ],
     ['ui takes protocol', 'src/ui/x.ts', "import { a } from '../protocol'\nvoid a"],
-    [
-      'frame takes protocol and contract',
-      'src/frame/x.ts',
-      "import { a } from '../protocol'\nimport type { SdkConfig } from '../contract'\nexport type C = SdkConfig\nvoid a",
-    ],
+    ['frame takes protocol', 'src/frame/x.ts', "import { a } from '../protocol'\nvoid a"],
     ['frame files take each other', 'src/frame/x.ts', "import { a } from './meter'\nvoid a"],
     ['entries/index takes core', 'src/entries/index.ts', "import { a } from '../core'\nvoid a"],
     ['entries/cdn takes core', 'src/entries/cdn.ts', "import { a } from '../core'\nvoid a"],
     ['entries/frame takes frame', 'src/entries/frame.ts', "import { a } from '../frame'\nvoid a"],
     [
-      'entries takes modules',
+      'entries/index takes a module host half',
       'src/entries/index.ts',
       "import { a } from '../modules/ad/host'\nvoid a",
+    ],
+    [
+      'entries/cdn takes a module host half',
+      'src/entries/cdn.ts',
+      "import { a } from '../modules/ad/host'\nvoid a",
+    ],
+    [
+      'entries/frame takes a module frame half',
+      'src/entries/frame.ts',
+      "import { a } from '../modules/ad/frame'\nvoid a",
     ],
     [
       'a module host takes core, transport, ui and protocol',
@@ -193,15 +240,26 @@ describe('layer map: allowed', () => {
     [
       'a module takes its own files',
       'src/modules/ad/host.ts',
-      "import { a } from './types'\nvoid a",
+      "import { a } from './types'\nimport { b } from './host/part'\nvoid [a, b]",
+    ],
+    [
+      'a module half takes its own nested folder',
+      'src/modules/ad/frame.ts',
+      "import { a } from './frame/part'\nvoid a",
+    ],
+    [
+      'a shared file takes protocol and contract',
+      'src/modules/ad/types.ts',
+      "import { a } from '../../protocol'\nvoid a",
     ],
   ])('%s', async (_name, path, code) => {
     await allowed(path, code)
   })
 })
 
-describe('the network door', () => {
+describe('the network doors', () => {
   const call = "export const f = () => fetch('https://api.example.test')\n"
+  const NET = 'only transport/ and frame/sender.ts call the network'
 
   it.each([
     ['core', 'src/core/x.ts'],
@@ -210,29 +268,31 @@ describe('the network door', () => {
     ['a module', 'src/modules/ad/host.ts'],
     ['the frame outside its sender', 'src/frame/run.ts'],
   ])('refuses fetch in %s', async (_name, path) => {
-    await refused(path, call, 'only transport/ and frame/sender.ts call the network')
+    await refused(path, call, NET)
   })
 
-  it('refuses window.fetch and globalThis.fetch', async () => {
-    await refused('src/core/x.ts', 'export const f = () => window.fetch("x")\n', 'only transport/')
+  it.each([
+    ['window.fetch', 'window.fetch("x")'],
+    ['globalThis.fetch', 'globalThis.fetch("x")'],
+    ['a document view', 'document.defaultView?.fetch("x")'],
+    ['an element view', 'el.ownerDocument.defaultView?.fetch("x")'],
+    ['XMLHttpRequest', 'new XMLHttpRequest()'],
+    ['WebSocket', 'new WebSocket("wss://x")'],
+    ['EventSource', 'new EventSource("x")'],
+    ['new Image', 'new Image()'],
+    ['window.WebSocket', 'new window.WebSocket("wss://x")'],
+  ])('refuses %s outside the doors', async (_name, body) => {
     await refused(
       'src/core/x.ts',
-      'export const f = () => globalThis.fetch("x")\n',
-      'only transport/',
+      `declare const el: Element\nexport const f = () => { void el; return ${body} }\n`,
+      NET,
     )
   })
 
-  it('refuses sendBeacon and XMLHttpRequest', async () => {
-    await refused(
-      'src/core/x.ts',
-      'export const f = () => navigator.sendBeacon("x")\n',
-      'sendBeacon',
-    )
-    await refused(
-      'src/core/x.ts',
-      'export const f = () => new XMLHttpRequest()\n',
-      'only transport/',
-    )
+  it('refuses sendBeacon everywhere, the doors included', async () => {
+    for (const path of ['src/core/x.ts', 'src/transport/x.ts', 'src/frame/sender.ts']) {
+      await refused(path, 'export const f = () => navigator.sendBeacon("x")\n', 'sendBeacon')
+    }
   })
 
   it.each([
@@ -241,26 +301,81 @@ describe('the network door', () => {
   ])('allows fetch in %s', async (_name, path) => {
     await allowed(path, call)
   })
+
+  it('refuses a WebSocket in a door', async () => {
+    await refused('src/transport/x.ts', 'export const f = () => new WebSocket("x")\n', NET)
+  })
 })
 
-describe('untrusted strings', () => {
+describe('untrusted strings and addresses', () => {
+  const TEXT = 'text reaches the DOM as a text node'
+  const LINK = 'an address or a style is set only by createLink'
+
   it.each([
-    ['innerHTML', 'export const f = (el: Element, s: string) => { el.innerHTML = s }\n'],
-    ['outerHTML', 'export const f = (el: Element, s: string) => { el.outerHTML = s }\n'],
-    [
-      'insertAdjacentHTML',
-      'export const f = (el: Element, s: string) => el.insertAdjacentHTML("beforeend", s)\n',
-    ],
-    ['document.write', 'export const f = (s: string) => document.write(s)\n'],
-  ])('refuses %s on both sides', async (_name, code) => {
-    await refused('src/frame/x.ts', code, 'text reaches the DOM as a text node')
-    await refused('src/ui/x.ts', code, 'text reaches the DOM as a text node')
+    ['innerHTML', 'el.innerHTML = s'],
+    ['outerHTML', 'el.outerHTML = s'],
+    ['insertAdjacentHTML', 'el.insertAdjacentHTML("beforeend", s)'],
+    ['document.write', 'document.write(s)'],
+    ['write on a variable', 'el.write(s)'],
+    ['writeln', 'el.writeln(s)'],
+    ['srcdoc', 'el.srcdoc = s'],
+    ['setHTMLUnsafe', 'el.setHTMLUnsafe(s)'],
+    ['DOMParser', 'new DOMParser().parseFromString(s, "text/html")'],
+    ['createContextualFragment', 'el.createContextualFragment(s)'],
+  ])('refuses %s on both sides', async (_name, body) => {
+    const code = `declare const el: any, s: string\nexport const f = () => { void el; ${body} }\n`
+    await refused('src/frame/x.ts', code, TEXT)
+    await refused('src/ui/x.ts', code, TEXT)
   })
 
-  it('allows textContent and text nodes', async () => {
+  it.each([
+    ['href', 'el.setAttribute("href", s)'],
+    ['src', 'el.setAttribute("src", s)'],
+    ['srcdoc', 'el.setAttribute("srcdoc", s)'],
+    ['style', 'el.setAttribute("style", s)'],
+    ['an on handler', 'el.setAttribute("onclick", s)'],
+    ['a name held in a variable', 'el.setAttribute(name, s)'],
+  ])('refuses setAttribute for %s', async (_name, body) => {
+    const code = `declare const el: any, s: string, name: string\nexport const f = () => { void name; ${body} }\n`
+    await refused('src/frame/x.ts', code, LINK)
+    await refused('src/modules/ad/host.ts', code, LINK)
+  })
+
+  it.each([
+    ['href', 'x.href = s'],
+    ['src', 'x.src = s'],
+    ['srcdoc', 'x.srcdoc = s'],
+  ])('refuses an assignment to the %s property', async (_name, body) => {
+    const code = `declare const x: any, s: string\nexport const f = () => { ${body} }\n`
+    await refused('src/frame/x.ts', code, 'an address is set only by createLink')
+    await refused('src/modules/ad/host.ts', code, 'an address is set only by createLink')
+  })
+
+  it('allows an on-handler property such as port.onmessage', async () => {
     await allowed(
       'src/frame/x.ts',
-      'export const f = (el: Element, s: string) => { el.textContent = s }\n',
+      'export const f = (port: MessagePort) => { port.onmessage = () => undefined }\n',
+    )
+  })
+
+  it('allows textContent, text nodes and a plain attribute', async () => {
+    await allowed(
+      'src/frame/x.ts',
+      'export const f = (el: Element, s: string) => { el.textContent = s; el.setAttribute("title", s) }\n',
+    )
+  })
+
+  it.each([
+    ['frame/dom.ts', 'src/frame/dom.ts', 'href'],
+    ['the frame renderer', 'src/ui/frame-renderer.ts', 'src'],
+  ])('lets %s set an address', async (_name, path, attribute) => {
+    await allowed(
+      path,
+      `export const f = (el: Record<string, string>, s: string) => { el.${attribute} = s }\n`,
+    )
+    await allowed(
+      path,
+      `export const f = (el: Element, s: string) => { el.setAttribute("${attribute}", s) }\n`,
     )
   })
 })

@@ -88,6 +88,40 @@ test.describe('a guest under a strict policy', () => {
       'allow-same-origin',
       'allow-scripts',
     ])
-    expect(await iframe.getAttribute('title')).not.toBe('')
+    // The title is the module's: the kernel holds no text of its own.
+    expect(await iframe.getAttribute('title')).toBe('Fixture unit')
+  })
+
+  test('a second tag does nothing: one kernel, one frame', async ({ page }) => {
+    const pageErrors: string[] = []
+    page.on('pageerror', (error) => pageErrors.push(error.message))
+    await page.goto(`${LISTED_ORIGIN}/twice.html`)
+    await expect(page.locator('[data-sdk-slot] iframe')).toHaveCSS('height', '120px')
+    await settle(page)
+    await expect(page.locator('iframe')).toHaveCount(1)
+    await expect(page.locator('[data-sdk-slot] > div')).toHaveCount(1)
+    expect(pageErrors).toEqual([])
+  })
+
+  test('a global of the page under the SDK name survives, with no error on the page', async ({
+    page,
+  }) => {
+    const pageErrors: string[] = []
+    page.on('pageerror', (error) => pageErrors.push(error.message))
+    await page.goto(`${LISTED_ORIGIN}/blank.html`)
+    await page.evaluate((src) => {
+      ;(window as unknown as Record<string, unknown>)['__SDK_GLOBAL__'] = { page: 'own' }
+      const script = document.createElement('script')
+      script.src = src
+      script.setAttribute('data-key', 'pk_e2e_listed')
+      document.head.appendChild(script)
+      return new Promise<void>((done) => script.addEventListener('load', () => done()))
+    }, LOADER_URL)
+    await settle(page)
+    expect(
+      await page.evaluate(() => (window as unknown as Record<string, unknown>)['__SDK_GLOBAL__']),
+    ).toEqual({ page: 'own' })
+    await expect(page.locator('iframe')).toHaveCount(0)
+    expect(pageErrors).toEqual([])
   })
 })

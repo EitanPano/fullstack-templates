@@ -1,6 +1,6 @@
 import { EVENT_NAMES } from '../protocol'
 
-import type { SdkEvent, SdkEventHandler, SdkEventName, Unsubscribe } from './types'
+import type { ModuleBus, SdkEvent, SdkEventHandler, SdkEventName, Unsubscribe } from './types'
 
 const noop: Unsubscribe = () => undefined
 
@@ -33,3 +33,37 @@ export function createBus() {
 }
 
 export type Bus = ReturnType<typeof createBus>
+
+/**
+ * The bus modules meet on: topics and data, no lookup of another module. A handler that throws
+ * does not stop the others and never reaches the emitter. `close` ends it with the instance.
+ */
+export function createModuleBus(): ModuleBus & { close(): void } {
+  const topics = new Map<string, Set<(data: unknown) => void>>()
+  let closed = false
+  return {
+    emit(topic, data) {
+      if (closed) return
+      for (const handler of [...(topics.get(topic) ?? [])]) {
+        try {
+          handler(data)
+        } catch {
+          // A module's handler failing is that module's: it never stops the next.
+        }
+      }
+    },
+    on(topic, handler) {
+      if (closed || typeof handler !== 'function') return noop
+      const set = topics.get(topic) ?? new Set()
+      set.add(handler)
+      topics.set(topic, set)
+      return () => {
+        set.delete(handler)
+      }
+    },
+    close() {
+      closed = true
+      topics.clear()
+    },
+  }
+}

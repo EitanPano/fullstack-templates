@@ -5,3 +5,4 @@ etc
 .tmp
 .git
 **/*.map
+.env*

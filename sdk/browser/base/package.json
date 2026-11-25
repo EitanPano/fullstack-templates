@@ -44,17 +44,17 @@
     "pack:lint": "node scripts/pack-lint.mjs",
     "size": "node scripts/size.mjs",
     "test": "vitest run",
-    "test:e2e": "bun run build:e2e && playwright test",
+    "test:e2e": "bun run build && bun run build:e2e && playwright test",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "sdk": {
     "sizeBudget": {
-      "dist/index.js": 10500,
-      "dist/index.cjs": 10500,
-      "dist/cdn/v1/loader.js": 6000,
-      "dist/cdn/v1/frame.js": 5500,
-      "dist/cdn/v1/frame.html": 300
+      "dist/index.js": 12500,
+      "dist/index.cjs": 12700,
+      "dist/cdn/v{major}/loader.js": 7000,
+      "dist/cdn/v{major}/frame.js": 7150,
+      "dist/cdn/v{major}/frame.html": 300
     }
   },
   "devDependencies": {
@@ -66,6 +66,8 @@
     "@types/node": "24.19.2",
     "ajv": "8.20.0",
     "eslint": "9.39.5",
+    "eslint-import-resolver-typescript": "4.4.5",
+    "eslint-plugin-boundaries": "7.4.2",
     "jsdom": "31.0.0",
     "prettier": "3.9.10",
     "publint": "0.3.25",

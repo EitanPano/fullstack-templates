@@ -1,4 +1,4 @@
-import { isConsentState, parseTheme, type ConsentState, type Theme } from '../protocol'
+import { isConsentState, isKey, parseTheme, type ConsentState, type Theme } from '../protocol'
 import type { SdkConfig } from '../contract'
 
 import type { InitOptions } from './types'
@@ -10,8 +10,6 @@ export type ResolvedConfig = {
   consent: ConsentState | undefined
 }
 
-const KEY = /^[A-Za-z0-9_-]{1,200}$/
-
 /** Checks what the host passed. A bad option is reported by the caller, never thrown. */
 export function resolveConfig(
   options: unknown,
@@ -19,8 +17,8 @@ export function resolveConfig(
 ): ResolvedConfig | string {
   if (typeof options !== 'object' || options === null) return 'init needs an options object'
   const raw = options as Partial<InitOptions>
-  if (typeof raw.key !== 'string' || !KEY.test(raw.key)) {
-    return 'init needs a key of letters, digits, _ and -'
+  if (!isKey(raw.key)) {
+    return 'init needs a key of letters, digits, _, . and -, 128 at most'
   }
   const origin = raw.apiOrigin ?? defaultApiOrigin
   if (!origin) return 'init needs an apiOrigin: this build has no default'

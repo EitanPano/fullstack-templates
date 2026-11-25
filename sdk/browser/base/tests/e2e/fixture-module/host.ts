@@ -21,15 +21,18 @@ export function fixtureHost(options: FixtureOptions): HostModule {
       const renderer = createFrameRenderer({
         apiOrigin: ctx.apiOrigin,
         key: ctx.key,
+        module: 'fixture',
+        title: 'Fixture unit',
         major,
         theme: ctx.theme,
         // Not the block's own height, so a test can tell the frame's report from the placeholder.
         placeholderHeight: 60,
-        onEvent: ({ name, occlusion, message }) =>
+        onEvent: ({ name, occlusion, message, module }) =>
           ctx.emit({
             name,
             ...(occlusion ? { occlusion } : {}),
             ...(message ? { message } : {}),
+            ...(module ? { module } : {}),
           }),
         onReady() {
           renderer.setConsent(ctx.consent())

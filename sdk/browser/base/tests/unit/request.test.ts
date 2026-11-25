@@ -70,4 +70,30 @@ describe('telemetry buffer', () => {
     window.dispatchEvent(new Event('pagehide'))
     expect(send).not.toHaveBeenCalled()
   })
+
+  it('drops an item that cannot be serialised and sends the rest, without throwing', () => {
+    const { send, buffer } = setup()
+    const circular: Record<string, unknown> = {}
+    circular['self'] = circular
+    buffer.push({ n: 1 })
+    buffer.push(circular)
+    buffer.push({ big: 1n })
+    buffer.push({ n: 2 })
+    expect(() => window.dispatchEvent(new Event('pagehide'))).not.toThrow()
+    expect(send).toHaveBeenCalledWith([{ n: 1 }, { n: 2 }])
+    buffer.dispose()
+  })
+
+  it('measures a batch in UTF-8 bytes', () => {
+    const { send, buffer } = setup()
+    // 3 bytes per character, 1 UTF-16 unit each: 40 of these are 120 000 bytes.
+    for (let i = 0; i < 40; i += 1) buffer.push({ t: '€'.repeat(1000) })
+    window.dispatchEvent(new Event('pagehide'))
+    for (const call of send.mock.calls) {
+      const bytes = new TextEncoder().encode(JSON.stringify(call[0])).length
+      expect(bytes).toBeLessThan(60_000)
+    }
+    expect(send).toHaveBeenCalled()
+    buffer.dispose()
+  })
 })

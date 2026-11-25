@@ -41,6 +41,9 @@ export default defineConfig({
   testDir: './tests/e2e',
   testMatch: '**/*.spec.ts',
   fullyParallel: true,
+  // The cap keeps WebKit's browser process alive on a laptop: with a worker per core it was seen to
+  // drop its connection mid-run ("Target page, context or browser has been closed").
+  workers: 6,
   forbidOnly: true,
   retries: 0,
   reporter: 'list',

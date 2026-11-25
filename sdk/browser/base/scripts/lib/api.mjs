@@ -69,13 +69,3 @@ export function runApi({ root, update }) {
   }
   return existsSync(committed) && lf(readFileSync(committed, 'utf8')) === current
 }
-
-if (import.meta.main) {
-  const update = process.argv.includes('--update')
-  const ok = runApi({ root: process.cwd(), update })
-  if (!ok)
-    console.error(
-      'api: the public surface differs from etc/sdk.api.txt; run `bun run api:update` if it is intended',
-    )
-  process.exit(ok ? 0 : 1)
-}

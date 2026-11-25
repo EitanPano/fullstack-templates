@@ -1,8 +1,11 @@
+import { isModuleName } from './key'
 import { parseTheme, type Theme } from './theme'
 
-// The channel is a contract between a loader and a frame that may be built years apart. Within a
-// major the messages only gain optional fields; a guard keeps the fields it knows and drops the
-// rest. Nothing here carries a token or anything that proves a view (ADR 0020 F3).
+// The channel is a contract between a loader and a frame that may be built years apart.
+// `v` is the protocol's major and is fixed within a package major: a receiver drops a message of
+// another `v`. An addition is a new optional field or a new message type, which a receiver that
+// does not know it ignores; a guard keeps the fields it knows and drops the rest. Nothing here
+// carries a token or anything that proves a view (ADR 0020 F3).
 export const PROTOCOL_VERSION = 1
 export const HANDSHAKE_KIND = 'sdk-handshake'
 
@@ -13,12 +16,21 @@ export type ConsentState = 'granted' | 'denied'
 
 export type Handshake = { kind: typeof HANDSHAKE_KIND; v: number }
 
+/** What the frame says of a module's failure: a fixed code, never the module's own text. */
+export const MODULE_FAILED = 'module_failed'
+const CODE = /^[a-z][a-z0-9_]{0,39}$/
+export const isErrorCode = (value: unknown): value is string =>
+  typeof value === 'string' && CODE.test(value)
+
 export type FrameEventMessage = {
   v: number
   type: 'event'
   name: SdkEventName
   occlusion?: Occlusion
+  /** On `error`: a fixed code (`module_failed`), not free text. */
   message?: string
+  /** On `error`: the module the code is about. */
+  module?: string
 }
 
 export type HostMessage =
@@ -34,7 +46,6 @@ export type FrameMessage =
   | { v: number; type: 'module'; name: string; payload: unknown }
 
 const MAX_HEIGHT = 10_000
-const MAX_TEXT = 200
 
 const isRecord = (data: unknown): data is Record<string, unknown> =>
   typeof data === 'object' && data !== null && !Array.isArray(data)
@@ -88,10 +99,14 @@ export function parseFrameMessage(data: unknown): FrameMessage | null {
           ? { v, type: 'event', name: 'viewed', occlusion: data.occlusion }
           : null
       }
-      const message = typeof data.message === 'string' ? data.message.slice(0, MAX_TEXT) : undefined
-      return message === undefined
-        ? { v, type: 'event', name: data.name }
-        : { v, type: 'event', name: data.name, message }
+      // Free text never crosses from the frame: only a code of the kernel's own shape.
+      return {
+        v,
+        type: 'event',
+        name: data.name,
+        ...(isErrorCode(data.message) ? { message: data.message } : {}),
+        ...(isModuleName(data.module) ? { module: data.module } : {}),
+      }
     }
     case 'module':
       return typeof data.name === 'string' && data.name

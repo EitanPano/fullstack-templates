@@ -6,6 +6,7 @@ export type {
   HostContext,
   HostModule,
   InitOptions,
+  ModuleBus,
   Occlusion,
   SdkEvent,
   SdkEventHandler,

@@ -1,4 +1,4 @@
-# __PROJECT_NAME__-sdk
+# **PROJECT_NAME**-sdk
 
 An embeddable browser SDK. It asks the API for content, draws it in a frame from the API's
 origin and reports `rendered`, `viewed`, `clicked` and `error` back to your page.
@@ -37,8 +37,12 @@ use the tag with `src`.
 
 ## Good to know
 
-- The SDK adds one container and one iframe to your page and no style, markup or listener
-  beyond them. It never throws into your code: a failure reaches your `error` handler.
+- The SDK adds one container and one iframe to your page and no style or markup. It adds no
+  listener while idle; once consent is granted and something is tracked it listens to
+  `visibilitychange` and `pagehide` to send that telemetry. It never throws into your code: a
+  failure reaches your `error` handler. Calls the unit's frame makes to the API come from the
+  API's origin, never yours, and what the frame holds does not reach your page.
+- It uses one global and leaves a name your page already uses alone; a second tag does nothing.
 - Keep the unit's element where it is when your page re-renders: a moved iframe reloads.
 - The browser logs a blocked or refused request in the console. The SDK cannot hide that line.
 - The server can turn the SDK off: nothing is drawn then, and nothing changes on your page.

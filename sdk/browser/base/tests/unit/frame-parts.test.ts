@@ -251,3 +251,102 @@ describe('frame sender', () => {
     sender.dispose()
   })
 })
+
+describe('frame request', () => {
+  const make = (fetchImpl: (...args: unknown[]) => Promise<Response>) => {
+    const sender = createSender({
+      key: 'pk_a',
+      win: window,
+      allowed: () => false,
+      fetch: fetchImpl as unknown as typeof fetch,
+    })
+    return sender
+  }
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+
+  it('reads with a GET to its own origin, with the key header and no credentials', async () => {
+    const fetchImpl = vi.fn(async () => json({ token: 't' }))
+    const sender = make(fetchImpl)
+    await expect(sender.request('/api/sdk/v1/view')).resolves.toEqual({ token: 't' })
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe(`${window.location.origin}/api/sdk/v1/view`)
+    expect(init.method).toBe('GET')
+    expect(init.credentials).toBe('omit')
+    expect('cache' in init).toBe(false)
+    expect((init.headers as Record<string, string>)['X-Sdk-Key']).toBe('pk_a')
+    sender.dispose()
+  })
+
+  it('sends a body as a JSON POST, and consent does not stop it', async () => {
+    const fetchImpl = vi.fn(async () => json({ ok: true }))
+    const sender = make(fetchImpl)
+    await sender.request('/api/sdk/v1/view', { token: 't' })
+    const [, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]
+    expect(init.method).toBe('POST')
+    expect(init.body).toBe('{"token":"t"}')
+    sender.dispose()
+  })
+
+  it.each([
+    '/api/other',
+    '/api/sdk',
+    '/api/sdk/../secret',
+    '/api/sdk/%2e%2e/secret',
+    '//evil.test/api/sdk/v1/x',
+    'https://evil.test/api/sdk/v1/x',
+    '',
+  ])('refuses the path %j with bad_path and no request', async (path) => {
+    const fetchImpl = vi.fn(async () => json({}))
+    const sender = make(fetchImpl)
+    await expect(sender.request(path)).rejects.toThrow(/^bad_path$/)
+    expect(fetchImpl).not.toHaveBeenCalled()
+    sender.dispose()
+  })
+
+  it('rejects a non-2xx with status_<n> and no server text', async () => {
+    const sender = make(async () => new Response('secret detail', { status: 403 }))
+    await expect(sender.request('/api/sdk/v1/view')).rejects.toThrow(/^status_403$/)
+    sender.dispose()
+  })
+
+  it('rejects a failed network call with network', async () => {
+    const sender = make(async () => Promise.reject(new TypeError('boom: host detail')))
+    await expect(sender.request('/api/sdk/v1/view')).rejects.toThrow(/^network$/)
+    sender.dispose()
+  })
+
+  it('resolves undefined for a 204 and for an empty body', async () => {
+    const sender = make(async () => new Response(null, { status: 204 }))
+    await expect(sender.request('/api/sdk/v1/view', {})).resolves.toBeUndefined()
+    sender.dispose()
+    const empty = make(async () => new Response('', { status: 200 }))
+    await expect(empty.request('/api/sdk/v1/view')).resolves.toBeUndefined()
+    empty.dispose()
+  })
+
+  it('rejects with timeout when the body stalls', async () => {
+    vi.useFakeTimers()
+    const stalled = new Response(new ReadableStream({ start: () => undefined }), { status: 200 })
+    const sender = make(async () => stalled)
+    const result = expect(sender.request('/api/sdk/v1/view')).rejects.toThrow(/^timeout$/)
+    await vi.advanceTimersByTimeAsync(3001)
+    await result
+    sender.dispose()
+  })
+
+  it('aborts a call in flight on dispose', async () => {
+    let signal: AbortSignal | null | undefined
+    const sender = make(
+      (_url, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          signal = (init as RequestInit).signal
+          signal?.addEventListener('abort', () => reject(new DOMException('a', 'AbortError')))
+        }),
+    )
+    const result = expect(sender.request('/api/sdk/v1/view')).rejects.toThrow(/^network$/)
+    sender.dispose()
+    await result
+    expect(signal?.aborted).toBe(true)
+  })
+})

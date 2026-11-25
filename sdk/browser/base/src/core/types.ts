@@ -7,8 +7,10 @@ export type SdkEvent = {
   name: SdkEventName
   /** On `viewed`: whether the visibility checks beyond the viewport ratio could run. */
   occlusion?: Occlusion
-  /** On `error`: a short text, never a stack. */
+  /** On `error`: a short text from the kernel, or a fixed code from the frame (`module_failed`). */
   message?: string
+  /** On `error` from a module's frame half: the module the code is about. */
+  module?: string
 }
 
 export type SdkEventHandler = (event: SdkEvent) => void
@@ -33,6 +35,13 @@ export type HostContext = {
   onConsent(handler: (state: ConsentState) => void): Unsubscribe
   emit(event: SdkEvent): void
   track(item: unknown): void
+  /** How modules meet: a topic and its data. Inside the error boundary; ends with `destroy`. */
+  bus: ModuleBus
+}
+
+export type ModuleBus = {
+  emit(topic: string, data?: unknown): void
+  on(topic: string, handler: (data: unknown) => void): Unsubscribe
 }
 
 /** A feature's host half. It returns its cleanup, run by `destroy`. */

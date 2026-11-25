@@ -4,7 +4,9 @@ An embeddable browser SDK ([ADR 0020](../../docs/adr/0020-sdk-kind.md)): other s
 `<script>` tag or install it from npm. It reads a kill switch from the server's `/api/sdk/v1/config`,
 draws units in a sandboxed iframe from the API's origin and reports `rendered`, `viewed`, `clicked`
 and `error` to the host page. No runtime dependency; no module ships (a feature is added with the
-recipe in the package's `AGENTS.md › Adding a feature`).
+recipe in the package's `AGENTS.md › Adding a feature`). A module's frame half calls an entity the
+server mounts behind `frameOnly` with `context.request`, and sends telemetry with `context.track`;
+the lint refuses `href`, `src` and `srcdoc` set by `setAttribute` or by assignment.
 
 Generated with `--sdk <dir>=sdk/browser` beside any stack's API package; the harness names the
 directory `sdk-<name>`. The package is not a frontend: no static build, no brand, no screens. Its

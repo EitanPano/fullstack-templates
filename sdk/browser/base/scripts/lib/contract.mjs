@@ -42,7 +42,10 @@ function outsiders(dir) {
 }
 
 function generateWithTool(root) {
-  const bin = join(fileURLToPath(new URL('../node_modules/.bin/', import.meta.url)), 'openapi-ts')
+  const bin = join(
+    fileURLToPath(new URL('../../node_modules/.bin/', import.meta.url)),
+    'openapi-ts',
+  )
   execSync(`"${bin}"`, { cwd: root, stdio: 'inherit' })
 }
 
@@ -73,10 +76,4 @@ export async function runContract({ root, generate = generateWithTool }) {
     return { ok: false, message: `the contract tool failed: ${error.message}` }
   }
   return { ok: true, message: 'contract: only /api/sdk/ types written' }
-}
-
-if (import.meta.main) {
-  const { ok, message } = await runContract({ root: process.cwd() })
-  console[ok ? 'log' : 'error'](ok ? message : `contract: ${message}`)
-  process.exit(ok ? 0 : 1)
 }

@@ -1,9 +1,14 @@
 import {
+  MODULE_FAILED,
   PROTOCOL_VERSION,
+  isErrorCode,
+  isKey,
+  isModuleName,
   parseHostMessage,
   themeFromParams,
   type ConsentState,
   type FrameMessage,
+  type Occlusion,
   type SdkEventName,
   type Theme,
 } from '../protocol'
@@ -19,14 +24,27 @@ export type FrameContext = {
   key: string
   theme(): Theme
   consent(): ConsentState
-  /** `viewed` is the meter's alone: a module cannot claim a view. */
-  report(name: Exclude<SdkEventName, 'viewed'>, message?: string): void
+  /**
+   * `viewed` is the meter's alone: a module cannot claim a view. The host sees a fixed code
+   * only: a text that is not a code (`module_failed`, `load_failed`) is replaced by
+   * `module_failed`, so nothing the module holds reaches the host page.
+   */
+  report(name: Exclude<SdkEventName, 'viewed'>, code?: string): void
+  /**
+   * The meter's verdict, once, with the checks that ran. It starts when the module reports
+   * `rendered`, so what is measured is what is drawn. The proof of a view (a token) goes to the
+   * API from here through `request`; it never crosses the channel.
+   */
+  onView(handler: (occlusion: Occlusion) => void): void
   /** A message for this module's host half. */
   send(payload: unknown): void
   /** The messages the host half sends this module. */
   onMessage(handler: (payload: unknown) => void): void
   /** Telemetry from the frame itself, sent once consent allows. */
   track(item: unknown): void
+  /** A call to the API from the frame's own origin: how a module reaches an entity the server
+   *  mounts behind `frameOnly`. It is not telemetry and does not wait for consent. */
+  request(path: string, body?: unknown): Promise<unknown>
 }
 
 export type FrameModule = {
@@ -39,8 +57,6 @@ export type RunOptions = {
   modules: FrameModule[]
   fetch?: typeof fetch
 }
-
-const MAX_TEXT = 200
 
 type Body<T> = T extends unknown ? Omit<T, 'v'> : never
 
@@ -67,7 +83,10 @@ export function runFrame(options: RunOptions): { stop(): void } {
   const { win } = options
   const doc = win.document
   const params = new URLSearchParams(win.location.search)
-  const key = params.get('k') ?? ''
+  const rawKey = params.get('k')
+  const key = isKey(rawKey) ? rawKey : ''
+  // The one module this frame serves, named in its address by the host half that drew the frame.
+  const wanted = params.get('m')
   let theme = themeFromParams(params)
   let consent: ConsentState = 'denied'
   const cleanups: Array<() => void> = []
@@ -90,12 +109,19 @@ export function runFrame(options: RunOptions): { stop(): void } {
       const send = (message: Body<FrameMessage>) =>
         port.postMessage({ v: PROTOCOL_VERSION, ...message })
       const handlers = new Map<string, Array<(payload: unknown) => void>>()
-      const report = (name: Exclude<SdkEventName, 'viewed'>, message?: string) =>
-        send(
-          message === undefined
-            ? { type: 'event', name }
-            : { type: 'event', name, message: message.slice(0, MAX_TEXT) },
-        )
+      const viewHandlers: Array<(occlusion: Occlusion) => void> = []
+      const failed = (module: string) =>
+        send({
+          type: 'event',
+          name: 'error',
+          message: MODULE_FAILED,
+          ...(isModuleName(module) ? { module } : {}),
+        })
+      const report = (name: Exclude<SdkEventName, 'viewed'>, code?: string) => {
+        if (name === 'rendered') startMeter()
+        if (name !== 'error') return send({ type: 'event', name })
+        send({ type: 'event', name, message: isErrorCode(code) ? code : MODULE_FAILED })
+      }
 
       port.onmessage = (event) => {
         const message = parseHostMessage(event.data)
@@ -112,8 +138,8 @@ export function runFrame(options: RunOptions): { stop(): void } {
             for (const handler of handlers.get(message.name) ?? []) {
               try {
                 handler(message.payload)
-              } catch (error) {
-                report('error', error instanceof Error ? error.message : String(error))
+              } catch {
+                failed(message.name)
               }
             }
             break
@@ -131,31 +157,54 @@ export function runFrame(options: RunOptions): { stop(): void } {
       )
 
       cleanups.push(observeHeight({ win, report: (height) => send({ type: 'size', height }) }))
-      cleanups.push(
-        createMeter({
-          win,
-          target: mount,
-          onView: (occlusion) => send({ type: 'event', name: 'viewed', occlusion }),
-        }).stop,
-      )
 
-      for (const module of options.modules) {
-        try {
-          const cleanup = module.start({
-            mount,
-            key,
-            theme: () => theme,
-            consent: () => consent,
-            report,
-            send: (payload) => send({ type: 'module', name: module.name, payload }),
-            onMessage: (handler) =>
-              handlers.set(module.name, [...(handlers.get(module.name) ?? []), handler]),
-            track: sender.push,
-          })
-          if (typeof cleanup === 'function') cleanups.push(cleanup)
-        } catch (error) {
-          report('error', error instanceof Error ? error.message : String(error))
-        }
+      // The meter measures what is drawn, so it starts when the module says it has drawn.
+      let metering = false
+      function startMeter() {
+        if (metering) return
+        metering = true
+        cleanups.push(
+          createMeter({
+            win,
+            target: mount,
+            onView(occlusion) {
+              for (const handler of viewHandlers) {
+                try {
+                  handler(occlusion)
+                } catch {
+                  // A module's handler failing does not stop the report to the host.
+                }
+              }
+              send({ type: 'event', name: 'viewed', occlusion })
+            },
+          }).stop,
+        )
+      }
+
+      // One frame serves one module: the one the address names. An unknown or missing name starts
+      // nothing and says so with the fixed code.
+      const module = options.modules.find((candidate) => candidate.name === wanted)
+      if (!module) {
+        failed(wanted ?? '')
+        return
+      }
+      try {
+        const cleanup = module.start({
+          mount,
+          key,
+          theme: () => theme,
+          consent: () => consent,
+          report,
+          onView: (handler) => void viewHandlers.push(handler),
+          send: (payload) => send({ type: 'module', name: module.name, payload }),
+          onMessage: (handler) =>
+            handlers.set(module.name, [...(handlers.get(module.name) ?? []), handler]),
+          track: sender.push,
+          request: sender.request,
+        })
+        if (typeof cleanup === 'function') cleanups.push(cleanup)
+      } catch {
+        failed(module.name)
       }
     },
   })

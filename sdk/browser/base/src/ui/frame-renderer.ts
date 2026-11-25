@@ -1,6 +1,7 @@
 import {
   HANDSHAKE_KIND,
   PROTOCOL_VERSION,
+  isModuleName,
   parseFrameMessage,
   themeToParams,
   type ConsentState,
@@ -22,6 +23,7 @@ type Body =
   | { type: 'theme'; theme: Theme }
   | { type: 'consent'; state: ConsentState }
   | { type: 'module'; name: string; payload: unknown }
+  | { type: 'destroy' }
 
 const DEFAULT_PLACEHOLDER = 100
 const DEFAULT_HANDSHAKE_TIMEOUT_MS = 4000
@@ -87,15 +89,18 @@ export function createFrameRenderer(options: FrameRendererOptions): Renderer {
 
   return {
     mount(target) {
+      if (options.title.trim() === '') throw new Error('the renderer needs a title from the module')
+      if (!isModuleName(options.module)) throw new Error('the renderer needs its module name')
       const doc = target.ownerDocument
       const url = new URL(`/api/sdk/frame/v${options.major}`, options.apiOrigin)
       url.searchParams.set('k', options.key)
+      url.searchParams.set('m', options.module)
       for (const [name, value] of themeToParams(options.theme)) url.searchParams.set(name, value)
 
       container = doc.createElement('div')
       iframe = doc.createElement('iframe')
       iframe.setAttribute('sandbox', SANDBOX)
-      iframe.setAttribute('title', 'Sponsored content')
+      iframe.setAttribute('title', options.title)
       iframe.addEventListener('load', handshake)
       iframe.style.setProperty('display', 'block')
       iframe.style.setProperty('width', '100%')
@@ -123,6 +128,8 @@ export function createFrameRenderer(options: FrameRendererOptions): Renderer {
       send({ type: 'module', name, payload })
     },
     destroy() {
+      // The frame stops what it runs before its container goes.
+      send({ type: 'destroy' })
       clearTimeout(timer)
       port?.close()
       port = null

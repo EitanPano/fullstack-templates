@@ -16,6 +16,10 @@ export interface Renderer {
 export type RendererOptions = {
   apiOrigin: string
   key: string
+  /** The module this unit belongs to: its name goes in the frame's address. */
+  module: string
+  /** The iframe's accessible title, given by the module: the kernel holds no default text. */
+  title: string
   theme: Theme
   /** Height held before the frame reports its own, so nothing below the unit jumps. */
   placeholderHeight?: number

@@ -27,6 +27,16 @@ const policy = (frames) =>
 createServer(async (request, response) => {
   const path = new URL(request.url ?? '/', 'http://host.test').pathname
   if (path === '/favicon.ico') return void response.writeHead(204).end()
+  // The shipped loader, from the package's own build: the API serves the test build instead.
+  if (path === '/shipped/loader.js') {
+    try {
+      const file = join(here, '../../dist/cdn', `v${major}`, 'loader.js')
+      response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8' })
+      return void response.end(await readFile(file))
+    } catch {
+      return void response.writeHead(404).end()
+    }
+  }
   const name = path === '/' ? 'blank.html' : path.slice(1)
   if (!/^[a-z-]+\.html$/.test(name)) return void response.writeHead(404).end()
   try {

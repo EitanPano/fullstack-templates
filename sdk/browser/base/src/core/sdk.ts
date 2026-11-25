@@ -2,7 +2,7 @@ import { CONFIG_PATH, isConsentState } from '../protocol'
 import { createTransport, type Transport } from '../transport'
 
 import { isSdkConfig, resolveConfig, type ResolvedConfig } from './config'
-import { createBus } from './events'
+import { createBus, createModuleBus } from './events'
 import type {
   ConsentState,
   HostContext,
@@ -25,7 +25,13 @@ export type SdkDeps = {
   retryDelayMs?: number
 }
 
-type Instance = { transport: Transport; cleanups: Unsubscribe[]; generation: number }
+type Instance = {
+  transport: Transport
+  cleanups: Unsubscribe[]
+  generation: number
+  moduleBus: ReturnType<typeof createModuleBus>
+  consentHandlers: Set<(state: ConsentState) => void>
+}
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
 const defaultWindow = () => (typeof window === 'undefined' ? undefined : window)
@@ -36,7 +42,6 @@ const defaultWindow = () => (typeof window === 'undefined' ? undefined : window)
  */
 export function createSdk(deps: SdkDeps) {
   const bus = createBus()
-  const consentHandlers = new Set<(state: ConsentState) => void>()
   let consent: ConsentState = 'denied'
   let instance: Instance | null = null
   let generation = 0
@@ -66,11 +71,12 @@ export function createSdk(deps: SdkDeps) {
             theme: config.theme,
             consent: () => consent,
             onConsent(handler) {
-              consentHandlers.add(handler)
-              return () => consentHandlers.delete(handler)
+              current.consentHandlers.add(handler)
+              return () => current.consentHandlers.delete(handler)
             },
             emit: (event) => guard(() => bus.emit(event)),
             track: (item) => guard(() => current.transport.track(item)),
+            bus: current.moduleBus,
           }
           const cleanup = module.start(context)
           if (typeof cleanup === 'function') current.cleanups.push(cleanup)
@@ -98,7 +104,16 @@ export function createSdk(deps: SdkDeps) {
         ...(deps.retries === undefined ? {} : { retries: deps.retries }),
         ...(deps.retryDelayMs === undefined ? {} : { retryDelayMs: deps.retryDelayMs }),
       })
-      instance = { transport, cleanups: [transport.dispose], generation }
+      const moduleBus = createModuleBus()
+      const consentHandlers = new Set<(state: ConsentState) => void>()
+      instance = {
+        transport,
+        // The bus and the consent handlers end with the instance, and so does a read in flight.
+        cleanups: [transport.dispose, moduleBus.close, () => consentHandlers.clear()],
+        generation,
+        moduleBus,
+        consentHandlers,
+      }
       settled = start(instance, config)
     })
   }
@@ -124,7 +139,7 @@ export function createSdk(deps: SdkDeps) {
     guard(() => {
       if (!isConsentState(state)) return
       consent = state
-      for (const handler of [...consentHandlers]) guard(() => handler(state))
+      for (const handler of [...(instance?.consentHandlers ?? [])]) guard(() => handler(state))
     })
   }
 
@@ -136,6 +151,8 @@ export function createSdk(deps: SdkDeps) {
     version,
     /** For tests: resolves when the last `init` has read the kill switch and started its modules. */
     whenSettled: () => settled,
+    /** For the CDN entry, which has no instance yet: what went wrong reaches the host as `error`. */
+    report,
   }
 }
 

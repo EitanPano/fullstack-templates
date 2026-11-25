@@ -12,6 +12,8 @@ const make = (extra: Partial<FrameRendererOptions> = {}) => {
   const renderer = createFrameRenderer({
     apiOrigin: ORIGIN,
     key: 'pk_a',
+    module: 'unit',
+    title: 'A unit',
     major: 1,
     theme: { scheme: 'dark', accent: '#0a0' },
     placeholderHeight: 120,
@@ -50,6 +52,8 @@ describe('frame renderer', () => {
     createFrameRenderer({
       apiOrigin: ORIGIN,
       key: 'pk_a',
+      module: 'unit',
+      title: 'A unit',
       major: 1,
       theme: {},
       onEvent: vi.fn(),

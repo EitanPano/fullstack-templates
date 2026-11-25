@@ -23,7 +23,7 @@ commands:
 contract: { consumes: "<server>/openapi.json" }
 http: { port: 5190, health: / }
 cdn: { out: dist/cdn }
-gitignore: [node]
+gitignore: [node, sdk]
 agents: AGENTS.md
 defaultStack: react-bun-express
 postGenerate:

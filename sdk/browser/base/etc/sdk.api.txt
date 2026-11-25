@@ -32,6 +32,7 @@ export type SdkEvent = {
     name: SdkEventName;
     occlusion?: Occlusion;
     message?: string;
+    module?: string;
 };
 
 // public (undocumented)

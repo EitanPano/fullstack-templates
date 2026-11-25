@@ -16,7 +16,9 @@ type Guard = {
   }): Promise<{ ok: boolean; message: string }>
 }
 const load = async () =>
-  (await import(/* @vite-ignore */ pathToFileURL(join(base, 'scripts/contract.mjs')).href)) as Guard
+  (await import(
+    /* @vite-ignore */ pathToFileURL(join(base, 'scripts/lib/contract.mjs')).href
+  )) as Guard
 
 const operation = (id: string, schema: string) => ({
   get: {

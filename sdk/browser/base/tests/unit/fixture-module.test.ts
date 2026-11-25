@@ -19,7 +19,7 @@ const json = (body: unknown) =>
 let stopFrame: () => void = () => undefined
 
 beforeEach(() => {
-  window.history.replaceState({}, '', '/api/sdk/frame/v1?k=pk_a')
+  window.history.replaceState({}, '', '/api/sdk/frame/v1?k=pk_a&m=fixture')
   document.body.replaceChildren()
   document.body.appendChild(document.createElement('div')).setAttribute('data-slot', '')
 })
