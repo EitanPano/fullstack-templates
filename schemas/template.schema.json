@@ -26,7 +26,7 @@
       "pattern": "^[a-z][a-z0-9-]*$"
     },
     "kind": {
-      "enum": ["server", "serverless", "frontend", "worker"]
+      "enum": ["server", "serverless", "frontend", "sdk", "worker"]
     },
     "name": {
       "type": "string",
@@ -195,7 +195,7 @@
       },
       "propertyNames": {
         "not": {
-          "enum": ["server", "single", "frontend", "frontends", "serverless", "database", "cache", "messaging"]
+          "enum": ["server", "single", "sdk", "frontend", "frontends", "serverless", "database", "cache", "messaging"]
         }
       }
     },
@@ -282,9 +282,9 @@
     },
     "onlyWhen": {
       "type": "object",
-      "description": "Frontend only: what exists only while a selection of the plan is on. A key is server (the plan has a server package) or server:<name> for a flag or capability kind a server template declares. A value is a list of paths kept only while the selection is on, or an object with onlyPaths and the dependencies and scripts removed while it is off; every path must exist in base/, every removed name in the dependency manifest. Alone, the frontend has every server selection off.",
+      "description": "What exists only while a selection of the plan is on. A frontend takes server and server:<name>; a server or serverless template takes sdk (the plan holds an sdk package). A key is server (the plan has a server package) or server:<name> for a flag or capability kind a server template declares. A value is a list of paths kept only while the selection is on, or an object with onlyPaths and the dependencies and scripts removed while it is off; every path must exist in base/, every removed name in the dependency manifest. Alone, the frontend has every server selection off.",
       "propertyNames": {
-        "pattern": "^server(:[a-z][a-z0-9-]*)?$"
+        "pattern": "^(sdk|server(:[a-z][a-z0-9-]*)?)$"
       },
       "additionalProperties": {
         "oneOf": [
@@ -372,6 +372,17 @@
     "defaultStack": {
       "type": "string",
       "minLength": 1
+    },
+    "cdn": {
+      "type": "object",
+      "description": "Sdk only (the loader checks the kind): the directory the CDN build writes, which the API package serves (ADR 0020 N4).",
+      "additionalProperties": false,
+      "required": ["out"],
+      "properties": {
+        "out": {
+          "$ref": "#/$defs/relativePath"
+        }
+      }
     },
     "static": {
       "type": "object",

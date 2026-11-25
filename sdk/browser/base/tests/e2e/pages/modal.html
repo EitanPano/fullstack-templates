@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Host page</title>
+  </head>
+  <body>
+    <h1 data-heading>Host page</h1>
+    <button type="button" data-open>Open the dialog</button>
+    <button type="button" data-behind>A button behind it</button>
+    <div data-top></div>
+    <div data-place></div>
+    <script
+      async
+      src="{{api}}/api/sdk/dist/v{{major}}/loader.js"
+      data-key="{{key}}"
+      data-observe
+    ></script>
+  </body>
+</html>

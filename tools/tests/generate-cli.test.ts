@@ -212,3 +212,48 @@ describe('generate CLI: --deploy', () => {
     expect(run(['--bogus']).stderr).toContain('[--deploy single|split]')
   })
 })
+
+describe('generate CLI --sdk', () => {
+  const args = (out: string, ...more: string[]) => [
+    '--out',
+    out,
+    '--name',
+    'Demo',
+    '--catalog',
+    FIXTURE,
+    '--skip-post-generate',
+    ...more,
+  ]
+
+  test('adds the sdk package beside the stack and records it', () => {
+    const out = tempDir()
+    const result = run(['--stack', 'mini', '--sdk', 'sdk-x=sdk/mini-sdk', ...args(out)])
+    expect(result.status).toBe(0)
+    expect(existsSync(path.join(out, 'sdk-x', 'src', 'index.ts'))).toBe(true)
+    expect(result.stdout).toContain('cd sdk-x && bun ./ok.ts')
+    const record = parse(readFileSync(path.join(out, '.fullstack', 'catalog.yaml'), 'utf8')) as {
+      packages: Record<string, unknown>
+    }
+    expect(Object.keys(record.packages)).toEqual(['backend', 'frontend', 'sdk-x'])
+  })
+
+  test('names the reason when the request is refused', () => {
+    const twice = run([
+      '--stack',
+      'mini',
+      '--sdk',
+      'sdk-a=sdk/mini-sdk',
+      '--sdk',
+      'sdk-b=sdk/mini-sdk',
+      ...args(tempDir()),
+    ])
+    expect(twice.status).toBe(1)
+    expect(twice.stderr).toContain('--sdk is given twice')
+    const lone = run(['--sdk', 'sdk-x=sdk/mini-sdk', ...args(tempDir())])
+    expect(lone.stderr).toContain('--sdk needs --stack')
+  })
+
+  test('is listed in the usage text', () => {
+    expect(run(['--bogus']).stderr).toContain('[--sdk <dir>=<template>]')
+  })
+})

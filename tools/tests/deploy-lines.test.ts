@@ -20,9 +20,15 @@ function regions(text: string, name: string): string[] {
 }
 
 // AGENTS.md cannot carry a line marker inside a code block, and a lone server has no frontend
-// directory to substitute, so the document spells these two differently from the fragment.
+// directory to substitute, so the document spells these two differently from the fragment. It
+// shows the lines of a project without an SDK: an `@sdk` line is dropped, `@nosdk` is kept bare.
 const asDocumented = (text: string) =>
-  text.replaceAll(/ # @server$/gm, '').replaceAll('__FRONTEND_DIR__', '<frontend dir>')
+  text
+    .split('\n')
+    .filter((line) => !line.endsWith(' # @sdk'))
+    .join('\n')
+    .replaceAll(/ # @(server|nosdk)$/gm, '')
+    .replaceAll('__FRONTEND_DIR__', '<frontend dir>')
 
 // Each `AGENTS.md › Deployment` must hold, verbatim, every line its template switches by mode, so
 // an agent can move a generated project (which has only its own mode's lines) to the other mode.

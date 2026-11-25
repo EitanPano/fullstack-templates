@@ -1,0 +1,77 @@
+[data-module='fixture-modal'] {
+  box-sizing: border-box;
+  width: 420px;
+  max-width: 100%;
+}
+
+[data-module='fixture-modal'] [data-fixture-modal-panel] {
+  box-sizing: border-box;
+  padding: calc(var(--sdk-space) * 6);
+  background: var(--sdk-surface);
+  color: var(--sdk-text);
+  border: 1px solid var(--sdk-border);
+  border-radius: var(--sdk-radius);
+  font-size: 16px;
+}
+
+[data-module='fixture-modal'] h2 {
+  margin: 0 0 calc(var(--sdk-space) * 4);
+  font-size: 20px;
+}
+
+[data-module='fixture-modal'] label {
+  display: block;
+  margin-bottom: calc(var(--sdk-space) * 2);
+}
+
+[data-module='fixture-modal'] input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 calc(var(--sdk-space) * 3);
+  background: var(--sdk-surface);
+  color: var(--sdk-text);
+  border: 1px solid var(--sdk-border);
+  border-radius: var(--sdk-radius);
+  font: inherit;
+}
+
+[data-module='fixture-modal'] input[aria-invalid='true'] {
+  border-width: 2px;
+  border-color: var(--sdk-accent);
+}
+
+[data-module='fixture-modal'] p {
+  margin: calc(var(--sdk-space) * 2) 0 0;
+  color: var(--sdk-text);
+}
+
+[data-module='fixture-modal'] [data-fixture-modal-panel] div {
+  display: flex;
+  gap: calc(var(--sdk-space) * 3);
+  margin-top: calc(var(--sdk-space) * 4);
+}
+
+[data-module='fixture-modal'] button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 calc(var(--sdk-space) * 4);
+  background: var(--sdk-surface);
+  color: var(--sdk-text);
+  border: 1px solid var(--sdk-border);
+  border-radius: var(--sdk-radius);
+  font: inherit;
+}
+
+[data-module='fixture-modal'] button[type='submit'] {
+  background: var(--sdk-accent);
+  color: var(--sdk-surface);
+  border-color: var(--sdk-accent);
+}
+
+/* Under 480 px the panel takes the whole width the frame leaves it. */
+@media (max-width: 480px) {
+  [data-module='fixture-modal'] {
+    width: 100%;
+  }
+}

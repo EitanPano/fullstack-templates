@@ -1,0 +1,32 @@
+schemaVersion: 1
+id: browser
+kind: sdk
+name: Browser SDK
+version: 1.0.0
+summary: "Embeddable browser SDK: units a host page mounts in place, by a call or by markup, or opens as a modal, each drawn in a sandboxed iframe from the API's origin with a stylesheet of its own; a kernel with an error boundary, a kill switch and consent; three outputs (npm ESM and CJS, a CDN loader, the frame) and size, API-report, tarball and screens gates"
+runtime: { language: typescript, platform: node, minVersion: "24" }
+tools:
+  - { name: bun, min: "1.4" }
+  - { name: node, min: "24" }
+placeholders: [PROJECT_NAME]
+dependencies: { manifest: package.json, adapter: npm }
+commands:
+  install: bun install
+  dev: bun run dev
+  check: bun run check
+  typecheck: bun run typecheck
+  lint: bun run lint
+  format: bun run format
+  test: bun run test
+  testE2e: bun run test:e2e
+  contract: bun run api:types
+contract: { consumes: "<server>/openapi.json" }
+http: { port: 5190, health: / }
+cdn: { out: dist/cdn }
+gitignore: [node, sdk]
+agents: AGENTS.md
+defaultStack: react-bun-express
+postGenerate:
+  - install
+  - contract
+  - format

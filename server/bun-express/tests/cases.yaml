@@ -19,3 +19,10 @@ cases:
     stack: next-bun-express
     flags: { auth: false }
     capabilities: { database: postgres }
+  # The SDK beside the stack's frontend (ADR 0020): the image carries its build, and the app smoke
+  # asks for the loader and the frame, on the server in single and through the proxy in split.
+  - { name: sdk, stack: react-bun-express, sdk: "sdk-example=sdk/browser", withApp: true }
+  - { name: sdk-split, stack: react-bun-express, sdk: "sdk-example=sdk/browser", deploy: split, withApp: true }
+  # With the database the store seam refuses a non-test database, so a suite that only needs the
+  # cache cleared must not reset the store (found by the plan 033 proof).
+  - { name: sdk-postgres, stack: react-bun-express, sdk: "sdk-example=sdk/browser", capabilities: { database: postgres } }

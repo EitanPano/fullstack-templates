@@ -122,3 +122,89 @@ class TestAdminBoundaries:
 
         assert code != 0
         assert "app.api.admin.lead.routes -> app.api.admin.lead.service" in output
+# @sdk-start
+
+
+SDK_LEAD = {
+    name.replace("admin", "sdk"): text.replace("app.api.admin", "app.api.sdk")
+    for name, text in LEAD.items()
+}
+SDK_MOUNT = MOUNT.replace("app.api.admin", "app.api.sdk")
+SDK_MOUNT_FILE = "app/api/sdk/routes.py"
+
+
+class TestSdkBoundaries:
+    """`api/sdk/<entity>/` is an entity like any other, beside `api/admin/<entity>/`."""
+
+    def test_the_shipped_sdk_entities_follow_the_entity_rules(self, tmp_path: Path) -> None:
+        code, output = lint(tmp_path, add={}, append={})
+
+        assert code == 0, output
+
+    def test_an_sdk_entity_following_the_entity_rules_passes(self, tmp_path: Path) -> None:
+        code, output = lint(tmp_path, add=SDK_LEAD, append={SDK_MOUNT_FILE: SDK_MOUNT})
+
+        assert code == 0, output
+
+    def test_a_top_level_entity_importing_an_sdk_service_fails(self, tmp_path: Path) -> None:
+        entity = "\nfrom app.api.sdk.lead import service as sdk_service\n\nSERVICE = sdk_service\n"
+        code, output = lint(
+            tmp_path,
+            add=SDK_LEAD,
+            append={SDK_MOUNT_FILE: SDK_MOUNT, "app/api/entity/controller.py": entity},
+        )
+
+        assert code != 0
+        assert "app.api.entity.controller -> app.api.sdk.lead.service" in output
+
+    def test_an_sdk_entity_importing_an_entity_service_fails(self, tmp_path: Path) -> None:
+        sdk = "\nfrom app.api.entity import service as entity_service\n\nSERVICE = entity_service\n"
+        code, output = lint(
+            tmp_path,
+            add=SDK_LEAD,
+            append={SDK_MOUNT_FILE: SDK_MOUNT, "app/api/sdk/lead/controller.py": sdk},
+        )
+
+        assert code != 0
+        assert "app.api.sdk.lead.controller -> app.api.entity.service" in output
+
+    def test_an_sdk_entity_importing_another_sdk_service_fails(self, tmp_path: Path) -> None:
+        other = {
+            "app/api/sdk/other/__init__.py": "",
+            "app/api/sdk/other/controller.py": (
+                "from app.api.sdk.lead import service\n\nSERVICE = service\n"
+            ),
+        }
+        code, output = lint(tmp_path, add={**SDK_LEAD, **other}, append={SDK_MOUNT_FILE: SDK_MOUNT})
+
+        assert code != 0
+        assert "app.api.sdk.other.controller -> app.api.sdk.lead.service" in output
+
+    def test_an_sdk_entity_importing_an_admin_service_fails(self, tmp_path: Path) -> None:
+        sdk = (
+            "\nfrom app.api.admin.lead import service as admin_service\n\nSERVICE = admin_service\n"
+        )
+        code, output = lint(
+            tmp_path,
+            add={**LEAD, **SDK_LEAD},
+            append={
+                MOUNT_FILE: MOUNT,
+                SDK_MOUNT_FILE: SDK_MOUNT,
+                "app/api/sdk/lead/controller.py": sdk,
+            },
+        )
+
+        assert code != 0
+        assert "app.api.sdk.lead.controller -> app.api.admin.lead.service" in output
+
+    def test_an_sdk_entity_follows_the_direction_rules_of_its_files(self, tmp_path: Path) -> None:
+        routes = "\nfrom app.api.sdk.lead import service as own_service\n\nSERVICE = own_service\n"
+        code, output = lint(
+            tmp_path,
+            add=SDK_LEAD,
+            append={SDK_MOUNT_FILE: SDK_MOUNT, "app/api/sdk/lead/routes.py": routes},
+        )
+
+        assert code != 0
+        assert "app.api.sdk.lead.routes -> app.api.sdk.lead.service" in output
+# @sdk-end

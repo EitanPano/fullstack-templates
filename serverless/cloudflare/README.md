@@ -8,7 +8,7 @@ and no account is needed. The shape is [ADR 0014](../../docs/adr/0014-astro-clou
 alone (`--template serverless/cloudflare`, in `serverless/cloudflare/`) or as the API of a stack with
 a frontend; it is then the plan's server for everything the frontend keys on.
 
-This version (2.0.0) has no accounts (every endpoint is public) and no `auth` flag.
+This template has no accounts (every endpoint is public) and no `auth` flag.
 
 ## Layout
 
@@ -18,8 +18,8 @@ This version (2.0.0) has no accounts (every endpoint is public) and no `auth` fl
   request flow, the import rules and the rules for entities that can move out, the contract,
   `static/` and `assemble`, the deployment by a person, "Moving from Pages Functions", "Scaling out"
   and the migration of an existing Pages site), the committed `openapi.json` and `bun.lock`.
-- `tests/cases.yaml`: the generated variants the catalog gates (`default`, `jobs`), each the template
-  alone.
+- `tests/cases.yaml`: the generated variants the catalog gates (`default`, `jobs`, `two-templates`,
+  `sdk`).
 
 ## What a generated package is
 
@@ -56,6 +56,27 @@ Behind `/api`: `GET /api/health`, `GET /api/health/ready` (pings D1) and the ref
   on the Worker's own entry.
 - **`jobs` flag (off).** A cron trigger and a `scheduled` handler in the same Worker that delete
   expired rate-limit rows.
+
+## With an SDK
+
+When the plan holds an `sdk` package ([ADR 0020](../../docs/adr/0020-sdk-kind.md); generate with
+`--sdk <dir>=<template>`), the Worker also serves it. Without one none of this exists in the
+generated package.
+
+- `/api/sdk/v1/`: the public, cross-origin namespace, `server/api/sdk/<entity>/`. One gate runs first:
+  CORS for the namespace alone (the origin is echoed when the key lists it; never credentials), the
+  `X-Sdk-Key` key (resolved once to `{ origins, enabled }`; a product swaps in a cached lookup), then a rate
+  limit by key and by address. `GET /api/sdk/v1/config` answers `{ enabled }`, the kill switch;
+  `POST /api/sdk/v1/telemetry` takes the frame's events (204). A body is at most 64 KB.
+- `GET|HEAD /api/sdk/dist/v<major>/<file>.js` and `.css`: the SDK's build, with no key and a
+  five-minute cache.
+- `GET /api/sdk/frame/v<major>?k=<key>`: the frame document, framed only by the key's origins.
+- `assemble` puts the SDK's build under `dist/api/sdk/`. The Worker answers every `/api/*` request
+  before the platform's assets, fetches those files through `ASSETS` and writes its own headers, so a
+  `_headers` rule never reaches them and none is served raw. `SDK_DIR` names another build.
+- Variables: `SDK_KEYS` (`key=origin,origin;key=origin`; unset refuses every request),
+  `SDK_ENABLED` (default `true`) and `SDK_IMG_ORIGINS` (image origins of the frame, default none),
+  in `vars` of `wrangler.jsonc` once deployed.
 
 ## Versions
 

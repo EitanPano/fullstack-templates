@@ -9,9 +9,10 @@ of code live here, with different gates:
 
 - `tools/` is the generator (TypeScript on Bun): `validate.ts`, `generate.ts`, `test-generated.ts`
   and `lib/`. It has its own `package.json`, tests and `check`.
-- `server/<id>/base/`, `serverless/<id>/base/` and `frontend/<id>/base/` are the template payloads:
-  complete packages in their own language (Bun + Express 5, Python 3.14 + FastAPI, one Cloudflare
-  Worker, Next.js 16, Vite + React 19, Astro 7) with markers and placeholders inside. The tools copy and rewrite them; they never run them in place.
+- `server/<id>/base/`, `serverless/<id>/base/`, `frontend/<id>/base/` and `sdk/<id>/base/` are the
+  template payloads: complete packages in their own language (Bun + Express 5, Python 3.14 +
+  FastAPI, one Cloudflare Worker, Next.js 16, Vite + React 19, Astro 7, a browser SDK in
+  TypeScript) with markers and placeholders inside. The tools copy and rewrite them; they never run them in place.
 
 Everything else is manifests (`index.yaml`, `template.yaml`, `stack.yaml`, `tests/cases.yaml`,
 `provider.yaml`, `capability.yaml`) validated against `schemas/*.json`, plus docs. The design is
@@ -36,14 +37,16 @@ counts as a breaking change here:
 - `index.yaml` and the chosen `template.yaml` files: the only catalog files the bootstrap skill
   reads, to list stacks and ask about flags and capabilities.
 - The `generate.ts` command line (`--stack`, `--name`, `--flag`, `--capability`, `--deploy`,
-  `--answers`, `--catalog`, `--catalog-version`, `--frontend <dir>=<template>`, repeatable).
+  `--answers`, `--catalog`, `--catalog-version`, `--frontend <dir>=<template>`, repeatable; `--sdk <dir>=<template>`, once, with `--stack`).
 - `.fullstack/catalog.yaml` (schema `schemas/provenance.schema.json`): the harness's agents take
   every command and port from it and never read the catalog again. Its top-level `deploy`
   (`single` or `split`) is written only when the plan has a server and a frontend.
 - The fixed command vocabulary and the `AGENTS.md` headings ("Adding an entity", "Adding the data
   layer", "Errors", "Tests" for a server; "Adding a feature", "Styling", "Errors", "Tests" for a
-  frontend; "Deployment" for both; a `serverless` package has the server's five), which the
-  harness's skills cite by name.
+  frontend; "Adding a feature", "Public API", "Errors", "Tests" for an `sdk` package;
+  "Deployment" for all; a `serverless` package has the server's five), which the harness's
+  skills cite by name. The twelve numbered SDK invariants of `docs/conventions.md › SDK` are
+  cited by number too.
 - `index.yaml` `schemaVersion`: the harness refuses a newer one, so bumping it is a catalog major.
 
 To test a catalog change against the harness before tagging, point its bootstrap at this
@@ -81,6 +84,8 @@ bun tools/generate.ts --stack next-bun-express --out ../my-app --name my-app \
 bun tools/generate.ts --template server/python-fastapi --out ../api --name api   # one package
 bun tools/generate.ts --stack astro-cloudflare --out ../x --name x \
   --frontend site=frontend/astro --frontend admin=frontend/angular   # several frontends (serverless API only); a template other than the stack's own must be listed in its stack.yaml `frontends`
+bun tools/generate.ts --stack react-bun-express --out ../x --name x \
+  --sdk sdk-widget=sdk/browser   # one sdk package, only with --stack; the API package then ships its /api/sdk/ namespace
 bun tools/test-generated.ts --list                                    # case ids: <kind>/<id>/<case>
 bun tools/test-generated.ts --case server/bun-express/default          # generate, run its check
 bun tools/test-generated.ts --case server/bun-express/postgres --with-services   # Docker: migrate, check, testDb
@@ -150,13 +155,14 @@ catalog with `skipPostGenerate`. The `*-cli.test.ts` files spawn the entry scrip
   anything more elaborate in a package script and name that.
 - **Fixed command vocabulary.** `install dev check typecheck lint format test testDb testE2e
   contract migrate`. The tools and the harness's agents only ever call these names, never the
-  ecosystem's own invocation. Only `check` is required.
+  ecosystem's own invocation. Only `check` is required. `build` is not a command: an sdk's build
+  is its package script, reached through its Dockerfile, `assemble` and `check`.
 - **Markers** are `@name` or `@noname` at the end of a line, or `@name-start` ... `@name-end`
   blocks on their own lines (no nesting), written in the file's own comment syntax (`//`, `#`,
   `--` in `.sql`, `<!-- -->`; chosen by extension or file name in `markers.ts`). `name` is a flag
   (`auth`) or a capability: `@database` is true for any provider, `@database:postgres` for that
-  one. Two selections are reserved and cannot be flag names: `server` (the plan has a server) and
-  `single` (the plan deploys as one image; never true without a server). A `serverless` package also
+  one. Three selections are reserved and cannot be flag names: `server` (the plan has a server),
+  `single` (the plan deploys as one image; never true without a server) and `sdk` (the plan holds an sdk package, true in every package of it; ADR 0020). A `serverless` package also
   has `frontend` (the plan has a frontend), reserved too, and a `serverless` package counts as the
   plan's `server` for a frontend's selections; a frontend also reads `server:serverless` (the plan's API is a `serverless` package), reserved too so no flag can carry the name. `frontends` (the plan holds more than one frontend) is
   reserved for `serverless` and `frontend` packages. Every extension
@@ -172,7 +178,7 @@ catalog with `skipPostGenerate`. The `*-cli.test.ts` files spawn the entry scrip
   for the server's Compose fragment); a `serverless` package beside a frontend also gets
   `__FRONTEND_PATH__` and `__FRONTEND_OUT__` (the first frontend's, undefined when the plan has
   no frontend), `__FRONTENDS__` (JSON list of `{dir,path,out,port}`, `[]` then) and
-  `__FRONTEND_HOSTS__` (the local host map, empty then). Each package's `__PORT__` is unique in the plan. A declared token left in output
+  `__FRONTEND_HOSTS__` (the local host map, empty then). A `server` or `serverless` package of a plan with an sdk also gets `__SDK_DIR__`, `__SDK_PATH__` (from its own directory), `__SDK_OUT__` (the sdk's `cdn.out`) and `__SDK_PORT__`, undefined without one (wrap their lines in `@sdk`); the sdk package gets the `__SERVER_*__` tokens, `__SDK_GLOBAL__` and `__SDK_SLOT__`. Each package's `__PORT__` is unique in the plan. A declared token left in output
   fails the run.
 - **Two dependency adapters.** `npm` (bun-express, next): a flag's `dependencies.remove` and a
   capability's `dependencies` and `scripts` edit `package.json`; a script name the base already
@@ -195,7 +201,8 @@ catalog with `skipPostGenerate`. The `*-cli.test.ts` files spawn the entry scrip
   from `index.yaml`, when a template directory is not listed, when a server's `AGENTS.md` lacks one
   of "Adding an entity", "Adding the data layer", "Errors", "Tests" and "Deployment", when a
   frontend's lacks one of "Adding a feature", "Styling", "Errors", "Tests" and "Deployment" (the
-  layer map is not a checked heading), when `tests/cases.yaml` lacks `default` or a case flipping
+  layer map is not a checked heading), when an sdk's lacks one of "Adding a feature", "Public
+  API", "Errors", "Tests" and "Deployment", when `tests/cases.yaml` lacks `default` or a case flipping
   each flag, and when a listed provider lacks the case alone at default flags and the case with
   every flag off.
 
@@ -214,6 +221,20 @@ from the server's `openapi.json` (the `contract` command) is in `services/genera
 `src/app/services/generated/`). Server-rendered (Next's server calls the API through `API_URL`) or
 single-page (the browser calls relative `/api`, no CORS). An SPA declares `static: { out: dist }`, has a Dockerfile with a `dist` and a
 `serve` target, and passes the contract in `docs/conventions.md › Frontend, single-page app`.
+
+**The SDK kind** (ADR 0020). An `sdk` template (`sdk/browser`) is a library other sites load, not a
+frontend: `--sdk <dir>=<template>`, once, only beside a `--stack`, and it is no stack member. Its
+manifest names `cdn: { out }`, the directory the API package serves, laid out `v<major>/loader.js`,
+`frame.js`, `frame.html`. The reserved `sdk` selection turns on, in every package of the plan, the
+SDK namespace of each API template (`api/sdk/<entity>/` at `/api/sdk/v1`: CORS for the namespace
+alone, the `X-Sdk-Key` key, a rate limit, `GET /api/sdk/v1/config` as the kill switch, plus the two
+routes `/api/sdk/dist/v<major>/<file>` and `/api/sdk/frame/v<major>?k=<key>`), through `onlyWhen:
+{ sdk }`, `@sdk` markers and the `__SDK_*__` placeholders; without an SDK the generated tree is
+the old one. The three API templates are kept parallel here too: the same headers, status codes,
+limits and env (`SDK_KEYS`, `SDK_ENABLED`, `SDK_DIR`); the Worker's differences are in
+`docs/conventions.md › Serverless`, FastAPI's routing ones in its README. The files reach the server through a build-only Compose service (`additional_contexts`, Compose
+2.35.0 in both modes) or the Worker's `assemble`. The SDK's API report is `etc/sdk.api.txt` with
+`// public` tags, because the tools read `// @public` as a marker.
 
 **Deploy modes** (`--deploy`, ADR 0003). `split`: one image per package, the frontend public and the
 server on loopback, `TRUST_PROXY` 1. `single`: one image, the server serving the SPA's `dist/`

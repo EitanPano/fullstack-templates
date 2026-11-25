@@ -47,6 +47,7 @@ describe('loadCatalog', () => {
       'frontend/mini-site',
       'frontend/mini-spa',
       'frontend/mini-ui',
+      'sdk/mini-sdk',
       'server/mini',
       'server/mini-py',
       'serverless/mini-fn',
@@ -65,6 +66,7 @@ describe('loadCatalog', () => {
       'auth-off',
       'fake',
       'auth-off-fake',
+      'with-sdk',
     ])
   })
 
@@ -719,6 +721,29 @@ describe('loadCatalog: frontend agents headings', () => {
       t.replace('## Deployment\n', '```sh\n# Deployment\n```\n'),
     )
     expect(problems(root)).toContain('"Deployment"')
+  })
+})
+
+describe('loadCatalog: sdk agents headings', () => {
+  const sdk = 'sdk/mini-sdk'
+  const SIX = ['Adding a feature', 'Public API', 'Errors', 'Tests', 'Styling', 'Deployment']
+
+  test('accepts an sdk with the six headings', () => {
+    const root = copyFixture('catalog')
+    const text = SIX.map((heading) => `## ${heading}\n`).join('\n')
+    writeFileSync(path.join(root, `${sdk}/base/AGENTS.md`), text)
+    expect(() => loadCatalog(root)).not.toThrow()
+  })
+
+  test.each(SIX)('refuses an sdk template whose agents file lacks %s', (heading) => {
+    const root = copyFixture('catalog')
+    edit(root, `${sdk}/base/AGENTS.md`, (t) => t.replace(`## ${heading}\n`, ''))
+    const message = problems(root)
+    expect(message).toContain(sdk)
+    expect(message).toContain(`"${heading}"`)
+    for (const other of SIX.filter((h) => h !== heading)) {
+      expect(message).not.toContain(`"${other}"`)
+    }
   })
 })
 

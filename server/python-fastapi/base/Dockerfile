@@ -20,6 +20,12 @@ COPY --from=builder /app/.venv /app/.venv
 COPY --from=spa --chown=app:app /dist ./public
 ENV STATIC_DIR=/app/public
 # @single-end
+# @sdk-start
+# The SDK's CDN build from its build-only `dist` target (the `sdk` build context), served when
+# SDK_DIR names it.
+COPY --from=sdk --chown=app:app /sdk ./sdk
+ENV SDK_DIR=/app/sdk
+# @sdk-end
 ENV PATH="/app/.venv/bin:$PATH" APP_ENV=production PORT=8000 PYTHONUNBUFFERED=1
 USER app
 EXPOSE 8000

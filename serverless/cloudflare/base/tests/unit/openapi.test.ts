@@ -50,6 +50,47 @@ describe('openapi.json', () => {
     expect(doc.paths?.['/api/entity/{id}']?.delete?.responses?.['204']).toBeDefined()
   })
 
+  // @sdk-start
+  it('documents the SDK config endpoint with its key header and the 403 and 429 answers', () => {
+    const doc = buildOpenApiDocument()
+    const operation = doc.paths?.['/api/sdk/v1/config']?.get
+
+    expect(operation?.operationId).toBe('getSdkConfig')
+    expect(operation?.responses?.['200']).toBeDefined()
+    expect(operation?.responses?.['403']).toBeDefined()
+    expect(operation?.responses?.['429']).toBeDefined()
+    expect(operation?.parameters).toEqual([
+      expect.objectContaining({ name: 'x-sdk-key', in: 'header', required: true }),
+    ])
+    expect(doc.components?.schemas?.SdkConfig).toBeDefined()
+  })
+
+  it('documents the SDK telemetry endpoint with its body schema and the 403, 413 and 429 answers', () => {
+    const doc = buildOpenApiDocument()
+    const operation = doc.paths?.['/api/sdk/v1/telemetry']?.post
+
+    expect(operation?.operationId).toBe('postSdkTelemetry')
+    expect(operation?.tags).toEqual(['sdk'])
+    expect(operation?.responses?.['204']).toBeDefined()
+    for (const status of ['400', '403', '413', '429']) {
+      expect(operation?.responses?.[status], status).toBeDefined()
+    }
+    expect(operation?.parameters).toEqual([
+      expect.objectContaining({ name: 'x-sdk-key', in: 'header', required: true }),
+    ])
+    expect(doc.components?.schemas?.SdkTelemetryBody).toBeDefined()
+  })
+
+  it('leaves the served files out of the document: they are not JSON', () => {
+    const paths = Object.keys(buildOpenApiDocument().paths ?? {})
+
+    expect(paths.filter((path) => path.startsWith('/api/sdk/'))).toEqual([
+      '/api/sdk/v1/config',
+      '/api/sdk/v1/telemetry',
+    ])
+  })
+
+  // @sdk-end
   it('registers at least one path for every entity in the list', () => {
     expect(registrations.length).toBeGreaterThan(0)
     for (const register of registrations) {
@@ -86,7 +127,12 @@ describe('openapi.json', () => {
       .filter((name) => existsSync(path.join(root, 'server/api', name, 'routes.ts')))
     expect(entities.length).toBeGreaterThan(0)
     for (const name of entities) {
-      expect(source, `server.ts does not mount ${name}`).toContain(`app.route('/api/${name}'`)
+      expect(source, `server.ts does not mount ${name}`).toContain(`app.route('/api/${name}'`) // @nosdk
+      // @sdk-start
+      expect(source, `server.ts does not mount ${name}`).toContain(
+        `app.route('/api/${name === 'sdk' ? 'sdk/v1' : name}'`,
+      )
+      // @sdk-end
     }
   })
 

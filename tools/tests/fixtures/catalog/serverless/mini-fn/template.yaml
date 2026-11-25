@@ -34,6 +34,8 @@ flags:
     summary: Accounts
     default: true
     onlyPaths: [src/auth.ts]
+onlyWhen:
+  sdk: [src/sdk-key.ts]
 gitignore: [node, cloudflare]
 agents: AGENTS.md
 postGenerate: [install, contract]

@@ -352,11 +352,15 @@ const layering = [
   // Entry points
   {
     // api/admin/routes.ts, the namespace's router, mounts the admin entities' own routes.ts.
+    // api/sdk/routes.ts does the same for the SDK namespace. // @sdk
     target: [
       g.models,
-      src('api/!(admin)/**'),
+      src('api/!(admin)/**'), // @nosdk
+      src('api/!(admin|sdk)/**'), // @sdk
       src('api/admin/!(routes).ts'),
       src('api/admin/*/**'),
+      src('api/sdk/!(routes).ts'), // @sdk
+      src('api/sdk/*/**'), // @sdk
       g.middleware,
       g.infra,
       g.services,
@@ -546,8 +550,10 @@ export default tseslint.config(
   },
   // api/admin/<entity>/: the same policy as above, with a top-level entity two levels up counted
   // as another entity too. Each block restates its whole policy.
+  // api/sdk/<entity>/ is held to the same policy: each block below names both folders. // @sdk
   {
-    files: ['src/api/admin/*/**'],
+    files: ['src/api/admin/*/**'], // @nosdk
+    files: ['src/api/{admin,sdk}/*/**'], // @sdk
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',
@@ -581,7 +587,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/api/admin/*/controller.ts'],
+    files: ['src/api/admin/*/controller.ts'], // @nosdk
+    files: ['src/api/{admin,sdk}/*/controller.ts'], // @sdk
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',
@@ -603,7 +610,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/api/admin/*/{service,model}.ts'],
+    files: ['src/api/admin/*/{service,model}.ts'], // @nosdk
+    files: ['src/api/{admin,sdk}/*/{service,model}.ts'], // @sdk
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',
@@ -632,7 +640,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/api/admin/*/schema.ts'],
+    files: ['src/api/admin/*/schema.ts'], // @nosdk
+    files: ['src/api/{admin,sdk}/*/schema.ts'], // @sdk
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',

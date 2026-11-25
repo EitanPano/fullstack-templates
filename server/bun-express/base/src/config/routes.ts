@@ -7,6 +7,7 @@ import type { Express } from 'express'
 
 import adminRoutes from '../api/admin/routes'
 import healthRoutes from '../api/health/routes'
+import sdkRoutes from '../api/sdk/routes' // @sdk
 import authRoutes from '../api/auth/routes' // @auth
 import entityRoutes from '../api/entity/routes'
 import userRoutes from '../api/user/routes' // @auth
@@ -17,4 +18,5 @@ export function registerRoutes(app: Express): void {
   app.use('/api/user', userRoutes) // @auth
   app.use('/api/entity', entityRoutes)
   app.use('/api/admin', adminRoutes)
+  app.use('/api/sdk/v1', sdkRoutes) // @sdk
 }

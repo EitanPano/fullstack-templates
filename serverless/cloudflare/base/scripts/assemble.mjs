@@ -32,6 +32,13 @@ const option = (name) => {
 const chosen = option('--frontend') ?? frontendOut
 // @nofrontends-end
 const out = option('--out') ?? 'dist'
+// @sdk-start
+// The SDK's build, put under api/sdk/ beside the site. `SDK_DIR` names another one (a test, an e2e
+// run); a blank value is unset.
+const sdkBuild = process.env.SDK_DIR?.trim() || '__SDK_PATH__/__SDK_OUT__'
+// A missing SDK build fails, as a missing frontend build does; `start` and a local run pass the flag.
+const allowMissingSdk = process.argv.includes('--allow-missing-sdk')
+// @sdk-end
 
 try {
   // @nofrontends-start
@@ -39,6 +46,8 @@ try {
     statics: path.join(root, 'static'),
     dist: path.resolve(root, out),
     frontend: chosen === null ? null : path.resolve(root, chosen),
+    sdk: path.resolve(root, sdkBuild), // @sdk
+    allowMissingSdk, // @sdk
   })
   console.log(
     `assemble: dist/ built from ${chosen ?? 'static/ alone'} (${String(summary.pages)} pages, ${String(summary.withPolicy)} with a policy)`,
@@ -58,6 +67,8 @@ try {
       build: path.resolve(root, given.get(frontend.dir) ?? `${frontend.path}/${frontend.out}`),
     })),
     only,
+    sdk: path.resolve(root, sdkBuild), // @sdk
+    allowMissingSdk, // @sdk
   })
   console.log(
     `assemble: dist/ built from ${only ?? frontends.map((frontend) => frontend.dir).join(', ')} (${String(summary.pages)} pages, ${String(summary.withPolicy)} with a policy)`,

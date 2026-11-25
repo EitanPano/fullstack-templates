@@ -1,0 +1,10 @@
+dist/
+node_modules/
+bun.lock
+coverage/
+src/contract/
+tests/e2e/.build/
+.tmp/
+etc/
+playwright-report/
+test-results/

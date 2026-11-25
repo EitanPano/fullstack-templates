@@ -98,6 +98,7 @@ src/app/
   api/<name>/         routes · controller · schema; service only when the entity has data
                       (model.py: reserved, for an engine that defines storage in code)
   api/admin/          the admin namespace: routes.py (gate, mounts) · <name>/ entities
+  api/sdk/            the SDK namespace at /api/sdk/v1: routes.py (gate, mounts) · <name>/ entities <!-- @sdk -->
 <!-- @auth-start -->
                       (health, auth, user, entity: the commented reference)
   models/<name>/      interface · type · enums · constants (auth, session, user, entity)
@@ -626,6 +627,22 @@ command.
 <!-- @noauth-start -->
   That file's gate refuses every request (403) until the product replaces it with its own.
 <!-- @noauth-end -->
+<!-- @sdk-start -->
+- SDK endpoints live in `api/sdk/<name>/`, an entity like any other, at `/api/sdk/v1/<name>`
+  (`sdk` is a namespace); add its router to `ENTITIES` in `api/sdk/routes.py`. The gate in
+  `middleware/sdk_gate.py` decides before any body is read: CORS for this namespace alone
+  (`SdkCorsMiddleware`; the global `CORS_ORIGINS` layer skips `/api/sdk/`), the `X-Sdk-Key` header
+  resolved once by `resolve_key` in `services/security/sdk_keys.py` (reads `SDK_KEYS`; replace the
+  bodies with a lookup answering from a cache, misses too), the 64 KB body cap, then the rate
+  limits by address and by key. A key with `enabled: false` gets 403 except on `GET /config`,
+  which answers `false`; a failing lookup is a 500. Every answer is `no-store`. A write the host
+  page must not make is mounted with `frame_only` and takes a rate limit of its own (`telemetry`
+  takes none; its sink is `services/telemetry.py`). `v1` only adds: a removal or a change is a
+  `v2`. The built `.js` and `.css` (`/api/sdk/dist/v<major>/`) and the frame document
+  (`/api/sdk/frame/v<major>?k=<key>`) come from `SDK_DIR` through `middleware/sdk_files.py`, carry
+  no key and are not in the OpenAPI document; `SDK_IMG_ORIGINS` lists the frame's image origins.
+  `SDK_ENABLED=false` turns the SDK off.
+<!-- @sdk-end -->
 
 `api/entity/` is the worked example.
 
@@ -974,6 +991,13 @@ the `Dockerfile` and the Compose fragment differ, through the lines named below,
   `TRUST_PROXY` defaults to `1`, because the frontend container (the Next.js server, or the SPA's
   nginx) in front is one proxy hop and the rate limits are keyed by client
   IP (an IPv6 address by its /64 network, an IPv4 address as is).
+<!-- @sdk-start -->
+- **The SDK's limits.** The per-key limit (`sdk_per_key` in `RATE_LIMITS`, per minute) is a ceiling
+  for one integration's whole audience, and the loader reads the kill switch once per page view:
+  the product sizes it. The address limit (`sdk_per_ip`) runs first, preflights included, so one
+  address cannot use up a key's allowance. Both count in the cache, so until the cache task moves it
+  out of process each replica counts alone.
+<!-- @sdk-end -->
 - **`TRUST_PROXY` in production.** The server's own default, `.env.example` included, is `false`.
   Set the real hop count of the deployment: behind a PaaS edge it is usually `1`, behind a CDN and
   a load balancer `2`. Too high lets a caller choose its own rate-limit key through
@@ -983,6 +1007,13 @@ the `Dockerfile` and the Compose fragment differ, through the lines named below,
   requests to HTTPS and the page is blank.
 - **Secrets.** Production values come from the shell environment or a secret manager; Compose
   reads `${VAR}` and never stores them.
+<!-- @sdk-start -->
+- **The SDK's build.** In both modes the image copies the SDK's CDN build from the `sdk` build
+  context and sets `SDK_DIR`, so `build` is the map form with `additional_contexts: { sdk:
+  "service:<sdk dir>" }`, in `single` beside `spa`. The blocks below show a project without an
+  SDK: keep the `sdk` line when you switch mode. It needs Docker Compose 2.35.0 or later in
+  `split` too.
+<!-- @sdk-end -->
 
 **The lines of each mode.** Switching mode edits exactly these lines, copied from this package's
 `compose.yaml` and `Dockerfile`, so they cannot drift. A generated project holds only the lines

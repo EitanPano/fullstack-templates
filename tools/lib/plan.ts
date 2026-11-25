@@ -1,6 +1,7 @@
 import {
   CAPABILITY_KINDS,
   DEPLOY_MODES,
+  SDK_SELECTION,
   SERVER_PREFIX,
   SERVERLESS_FACT,
   defaultDir,
@@ -24,8 +25,8 @@ import {
 } from './brand'
 import { isKind } from './capability-kinds'
 import { migrateServiceName } from './compose'
-import { DIR_PATTERN, isApiKind, memberProblems } from './package-dir'
-import { toProjectName } from './placeholders'
+import { DIR_PATTERN, isApiKind, isSdkKind, memberProblems } from './package-dir'
+import { sdkGlobalProblem, toProjectName } from './placeholders'
 import { ThemeError } from './theme'
 
 export interface Answers {
@@ -57,9 +58,16 @@ export interface RequestInput {
   brand?: BrandInput
   // The --frontend pairs, in the order given (ADR 0015 F1).
   frontends?: FrontendRequest[]
+  // The --sdk pairs; at most one is accepted, so a second names itself (ADR 0020 K1, K2).
+  sdks?: SdkRequest[]
 }
 
 export interface FrontendRequest {
+  dir: string
+  template: string
+}
+
+export interface SdkRequest {
   dir: string
   template: string
 }
@@ -92,6 +100,8 @@ export interface GenerationPlan {
   packages: PackagePlan[]
   // The frontend packages, in plan order; the first is the one __FRONTEND_DIR__ names.
   frontends: PackagePlan[]
+  // The sdk package, or null; it is never one of the frontends (ADR 0020 K1).
+  sdk: PackagePlan | null
   // Providers selected by any package, unique, ordered by kind then id.
   providers: LoadedProvider[]
   catalogVersion: string | undefined
@@ -131,6 +141,43 @@ export function parseFrontendArg(entry: string): FrontendRequest {
     throw new PlanError(`--frontend must read <dir>=<template>: ${entry}`)
   }
   return { dir: entry.slice(0, at), template: entry.slice(at + 1) }
+}
+
+// One --sdk value: <dir>=<template>.
+export function parseSdkArg(entry: string): SdkRequest {
+  const at = entry.indexOf('=')
+  if (at <= 0 || at === entry.length - 1) {
+    throw new PlanError(`--sdk must read <dir>=<template>: ${entry}`)
+  }
+  return { dir: entry.slice(0, at), template: entry.slice(at + 1) }
+}
+
+// The requested sdk as a member: it needs a stack, whose API package it calls, and a template
+// of the sdk kind in a directory of its own.
+function sdkMember(catalog: Catalog, input: RequestInput): Member | undefined {
+  const requested = input.sdks ?? []
+  if (requested.length > 1) {
+    throw new PlanError('--sdk is given twice: a plan takes one sdk package')
+  }
+  const [one] = requested
+  if (one === undefined) return undefined
+  if (input.template !== undefined) {
+    throw new PlanError(
+      '--sdk cannot be combined with --template: give --stack, whose API it calls',
+    )
+  }
+  if (input.stack === undefined) {
+    throw new PlanError('--sdk needs --stack: an sdk package has no API to call without one')
+  }
+  if (!DIR_PATTERN.test(one.dir)) throw new PlanError(`invalid package dir: ${one.dir}`)
+  const globalProblem = sdkGlobalProblem(one.dir)
+  if (globalProblem !== null) throw new PlanError(globalProblem)
+  const template = catalog.templates.get(one.template)
+  if (!template) throw new PlanError(`unknown template: ${one.template}`)
+  if (!isSdkKind(template.manifest.kind)) {
+    throw new PlanError(`${one.template} is not an sdk template, it is a ${template.manifest.kind}`)
+  }
+  return { dir: one.dir, template }
 }
 
 // The requested frontends as members: each dir well formed and used once, each template a
@@ -194,6 +241,7 @@ function resolveMembers(
   catalog: Catalog,
   input: RequestInput,
 ): { members: Member[]; stackId: string | null } {
+  const sdk = sdkMember(catalog, input)
   const listed = frontendMembers(catalog, input.frontends ?? [])
   if (listed.length > 0 && input.template !== undefined) {
     throw new PlanError('--frontend replaces --template for a frontend; give one of them')
@@ -217,16 +265,19 @@ function resolveMembers(
         throw new PlanError(`stack ${input.stack} uses unknown template ${entry.template}`)
       return { dir: entry.dir, template }
     })
-    return {
-      members:
-        listed.length === 0
-          ? members
-          : replaceStackFrontends(input.stack, stack.manifest.frontends ?? [], members, listed),
-      stackId: input.stack,
-    }
+    const placed =
+      listed.length === 0
+        ? members
+        : replaceStackFrontends(input.stack, stack.manifest.frontends ?? [], members, listed)
+    return { members: sdk === undefined ? placed : [...placed, sdk], stackId: input.stack }
   }
   const template = catalog.templates.get(input.template as string)
   if (!template) throw new PlanError(`unknown template: ${input.template}`)
+  if (isSdkKind(template.manifest.kind)) {
+    throw new PlanError(
+      `${template.path} is an sdk template: it joins a plan with --sdk <dir>=<template> and --stack`,
+    )
+  }
   const dir = input.dir ?? defaultDir(template.manifest)
   if (!DIR_PATTERN.test(dir)) throw new PlanError(`invalid package dir: ${dir}`)
   return { members: [{ dir, template }], stackId: null }
@@ -313,7 +364,7 @@ function routeShorthandCapabilities(
   return routed
 }
 
-// "server", "single" and "frontend" are reserved: a manifest cannot declare a flag of any of them. A marker
+// "server", "single", "sdk" and "frontend" are reserved: a manifest cannot declare a flag of any of them. A marker
 // asks whether the plan has a server package (a lone frontend must not depend on one) and whether
 // the plan deploys as one image, which only a plan with a server can.
 export const SERVER_SELECTION = 'server'
@@ -336,11 +387,13 @@ export function selectionsFor(
   serverFacts: Readonly<Record<string, boolean>> = {},
   hasFrontend?: boolean,
   severalFrontends = false,
+  hasSdk = false,
 ): Record<string, boolean> {
   const selections: Record<string, boolean> = {
     ...flags,
     [SERVER_SELECTION]: hasServer,
     [SINGLE_SELECTION]: hasServer && single,
+    [SDK_SELECTION]: hasSdk,
   }
   for (const [name, on] of Object.entries(serverFacts)) selections[SERVER_PREFIX + name] = on
   if (hasFrontend !== undefined) {
@@ -508,6 +561,8 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
   // The plan's API: a server, or a serverless package that has no deploy mode (ADR 0014 K1).
   const server = members.find((m) => isApiKind(m.template.manifest.kind))
   const serverless = server?.template.manifest.kind === 'serverless'
+  const sdkMemberOfPlan = members.find((m) => isSdkKind(m.template.manifest.kind))
+  const hasSdk = sdkMemberOfPlan !== undefined
   const frontendMembersOfPlan = members.filter((m) => m.template.manifest.kind === 'frontend')
   const frontend = frontendMembersOfPlan[0]
   // The API maps a request's host to a frontend by its directory, as one host label and one folder.
@@ -569,6 +624,7 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
         {},
         member.template.manifest.kind === 'serverless' ? frontend !== undefined : undefined,
         frontendMembersOfPlan.length > 1,
+        hasSdk,
       ),
       serverDir: server?.dir ?? null,
       serverPort: server === undefined ? null : (ports.get(server.dir) ?? null),
@@ -596,6 +652,7 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
       serverFactsFor(catalog, serverPlan),
       undefined,
       frontendMembersOfPlan.length > 1,
+      hasSdk,
     )
   }
 
@@ -646,6 +703,7 @@ export function resolveRequest(catalog: Catalog, input: RequestInput): Generatio
     stackId,
     packages,
     frontends: packages.filter((pkg) => pkg.template.manifest.kind === 'frontend'),
+    sdk: packages.find((pkg) => isSdkKind(pkg.template.manifest.kind)) ?? null,
     providers,
     catalogVersion: input.catalogVersion,
     skipPostGenerate: input.skipPostGenerate,

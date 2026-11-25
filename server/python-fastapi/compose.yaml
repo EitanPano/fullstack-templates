@@ -5,9 +5,16 @@ build:
   context: ./__PACKAGE_DIR__
   additional_contexts:
     spa: service:__FRONTEND_DIR__
+    sdk: service:__SDK_DIR__ # @sdk
 # @single-end
 # @nosingle-start
-build: ./__PACKAGE_DIR__
+build: ./__PACKAGE_DIR__ # @nosdk
+# The SDK's CDN build comes from its build-only service (the Dockerfile's `sdk` context; Compose # @sdk
+# 2.35.0 or later). # @sdk
+build: # @sdk
+  context: ./__PACKAGE_DIR__ # @sdk
+  additional_contexts: # @sdk
+    sdk: service:__SDK_DIR__ # @sdk
 # @nosingle-end
 environment:
   APP_ENV: production
@@ -34,6 +41,14 @@ environment:
   # Comma-separated browser origins allowed by CORS. Empty keeps it off, which is right while no
   # browser calls the API from another origin.
   CORS_ORIGINS: ${CORS_ORIGINS:-}
+  # @sdk-start
+  # Publishable SDK keys (key=origin,origin;key=origin) and the kill switch of /api/sdk/v1/config.
+  # Empty keys refuse every namespace request. SDK_IMG_ORIGINS lists the origins the frame may
+  # load images from (origin,origin; empty allows none). The image sets SDK_DIR.
+  SDK_KEYS: ${SDK_KEYS:-}
+  SDK_ENABLED: ${SDK_ENABLED:-true}
+  SDK_IMG_ORIGINS: ${SDK_IMG_ORIGINS:-}
+  # @sdk-end
   # Scheduled jobs run on exactly one replica. The template itself runs as one instance
   # @nodatabase-start
   # until the data-layer and cache tasks (the stores, rate limits and the bus live in one

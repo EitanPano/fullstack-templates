@@ -63,6 +63,7 @@ module level.
 | A secret                        | the Worker's secrets per environment (a person), `config/env.ts`, `.env.example` | locally a line of `.env` (see Deployment)                                                                |
 | A redirect or a static header   | the frontend's `public/_redirects`, `public/_headers`; `static/` with no frontend | the files merge in `assemble`; never set or detach the Content-Security-Policy                          |
 | An admin endpoint               | `server/api/admin/<name>/`, one line in `server/api/admin/routes.ts`      | an entity like any other, at `/api/admin/<name>`; the namespace's gate runs first                                 |
+| An SDK endpoint                 | `server/api/sdk/<name>/`, one line in `server/api/sdk/routes.ts`          | an entity like any other, at `/api/sdk/v1/<name>`; the gate runs first; `v1` only adds                            | <!-- @sdk -->
 | A route outside `/api`          | a router like an entity's, mounted in `server/server.ts`                   | beside one frontend its path also goes in `assets.run_worker_first`; it sets its own headers; see Migrating Pages Functions, step 4 |
 | A pure helper                   | `server/services/utils/<name>.ts`                                         | no I/O, no state                                                                                               |
 | A shared capability with state  | `server/services/<name>.ts`                                               | logging, security primitives; stateful means per request, never module level                                   |
@@ -256,6 +257,47 @@ A page has no request id. An unknown `/api/x` answers the JSON `not_found` envel
 answers the frontend's 404 page. `dist/` must exist for `wrangler` to start: `dev` uses an empty
 folder, `start` assembles first.
 
+<!-- @sdk-start -->
+## The SDK
+
+With an SDK package in the plan (`__SDK_PATH__`) the Worker also serves it to the pages that embed
+it. Without one none of this exists in the package.
+
+- `/api/sdk/v1/` is the public, cross-origin namespace (`server/api/sdk/`). One gate runs first
+  (`middleware/sdk-gate.ts`): CORS for this namespace alone (the origin is echoed once the key step
+  admits a key that lists it; never credentials), the `X-Sdk-Key` key, then a rate limit by address
+  and by key (`sdkPerIp`, `sdkPerKey`, on the D1 limiter; a preflight counts on the address first).
+  The key resolves once to `{ origins, enabled }` (`resolveKey`, `services/security/sdk-keys.ts`,
+  async: a product replaces the bodies with a cached lookup), kept on `ctx.sdkKey`. A switched-off
+  key gets the 403 envelope everywhere but `GET|HEAD /config`; a lookup that throws answers 500.
+  Every answer is `no-store` and varies on `Origin` and `X-Sdk-Key`. A body is at most 64 KB
+  (`SDK_MAX_BODY_BYTES`, 413), read after the gate. `GET /api/sdk/v1/config` answers `{ enabled }`:
+  `SDK_ENABLED` and the key's own switch. A request is same-origin when it says
+  `Sec-Fetch-Site: same-origin`, or says nothing of it and has no `Origin` or one with the request
+  URL's host; it then needs a valid key only.
+- `POST /api/sdk/v1/telemetry` (`api/sdk/telemetry/`, frame only) takes `{ events }`, 1 to 100
+  objects, and answers 204 once `recordSdkTelemetry` (`services/telemetry.ts`) returns, so keep the
+  sink short. A sink that throws is logged by class name; the answer stays 204.
+- `GET|HEAD /api/sdk/dist/v<major>/<file>.js` and `.css`, and `GET /api/sdk/frame/v<major>?k=<key>`
+  (`middleware/sdk-files.ts`), carry no key and are not in the OpenAPI document. The frame document
+  has one `Content-Security-Policy`: script, style and connect from itself, images from itself and
+  `SDK_IMG_ORIGINS`, `frame-ancestors` the key's origins (`'none'` for an unknown or switched-off
+  key, an origin outside the `SDK_KEYS` form, or a failed lookup).
+- `bun run assemble` copies the SDK's build (`__SDK_PATH__/__SDK_OUT__`; `SDK_DIR` names another,
+  relative to this package) into `dist/api/sdk/dist/v<major>/` and `dist/api/sdk/frame/v<major>`
+  (the frame document, without `.html`), and fails on a missing or empty build; `bun run start`
+  passes `--allow-missing-sdk` and warns, and both routes then answer 404. The Worker builds each
+  response from the assets' body alone, so no `_headers` rule reaches a file. Keep `/api/*` on
+  `run_worker_first`; `assemble` refuses an output or `static/` that holds `api/sdk/`, and a
+  frontend named `api`.
+- Variables: `SDK_KEYS` (`key=origin,origin;key=origin`; unset refuses every request),
+  `SDK_ENABLED` (default `true`) and `SDK_IMG_ORIGINS` (`origin,origin`, default none); production
+  refuses an `http:` or loopback origin in either list. `.env.example` has local values; a
+  deployment sets them in `vars` of `wrangler.jsonc`, then `bun run types`. `bun run start` takes
+  them and `SDK_DIR` from the shell.
+- `bun run dev` serves the API on an empty asset folder: the files and the frame answer 404 there.
+
+<!-- @sdk-end -->
 ## Adding an entity
 
 Work in this order, test first. Copy the reference entity (`server/api/entity/`,
@@ -290,6 +332,14 @@ in a migration) once a real one exists.
   (`admin` is a namespace, not an entity); mount its router in `server/api/admin/routes.ts`
   (`routes.route('/<name>', <name>Routes)`). That file's one gate refuses every request (403) until
   the product replaces it with its own.
+<!-- @sdk-start -->
+- SDK endpoints live in `server/api/sdk/<name>/`, an entity like any other, at
+  `/api/sdk/v1/<name>` (`sdk` is a namespace); mount its router in `server/api/sdk/routes.ts`
+  (`routes.route('/<name>', <name>Routes)`). That file runs `middleware/sdk-gate.ts` first (see The
+  SDK). A write from the frame is an entity behind `frameOnly` (`routes.use('/<name>/*', frameOnly)`;
+  the `/*` matters) with a rate limit of its own on its route; one mounted without it is readable by
+  the host page. Within `v1` the namespace only adds; a removal or a change is a `v2` beside it.
+<!-- @sdk-end -->
 - Ids are made in the controller (`crypto.randomUUID()`), never by the database or the client.
 - A rate limit is a gate (`rateLimit({ name, limit, window, key })`) with its numbers in
   `RATE_LIMITS`; `byIp` keys an IPv6 address by its /64 network. Every mutation carries one, with
@@ -419,6 +469,14 @@ deployed Worker (no account): the first deployment is the proof.
    | Build variables | `NODE_VERSION=24`, `BUN_VERSION` of 1.4 or later |
 <!-- @nofrontend-end -->
 
+<!-- @sdk-start -->
+   With an SDK package, build it first: put
+   `(cd __SDK_PATH__ && bun install --frozen-lockfile && bun run build) &&` in front of the build
+   command above. Add `SDK_KEYS`, `SDK_ENABLED` and `SDK_IMG_ORIGINS` to `vars` of
+   `env.preview` and `env.production`:
+   they are publishable, not secrets, and a value in the dashboard is overwritten by the next
+   deploy.
+<!-- @sdk-end -->
    `assemble` writes the `dist/` that `assets.directory` names, so it runs before the deploy. The
    build image's default Node is older than this package's `engines`, hence `NODE_VERSION`
    (confirm on the first build). `wrangler.jsonc`, not the dashboard, owns bindings and plain
@@ -508,6 +566,13 @@ not a rewrite.
   `assets.directory` and address.
 
 Each Worker adds a deployment and version skew.
+<!-- @sdk-start -->
+
+With an SDK, each admitted namespace request writes the limiter to D1 twice (address, then key). The
+per-key limit (`sdkPerKey`, per minute) is a ceiling for
+one integration's whole audience and is the product's to size; at that traffic move the counters off
+D1 (a Workers rate-limiting binding or a Durable Object).
+<!-- @sdk-end -->
 <!-- @jobs-start -->
 
 ## Jobs

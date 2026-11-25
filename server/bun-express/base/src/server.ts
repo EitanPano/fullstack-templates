@@ -1,5 +1,6 @@
 import cookieParser from 'cookie-parser' // @auth
 import cors from 'cors'
+import type { CorsOptions } from 'cors' // @sdk
 import express, { type Express } from 'express'
 import helmet from 'helmet'
 
@@ -10,6 +11,7 @@ import { errorHandler } from './middleware/error-handler'
 import { notFound } from './middleware/not-found'
 import { requestId } from './middleware/request-id'
 import { requestLog } from './middleware/request-log'
+import { sdkDist, sdkFrame } from './middleware/sdk-files' // @sdk
 import { staticFiles } from './middleware/static'
 import { buildOpenApiDocument } from './openapi'
 
@@ -19,7 +21,14 @@ import { buildOpenApiDocument } from './openapi'
 // Nothing here listens or touches infrastructure: tests import `app` as is, or call
 // `createApp(dir)` to serve a fixture directory, and index.ts starts the infra, listens and
 // handles shutdown.
-export function createApp(staticDir: string | undefined = env.STATIC_DIR): Express {
+export function createApp(staticDir: string | undefined = env.STATIC_DIR): Express { // @nosdk
+// @sdk-start
+export function createApp(
+  staticDir: string | undefined = env.STATIC_DIR,
+  sdkDir: string | undefined = env.SDK_DIR,
+  corsConfig: CorsOptions | undefined = corsOptions,
+): Express {
+// @sdk-end
   const app = express()
 
   // Do not advertise the framework.
@@ -30,18 +39,45 @@ export function createApp(staticDir: string | undefined = env.STATIC_DIR): Expre
   // Security headers first so every response, errors included, carries them.
   app.use(helmet())
   // CORS only when origins are configured; the browser reaches the API on its own origin.
-  if (corsOptions !== undefined) app.use(cors(corsOptions))
+  if (corsOptions !== undefined) app.use(cors(corsOptions)) // @nosdk
+  // @sdk-start
+  // It skips /api/sdk/: that namespace has its own gate, and this layer would answer its
+  // preflights and add credentials to its answers.
+  const inSdkNamespace = (path: string) => /^\/api\/sdk(\/|$)/i.test(path)
+  if (corsConfig !== undefined) {
+    const projectCors = cors(corsConfig)
+    app.use((req, res, next) => {
+      if (inSdkNamespace(req.path)) next()
+      else projectCors(req, res, next)
+    })
+  }
+  // @sdk-end
   // The request id must exist before anything logs or fails.
   app.use(requestId)
   // One log line per request.
   app.use(requestLog)
   // Bodies are JSON only and capped; oversize becomes a 413 envelope in the error handler.
-  app.use(express.json({ limit: '1mb' }))
+  app.use(express.json({ limit: '1mb' })) // @nosdk
+  // @sdk-start
+  // It skips /api/sdk/ too: that router reads its body after the key gate, with its own cap.
+  const json = express.json({ limit: '1mb' })
+  app.use((req, res, next) => {
+    if (inSdkNamespace(req.path)) next()
+    else json(req, res, next)
+  })
+  // @sdk-end
   // Cookies are parsed once here for the auth resolver. // @auth
   app.use(cookieParser()) // @auth
 
   // One line per entity lives in config/routes.ts.
   registerRoutes(app)
+  // @sdk-start
+
+  // The SDK's built files and its frame document, outside the key gate and never answered by the
+  // SPA below. Both are 404 envelopes while SDK_DIR is unset.
+  app.use('/api/sdk/dist', sdkDist(sdkDir))
+  app.get('/api/sdk/frame/:version', sdkFrame(sdkDir))
+  // @sdk-end
 
   // The generated contract, served for tooling.
   app.get('/openapi.json', (_req, res) => {

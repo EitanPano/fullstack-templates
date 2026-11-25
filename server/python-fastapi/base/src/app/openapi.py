@@ -44,6 +44,8 @@ COMPONENTS: Final = frozenset(
         "EntityPage",
         "CreateEntityBody",
         "UpdateEntityBody",
+        "SdkConfig",  # @sdk
+        "SdkTelemetryBody",  # @sdk
         "AuthSession",  # @auth
         "PublicUser",  # @auth
         "AuthTokens",  # @auth
@@ -146,6 +148,17 @@ def shape_document(document: Json, *, components: frozenset[str]) -> Json:
             _object(body.get("responses")).pop("422", None)
             _object(body.get("requestBody")).pop("required", None)
             _unwrap_optional_body(body)
+    # @sdk-start
+    # An SDK operation keeps the id its route names: the SDK's generated types are named after it,
+    # and the other API templates write the same name.
+    for path, item in _object(document.get("paths")).items():
+        if not path.startswith("/api/sdk/"):
+            continue
+        for method, operation in _object(item).items():
+            if method in _HTTP_METHODS and "operationId" in _object(operation):
+                shaped_item = _object(_object(shaped["paths"])[path])
+                _object(shaped_item[method])["operationId"] = _object(operation)["operationId"]
+    # @sdk-end
 
     schemas = _object(_object(shaped.get("components")).get("schemas"))
     for name in _VALIDATION_COMPONENTS:

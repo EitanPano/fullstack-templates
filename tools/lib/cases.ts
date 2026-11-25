@@ -1,7 +1,7 @@
 import type { BrandInput } from './brand'
 import type { Catalog, DeployMode, LoadedTemplate } from './catalog'
-import { isApiKind } from './package-dir'
-import { parseFrontendArg, type RequestInput } from './plan'
+import { isApiKind, isSdkKind } from './package-dir'
+import { parseFrontendArg, parseSdkArg, type RequestInput } from './plan'
 
 export interface GenerationCase {
   id: string
@@ -19,6 +19,9 @@ export interface GenerationCase {
   capabilities: Record<string, string>
   // The <dir>=<template> pairs replacing the stack's frontend (generate --frontend); empty keeps it.
   frontends: string[]
+  // The <dir>=<template> of the plan's sdk package (generate --sdk); null without one. An sdk
+  // template's own case adds the template itself at sdk-<id>.
+  sdk: string | null
   // Flags and capabilities of further packages of the plan, by directory.
   packages: Record<
     string,
@@ -57,22 +60,33 @@ export function listCases(catalog: Catalog): GenerationCase[] {
   const cases: GenerationCase[] = []
   for (const template of catalog.templates.values()) {
     for (const entry of template.cases.cases) {
+      const sdkOwn = isSdkKind(template.manifest.kind)
+      const stack = entry.stack ?? (sdkOwn ? template.manifest.defaultStack : undefined)
+      if (sdkOwn && stack === undefined) {
+        throw new Error(
+          `case ${template.path}/${entry.name} names no stack and the template has no defaultStack`,
+        )
+      }
       cases.push({
         id: `${template.path}/${entry.name}`,
         template,
         name: entry.name,
-        stack: entry.stack ?? null,
+        stack: stack ?? null,
         // A frontend case's own package is its first listed frontend; any other case's is its stack entry.
-        packageDir: entry.stack
-          ? ((template.manifest.kind === 'frontend' ? listedDirs(entry.frontends)[0] : undefined) ??
-            stackDir(catalog, entry.stack, template))
-          : null,
-        serverDir: isApiKind(template.manifest.kind) ? null : serverDirOf(catalog, entry.stack),
+        packageDir: sdkOwn
+          ? `sdk-${template.manifest.id}`
+          : entry.stack
+            ? ((template.manifest.kind === 'frontend'
+                ? listedDirs(entry.frontends)[0]
+                : undefined) ?? stackDir(catalog, entry.stack, template))
+            : null,
+        serverDir: isApiKind(template.manifest.kind) ? null : serverDirOf(catalog, stack),
         serverFlags: entry.server?.flags ?? {},
         serverCapabilities: entry.server?.capabilities ?? {},
         flags: entry.flags ?? {},
         capabilities: entry.capabilities ?? {},
         frontends: entry.frontends ?? [],
+        sdk: sdkOwn ? `sdk-${template.manifest.id}=${template.path}` : (entry.sdk ?? null),
         packages: entry.packages ?? {},
         withApp: entry.withApp === true,
         deploy: entry.deploy ?? null,
@@ -103,6 +117,7 @@ export function requestFor(c: GenerationCase, out: string): RequestInput {
     ...base,
     stack: c.stack,
     ...(c.frontends.length === 0 ? {} : { frontends: c.frontends.map(parseFrontendArg) }),
+    ...(c.sdk === null ? {} : { sdks: [parseSdkArg(c.sdk)] }),
     flags: [],
     capabilities: [],
     answers: {

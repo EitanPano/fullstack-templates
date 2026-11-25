@@ -1,10 +1,10 @@
 # fullstack-templates
 
 Opinionated project structure and architecture, per language and framework. Each template
-(servers, frontends, later workers) is a runnable package that shows where code goes, which
-layers may import which and how the contract reaches the frontend, and its `AGENTS.md` describes
-the workflows and practices for working in it. Providers (database, cache, messaging) are
-selectable, and CI proves that every listed template generates and passes its own gates.
+(servers, frontends, an embeddable SDK, later workers) is a runnable package that shows where
+code goes, which layers may import which and how the contract reaches the frontend, and its
+`AGENTS.md` describes the workflows and practices for working in it. Providers (database, cache,
+messaging) are selectable, and CI proves that every listed template generates and passes its own gates.
 
 **To start a project, use
 [fullstack-dev-harness](https://github.com/EitanPano/fullstack-dev-harness).** It fetches a pinned
@@ -30,14 +30,15 @@ template finds the same shape.
 <!-- matrix:start -->
 | Template | Kind | Version | Flags | Capabilities | Summary |
 | --- | --- | --- | --- | --- | --- |
-| `bun-express` | server | 4.0.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
-| `python-fastapi` | server | 3.0.0 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
-| `cloudflare` | serverless | 3.0.0 | jobs | — | One Cloudflare Worker with static assets, routed by Hono: D1 through Drizzle, zod schemas and the OpenAPI contract from them, one error envelope, tests in workerd; serves a frontend's build on one origin |
+| `bun-express` | server | 4.1.0 | auth | database | Layered Express 5 API on Bun: zod schemas, OpenAPI from them, auth, jobs and a bus |
+| `python-fastapi` | server | 3.1.0 | auth | database | Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope |
+| `cloudflare` | serverless | 3.1.0 | jobs | — | One Cloudflare Worker with static assets, routed by Hono: D1 through Drizzle, zod schemas and the OpenAPI contract from them, one error envelope, tests in workerd; serves a frontend's build on one origin |
 | `angular` | frontend | 5.0.0 | i18n, pwa | — | Angular 22 single-page app on standalone components and signals, @ngrx/signals stores, co-located SCSS on a global token tree and Hey API's Angular client, with Transloco and the service worker behind flags |
 | `astro` | frontend | 1.1.1 | islands | — | Astro 7 static site: pages and an Astro kit on co-located SCSS over a global token tree, a hashed Content-Security-Policy with no unsafe-inline, a typed client generated from the server's contract, React islands behind a flag; ships no image |
 | `next` | frontend | 5.0.0 | — | — | Next.js 16 App Router with a typed client generated from the server's contract |
 | `react` | frontend | 7.0.0 | — | — | Vite and React 19 single-page app: React Router data mode, Redux Toolkit with RTK Query over a client generated from the server's contract, Radix primitives styled by co-located SCSS on a global token tree |
 | `vue` | frontend | 5.0.0 | i18n, pwa | — | Vite and Vue 3 single-page app: Vue Router 5, Pinia 4 setup stores over a client generated from the server's contract, Reka UI primitives styled by co-located SCSS on a global token tree, vue-i18n and the service worker behind flags |
+| `browser` | sdk | 1.0.0 | — | — | Embeddable browser SDK: units a host page mounts in place, by a call or by markup, or opens as a modal, each drawn in a sandboxed iframe from the API's origin with a stylesheet of its own; a kernel with an error boundary, a kill switch and consent; three outputs (npm ESM and CJS, a CDN loader, the frame) and size, API-report, tarball and screens gates |
 
 | Stack | Packages | Summary |
 | --- | --- | --- |
@@ -56,11 +57,13 @@ template finds the same shape.
 
 Each template lives in `<kind>/<id>/` and is described by a `template.yaml` manifest:
 
-- `id`, `kind` (server, frontend or worker), `version` and `summary`;
+- `id`, `kind` (server, serverless, frontend, sdk or worker), `version` and `summary`;
 - `flags`: boolean choices, each with a `default` and the `onlyPaths` removed when off
   (plus dependencies to drop);
 - `commands`: the vocabulary the agents use (`install`, `check`, `test`, `contract`, ...);
 - `contract`: what the package produces (an OpenAPI document) or consumes;
+- `static` (a frontend) or `cdn` (an sdk): the directory its build writes, which the API package
+  serves;
 - `tools`: the programs it needs and their minimum versions, checked before generation;
 - `dependencies`: the manifest and its adapter (`npm` or `pyproject`);
 - `postGenerate`: the commands run in order after generation, such as `install`, `contract`;
@@ -73,7 +76,10 @@ Each template lives in `<kind>/<id>/` and is described by a `template.yaml` mani
 holds the files copied over the base and the scripts and commands they add, and the provider's
 Compose service and env contract in `shared/providers/` are wired into the project root.
 `bun-express` and `python-fastapi` ship `database/postgres`. A frontend that declares a `static`
-build output (`react`, `angular`, `vue`) can be served by a server's image; `next` cannot. See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/capabilities.md](docs/capabilities.md).
+build output (`react`, `angular`, `vue`) can be served by a server's image; `next` cannot. An `sdk` template (`browser`) is a library other sites load, not a frontend: a plan
+holds at most one, added with `--sdk <dir>=<template>` beside a stack, and the API package then
+serves its build and a public `/api/sdk/v1/` namespace ([ADR 0020](docs/adr/0020-sdk-kind.md)).
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/capabilities.md](docs/capabilities.md).
 
 ## Deploy modes
 
@@ -136,6 +142,15 @@ cd ../frontend && bun run check
 ```
 
 `vue-python-fastapi` is the same frontend over FastAPI.
+
+Any stack with an embeddable browser SDK beside it (its image build needs Docker Compose 2.35.0 or
+later in both deploy modes; its browser tests run in Chromium, Firefox and WebKit):
+
+```sh
+bun tools/generate.ts --stack react-bun-express --sdk sdk-widget=sdk/browser \
+  --out ../my-app --name my-app
+cd ../my-app/sdk-widget && bun run check
+```
 
 The generator copies each package's base, applies the flags, assembles the root
 `docker-compose.yml`, installs dependencies, generates the contract and the client types,
@@ -232,6 +247,14 @@ stack; production does not refuse its credentials if you export them.
   `frontend/react` 7.0.0, `frontend/next` 5.0.0, `frontend/vue` 5.0.0, `frontend/angular` 5.0.0,
   `frontend/astro` 1.1.1. A package's `AGENTS.md` is the template's: no step tells a task to edit
   it ([ADR 0019](docs/adr/0019-package-docs.md)).
+- v1.18.0: a fourth template kind, `sdk`: `sdk/browser` 1.0.0, an embeddable browser SDK (npm ESM
+  and CJS, a CDN loader, a frame it draws units in; a host page mounts a unit in place, by a call
+  or by markup, or opens one as a modal, and a module is a declaration, a frame half and a
+  stylesheet) and, behind the `sdk` selection, the public SDK namespace `/api/sdk/v1/` with its
+  kill switch and telemetry, the SDK's files and the frame document in `server/bun-express`
+  4.1.0, `server/python-fastapi` 3.1.0 and `serverless/cloudflare` 3.1.0
+  ([ADR 0020](docs/adr/0020-sdk-kind.md), [ADR 0021](docs/adr/0021-sdk-units.md));
+  `generate --sdk <dir>=<template>`.
 - Next: mongodb, redis, and a worker with rabbitmq.
 
 The design is in [ADR 0001](docs/adr/0001-catalog-architecture.md).

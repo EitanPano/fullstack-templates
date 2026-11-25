@@ -9,10 +9,14 @@ import { OpenApiGeneratorV31, OpenAPIRegistry } from '@asteasolutions/zod-to-ope
 import pkg from '../package.json' with { type: 'json' }
 import { registerHealth } from './api/health/schema'
 import { registerEntity } from './api/entity/schema'
+import { registerSdkConfig } from './api/sdk/config/schema' // @sdk
+import { registerSdkTelemetry } from './api/sdk/telemetry/schema' // @sdk
 
 export const registrations: readonly ((registry: OpenAPIRegistry) => void)[] = [
   registerHealth,
   registerEntity,
+  registerSdkConfig, // @sdk
+  registerSdkTelemetry, // @sdk
 ]
 
 export function buildOpenApiDocument() {

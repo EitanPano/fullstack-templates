@@ -87,6 +87,34 @@ const refused: [string, string, string][] = [
   ['server/index.ts', ts('./api/admin/routes'), 'only server.ts imports a routes.ts'],
   ['server/api/admin/routes.ts', ts('../../services/logger'), 'controllers'],
   ['server/api/admin/routes.ts', ts('../../infra/db'), 'controllers'],
+  // @sdk-start
+  // The SDK namespace is the admin namespace's twin: api/sdk/<entity>/ is an entity like any other,
+  // and only api/sdk/routes.ts imports the routes.ts of the entities under it.
+  ['server/api/sdk/unit/controller.ts', ts('../../entity/service'), "entity's controller.ts"],
+  ['server/api/sdk/unit/controller.ts', ts('../../entity/model'), "entity's controller.ts"],
+  ['server/api/sdk/unit/controller.ts', ts('../other/service'), 'controller.ts'],
+  ['server/api/sdk/unit/service.ts', ts('../../entity/controller'), 'data layer'],
+  ['server/api/sdk/unit/service.ts', ts('../../../middleware/handler'), 'never sees HTTP'],
+  ['server/api/sdk/unit/schema.ts', ts('../../../middleware/handler'), 'leaf of an entity'],
+  ['server/api/sdk/unit/controller.ts', ts('hono'), 'Hono is imported by'],
+  ['server/api/entity/controller.ts', ts('../sdk/unit/service'), 'controller.ts'],
+  ['server/api/entity/routes.ts', ts('../sdk/routes'), 'only server.ts imports a routes.ts'],
+  [
+    'server/api/sdk/unit/routes.ts',
+    ts('../../entity/routes'),
+    'only server.ts imports a routes.ts',
+  ],
+  ['server/api/sdk/telemetry/controller.ts', ts('../../entity/service'), "entity's controller.ts"],
+  ['server/api/sdk/telemetry/controller.ts', ts('../config/service'), 'controller.ts'],
+  ['server/api/sdk/telemetry/controller.ts', ts('hono'), 'Hono is imported by'],
+  ['server/api/sdk/telemetry/schema.ts', ts('../../../middleware/handler'), 'leaf of an entity'],
+  ['server/api/sdk/telemetry/routes.ts', ts('../config/routes'), 'only server.ts imports a routes.ts'],
+  ['server/services/telemetry.ts', ts('../middleware/handler'), 'never imports middleware'],
+  ['server/api/sdk/routes.ts', ts('../entity/routes'), 'controller.ts'],
+  ['server/api/sdk/routes.ts', ts('../../services/logger'), 'controllers'],
+  ['server/middleware/x.ts', ts('../api/sdk/routes'), 'nothing imports them'],
+  ['server/index.ts', ts('./api/sdk/routes'), 'only server.ts imports a routes.ts'],
+  // @sdk-end
 ]
 
 const allowed: [string, string][] = [
@@ -144,6 +172,37 @@ const allowed: [string, string][] = [
   ['server/api/admin/lead/service.ts', ts('../../../services/utils/pagination')],
   ['server/api/admin/lead/model.ts', ts('../../../models/lead/enum')],
   ['server/api/admin/lead/schema.ts', ts('../../../services/utils/zod')],
+  // @sdk-start
+  // The SDK namespace: its router imports the gate and the entities' routers.
+  ['server/api/sdk/routes.ts', ts('./config/routes')],
+  ['server/api/sdk/routes.ts', ts('../../middleware/sdk-gate')],
+  ['server/api/sdk/routes.ts', ts('../../middleware/handler')],
+  ['server/api/sdk/routes.ts', ts('hono')],
+  ['server/server.ts', ts('./api/sdk/routes')],
+  ['server/server.ts', ts('./middleware/sdk-files')],
+  ['server/middleware/sdk-gate.ts', ts('../services/security/sdk-keys')],
+  ['server/middleware/sdk-files.ts', ts('../services/security/sdk-keys')],
+  ['server/services/security/sdk-keys.ts', ts('../../config/env')],
+  ['server/api/sdk/telemetry/routes.ts', ts('./controller')],
+  ['server/api/sdk/telemetry/routes.ts', ts('./schema')],
+  ['server/api/sdk/telemetry/routes.ts', ts('../../../middleware/validate')],
+  ['server/api/sdk/telemetry/routes.ts', ts('../../../middleware/handler')],
+  ['server/api/sdk/telemetry/controller.ts', ts('./schema')],
+  ['server/api/sdk/telemetry/controller.ts', ts('../../../middleware/handler')],
+  ['server/api/sdk/telemetry/controller.ts', ts('../../../middleware/validate')],
+  ['server/api/sdk/telemetry/controller.ts', ts('../../../services/telemetry')],
+  ['server/api/sdk/telemetry/schema.ts', ts('../../../services/utils/zod')],
+  ['server/services/telemetry.ts', ts('./logger')],
+  ['server/api/sdk/unit/routes.ts', ts('./controller')],
+  ['server/api/sdk/unit/routes.ts', ts('./schema')],
+  ['server/api/sdk/unit/routes.ts', ts('../../../middleware/validate')],
+  ['server/api/sdk/unit/controller.ts', ts('./service')],
+  ['server/api/sdk/unit/controller.ts', ts('../../entity/controller')],
+  ['server/api/sdk/unit/controller.ts', ts('../other/controller')],
+  ['server/api/sdk/unit/controller.ts', ts('../../../middleware/handler')],
+  ['server/api/sdk/unit/service.ts', ts('../../../infra/db')],
+  ['server/api/sdk/unit/schema.ts', ts('../../../services/utils/zod')],
+  // @sdk-end
 ]
 
 describe('import boundaries', () => {

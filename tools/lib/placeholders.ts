@@ -60,6 +60,17 @@ export const SERVER_PLACEHOLDERS: readonly string[] = [
   'SERVER_E2E_DATABASE_URL',
 ]
 
+// The tokens of an sdk package: the API package of a plan that holds one is given the first four,
+// the sdk package its global and slot attribute (ADR 0020 K3, ADR 0021 U4).
+export const SDK_PLACEHOLDERS: readonly string[] = [
+  'SDK_DIR',
+  'SDK_PATH',
+  'SDK_OUT',
+  'SDK_PORT',
+  'SDK_GLOBAL',
+  'SDK_SLOT',
+]
+
 // The tokens the generator itself defines, beside the ones a template declares.
 export const GENERATED_PLACEHOLDERS: readonly string[] = [
   'PROJECT_NAME',
@@ -74,6 +85,7 @@ export const GENERATED_PLACEHOLDERS: readonly string[] = [
   'FRONTENDS',
   // The same package's local host map, `<dir>.localhost=<dir>` per frontend, comma-separated.
   'FRONTEND_HOSTS',
+  ...SDK_PLACEHOLDERS,
   // The brand of a frontend package (lib/brand.ts builds the values).
   'PROJECT_DISPLAY_NAME',
   'THEME_LIGHT',
@@ -85,6 +97,39 @@ export const GENERATED_PLACEHOLDERS: readonly string[] = [
   'THEME_FONT_STACK',
 ]
 
+// The name of the sdk's one global: its directory's last segment, a leading `sdk-` dropped, in
+// PascalCase, plus the suffix `Sdk` so a host's own `Chat` or `React` is not taken (`sdk-ads` is
+// `AdsSdk`; `sdk` and `ads-sdk` end in the suffix already: `Sdk`, `AdsSdk`).
+export function sdkGlobal(dir: string): string {
+  const last = dir.split('/').at(-1) ?? dir
+  const name = last.startsWith('sdk-') ? last.slice('sdk-'.length) : last
+  const pascal = name
+    .split('-')
+    .filter((word) => word !== '')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('')
+  return pascal.endsWith('Sdk') ? pascal : `${pascal}Sdk`
+}
+
+// The attribute a page marks a slot with: `data-` and the global's name in kebab case (`AdsSdk`
+// gives `data-ads-sdk`), so two SDKs on one page never read each other's markup.
+export function sdkSlot(dir: string): string {
+  const kebab = sdkGlobal(dir)
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .toLowerCase()
+  return `data-${kebab}`
+}
+
+// The reason a directory cannot name the sdk's global, or null: the name after `sdk-` must start
+// with a letter, so the global is a JavaScript identifier.
+export function sdkGlobalProblem(dir: string): string | null {
+  const global = sdkGlobal(dir)
+  const last = dir.split('/').at(-1) ?? dir
+  const after = last.startsWith('sdk-') ? last.slice('sdk-'.length) : last
+  if (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(global) && /^[a-z]/.test(after)) return null
+  return `sdk directory "${dir}": the name after sdk- must start with a letter (the global is window.<Name>Sdk)`
+}
+
 export function substitutePlaceholders(
   content: string,
   values: Readonly<Record<string, string>>,
@@ -94,10 +139,13 @@ export function substitutePlaceholders(
   )
 }
 
+// A Markdown formatter rewrites `__NAME__` as bold `**NAME**`, which no substitution matches, so
+// that spelling of a declared name counts as left over too.
 export function findLeftoverPlaceholder(content: string, names: readonly string[]): string | null {
   for (const name of names) {
-    const token = `__${name}__`
-    if (content.includes(token)) return token
+    for (const token of [`__${name}__`, `**${name}**`]) {
+      if (content.includes(token)) return token
+    }
   }
   return null
 }
