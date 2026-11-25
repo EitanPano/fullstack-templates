@@ -59,6 +59,41 @@ describe('SDK_KEYS parsing', () => {
     })
   }
 
+  // Every other production requirement met, so only the origin can be refused.
+  const PRODUCTION = {
+    NODE_ENV: 'production',
+    ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
+    JWT_ACCESS_SECRET: 'prod-access-' + 'a'.repeat(32), // @auth
+    JWT_REFRESH_SECRET: 'prod-refresh-' + 'b'.repeat(32), // @auth
+    OTP_SECRET: 'prod-otp-' + 'c'.repeat(32), // @auth
+    DATABASE_URL: 'postgres://app:prodpass@db.internal:5432/app', // @database:postgres
+  }
+
+  it('refuses an http origin in production', () => {
+    const attempt = () => loadEnv({ ...PRODUCTION, SDK_KEYS: 'pk_probe=http://a.example.test' })
+
+    expect(attempt).toThrow(/SDK_KEYS: pair 1/)
+    expect(attempt).not.toThrow(/pk_probe/)
+  })
+
+  it('refuses a loopback origin in production', () => {
+    for (const origin of ['https://localhost:5190', 'https://127.0.0.1', 'https://127.1.2.3:8443']) {
+      const attempt = () => loadEnv({ ...PRODUCTION, SDK_KEYS: `pk_a=${A};pk_probe=${origin}` })
+
+      expect(attempt).toThrow(/SDK_KEYS: pair 2/)
+      expect(attempt).not.toThrow(/pk_probe/)
+    }
+  })
+
+  it('accepts both outside production', () => {
+    const text = 'pk_a=http://localhost:5190,http://127.0.0.1:5190,https://localhost'
+
+    for (const NODE_ENV of ['development', 'test']) {
+      expect(loadEnv({ NODE_ENV, SDK_KEYS: text }).env.SDK_KEYS?.get('pk_a')).toHaveLength(3)
+    }
+    expect(loadEnv({ ...PRODUCTION, SDK_KEYS: `pk_a=${A}` }).env.SDK_KEYS?.get('pk_a')).toEqual([A])
+  })
+
   it('treats a blank SDK_DIR as unset and resolves a set one to an absolute path', () => {
     expect(loadEnv({ SDK_DIR: '' }).env.SDK_DIR).toBeUndefined()
     expect(loadEnv({ SDK_DIR: 'dist/cdn' }).env.SDK_DIR).toMatch(/dist[\\/]cdn$/)

@@ -1,5 +1,6 @@
 import cookieParser from 'cookie-parser' // @auth
 import cors from 'cors'
+import type { CorsOptions } from 'cors' // @sdk
 import express, { type Express } from 'express'
 import helmet from 'helmet'
 
@@ -25,6 +26,7 @@ export function createApp(staticDir: string | undefined = env.STATIC_DIR): Expre
 export function createApp(
   staticDir: string | undefined = env.STATIC_DIR,
   sdkDir: string | undefined = env.SDK_DIR,
+  corsConfig: CorsOptions | undefined = corsOptions,
 ): Express {
 // @sdk-end
   const app = express()
@@ -37,7 +39,18 @@ export function createApp(
   // Security headers first so every response, errors included, carries them.
   app.use(helmet())
   // CORS only when origins are configured; the browser reaches the API on its own origin.
-  if (corsOptions !== undefined) app.use(cors(corsOptions))
+  if (corsOptions !== undefined) app.use(cors(corsOptions)) // @nosdk
+  // @sdk-start
+  // It skips /api/sdk/: that namespace has its own gate, and this layer would answer its
+  // preflights and add credentials to its answers.
+  if (corsConfig !== undefined) {
+    const projectCors = cors(corsConfig)
+    app.use((req, res, next) => {
+      if (/^\/api\/sdk(\/|$)/i.test(req.path)) next()
+      else projectCors(req, res, next)
+    })
+  }
+  // @sdk-end
   // The request id must exist before anything logs or fails.
   app.use(requestId)
   // One log line per request.

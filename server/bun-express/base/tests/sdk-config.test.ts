@@ -1,10 +1,17 @@
-import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, spyOn } from 'bun:test'
+import express from 'express'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import request from 'supertest'
 
+import sdkRoutes from '../src/api/sdk/routes'
 import { env } from '../src/config/env'
 import { RATE_LIMITS } from '../src/config/constants'
+import { errorHandler } from '../src/middleware/error-handler'
+import { requestId } from '../src/middleware/request-id'
 import * as cache from '../src/services/cache'
-import { app } from '../src/server'
+import { app, createApp } from '../src/server'
 import { resetStore } from './store'
 
 const KEY = 'pk_test_a'
@@ -113,6 +120,15 @@ describe('GET /api/sdk/v1/config', () => {
     const res = await request(app)
       .get(PATH)
       .set('Origin', C)
+      .set('Sec-Fetch-Site', 'cross-site')
+      .set('X-Sdk-Key', KEY)
+
+    expectEnvelope(res, 403, 'forbidden')
+  })
+
+  it('does not take a request that says cross-site for same-origin, even without an Origin', async () => {
+    const res = await request(app)
+      .get(PATH)
       .set('Sec-Fetch-Site', 'cross-site')
       .set('X-Sdk-Key', KEY)
 
@@ -326,6 +342,172 @@ describe('the rate limit of /api/sdk/v1', () => {
       expect(incr).not.toHaveBeenCalled()
     } finally {
       incr.mockRestore()
+    }
+  })
+})
+
+// The project's own CORS_ORIGINS layer sits in front of the whole app: it must leave /api/sdk/ alone.
+describe('with CORS_ORIGINS set', () => {
+  const APP = 'https://app.example.test'
+  let root: string
+  let corsApp: ReturnType<typeof createApp>
+
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), 'sdk-cors-'))
+    mkdirSync(join(root, 'v1'))
+    writeFileSync(join(root, 'v1', 'loader.js'), 'x')
+    writeFileSync(join(root, 'v1', 'frame.html'), '<!doctype html>')
+    corsApp = createApp(undefined, root, { origin: [APP], credentials: true })
+  })
+
+  afterAll(() => {
+    rmSync(root, { recursive: true, force: true })
+  })
+
+  const preflight = (origin: string) =>
+    request(corsApp)
+      .options(PATH)
+      .set('Origin', origin)
+      .set('Access-Control-Request-Method', 'GET')
+      .set('Access-Control-Request-Headers', 'x-sdk-key')
+
+  it('answers the SDK preflight itself when CORS_ORIGINS is set', async () => {
+    const res = await preflight(A)
+
+    expect(res.status).toBe(204)
+    expect(res.header['access-control-allow-origin']).toBe(A)
+    expect(res.header['access-control-max-age']).toBe('600')
+  })
+
+  it('sends no Allow-Credentials on the namespace when CORS_ORIGINS is set', async () => {
+    const ok = await request(corsApp).get(PATH).set('Origin', A).set('X-Sdk-Key', KEY)
+    const refused = await request(corsApp).get(PATH).set('Origin', A)
+
+    expect(ok.status).toBe(200)
+    expect(refused.status).toBe(403)
+    for (const res of [ok, refused, await preflight(A)]) {
+      expect(res.header['access-control-allow-credentials']).toBeUndefined()
+    }
+  })
+
+  it('gives an origin that is only in CORS_ORIGINS nothing on the namespace', async () => {
+    const res = await request(corsApp).get(PATH).set('Origin', APP).set('X-Sdk-Key', KEY)
+    const pre = await preflight(APP)
+
+    expectEnvelope(res, 403, 'forbidden')
+    for (const reply of [res, pre]) {
+      expect(reply.header['access-control-allow-origin']).toBeUndefined()
+      expect(reply.header['access-control-allow-credentials']).toBeUndefined()
+    }
+  })
+
+  it('sends no Allow-Credentials on the files and the frame when CORS_ORIGINS is set', async () => {
+    const file = await request(corsApp).get('/api/sdk/dist/v1/loader.js').set('Origin', APP)
+    const frame = await request(corsApp)
+      .get('/api/sdk/frame/v1?k=' + KEY)
+      .set('Origin', APP)
+
+    expect(file.status).toBe(200)
+    expect(frame.status).toBe(200)
+    expect(file.header['access-control-allow-credentials']).toBeUndefined()
+    expect(frame.header['access-control-allow-credentials']).toBeUndefined()
+  })
+
+  it('leaves CORS_ORIGINS as it was outside the SDK paths', async () => {
+    const res = await request(corsApp).get('/api/health').set('Origin', APP)
+
+    expect(res.header['access-control-allow-origin']).toBe(APP)
+    expect(res.header['access-control-allow-credentials']).toBe('true')
+  })
+})
+
+// The same gate on a bare app, behind a proxy hop, so two addresses can be told apart.
+function gateApp() {
+  const bare = express()
+  bare.set('trust proxy', true)
+  bare.use(requestId)
+  bare.use('/api/sdk/v1', sdkRoutes)
+  bare.use(errorHandler)
+  return bare
+}
+
+describe('the limits of /api/sdk/v1', () => {
+  // Counts like the real limiter, with the address counters two requests below their limit.
+  function spyLimits() {
+    const counts = new Map<string, number>()
+    const calls = { key: 0 }
+    const incr = spyOn(cache, 'incr').mockImplementation((name: string) => {
+      const next = (counts.get(name) ?? 0) + 1
+      counts.set(name, next)
+      if (name.startsWith('rl:sdkPerKey:')) calls.key++
+      const offset = name.startsWith('rl:sdkPerIp:') ? RATE_LIMITS.sdkPerIp.limit - 2 : 0
+      return Promise.resolve(next + offset)
+    })
+    return { incr, calls }
+  }
+
+  it('one address cannot use up a key limit', async () => {
+    const { incr, calls } = spyLimits()
+    const bare = gateApp()
+    const from = (ip: string) =>
+      request(bare).get(PATH).set('X-Forwarded-For', ip).set('Origin', A).set('X-Sdk-Key', KEY)
+
+    try {
+      const statuses = []
+      for (let i = 0; i < 6; i++) statuses.push((await from('203.0.113.1')).status)
+
+      expect(statuses).toEqual([200, 200, 429, 429, 429, 429])
+      expect(calls.key).toBe(2)
+      expect((await from('203.0.113.2')).status).toBe(200)
+      expect(calls.key).toBe(3)
+    } finally {
+      incr.mockRestore()
+    }
+  })
+
+  it('limits preflights by address', async () => {
+    const { incr } = spyLimits()
+    const bare = gateApp()
+    const pre = () =>
+      request(bare)
+        .options(PATH)
+        .set('X-Forwarded-For', '203.0.113.1')
+        .set('Origin', A)
+        .set('Access-Control-Request-Method', 'GET')
+
+    try {
+      expect((await pre()).status).toBe(204)
+      expect((await pre()).status).toBe(204)
+      expectEnvelope(await pre(), 429, 'rate_limited')
+    } finally {
+      incr.mockRestore()
+    }
+  })
+})
+
+describe('the answers of /api/sdk/v1', () => {
+  it('never lets a namespace answer be stored', async () => {
+    const ok = await request(app).get(PATH).set('Origin', A).set('X-Sdk-Key', KEY)
+    const refused = await request(app).get(PATH).set('Origin', A)
+    const pre = await request(app)
+      .options(PATH)
+      .set('Origin', A)
+      .set('Access-Control-Request-Method', 'GET')
+    const incr = spyOn(cache, 'incr').mockImplementation(() =>
+      Promise.resolve(Number.MAX_SAFE_INTEGER),
+    )
+    let limited: request.Response
+    try {
+      limited = await request(app).get(PATH).set('Origin', A).set('X-Sdk-Key', KEY)
+    } finally {
+      incr.mockRestore()
+    }
+
+    expect(limited.status).toBe(429)
+    for (const res of [ok, refused, limited, pre]) {
+      expect(res.header['cache-control']).toBe('no-store')
+      expect(res.header.vary).toContain('Origin')
+      expect(res.header.vary).toContain('X-Sdk-Key')
     }
   })
 })

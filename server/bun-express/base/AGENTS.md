@@ -472,9 +472,14 @@ identifiers, comments and constants: `entity` to `<name>`, `Entity` to `<Name>`,
 - SDK endpoints live in `api/sdk/<name>/`, an entity like any other, at `/api/sdk/v1/<name>`
   (`sdk` is a namespace); mount its router in `api/sdk/routes.ts`. That file runs
   `middleware/sdk-gate.ts` first: CORS for this namespace alone, the `X-Sdk-Key` header resolved
-  by `services/security/sdk-keys.ts` (reads `SDK_KEYS`; replace its bodies with a lookup), then
-  the rate limit by key and address. Within `v1` the namespace only adds: a removal or a change
-  is a `v2` beside it. The SDK's built files (`/api/sdk/dist/v<major>/`) and its frame document
+  by `services/security/sdk-keys.ts` (reads `SDK_KEYS`, https origins only in production; replace
+  its bodies with a lookup), then the rate limit by address and by key. The project's
+  `CORS_ORIGINS` layer skips `/api/sdk/`. An entity only the frame calls (issuing a token,
+  accepting a view or a click) is mounted with `frameOnly`; one mounted without it is readable by
+  the host page, so it never issues or accepts anything that counts. The per-key limit is a
+  ceiling for one integration's whole audience (default 3000 a minute, the kill switch read once
+  per page view) and is the product's to size. Within `v1` the namespace only adds: a removal or
+  a change is a `v2` beside it. The SDK's built files (`/api/sdk/dist/v<major>/`) and its frame document
   (`/api/sdk/frame/v<major>?k=<key>`) come from `SDK_DIR` through `middleware/sdk-files.ts`,
   carry no key and are not in the OpenAPI document. `SDK_ENABLED=false` turns the SDK off.
 <!-- @sdk-end -->

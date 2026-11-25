@@ -85,6 +85,11 @@ function isOrigin(value: string): boolean {
   }
 }
 
+function isWeakOrigin(origin: string): boolean {
+  const { protocol, hostname } = new URL(origin)
+  return protocol === 'http:' || hostname === 'localhost' || hostname.startsWith('127.')
+}
+
 const blankIsUnset = (value: unknown) =>
   typeof value === 'string' && value.trim() === '' ? undefined : value
 
@@ -174,6 +179,21 @@ const schema = z
     RATE_LIMIT_SCALE: z.coerce.number().min(1).max(1000).default(1),
   })
   .transform((value, context) => {
+    // @sdk-start
+    // Production serves other people's pages: a key may not list an http or a loopback origin.
+    let position = 0
+    for (const origins of value.SDK_KEYS?.values() ?? []) {
+      position++
+      if (value.NODE_ENV === 'production' && origins.some(isWeakOrigin)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['SDK_KEYS'],
+          message: `pair ${String(position)} has an http or loopback origin, which production refuses`,
+        })
+        return z.NEVER
+      }
+    }
+    // @sdk-end
     if (value.MAIL_PROVIDER !== 'console' && value.MAIL_FROM === undefined) {
       context.addIssue({
         code: 'custom',

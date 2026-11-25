@@ -65,6 +65,7 @@ onlyWhen:
     - src/services/security/sdk-keys.ts
     - tests/sdk-config.test.ts
     - tests/sdk-files.test.ts
+    - tests/sdk-frame-only.test.ts
     - tests/sdk-frame.test.ts
     - tests/sdk-http.ts
     - tests/sdk-keys.test.ts
