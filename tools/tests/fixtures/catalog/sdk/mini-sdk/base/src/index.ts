@@ -1,4 +1,5 @@
 export const globalName = '__SDK_GLOBAL__'
+export const slotAttribute = '__SDK_SLOT__'
 export const serverDir = '__SERVER_DIR__'
 export const serverPort = '__SERVER_PORT__'
 export const start = '__SERVER_START_COMMAND__'

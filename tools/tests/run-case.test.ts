@@ -998,6 +998,8 @@ describe('app smoke, a plan with an SDK', () => {
   }
   const LOADER = (at: number, major = 2) =>
     `http://127.0.0.1:${String(at)}/api/sdk/dist/v${String(major)}/loader.js`
+  const SHEET = (at: number, major = 2) =>
+    `http://127.0.0.1:${String(at)}/api/sdk/dist/v${String(major)}/frame.css`
   const FRAME = (at: number, major = 2) =>
     `http://127.0.0.1:${String(at)}/api/sdk/frame/v${String(major)}?k=`
   const loaderReply: ProbeResult = {
@@ -1006,16 +1008,22 @@ describe('app smoke, a plan with an SDK', () => {
     contentType: 'text/javascript; charset=utf-8',
     headers: { 'access-control-allow-origin': '*' },
   }
+  const sheetReply: ProbeResult = {
+    status: 200,
+    body: ':root{}',
+    contentType: 'text/css; charset=utf-8',
+    headers: {},
+  }
   const frameReply: ProbeResult = {
     status: 200,
     body: '<!doctype html>',
     contentType: 'text/html; charset=utf-8',
     headers: {
       'content-security-policy':
-        "default-src 'none'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+        "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
     },
   }
-  // The fake site answers the SDK's two addresses unless the test overrides them.
+  // The fake site answers the SDK's three addresses unless the test overrides them.
   const sdkSite = (at: number, overrides: Record<string, Reply> = {}) => {
     const inner = site(at, overrides)
     const probe: Probe = async (url) => {
@@ -1026,6 +1034,7 @@ describe('app smoke, a plan with an SDK', () => {
         if (found !== undefined) return found
       }
       if (/\/api\/sdk\/dist\/v\d+\/loader\.js$/.test(url)) return loaderReply
+      if (/\/api\/sdk\/dist\/v\d+\/frame\.css$/.test(url)) return sheetReply
       if (/\/api\/sdk\/frame\/v\d+\?k=/.test(url)) return frameReply
       return inner.probe(url)
     }
@@ -1033,20 +1042,21 @@ describe('app smoke, a plan with an SDK', () => {
   }
   const sdkUrls = (urls: string[]) => urls.filter((u) => u.includes('/api/sdk/'))
 
-  test('single: asks the server port for the loader and for the frame with a key nobody holds', async () => {
+  test('single: asks the server port for the loader, the frame sheet and the frame with a key nobody holds', async () => {
     const { probe, urls } = sdkSite(4000)
     await smoke(withSdk(), APP, probe, fakeCapture().capture).result
     const asked = sdkUrls(urls)
-    expect(asked).toHaveLength(2)
+    expect(asked).toHaveLength(3)
     expect(asked[0]).toBe(LOADER(4000))
-    expect(asked[1]?.startsWith(FRAME(4000))).toBe(true)
-    expect(asked[1]).not.toBe(FRAME(4000))
+    expect(asked[1]).toBe(SHEET(4000))
+    expect(asked[2]?.startsWith(FRAME(4000))).toBe(true)
+    expect(asked[2]).not.toBe(FRAME(4000))
   })
 
-  test('split: both addresses go through the frontend port', async () => {
+  test('split: all three addresses go through the frontend port', async () => {
     const { probe, urls } = sdkSite(5173)
     await smoke(withSdk('split'), APP, probe, fakeCapture().capture).result
-    expect(sdkUrls(urls).map((u) => new URL(u).port)).toEqual(['5173', '5173'])
+    expect(sdkUrls(urls).map((u) => new URL(u).port)).toEqual(['5173', '5173', '5173'])
   })
 
   test('the major is the generated package version, not a constant', async () => {
@@ -1054,10 +1064,11 @@ describe('app smoke, a plan with an SDK', () => {
     await smoke(withSdk(undefined, '7.0.1'), APP, probe, fakeCapture().capture).result
     const asked = sdkUrls(urls)
     expect(asked[0]).toBe(LOADER(4000, 7))
-    expect(asked[1]?.startsWith(FRAME(4000, 7))).toBe(true)
+    expect(asked[1]).toBe(SHEET(4000, 7))
+    expect(asked[2]?.startsWith(FRAME(4000, 7))).toBe(true)
   })
 
-  test('a plan without an SDK asks for neither', async () => {
+  test('a plan without an SDK asks for none of them', async () => {
     const { probe, urls } = site(4000)
     await smoke(stackCatalog({ frontend: 'mini-spa' }), APP, probe, fakeCapture().capture).result
     expect(sdkUrls(urls)).toEqual([])
@@ -1082,7 +1093,29 @@ describe('app smoke, a plan with an SDK', () => {
   )
 
   test.each([
+    ['status', { ...sheetReply, status: 404 }, /sheet.*status 404/],
+    [
+      'content type',
+      { ...sheetReply, contentType: 'text/html' },
+      /sheet.*content type text\/html.*stylesheet/,
+    ],
+  ])('a frame sheet with the wrong %s fails naming the check', async (_n, bad, message) => {
+    const { probe } = sdkSite(4000, { [SHEET(4000)]: bad })
+    await expect(smoke(withSdk(), APP, probe, fakeCapture().capture).result).rejects.toThrow(
+      message,
+    )
+  })
+
+  test.each([
     ['status', { ...frameReply, status: 404 }, /frame.*status 404/],
+    [
+      'style-src',
+      {
+        ...frameReply,
+        headers: { 'content-security-policy': "default-src 'none'; frame-ancestors 'none'" },
+      },
+      /frame.*style-src 'self'/,
+    ],
     [
       'frame-ancestors',
       { ...frameReply, headers: { 'content-security-policy': "default-src 'none'" } },

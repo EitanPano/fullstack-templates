@@ -303,6 +303,7 @@ export const SDK_AGENTS_HEADINGS = [
   'Public API',
   'Errors',
   'Tests',
+  'Styling',
   'Deployment',
 ] as const
 

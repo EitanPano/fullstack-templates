@@ -724,6 +724,29 @@ describe('loadCatalog: frontend agents headings', () => {
   })
 })
 
+describe('loadCatalog: sdk agents headings', () => {
+  const sdk = 'sdk/mini-sdk'
+  const SIX = ['Adding a feature', 'Public API', 'Errors', 'Tests', 'Styling', 'Deployment']
+
+  test('accepts an sdk with the six headings', () => {
+    const root = copyFixture('catalog')
+    const text = SIX.map((heading) => `## ${heading}\n`).join('\n')
+    writeFileSync(path.join(root, `${sdk}/base/AGENTS.md`), text)
+    expect(() => loadCatalog(root)).not.toThrow()
+  })
+
+  test.each(SIX)('refuses an sdk template whose agents file lacks %s', (heading) => {
+    const root = copyFixture('catalog')
+    edit(root, `${sdk}/base/AGENTS.md`, (t) => t.replace(`## ${heading}\n`, ''))
+    const message = problems(root)
+    expect(message).toContain(sdk)
+    expect(message).toContain(`"${heading}"`)
+    for (const other of SIX.filter((h) => h !== heading)) {
+      expect(message).not.toContain(`"${other}"`)
+    }
+  })
+})
+
 describe('loadCatalog: the static field and the reserved single', () => {
   test('keeps static on a frontend', () => {
     const manifest = loadCatalog(FIXTURE).templates.get('frontend/mini-spa')?.manifest

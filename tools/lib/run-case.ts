@@ -402,8 +402,19 @@ async function checkSdk(deps: AppDeps, origin: string, major: number): Promise<v
   )
   await expectProbe(
     deps,
+    `${origin}/api/sdk/dist/v${String(major)}/frame.css`,
+    'the SDK frame sheet is served as a stylesheet',
+    (result) => {
+      if (result.status !== 200) return `status ${String(result.status)}`
+      return /text\/css/i.test(result.contentType ?? '')
+        ? null
+        : `content type ${result.contentType ?? 'missing'}, not a stylesheet`
+    },
+  )
+  await expectProbe(
+    deps,
     `${origin}/api/sdk/frame/v${String(major)}?k=${SDK_UNKNOWN_KEY}`,
-    'the SDK frame document is framed by nobody for an unknown key',
+    'the SDK frame document is framed by nobody for an unknown key and may link its own sheet',
     (result) => {
       if (result.status !== 200) return `status ${String(result.status)}`
       const policy = result.headers?.['content-security-policy'] ?? ''
@@ -412,6 +423,9 @@ async function checkSdk(deps: AppDeps, origin: string, major: number): Promise<v
         return 'another Content-Security-Policy is joined to the one of the frame'
       if (!policy.includes("frame-ancestors 'none'")) {
         return "the Content-Security-Policy is missing or has no frame-ancestors 'none'"
+      }
+      if (!policy.includes("style-src 'self'")) {
+        return "the Content-Security-Policy has no style-src 'self': the frame's sheet would not apply"
       }
       return result.headers?.['x-frame-options'] === undefined
         ? null
