@@ -582,6 +582,9 @@ ignore_imports = [
   "app.api.admin.*.controller -> app.api.*.controller",
   "app.api.admin.*.controller -> app.api.*.schema",
   "app.api.admin.*.schema -> app.api.*.schema",
+  "app.api.sdk.*.controller -> app.api.*.controller",  # @sdk
+  "app.api.sdk.*.controller -> app.api.*.schema",  # @sdk
+  "app.api.sdk.*.schema -> app.api.*.schema",  # @sdk
 ]
 unmatched_ignore_imports_alerting = "none"
 
@@ -602,6 +605,24 @@ ignore_imports = [
 ]
 unmatched_ignore_imports_alerting = "none"
 
+# @sdk-start
+# api/sdk/<entity>/ is an entity like any other, beside the admin ones (ADR 0020, N1): its entities
+# reach an entity's controller and schema and nothing more of it, and no top-level or admin entity
+# imports an SDK one. Here the SDK entities are independent of each other by the same doors;
+# `app.api.sdk.routes`, the namespace's router, mounts each entity's routes.
+[[tool.importlinter.contracts]]
+name = "sdk entities are independent: a controller and a schema are an entity's only doors"
+type = "independence"
+modules = ["app.api.sdk.*"]
+ignore_imports = [
+  "app.api.sdk.routes -> app.api.sdk.*.routes",
+  "app.api.sdk.*.controller -> app.api.sdk.*.controller",
+  "app.api.sdk.*.controller -> app.api.sdk.*.schema",
+  "app.api.sdk.*.schema -> app.api.sdk.*.schema",
+]
+unmatched_ignore_imports_alerting = "none"
+
+# @sdk-end
 # The entry files.
 [[tool.importlinter.contracts]]
 name = "server mounts config routes and imports no api or infra"

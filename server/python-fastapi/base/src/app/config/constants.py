@@ -44,6 +44,11 @@ class RateLimits:
     otp_per_target: RateLimit  # @auth
     otp_verification_per_ip: RateLimit  # @auth
     create_post_per_ip: RateLimit
+    # @sdk-start
+    # The SDK namespace: a key stands for a publisher's whole audience, an address for one visitor.
+    sdk_per_key: RateLimit
+    sdk_per_ip: RateLimit
+    # @sdk-end
 
 
 RATE_LIMITS: Final = RateLimits(
@@ -55,6 +60,10 @@ RATE_LIMITS: Final = RateLimits(
     otp_per_target=RateLimit(limit=5, window="1h"),  # @auth
     otp_verification_per_ip=RateLimit(limit=20, window="15m"),  # @auth
     create_post_per_ip=RateLimit(limit=30, window="15m"),
+    # @sdk-start
+    sdk_per_key=RateLimit(limit=3000, window="1m"),
+    sdk_per_ip=RateLimit(limit=120, window="1m"),
+    # @sdk-end
 )
 # @auth-start
 

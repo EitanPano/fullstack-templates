@@ -26,3 +26,4 @@ cases:
     deploy: single
     capabilities: { database: postgres }
     withApp: true
+  - { name: sdk, stack: react-python-fastapi, sdk: "sdk-example=sdk/browser" }

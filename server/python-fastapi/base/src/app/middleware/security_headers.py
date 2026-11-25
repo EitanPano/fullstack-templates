@@ -4,6 +4,7 @@ from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.middleware.asgi import with_response_headers
+from app.middleware.context import own_security_headers_of  # @sdk
 
 # helmet 8's defaults, exactly as a real server/bun-express response carried them on 2026-10-23
 # (GET /api/health, a 404 and a 400: the same twelve headers each time). Keeping the set equal
@@ -30,11 +31,24 @@ SECURITY_HEADERS: Final = (
 )
 
 
+# @nosdk-start
 def _set_security_headers(headers: MutableHeaders) -> None:
     for name, value in SECURITY_HEADERS:
         headers[name] = value
 
 
+# @nosdk-end
+# @sdk-start
+def _set_security_headers(headers: MutableHeaders, scope: Scope) -> None:
+    # A response may own some of them: the SDK's frame sets its own policy and has no
+    # X-Frame-Options, and its script is readable cross-origin.
+    own = own_security_headers_of(scope)
+    for name, value in SECURITY_HEADERS:
+        if name not in own:
+            headers[name] = value
+
+
+# @sdk-end
 class SecurityHeadersMiddleware:
     """The outermost middleware, so every response, errors included, carries the headers."""
 
@@ -45,4 +59,13 @@ class SecurityHeadersMiddleware:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
+        # @nosdk-start
         await self.app(scope, receive, with_response_headers(send, _set_security_headers))
+        # @nosdk-end
+        # @sdk-start
+        await self.app(
+            scope,
+            receive,
+            with_response_headers(send, lambda headers: _set_security_headers(headers, scope)),
+        )
+        # @sdk-end

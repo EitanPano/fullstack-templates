@@ -44,6 +44,7 @@ COMPONENTS: Final = frozenset(
         "EntityPage",
         "CreateEntityBody",
         "UpdateEntityBody",
+        "SdkConfig",  # @sdk
         "AuthSession",  # @auth
         "PublicUser",  # @auth
         "AuthTokens",  # @auth

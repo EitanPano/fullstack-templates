@@ -184,6 +184,7 @@ class TestTheShaping:
                 "EntityPage",
                 "CreateEntityBody",
                 "UpdateEntityBody",
+                "SdkConfig",  # @sdk
                 "AuthSession",  # @auth
                 "PublicUser",  # @auth
                 "AuthTokens",  # @auth
@@ -464,3 +465,32 @@ class TestEveryDocumentedPathIsMounted:
 
         assert res.status_code == 404
         assert res.json()["error"]["code"] == "not_found"
+# @sdk-start
+
+
+class TestTheSdkContract:
+    def test_documents_the_sdk_config_endpoint_with_its_key_header_and_the_403_and_429_answers(
+        self,
+    ) -> None:
+        doc = build_openapi_document(app)
+
+        path = as_object(as_object(doc["paths"])["/api/sdk/v1/config"])
+        assert set(path) == {"get"}
+        get = as_object(path["get"])
+        assert get["tags"] == ["sdk"]
+        assert isinstance(get["parameters"], list)
+        parameters = [as_object(parameter) for parameter in get["parameters"]]
+        header = next(parameter for parameter in parameters if parameter["name"] == "x-sdk-key")
+        assert (header["in"], header["required"]) == ("header", True)
+        assert set(as_object(get["responses"])) == {"200", "403", "429", "500"}
+        config = as_object(as_object(as_object(doc["components"])["schemas"])["SdkConfig"])
+        assert names(config["required"]) == {"enabled"}
+        assert as_object(as_object(config["properties"])["enabled"])["type"] == "boolean"
+
+    def test_leaves_the_served_files_out_of_the_document_they_are_not_json(self) -> None:
+        doc = build_openapi_document(app)
+
+        assert [path for path in as_object(doc["paths"]) if path.startswith("/api/sdk/")] == [
+            "/api/sdk/v1/config"
+        ]
+# @sdk-end

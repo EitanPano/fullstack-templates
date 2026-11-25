@@ -14,6 +14,7 @@ from app.middleware.head import HeadMiddleware
 from app.middleware.proxy import ProxyMiddleware
 from app.middleware.request_id import RequestIdMiddleware
 from app.middleware.request_log import RequestLogMiddleware
+from app.middleware.sdk_gate import SdkCorsMiddleware  # @sdk
 from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.server import create_app
 from tests.probe import probe_app
@@ -126,6 +127,7 @@ class TestTheMiddlewareOrder:
             ProxyMiddleware,
             RequestLogMiddleware,
             BodyLimitMiddleware,
+            SdkCorsMiddleware,  # @sdk
             HeadMiddleware,
             CatchAllMiddleware,
         ]
@@ -138,6 +140,7 @@ class TestTheMiddlewareOrder:
             ProxyMiddleware,
             RequestLogMiddleware,
             BodyLimitMiddleware,
+            SdkCorsMiddleware,  # @sdk
             HeadMiddleware,
             CatchAllMiddleware,
         ]

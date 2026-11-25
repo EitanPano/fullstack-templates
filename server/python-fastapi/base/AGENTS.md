@@ -98,6 +98,7 @@ src/app/
   api/<name>/         routes · controller · schema; service only when the entity has data
                       (model.py: reserved, for an engine that defines storage in code)
   api/admin/          the admin namespace: routes.py (gate, mounts) · <name>/ entities
+  api/sdk/            the SDK namespace at /api/sdk/v1: routes.py (gate, mounts) · <name>/ entities <!-- @sdk -->
 <!-- @auth-start -->
                       (health, auth, user, entity: the commented reference)
   models/<name>/      interface · type · enums · constants (auth, session, user, entity)
@@ -626,6 +627,17 @@ command.
 <!-- @noauth-start -->
   That file's gate refuses every request (403) until the product replaces it with its own.
 <!-- @noauth-end -->
+<!-- @sdk-start -->
+- SDK endpoints live in `api/sdk/<name>/`, an entity like any other, at `/api/sdk/v1/<name>`
+  (`sdk` is a namespace); add its router to `ENTITIES` in `api/sdk/routes.py`. That router runs
+  `middleware/sdk_gate.py` first: CORS for this namespace alone (`SdkCorsMiddleware`), the
+  `X-Sdk-Key` header resolved by `services/security/sdk_keys.py` (reads `SDK_KEYS`; replace its
+  bodies with a lookup), then the rate limit by key and address. Within `v1` the namespace only
+  adds: a removal or a change is a `v2` beside it. The SDK's built files
+  (`/api/sdk/dist/v<major>/`) and its frame document (`/api/sdk/frame/v<major>?k=<key>`) come from
+  `SDK_DIR` through `middleware/sdk_files.py`, carry no key and are not in the OpenAPI document.
+  `SDK_ENABLED=false` turns the SDK off.
+<!-- @sdk-end -->
 
 `api/entity/` is the worked example.
 

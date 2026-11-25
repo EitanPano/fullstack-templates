@@ -2,7 +2,7 @@ schemaVersion: 1
 id: python-fastapi
 kind: server
 name: FastAPI on Python 3.14
-version: 3.0.0
+version: 3.1.0
 summary: "Layered FastAPI API on Python 3.14 and uv: pydantic models, OpenAPI from them, one error envelope"
 runtime: { language: python, platform: cpython, minVersion: '3.14' }
 tools:
@@ -57,6 +57,17 @@ commands:
   contract: uv run poe contract
 contract: { produces: openapi.json }
 http: { port: 8000, health: /api/health, ready: /api/health/ready }
+onlyWhen:
+  sdk:
+    - src/app/api/sdk
+    - src/app/middleware/sdk_files.py
+    - src/app/middleware/sdk_gate.py
+    - src/app/services/security/sdk_keys.py
+    - tests/sdk_http.py
+    - tests/services/test_sdk_keys.py
+    - tests/test_sdk_config.py
+    - tests/test_sdk_files.py
+    - tests/test_sdk_frame.py
 gitignore: [python]
 agents: AGENTS.md
 defaultStack: next-python-fastapi
