@@ -129,11 +129,13 @@ S3, the same in the three engines unless a line names one:
   children of `body` and of the root element, and closes the unit when its container has left
   the page. An inline unit needs no watcher: one whose frame has left the page is closed the
   next time a unit is asked for, so it never counts against the cap.
-- Focus moves into the frame and typing lands there. Tab never reaches the page; it passes one
-  empty stop before it wraps, which the kernel leaves alone. On close the kernel removes the
-  dialog and focuses the element that had focus at `open`. WebKit focuses no button on a mouse
-  click, so after one there is nothing to return to and focus falls to the page's body, as it
-  does for that page's own dialogs.
+- Focus moves into the frame and typing lands there: the frame's kernel focuses its field once
+  its window holds the page's focus, since a call made before that is reported in the console
+  by Chromium. Tab never reaches the page; it passes one empty stop before it wraps, which the
+  kernel leaves alone. On close the kernel removes the dialog and focuses the element that had
+  focus at `open`. Safari focuses no button on a mouse click (WebKit on Linux does), so after
+  one there is nothing to return to and focus falls to the page's body, as it does for that
+  page's own dialogs.
 - Escape pressed inside the frame never reaches the dialog. The frame's kernel hears it and
   asks to close, unless the module prevented the key; the dialog's own `cancel` covers focus
   outside the frame. Both report `closed` with `frame`. A click on the scrim closes nothing,
