@@ -8,11 +8,11 @@ import request from 'supertest'
 import sdkRoutes from '../src/api/sdk/routes'
 import { env } from '../src/config/env'
 import { RATE_LIMITS } from '../src/config/constants'
+import { memory } from '../src/infra/memory'
 import { errorHandler } from '../src/middleware/error-handler'
 import { requestId } from '../src/middleware/request-id'
 import * as cache from '../src/services/cache'
 import { app, createApp } from '../src/server'
-import { resetStore } from './store'
 
 const KEY = 'pk_test_a'
 const OTHER_KEY = 'pk_test_b'
@@ -31,7 +31,8 @@ beforeEach(async () => {
     [OTHER_KEY, [C]],
   ])
   env.SDK_ENABLED = true
-  await resetStore()
+  // The rate limits count in the cache; these suites keep no records, so the store is left alone.
+  await memory.close()
 })
 
 afterEach(() => {
