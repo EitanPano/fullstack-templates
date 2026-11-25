@@ -18,6 +18,7 @@ from tests.support import error_of, http_client
 KEY = "pk_test_a"
 A = "https://a.example.test"
 PATH = "/api/sdk/v1/probe"
+SUB_PATH = "/api/sdk/v1/probe/view"
 
 
 @pytest.fixture(autouse=True)
@@ -27,6 +28,10 @@ async def guarded(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[None]:
     @router.get("")
     async def reach() -> dict[str, bool]:
         return {"ok": True}
+
+    @router.post("/view")
+    async def view() -> dict[str, bool]:
+        return {"counted": True}
 
     monkeypatch.setattr(sdk, "ENTITIES", [("/probe", router)])
     monkeypatch.setattr(sdk_keys, "env", load_env({"SDK_KEYS": f"{KEY}={A}"}).env)
@@ -46,6 +51,34 @@ class TestFrameOnly:
             res = await http.get(PATH, headers={"origin": A, "x-sdk-key": KEY})
 
         expect_refused(res)
+
+    async def test_refuses_a_listed_origin_with_its_key_on_a_path_under_a_frame_only_route(
+        self,
+    ) -> None:
+        async with http_client(create_app()) as http:
+            res = await http.post(SUB_PATH, headers={"origin": A, "x-sdk-key": KEY})
+
+        expect_refused(res)
+
+    async def test_answers_a_preflight_for_a_path_under_a_frame_only_route_with_no_allow_header(
+        self,
+    ) -> None:
+        headers = {"origin": A, "access-control-request-method": "POST"}
+
+        async with http_client(create_app()) as http:
+            res = await http.options(SUB_PATH, headers=headers)
+
+        assert res.status_code == 204
+        assert "access-control-allow-origin" not in res.headers
+
+    async def test_answers_a_same_origin_request_with_the_key_on_a_path_under_a_frame_only_route(
+        self,
+    ) -> None:
+        async with http_client(create_app()) as http:
+            res = await http.post(SUB_PATH, headers={"x-sdk-key": KEY})
+
+        assert res.status_code == 200
+        assert res.json() == {"counted": True}
 
     async def test_answers_a_frame_only_preflight_with_no_allow_header(self) -> None:
         headers = {"origin": A, "access-control-request-method": "GET"}

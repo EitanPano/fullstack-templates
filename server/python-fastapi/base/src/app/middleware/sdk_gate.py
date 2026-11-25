@@ -190,7 +190,7 @@ async def frame_only(request: Request) -> None:
     page, a cross-origin caller, is refused, so it never reads or forges it. Mounted after the
     gate, so the key and the limits still apply."""
     if not is_same_origin(request.scope):
-        raise AppError("forbidden", "this endpoint answers the SDK's frame only")
+        raise AppError("forbidden", "this endpoint is for the SDK frame only")
 
 
 async def _by_key(request: Request) -> str | None:
