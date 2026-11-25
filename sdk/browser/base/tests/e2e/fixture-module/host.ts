@@ -1,55 +1,15 @@
-import { major, type HostModule } from '../../../src/core'
-import { createFrameRenderer } from '../../../src/ui'
-
-export type FixtureOptions = {
-  /** Where the unit goes on the host page. */
-  target: () => Element | null
-  text?: string
-  href?: string
-}
+import type { ModuleDeclaration } from '../../../src/core'
 
 /**
- * A feature's host half, for tests only (it lives outside src/, so no build ships it). It draws
- * through the frame renderer and tells the frame what to show once the channel is open.
+ * A feature's host half, for tests only (it lives outside src/, so no build ships it): a
+ * declaration and nothing else. Its slot lists five props (`linkLabel` is read from
+ * `data-link-label`), so any other `data-` attribute of
+ * an element stays on the page. The placeholder is not the block's own height, so a test can tell
+ * the frame's report from the placeholder.
  */
-export function fixtureHost(options: FixtureOptions): HostModule {
-  return {
-    name: 'fixture',
-    start(ctx) {
-      const target = options.target()
-      if (!target) throw new Error('fixture: no element to draw into')
-      const renderer = createFrameRenderer({
-        apiOrigin: ctx.apiOrigin,
-        key: ctx.key,
-        module: 'fixture',
-        title: 'Fixture unit',
-        major,
-        theme: ctx.theme,
-        // Not the block's own height, so a test can tell the frame's report from the placeholder.
-        placeholderHeight: 60,
-        onEvent: ({ name, occlusion, message, module }) =>
-          ctx.emit({
-            name,
-            ...(occlusion ? { occlusion } : {}),
-            ...(message ? { message } : {}),
-            ...(module ? { module } : {}),
-          }),
-        onReady() {
-          renderer.setConsent(ctx.consent())
-          renderer.sendModule('fixture', {
-            text: options.text ?? '',
-            href: options.href ?? '',
-            // A path the frame is to call, named by the page on the element it draws into.
-            ask: target.getAttribute('data-fixture-ask') ?? '',
-          })
-        },
-      })
-      renderer.mount(target)
-      const stopConsent = ctx.onConsent((state) => renderer.setConsent(state))
-      return () => {
-        stopConsent()
-        renderer.destroy()
-      }
-    },
-  }
+export const fixtureHost: ModuleDeclaration = {
+  name: 'fixture',
+  title: 'Fixture unit',
+  placeholderHeight: 60,
+  slot: { props: ['text', 'href', 'image', 'call', 'linkLabel'] },
 }

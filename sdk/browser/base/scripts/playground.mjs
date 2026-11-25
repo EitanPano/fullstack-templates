@@ -1,6 +1,7 @@
 // `bun run dev`: rebuilds the CDN files on change and serves a host page on __PORT__ under the
-// policy an integrator would write. The page loads the loader from the API (`bun run dev` of the
-// server serves dist/cdn), with the dev key the server's local default lists.
+// policy an integrator would write (`img-src 'self'` lets the favicon request pass, so the console
+// shows only the SDK's lines). The page loads the loader from the API (`bun run dev` of the server
+// serves dist/cdn), with the dev key the server's local default lists.
 import { spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
@@ -8,7 +9,7 @@ import { join } from 'node:path'
 
 const root = process.cwd()
 const api = 'http://localhost:__SERVER_PORT__'
-const policy = `default-src 'none'; script-src 'self' ${api}; connect-src ${api}; frame-src ${api}`
+const policy = `default-src 'none'; script-src 'self' ${api}; connect-src ${api}; frame-src ${api}; img-src 'self'`
 const major = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version.split('.')[0]
 
 const bin = join(root, 'node_modules', '.bin', 'tsdown')

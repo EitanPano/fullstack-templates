@@ -1,18 +1,24 @@
-import { EVENT_NAMES } from '../protocol'
+import { isModuleName } from '../protocol'
 
-import type { ModuleBus, SdkEvent, SdkEventHandler, SdkEventName, Unsubscribe } from './types'
+import type { SdkEvent, SdkEventHandler, Unsubscribe } from './types'
 
 const noop: Unsubscribe = () => undefined
 
+/** `rendered`, `closed`, `error` and the events of a module: `<module>:<event>`. */
+export function isEventName(name: unknown): name is string {
+  if (typeof name !== 'string') return false
+  if (name === 'rendered' || name === 'closed' || name === 'error') return true
+  const parts = name.split(':')
+  return parts.length === 2 && isModuleName(parts[0]) && isModuleName(parts[1])
+}
+
 /** The event bus. A handler is the host's code: it may throw, and never reaches the SDK. */
 export function createBus() {
-  const handlers = new Map<SdkEventName, Set<SdkEventHandler>>()
+  const handlers = new Map<string, Set<SdkEventHandler>>()
 
   return {
-    on(name: SdkEventName, handler: SdkEventHandler): Unsubscribe {
-      if (!(EVENT_NAMES as readonly string[]).includes(name) || typeof handler !== 'function') {
-        return noop
-      }
+    on(name: string, handler: SdkEventHandler): Unsubscribe {
+      if (!isEventName(name) || typeof handler !== 'function') return noop
       const set = handlers.get(name) ?? new Set()
       set.add(handler)
       handlers.set(name, set)
@@ -33,37 +39,3 @@ export function createBus() {
 }
 
 export type Bus = ReturnType<typeof createBus>
-
-/**
- * The bus modules meet on: topics and data, no lookup of another module. A handler that throws
- * does not stop the others and never reaches the emitter. `close` ends it with the instance.
- */
-export function createModuleBus(): ModuleBus & { close(): void } {
-  const topics = new Map<string, Set<(data: unknown) => void>>()
-  let closed = false
-  return {
-    emit(topic, data) {
-      if (closed) return
-      for (const handler of [...(topics.get(topic) ?? [])]) {
-        try {
-          handler(data)
-        } catch {
-          // A module's handler failing is that module's: it never stops the next.
-        }
-      }
-    },
-    on(topic, handler) {
-      if (closed || typeof handler !== 'function') return noop
-      const set = topics.get(topic) ?? new Set()
-      set.add(handler)
-      topics.set(topic, set)
-      return () => {
-        set.delete(handler)
-      }
-    },
-    close() {
-      closed = true
-      topics.clear()
-    },
-  }
-}

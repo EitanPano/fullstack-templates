@@ -1,6 +1,9 @@
 {
   "openapi": "3.1.0",
-  "info": { "title": "Example API", "version": "1.0.0" },
+  "info": {
+    "title": "Example API",
+    "version": "1.0.0"
+  },
   "paths": {
     "/api/sdk/v1/config": {
       "get": {
@@ -9,8 +12,31 @@
           "200": {
             "description": "The kill switch.",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/SdkConfig" } }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SdkConfig"
+                }
+              }
             }
+          }
+        }
+      }
+    },
+    "/api/sdk/v1/telemetry": {
+      "post": {
+        "operationId": "postSdkTelemetry",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SdkTelemetryBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "The events were taken."
           }
         }
       }
@@ -22,7 +48,11 @@
           "200": {
             "description": "Not for the SDK.",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/OtherThing" } }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OtherThing"
+                }
+              }
             }
           }
         }
@@ -34,12 +64,35 @@
       "SdkConfig": {
         "type": "object",
         "required": ["enabled"],
-        "properties": { "enabled": { "type": "boolean" } }
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SdkTelemetryBody": {
+        "type": "object",
+        "required": ["events"],
+        "properties": {
+          "events": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
       },
       "OtherThing": {
         "type": "object",
         "required": ["secretField"],
-        "properties": { "secretField": { "type": "string" } }
+        "properties": {
+          "secretField": {
+            "type": "string"
+          }
+        }
       }
     }
   }

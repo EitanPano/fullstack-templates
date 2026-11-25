@@ -13,8 +13,6 @@ const make = (
   createTransport({
     apiOrigin: ORIGIN,
     key: 'pk_a',
-    allowTelemetry: () => true,
-    win: window,
     fetch: fetchImpl,
     retryDelayMs: 0,
     ...extra,
@@ -36,6 +34,11 @@ describe('transport request', () => {
     expect('cache' in init).toBe(false)
     expect(init.signal).toBeInstanceOf(AbortSignal)
     transport.dispose()
+  })
+
+  it('has no telemetry buffer: it only reads and disposes', () => {
+    const transport = make(vi.fn(async () => json({})))
+    expect(Object.keys(transport).sort()).toEqual(['dispose', 'getJson'])
   })
 
   it('fails on a slow read after the timeout', async () => {
@@ -82,46 +85,5 @@ describe('transport request', () => {
     const fetchImpl = vi.fn(async () => new Response('<html>', { status: 200 }))
     const transport = make(fetchImpl, { retries: 0 })
     await expect(transport.getJson('/x')).rejects.toThrow()
-  })
-})
-
-describe('transport telemetry', () => {
-  const hide = () => {
-    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
-    document.dispatchEvent(new Event('visibilitychange'))
-  }
-
-  it('drains once as JSON with keepalive when both page events fire', async () => {
-    const fetchImpl = vi.fn(async () => json({}, 202))
-    const transport = make(fetchImpl)
-    transport.track({ n: 1 })
-    transport.track({ n: 2 })
-    hide()
-    window.dispatchEvent(new Event('pagehide'))
-    expect(fetchImpl).toHaveBeenCalledTimes(1)
-    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]
-    expect(url).toBe(`${ORIGIN}/api/sdk/v1/telemetry`)
-    expect(init.method).toBe('POST')
-    expect(init.keepalive).toBe(true)
-    expect(init.credentials).toBe('omit')
-    expect(JSON.parse(init.body as string)).toEqual({ events: [{ n: 1 }, { n: 2 }] })
-    transport.dispose()
-  })
-
-  it('sends nothing while consent does not allow it', () => {
-    const fetchImpl = vi.fn(async () => json({}))
-    const transport = make(fetchImpl, { allowTelemetry: () => false })
-    transport.track({ n: 1 })
-    hide()
-    window.dispatchEvent(new Event('pagehide'))
-    expect(fetchImpl).not.toHaveBeenCalled()
-  })
-
-  it('never throws when the send fails', () => {
-    const fetchImpl = vi.fn(() => Promise.reject(new TypeError('network')))
-    const transport = make(fetchImpl as unknown as typeof fetch)
-    transport.track({ n: 1 })
-    expect(() => transport.flush()).not.toThrow()
-    transport.dispose()
   })
 })

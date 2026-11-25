@@ -17,6 +17,12 @@ export type SdkConfig = {
     enabled: boolean;
 };
 
+export type SdkTelemetryBody = {
+    events: Array<{
+        [key: string]: unknown;
+    }>;
+};
+
 export type GetSdkConfigData = {
     body?: never;
     headers: {
@@ -55,3 +61,50 @@ export type GetSdkConfigResponses = {
 };
 
 export type GetSdkConfigResponse = GetSdkConfigResponses[keyof GetSdkConfigResponses];
+
+export type PostSdkTelemetryData = {
+    body?: SdkTelemetryBody;
+    headers: {
+        /**
+         * The publishable key of the integration
+         */
+        'x-sdk-key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/sdk/v1/telemetry';
+};
+
+export type PostSdkTelemetryErrors = {
+    /**
+     * Validation failed
+     */
+    400: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Payload too large
+     */
+    413: ErrorBody;
+    /**
+     * Rate limited
+     */
+    429: ErrorBody;
+    /**
+     * Unexpected error
+     */
+    500: ErrorBody;
+};
+
+export type PostSdkTelemetryError = PostSdkTelemetryErrors[keyof PostSdkTelemetryErrors];
+
+export type PostSdkTelemetryResponses = {
+    /**
+     * The events were taken
+     */
+    204: void;
+};
+
+export type PostSdkTelemetryResponse = PostSdkTelemetryResponses[keyof PostSdkTelemetryResponses];

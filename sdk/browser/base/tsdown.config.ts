@@ -1,9 +1,9 @@
 import { defineConfig } from 'tsdown'
 
-import { cdnConfigs, define } from './tsdown.shared.ts'
+import { MODULE_SHEETS, cdnConfigs, define } from './tsdown.shared.ts'
 
 // One config, three outputs from one source (ADR 0020 T2.1): the npm entry (ESM, CJS, both
-// declaration files), the CDN loader (one IIFE) and the frame (script and document).
+// declaration files), the CDN loader (one IIFE) and the frame (script, stylesheet and document).
 // `scripts/clean.mjs` empties dist/ first, so the configs never clean each other's files.
 export default defineConfig([
   {
@@ -21,5 +21,6 @@ export default defineConfig([
     loader: 'src/entries/cdn.ts',
     frame: 'src/entries/frame.ts',
     outDir: 'dist/cdn',
+    moduleSheets: MODULE_SHEETS,
   }),
 ])

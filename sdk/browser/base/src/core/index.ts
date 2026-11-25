@@ -2,16 +2,16 @@ export { bootCdn, installCdn, scriptOrigin } from './cdn'
 export { createSdk } from './sdk'
 export type { Sdk, SdkDeps } from './sdk'
 export type {
+  CloseReason,
   ConsentState,
-  HostContext,
-  HostModule,
+  ErrorCode,
   InitOptions,
-  ModuleBus,
-  Occlusion,
+  ModuleDeclaration,
+  Props,
   SdkEvent,
   SdkEventHandler,
-  SdkEventName,
   Theme,
+  Unit,
   Unsubscribe,
 } from './types'
 export { major, version } from './version'

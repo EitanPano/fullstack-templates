@@ -1,9 +1,7 @@
-import {
-  TELEMETRY_PATH,
-  createTelemetryBuffer,
-  requestInit,
-  type TelemetryBuffer,
-} from '../protocol'
+import type { SdkTelemetryBody } from '../contract'
+import { requestInit } from '../protocol'
+
+import { TELEMETRY_PATH, createTelemetryBuffer, type TelemetryBuffer } from './telemetry'
 
 const TIMEOUT_MS = 3000
 const NAMESPACE = '/api/sdk/'
@@ -33,10 +31,12 @@ export function createSender(options: SenderOptions): Sender {
     send: (events) => {
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
+      // The buffer holds plain JSON objects only, which is what the server takes.
+      const body: SdkTelemetryBody = { events: events as SdkTelemetryBody['events'] }
       const init = requestInit({
         key: options.key,
         signal: controller.signal,
-        body: { events },
+        body,
         keepalive: true,
       })
       const call = options.fetch ?? fetch
@@ -97,6 +97,8 @@ export function createSender(options: SenderOptions): Sender {
     ...buffer,
     request,
     dispose() {
+      // Used by tests only: in a page the frame ends with its iframe. What is buffered goes out first.
+      buffer.flush()
       for (const controller of inFlight) controller.abort()
       inFlight.clear()
       buffer.dispose()

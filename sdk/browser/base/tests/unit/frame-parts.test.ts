@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { appendText, createLink } from '../../src/frame/dom'
+import { appendText, createImage, createLink } from '../../src/frame/dom'
 import { listenForHandshake } from '../../src/frame/handshake'
-import { createMeter } from '../../src/frame/meter'
+import { observeView } from '../../src/frame/view'
 import { createSender } from '../../src/frame/sender'
 import { observeHeight } from '../../src/frame/size'
 import { HANDSHAKE_KIND, PROTOCOL_VERSION } from '../../src/protocol'
@@ -90,21 +90,35 @@ describe('size report', () => {
     expect(report.mock.calls).toEqual([[151], [200]])
   })
 
+  it('reports the height it can measure at once, and not again for the same height', () => {
+    const resize = installResize()
+    vi.spyOn(document.documentElement, 'getBoundingClientRect').mockReturnValue({
+      height: 90.4,
+    } as DOMRect)
+    const report = vi.fn()
+    observeHeight({ win: window, report })
+    expect(report.mock.calls).toEqual([[91]])
+    resize.fire(90.4)
+    resize.fire(120)
+    expect(report.mock.calls).toEqual([[91], [120]])
+    vi.restoreAllMocks()
+  })
+
   it('does nothing where the engine has no ResizeObserver', () => {
     vi.stubGlobal('ResizeObserver', undefined)
     expect(() => observeHeight({ win: window, report: vi.fn() })).not.toThrow()
   })
 })
 
-describe('visibility meter', () => {
+describe('observeView', () => {
   let io: ReturnType<typeof installIntersection>
   const target = () => document.body.appendChild(document.createElement('div'))
-  const start = (v2: boolean) => {
+  const start = (v2: boolean, ratio = 0.5, dwellMs = 1000) => {
     io = installIntersection(v2)
     vi.useFakeTimers()
     const onView = vi.fn()
-    const meter = createMeter({ win: window, target: target(), onView })
-    return { onView, meter }
+    const stop = observeView(target(), { ratio, dwellMs, onView })
+    return { onView, stop }
   }
 
   beforeEach(() => {
@@ -112,13 +126,28 @@ describe('visibility meter', () => {
     setViewport(1024, 768)
   })
 
-  it('sees the unit after a continuous second at half the pixels, with the check that ran', () => {
+  it('sees the target after the dwell time at the ratio, with the check that ran', () => {
     const { onView } = start(true)
     io.current().fire({ intersectionRatio: 0.6, isVisible: true })
     vi.advanceTimersByTime(999)
     expect(onView).not.toHaveBeenCalled()
     vi.advanceTimersByTime(1)
     expect(onView).toHaveBeenCalledWith('checked')
+  })
+
+  it('takes the ratio and the dwell time from the caller', () => {
+    const { onView } = start(false, 0.9, 300)
+    io.current().fire({ intersectionRatio: 0.8 })
+    vi.advanceTimersByTime(2000)
+    expect(onView).not.toHaveBeenCalled()
+    io.current().fire({ intersectionRatio: 0.95 })
+    vi.advanceTimersByTime(300)
+    expect(onView).toHaveBeenCalledWith('unavailable')
+  })
+
+  it('observes with the ratio among its thresholds', () => {
+    start(false, 0.9)
+    expect(io.current().options.threshold).toContain(0.9)
   })
 
   it('says the check was unavailable where the engine lacks it', () => {
@@ -135,7 +164,7 @@ describe('visibility meter', () => {
     expect(io.current().options.trackVisibility).toBeUndefined()
   })
 
-  it('does not see it when the ratio drops inside the second', () => {
+  it('does not see it when the ratio drops inside the dwell time', () => {
     const { onView } = start(true)
     io.current().fire({ intersectionRatio: 0.6, isVisible: true })
     vi.advanceTimersByTime(600)
@@ -182,10 +211,29 @@ describe('visibility meter', () => {
     expect(io.current().disconnected).toBe(true)
   })
 
+  it('stops on the returned function: no view, observer disconnected', () => {
+    const { onView, stop } = start(false)
+    io.current().fire({ intersectionRatio: 1 })
+    stop()
+    vi.advanceTimersByTime(5000)
+    expect(onView).not.toHaveBeenCalled()
+    expect(io.current().disconnected).toBe(true)
+  })
+
+  it('does nothing for a target with no window', () => {
+    const detached = document.implementation.createHTMLDocument('x').createElement('div')
+    start(false)
+    const onView = vi.fn()
+    const stop = observeView(detached, { ratio: 0.5, dwellMs: 10, onView })
+    expect(() => stop()).not.toThrow()
+    expect(onView).not.toHaveBeenCalled()
+  })
+
   it('never sees anything where the engine has no IntersectionObserver', () => {
     vi.stubGlobal('IntersectionObserver', undefined)
     const onView = vi.fn()
-    expect(() => createMeter({ win: window, target: target(), onView })).not.toThrow()
+    const stop = observeView(target(), { ratio: 0.5, dwellMs: 1000, onView })
+    expect(() => stop()).not.toThrow()
     expect(onView).not.toHaveBeenCalled()
   })
 })
@@ -199,9 +247,9 @@ describe('untrusted strings', () => {
   })
 
   it('draws a link only when it is https, with no opener', () => {
-    const link = createLink(document, 'https://example.test/offer', '<b>Offer</b>')
-    expect(link?.getAttribute('href')).toBe('https://example.test/offer')
-    expect(link?.textContent).toBe('<b>Offer</b>')
+    const link = createLink(document, 'https://example.test/page', '<b>Page</b>')
+    expect(link?.getAttribute('href')).toBe('https://example.test/page')
+    expect(link?.textContent).toBe('<b>Page</b>')
     expect(link?.children).toHaveLength(0)
     expect(link?.getAttribute('rel')).toBe('noopener noreferrer')
     expect(link?.getAttribute('target')).toBe('_blank')
@@ -213,6 +261,48 @@ describe('untrusted strings', () => {
       expect(createLink(document, href, 'x')).toBeNull()
     },
   )
+})
+
+describe('frame images', () => {
+  it('draws an https image with a text alternative and the safe attributes', () => {
+    const img = createImage(document, 'https://img.example.test/a.png', 'A fixture picture')
+    expect(img?.tagName).toBe('IMG')
+    expect(img?.getAttribute('src')).toBe('https://img.example.test/a.png')
+    expect(img?.getAttribute('alt')).toBe('A fixture picture')
+    expect(img?.getAttribute('loading')).toBe('lazy')
+    expect(img?.getAttribute('decoding')).toBe('async')
+    expect(img?.getAttribute('referrerpolicy')).toBe('no-referrer')
+  })
+
+  it('takes an empty alternative for a decorative image', () => {
+    expect(createImage(document, 'https://img.example.test/a.png', '')?.getAttribute('alt')).toBe(
+      '',
+    )
+  })
+
+  it('takes an address of the frame document own origin', () => {
+    const own = createImage(document, `${window.location.origin}/api/sdk/img/a.png`, 'x')
+    expect(own?.getAttribute('src')).toBe(`${window.location.origin}/api/sdk/img/a.png`)
+    expect(createImage(document, '/api/sdk/img/a.png', 'x')?.getAttribute('src')).toBe(
+      `${window.location.origin}/api/sdk/img/a.png`,
+    )
+  })
+
+  it.each([
+    'http://img.example.test/a.png',
+    'javascript:alert(1)',
+    'data:image/png;base64,AAAA',
+    'blob:https://img.example.test/1',
+    '//img.example.test/a.png',
+    'ftp://img.example.test/a.png',
+    '',
+  ])('refuses the address %j', (src) => {
+    expect(createImage(document, src, 'x')).toBeNull()
+  })
+
+  it('refuses a missing alternative', () => {
+    expect(createImage(document, 'https://img.example.test/a.png', undefined as never)).toBeNull()
+  })
 })
 
 describe('frame sender', () => {
@@ -249,6 +339,59 @@ describe('frame sender', () => {
     window.dispatchEvent(new Event('pagehide'))
     expect(fetchImpl).not.toHaveBeenCalled()
     sender.dispose()
+  })
+})
+
+describe('frame telemetry', () => {
+  const sender = (allowed: boolean, bodies: string[] = []) => {
+    const fetchImpl = vi.fn(async (_url: string, init: RequestInit) => {
+      bodies.push(init.body as string)
+      return new Response('{}')
+    })
+    return {
+      fetchImpl,
+      sender: createSender({
+        key: 'pk_a',
+        win: window,
+        allowed: () => allowed,
+        fetch: fetchImpl as unknown as typeof fetch,
+      }),
+    }
+  }
+
+  it('caps a batch by bytes under the keepalive limit and sends the rest next time', () => {
+    const bodies: string[] = []
+    const { sender: s } = sender(true, bodies)
+    const chunk = 'x'.repeat(20_000)
+    for (let n = 0; n < 5; n += 1) s.push({ n, chunk })
+    s.flush()
+    s.flush()
+    s.flush()
+    expect(bodies.length).toBeGreaterThanOrEqual(2)
+    for (const body of bodies) expect(body.length).toBeLessThan(64 * 1024)
+    const sent = bodies.flatMap((body) => (JSON.parse(body) as { events: { n: number }[] }).events)
+    expect(sent.map((item) => item.n)).toEqual([0, 1, 2, 3, 4])
+    s.dispose()
+  })
+
+  it('sends at most 100 items in a batch', () => {
+    const bodies: string[] = []
+    const { sender: s } = sender(true, bodies)
+    for (let n = 0; n < 150; n += 1) s.push({ n })
+    s.flush()
+    expect((JSON.parse(bodies[0] as string) as { events: unknown[] }).events).toHaveLength(100)
+    s.dispose()
+  })
+
+  it('flushes what is buffered when it is disposed, and sends nothing without consent', () => {
+    const allowed = sender(true)
+    allowed.sender.push({ n: 1 })
+    allowed.sender.dispose()
+    expect(allowed.fetchImpl).toHaveBeenCalledTimes(1)
+    const denied = sender(false)
+    denied.sender.push({ n: 1 })
+    denied.sender.dispose()
+    expect(denied.fetchImpl).not.toHaveBeenCalled()
   })
 })
 

@@ -1,0 +1,52 @@
+[data-module='fixture'] [data-fixture-block] {
+  box-sizing: border-box;
+  height: 120px;
+  padding: calc(var(--sdk-space) * 2);
+  font-family: var(--sdk-font);
+  color: var(--sdk-text);
+  font-size: 16px;
+}
+
+/* What the unit draws sits on its own surface, so a contrast check inside the frame can compute
+   it: the frame itself is transparent and the page behind it is not the frame's to know. */
+[data-module='fixture'] [data-fixture-block] > * {
+  background: var(--sdk-surface);
+}
+
+[data-module='fixture'] [data-fixture-block] p {
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+[data-module='fixture'] [data-fixture-block] [data-fixture-empty] {
+  color: var(--sdk-muted);
+}
+
+[data-module='fixture'] [data-fixture-block] button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+[data-module='fixture'] [data-fixture-block] a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--sdk-accent);
+}
+
+[data-module='fixture'] [data-fixture-block] img {
+  display: block;
+  max-width: 100%;
+  max-height: 48px;
+  border-radius: var(--sdk-radius);
+}
+
+/* The one rule that changes with the frame's width: a spec reads the font size to tell the sheet
+   applied. */
+@media (max-width: 480px) {
+  [data-module='fixture'] [data-fixture-block] {
+    font-size: 12px;
+  }
+}

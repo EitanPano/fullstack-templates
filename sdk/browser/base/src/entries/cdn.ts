@@ -1,6 +1,7 @@
 import { bootCdn } from '../core'
 
-import { GLOBAL_NAME } from './global-name'
+import { GLOBAL_NAME, SLOT_ATTRIBUTE } from './global-name'
+import { hostModules } from './host-modules'
 
-// The CDN loader: one IIFE, one global. No module ships, so it only carries the kernel.
-bootCdn({ modules: [], globalName: GLOBAL_NAME })
+// The CDN loader: one IIFE, one global, with the modules this build declares.
+bootCdn({ modules: hostModules, globalName: GLOBAL_NAME, slotAttribute: SLOT_ATTRIBUTE })

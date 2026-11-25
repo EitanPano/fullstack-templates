@@ -98,6 +98,21 @@ describe('size script: the major and the unlisted outputs', () => {
     )
     expect(result.failures).toEqual(['dist/cdn/v1/chunk.js: has no size budget'])
   })
+
+  it('fails a .css output of the served folder that has no budget', async () => {
+    const { checkSizes } = await load<Size>('lib/size.mjs')
+    const result = checkSizes(build('1.0.0', ['dist/cdn/v1/loader.js', 'dist/cdn/v1/frame.css']))
+    expect(result.failures).toEqual(['dist/cdn/v1/frame.css: has no size budget'])
+  })
+
+  it('passes a .css output that has a budget', async () => {
+    const { checkSizes } = await load<Size>('lib/size.mjs')
+    const root = build('1.0.0', ['dist/cdn/v1/loader.js', 'dist/cdn/v1/frame.css'])
+    const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
+    pkg.sdk.sizeBudget['dist/cdn/v{major}/frame.css'] = 100
+    writeFileSync(join(root, 'package.json'), JSON.stringify(pkg))
+    expect(checkSizes(root).failures).toEqual([])
+  })
 })
 
 describe('api report gate', () => {

@@ -5,10 +5,16 @@
 ```ts
 
 // public (undocumented)
+export type CloseReason = 'host' | 'frame' | 'timeout' | 'failed' | 'disabled' | 'slot_removed';
+
+// public (undocumented)
 export type ConsentState = 'granted' | 'denied';
 
 // public (undocumented)
 export const destroy: () => void;
+
+// public
+export type ErrorCode = 'bad_options' | 'bad_key' | 'no_api_origin' | 'bad_api_origin' | 'config_failed' | 'global_taken' | 'not_initialised' | 'unknown_module' | 'bad_slot' | 'bad_display' | 'modal_open' | 'bad_target' | 'bad_props' | 'props_too_large' | 'too_many_units' | 'module_failed' | 'internal';
 
 // public (undocumented)
 export const init: (options: InitOptions) => void;
@@ -19,30 +25,40 @@ export type InitOptions = {
     apiOrigin?: string;
     theme?: Theme;
     consent?: ConsentState;
+    observe?: boolean;
 };
 
 // public (undocumented)
-export type Occlusion = 'checked' | 'unavailable';
+export const mount: (module: string, target: Element, props?: Props) => Unit;
 
 // public (undocumented)
-export const on: (name: SdkEventName, handler: SdkEventHandler) => Unsubscribe;
+export const on: (name: string, handler: SdkEventHandler) => Unsubscribe;
+
+// public (undocumented)
+const open_2: (module: string, props?: Props) => Unit;
+export { open_2 as open }
+
+// public
+export type Props = Record<string, unknown>;
 
 // public
 export type SdkEvent = {
-    name: SdkEventName;
-    occlusion?: Occlusion;
-    message?: string;
+    name: string;
     module?: string;
+    unit?: string;
+    data?: unknown;
+    code?: string;
+    reason?: CloseReason;
 };
 
 // public (undocumented)
 export type SdkEventHandler = (event: SdkEvent) => void;
 
 // public (undocumented)
-export type SdkEventName = 'rendered' | 'viewed' | 'clicked' | 'error';
+export const setConsent: (state: ConsentState) => void;
 
 // public (undocumented)
-export const setConsent: (state: ConsentState) => void;
+export const setTheme: (theme: Theme) => void;
 
 // public (undocumented)
 export type Theme = {
@@ -51,6 +67,14 @@ export type Theme = {
     accent?: string;
     radius?: string;
     font?: string;
+};
+
+// public
+export type Unit = {
+    id: string;
+    module: string;
+    update(props: Props): void;
+    close(): void;
 };
 
 // public (undocumented)

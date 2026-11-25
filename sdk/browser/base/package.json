@@ -50,11 +50,12 @@
   },
   "sdk": {
     "sizeBudget": {
-      "dist/index.js": 12500,
-      "dist/index.cjs": 12700,
-      "dist/cdn/v{major}/loader.js": 7000,
-      "dist/cdn/v{major}/frame.js": 7150,
-      "dist/cdn/v{major}/frame.html": 300
+      "dist/index.js": 31600,
+      "dist/index.cjs": 31800,
+      "dist/cdn/v{major}/loader.js": 16400,
+      "dist/cdn/v{major}/frame.js": 7300,
+      "dist/cdn/v{major}/frame.html": 320,
+      "dist/cdn/v{major}/frame.css": 1650
     }
   },
   "devDependencies": {
